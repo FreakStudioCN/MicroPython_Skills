@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-gen-readme",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-gen-readme",
+  "branch": "main",
+  "source": "manual"
+}
