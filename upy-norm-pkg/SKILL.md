@@ -110,6 +110,16 @@ description: Use this skill when the user wants to normalize/standardize an exis
 每步开始前显示进度：`[步骤 X/5 — skill名称: 文件名]`
 每步完成后暂停等待用户确认，再进入下一步。
 
+## 上下文控制
+
+**每步用户确认写入文件后，不得在对话中保留该文件的完整内容。** 仅保留一行摘要，格式：
+```
+已写入 <文件名>，共 <N> 行，<执行项简述>
+```
+例如：`已写入 bmp280.py，共 312 行，P0 全部执行，P2 执行 bytearray 复用缓冲区`
+
+后续步骤不得引用或重新展开已写入文件的内容。
+
 ## 完整规范参考
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
