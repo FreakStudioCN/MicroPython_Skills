@@ -28,12 +28,60 @@ GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-D
 
 ## 安装方法
 
-### 前置要求
+> **网络受限？** 推荐使用下方的「本地安装」方式，无需网络，直接克隆仓库后复制即可。
 
-- [Claude Code](https://claude.ai/code) 已安装
-- Node.js 已安装（用于 npx）
+### 方式一：本地安装（推荐，无需网络）
 
-### 安装单个 Skill
+**适用场景**：网络受限、离线环境，或已克隆本仓库到本地。
+
+**第一步**：克隆本仓库（或直接下载 ZIP 解压）
+
+```bash
+git clone https://github.com/FreakStudioCN/MicroPython_Skills.git
+```
+
+**第二步**：将 skill 目录复制到 Claude Code 的 skills 目录
+
+skills 目录固定为 `~/.claude/skills/`，根据操作系统展开如下：
+
+| 系统 | 实际路径 |
+|---|---|
+| Windows | `C:\Users\<用户名>\.claude\skills\` |
+| macOS | `/Users/<用户名>/.claude/skills/` |
+| Linux | `/home/<用户名>/.claude/skills/` |
+
+**macOS / Linux**：
+```bash
+# 安装单个 skill
+cp -r MicroPython_Skills/upy-norm-driver ~/.claude/skills/
+
+# 安装全部 skill（在克隆目录内执行）
+cd MicroPython_Skills
+for skill in upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
+             upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver; do
+  cp -r $skill ~/.claude/skills/
+done
+```
+
+**Windows（PowerShell）**：
+```powershell
+# 安装单个 skill
+Copy-Item -Recurse MicroPython_Skills\upy-norm-driver $env:USERPROFILE\.claude\skills\
+
+# 安装全部 skill（在克隆目录内执行）
+cd MicroPython_Skills
+$skills = @("upy-norm-driver","upy-norm-main","upy-gen-main","upy-gen-readme",
+            "upy-gen-pkg","upy-norm-pkg","upy-opt-driver","upy-slim-driver","upy-pack-driver")
+foreach ($skill in $skills) {
+  Copy-Item -Recurse $skill $env:USERPROFILE\.claude\skills\
+}
+```
+
+**第三步**：重启 Claude Code，skills 即生效。
+
+---
+
+### 方式二：在线安装（需要网络 + Node.js）
 
 ```bash
 npx skillfish add FreakStudioCN/MicroPython_Skills upy-norm-driver
@@ -47,10 +95,11 @@ npx skillfish add FreakStudioCN/MicroPython_Skills upy-slim-driver
 npx skillfish add FreakStudioCN/MicroPython_Skills upy-pack-driver
 ```
 
-### 安装全部 Skill
+或一键安装全部：
 
 ```bash
-for skill in upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver; do
+for skill in upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
+             upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver; do
   npx skillfish add FreakStudioCN/MicroPython_Skills $skill
 done
 ```
