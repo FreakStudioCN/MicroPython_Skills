@@ -11,7 +11,7 @@ description: Use this skill when the user wants to generate a new main.py test f
 
 ## 执行步骤
 
-1. 读取用户指定的驱动 `.py` 文件
+1. 读取用户指定的驱动 `.py` 文件；**必须重新读取文件的完整内容，不得使用会话缓存或跳过读取步骤**
 2. 分析驱动：提取所有公共方法、属性、常量、构造参数、通信接口类型
 3. 按芯片功能维度分类 API（见下方维度表）
 4. 按全量覆盖原则生成测试代码
@@ -52,16 +52,17 @@ description: Use this skill when the user wants to generate a new main.py test f
 
 | # | 内容 | 说明 |
 |---|---|---|
-| 1 | 文件头 7 行注释 | 含 `@File : main.py`、`@Description : 测试XXX驱动类` |
+| 1 | 文件头 7 行注释 | 含 `@File : main.py`、`@Description : 测试XXX驱动类`；`@Author` 从驱动文件 `__author__` 字段读取并沿用，若无则提示用户填写，不得使用占位符 |
 | 2 | 6 个分区标注注释 | 顺序正确 |
 | 3 | `time.sleep(3)` | 初始化配置区开头 |
 | 4 | `print("FreakStudio: ...")` | 说明当前测试的驱动模块 |
 | 5 | 硬件对象实例化 | 在初始化配置区，根据驱动构造参数生成 |
+| 5a | I2C 设备扫描 + ID 验证 | 若驱动使用 I2C，初始化配置区必须包含完整扫描逻辑：① `i2c.scan()` 扫描总线，若列表为空则 `raise RuntimeError("No I2C device found")`；② 遍历设备列表，找到目标地址则记录，未找到则 `raise RuntimeError("Device not found at expected address")`；③ 读取芯片 ID 寄存器与期望值比对，打印 "Device found" 或 "Device not found"；设备 ID 寄存器地址、期望值声明为全局变量区常量（`UPPER_CASE`）；I2C 扫描所需的额外 `import`（如 `import micropython`）必须放在导入区，不得在初始化配置区内 `import` |
 | 6 | 所有公共 API 的调用代码 | 低频自动执行，高频/模式切换注释调用 |
 | 7 | `try/except/finally` | 主程序区包裹，含 KeyboardInterrupt/OSError/Exception 三种捕获 |
 | 8 | finally 资源清理 | `close()`/`deinit()`、`del`、退出提示 |
 | 9 | raise/print 全英文 | 运行时字符串全部英文 |
-| 10 | 行内注释中文 | 所有行内注释使用中文 |
+| 10 | 行内注释中文 | 所有注释使用中文；函数内部关键操作步骤（硬件初始化、数据读取、条件判断、资源清理等）须加中文注释说明；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
 
 ### 关键规范摘要
 
@@ -73,7 +74,7 @@ description: Use this skill when the user wants to generate a new main.py test f
 # @Author  : FreakStudio
 # @File    : main.py
 # @Description : 测试XXX驱动类的代码
-# @License : CC BY-NC 4.0
+# @License : MIT
 ```
 
 **全局变量区**（只允许简单赋值，禁止实例化）
@@ -130,15 +131,9 @@ finally:
 
 ## 输出格式
 
-直接输出完整的 `main.py` 文件内容，使用代码块包裹。文件末尾附简短说明：列出覆盖了哪些 API、哪些设为了自动执行、哪些注释为手动调用及原因。
-
----
-
-## 完整规范参考
-
-本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考同仓库中的 `upy_driver_dev_spec_summary.md`，或在线查看：
-
-[upy_driver_dev_spec_summary.md](../upy_driver_dev_spec_summary.md)
+1. 输出完整的 `main.py` 文件内容（代码块预览）。
+2. 附简短说明：列出覆盖了哪些 API、哪些设为了自动执行、哪些注释为手动调用及原因。
+3. 询问用户："确认写入同目录下的 `main.py` 吗？"，用户确认后将内容写入文件。
 
 
 ## 完整规范参考
@@ -146,3 +141,16 @@ finally:
 本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考：
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
+
+## 自省与进化
+
+每次执行完成后，检查是否遇到以下情况：
+- 规则未覆盖的边界情况
+- 用户指出的输出错误或规则缺陷
+- 新发现的约束需求
+
+若有，立即执行：
+1. 将新规则追加到本文件对应章节
+2. 将相同修改同步写入 `G:/MicroPython_Skills/upy-gen-main/SKILL.md`
+3. 在 `G:/MicroPython_Skills/` 目录执行：
+   `git add upy-gen-main/SKILL.md && git commit -m "skill(upy-gen-main): <规则描述>"`

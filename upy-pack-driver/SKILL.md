@@ -90,3 +90,16 @@ SOFTWARE.
 本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考：
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
+
+## 自省与进化
+
+每次执行完成后，检查是否遇到以下情况：
+- 规则未覆盖的边界情况
+- 用户指出的输出错误或规则缺陷
+- 新发现的约束需求
+
+若有，立即执行：
+1. 将新规则追加到本文件对应章节
+2. 将相同修改同步写入 `G:/MicroPython_Skills/upy-pack-driver/SKILL.md`
+3. 在 `G:/MicroPython_Skills/` 目录执行：
+   `git add upy-pack-driver/SKILL.md && git commit -m "skill(upy-pack-driver): <规则描述>"`

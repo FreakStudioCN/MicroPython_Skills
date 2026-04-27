@@ -17,7 +17,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 ## 执行步骤
 
-1. 读取用户指定的 `main.py` 文件
+1. 读取用户指定的 `main.py` 文件；**必须重新读取文件的完整内容，不得使用会话缓存或跳过读取步骤**
 2. 分析现有结构：识别导入、全局变量、函数、初始化、主循环
 3. 按 P0→P1→P2 优先级逐项改写
 4. 输出完整改写后的文件内容
@@ -28,7 +28,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 | # | 改写项 | 说明 |
 |---|---|---|
-| 1 | 文件头 7 行注释 | 补全或修正（无需 `__version__` 等全局变量） |
+| 1 | 文件头 7 行注释 | 补全或修正（无需 `__version__` 等全局变量）；`@Author` 从原文件读取并沿用，若无则提示用户填写，不得使用占位符 |
 | 2 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序 |
 | 3 | `time.sleep(3)` | 初始化配置区开头必须有，不可删除 |
 | 4 | FreakStudio print | 初始化配置区必须有 `print("FreakStudio: ...")` 格式的打印 |
@@ -37,7 +37,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 7 | raise/print 英文 | 所有 `raise`/`print` 中的字符串改为英文 |
 | 8 | try/except/finally | 主程序区的 while 循环用 `try/except KeyboardInterrupt/OSError/Exception/finally` 包裹 |
 | 9 | finally 资源清理 | `finally` 中调用 `device.close()`/`deinit()`，`del` 硬件对象，打印退出提示 |
-| 10 | 行内注释中文 | 所有行内注释改为中文 |
+| 10 | 行内注释中文 | 所有行内注释改为中文；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
 
 ### P1 — 尽量改
 
@@ -45,6 +45,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 |---|---|---|
 | 11 | 高频函数处理 | 高频更新/模式切换函数保留定义，注释掉主程序中的自动调用，加注释说明可 REPL 手动调用 |
 | 12 | 三类测试场景覆盖检查 | 检查已有测试代码是否覆盖正常参数场景、边界参数场景（硬件极限值）、异常参数场景（非法值验证异常是否抛出），缺少的场景应补全调用代码 |
+| 12a | I2C 设备扫描 + ID 验证检查 | 若驱动使用 I2C，检查初始化配置区是否包含完整扫描逻辑（`i2c.scan()` 为空报错、遍历找目标地址报错、读取芯片 ID 比对）；缺少则补全；ID 寄存器地址和期望值须声明为全局变量区 `UPPER_CASE` 常量 |
 | 13 | 功能函数 docstring | 每个功能函数加简短中文 docstring |
 | 14 | 全局变量命名 | 改为 `snake_case`，如 `print_interval`、`last_print_time` |
 
@@ -64,7 +65,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 # @Author  : 作者名
 # @File    : main.py
 # @Description : 测试XXX驱动类的代码
-# @License : CC BY-NC 4.0
+# @License : MIT
 ```
 
 ### 初始化配置区标准结构
@@ -105,15 +106,9 @@ finally:
 
 ## 输出格式
 
-直接输出完整改写后的 Python 文件内容，使用代码块包裹。改写完成后附简短说明，列出实际执行了哪些改写项。
-
----
-
-## 完整规范参考
-
-本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考同仓库中的 `upy_driver_dev_spec_summary.md`，或在线查看：
-
-[upy_driver_dev_spec_summary.md](../upy_driver_dev_spec_summary.md)
+1. 输出完整改写后的 Python 文件内容（代码块预览）。
+2. 附简短说明，列出实际执行了哪些改写项。
+3. 询问用户："确认写入原文件吗？"，用户确认后将内容覆盖写入原文件。
 
 
 ## 完整规范参考
@@ -121,3 +116,16 @@ finally:
 本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考：
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
+
+## 自省与进化
+
+每次执行完成后，检查是否遇到以下情况：
+- 规则未覆盖的边界情况
+- 用户指出的输出错误或规则缺陷
+- 新发现的约束需求
+
+若有，立即执行：
+1. 将新规则追加到本文件对应章节
+2. 将相同修改同步写入 `G:/MicroPython_Skills/upy-norm-main/SKILL.md`
+3. 在 `G:/MicroPython_Skills/` 目录执行：
+   `git add upy-norm-main/SKILL.md && git commit -m "skill(upy-norm-main): <规则描述>"`

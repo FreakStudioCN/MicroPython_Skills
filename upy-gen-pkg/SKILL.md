@@ -11,8 +11,8 @@ description: Use this skill when the user wants to generate a package.json from 
 
 ## 执行步骤
 
-1. 读取用户指定的驱动 `.py` 文件（或目录下所有 `.py` 文件）
-2. 提取：文件名列表、`@Author`、`@Description`、`__version__`、`__license__`、所有 `import` 语句
+1. 扫描用户指定目录下所有 `.py` 文件，排除 `main.py`；**必须重新读取每个文件的完整内容，不得使用会话缓存或跳过读取步骤**
+2. 从所有驱动文件中提取：文件名列表、`@Author`、`@Description`、`__version__`、`__license__`、所有 `import` 语句（合并去重）；`author`/`version`/`description` 优先从与目录同名的主驱动文件提取，若无同名文件则从第一个 `.py` 文件提取
 3. 分析每个 import 的来源类型（见依赖处理步骤）
 4. 对第三方依赖逐一查询 upypi
 5. 生成完整 `package.json`
@@ -22,11 +22,11 @@ description: Use this skill when the user wants to generate a package.json from 
 | 字段 | 生成规则 |
 |---|---|
 | `name` | 从目录名提取，转为小写字母+下划线（如 `BH1750_driver` → `bh1750_driver`） |
-| `urls` | 扫描目录下所有 `.py` 文件，生成 `["文件名.py", "code/文件名.py"]` 映射，排除 `main.py` |
+| `urls` | 扫描目录下所有 `.py` 文件（排除 `main.py`），每个文件生成一条 `["文件名.py", "code/文件名.py"]` 映射；多文件驱动包含所有驱动文件 |
 | `version` | 从 `__version__` 提取，若无则默认 `"1.0.0"` |
 | `_comments` | 固定内容（见下方模板） |
 | `description` | 从 `@Description` 或类 docstring 提取，英文 |
-| `author` | 从 `@Author` 提取 |
+| `author` | 从驱动文件 `__author__` 或文件头 `@Author` 提取；若无则提示用户填写，不得使用占位符 |
 | `license` | 从 `__license__` 提取，默认 `"MIT"` |
 | `chips` | 默认 `"all"`，除非驱动明确依赖特定芯片（如 RP2040 PIO） |
 | `fw` | 默认 `"all"`，除非有特殊固件依赖（ulab、lvgl 等） |
@@ -59,6 +59,7 @@ GET https://upypi.net/api/search?q={依赖模块名}
 ```
 
 - **有结果**：使用返回的 `url` 字段写入 deps：`["{url}", "latest"]`
+- **查询失败（网络限制）**：提示用户在浏览器访问 `https://upypi.net/api/search?q={模块名}` 并将 JSON 结果粘贴回来；收到结果后继续处理；若用户无法访问则使用 `github:` 占位格式并标注 `⚠️ 需手动确认`
 - **无结果**：用 `github:` 占位格式写入，并在文件末尾标注 `⚠️ 需手动确认`
 
 ### 第三步：deps 字段格式
@@ -160,7 +161,8 @@ mip.install("github:FreakStudioCN/GraftSense-Drivers-MicroPython/sensors/{包目
 
 ## 输出格式
 
-直接输出完整的 `package.json` 内容，使用 JSON 代码块包裹。
+1. 输出完整的 `package.json` 内容（JSON 代码块预览）。
+2. 询问用户："确认写入同目录下的 `package.json` 吗？"，用户确认后将内容写入文件。
 
 若存在 upypi 查询无结果的依赖，在代码块之后单独列出：
 ```
@@ -170,17 +172,22 @@ mip.install("github:FreakStudioCN/GraftSense-Drivers-MicroPython/sensors/{包目
 
 最后附三种安装方式命令（替换 `{包目录名}` 为实际目录名）。
 
----
-
-## 完整规范参考
-
-本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考同仓库中的 `upy_driver_dev_spec_summary.md`，或在线查看：
-
-[upy_driver_dev_spec_summary.md](../upy_driver_dev_spec_summary.md)
-
 
 ## 完整规范参考
 
 本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考：
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
+
+## 自省与进化
+
+每次执行完成后，检查是否遇到以下情况：
+- 规则未覆盖的边界情况
+- 用户指出的输出错误或规则缺陷
+- 新发现的约束需求
+
+若有，立即执行：
+1. 将新规则追加到本文件对应章节
+2. 将相同修改同步写入 `G:/MicroPython_Skills/upy-gen-pkg/SKILL.md`
+3. 在 `G:/MicroPython_Skills/` 目录执行：
+   `git add upy-gen-pkg/SKILL.md && git commit -m "skill(upy-gen-pkg): <规则描述>"`

@@ -7,13 +7,13 @@ description: Use this skill when the user wants to generate a README.md from scr
 
 ## 角色定位
 
-你是 GraftSense MicroPython 文档生成助手。给定一个驱动 `.py` 文件（可选已有 README），分析驱动功能和 API，从 0 生成符合 GraftSense 规范的完整 `README.md`。
+你是 GraftSense MicroPython 文档生成助手。给定一个驱动目录，读取目录下所有 `.py` 文件，综合分析后从 0 生成符合 GraftSense 规范的完整 `README.md`。
 
 ## 执行步骤
 
-1. 读取用户指定的驱动 `.py` 文件
-2. 若用户同时提供了已有 README，一并读取作为参考
-3. 分析驱动：提取芯片名称、功能描述、公共 API、通信接口、构造参数、常量
+1. 扫描用户指定目录下所有 `.py` 文件；**必须重新读取每个文件的完整内容，不得使用会话缓存或跳过读取步骤**
+2. 读取所有非 `main.py` 的驱动文件；读取 `main.py`（若存在）；若用户同时提供了已有 README，一并读取作为参考
+3. 分析所有驱动文件 + main.py：提取芯片名称、功能描述、公共 API、通信接口、构造参数、常量、引脚配置、I2C 地址；`description`/`author`/`version` 优先从与目录同名的主驱动文件提取，若无同名文件则从第一个驱动文件提取
 4. 按必填章节逐一生成内容
 5. 输出完整 `README.md`
 
@@ -33,7 +33,7 @@ description: Use this skill when the user wants to generate a README.md from scr
 | 10 | 注意事项 | 工作条件、测量范围限制、使用限制、兼容性提示（按表格分类） |
 | 11 | 版本记录 | 表格：版本号 \| 日期 \| 作者 \| 修改说明（至少一行初始版本） |
 | 12 | 联系方式 | 邮箱 + GitHub（若从驱动文件中能提取则使用，否则留占位符） |
-| 13 | 许可协议 | 区分官方模块（MIT）与自编驱动（CC BY-NC 4.0），完整说明 |
+| 13 | 许可协议 | MIT License，完整说明 |
 
 ### 可选章节
 
@@ -75,15 +75,14 @@ description: Use this skill when the user wants to generate a README.md from scr
 ### 许可协议（固定格式）
 ```markdown
 ## 许可协议
-本项目中，除 `machine` 等 MicroPython 官方模块（MIT 许可证）外，
-所有由作者编写的驱动与扩展代码均采用
-**知识共享署名-非商业性使用 4.0 国际版 (CC BY-NC 4.0)** 许可协议发布。
 
-您可以自由地共享和演绎本作品，但须遵守以下条件：
-- **署名**：必须给出适当的署名并标明是否作了修改
-- **非商业性使用**：不得将本作品用于商业目的
+MIT License
 
-**版权归 FreakStudio 所有。**
+Copyright (c) 2026 leezisheng
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 ```
 
 ### 快速开始代码示例（最小可运行）
@@ -102,20 +101,17 @@ print(sensor.read_value())
 - **功能描述**：从文件头 `@Description` 或类 docstring 提取
 - **公共 API**：提取所有无 `_` 前缀的方法和属性
 - **通信接口**：从 `__init__` 参数类型推断（`I2C`/`SPI`/`UART`/`Pin`）
-- **作者信息**：从文件头 `@Author` 提取
+- **作者信息**：从驱动文件 `__author__` 或文件头 `@Author` 提取；若无则提示用户填写，不得使用占位符
 - **版本**：从 `__version__` 提取
+- **引脚配置**：从 `main.py` 初始化配置区的 `I2C()`/`SPI()`/`UART()`/`Pin()` 实例化语句提取实际引脚号，用于硬件要求表格和快速开始接线表
+- **快速开始代码示例**：将 `main.py` 完整内容直接复制到快速开始章节的代码块中，不截取、不改写、不自行编造
+- **I2C 地址**：从 `main.py` 全局变量区的地址常量（如 `BMP280_ADDRS`）提取，用于注意事项表格
 
 ## 输出格式
 
-直接输出完整的 `README.md` 文件内容，使用 markdown 代码块包裹。
-
----
-
-## 完整规范参考
-
-本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考同仓库中的 `upy_driver_dev_spec_summary.md`，或在线查看：
-
-[upy_driver_dev_spec_summary.md](../upy_driver_dev_spec_summary.md)
+1. 输出完整的 `README.md` 文件内容（markdown 代码块预览）。
+2. 输出前自检：确认所有代码块均有配对的开闭 ` ``` ` 标记，不得遗漏任何一个。
+3. 询问用户："确认写入同目录下的 `README.md` 吗？"，用户确认后将内容写入文件。
 
 
 ## 完整规范参考
@@ -123,3 +119,16 @@ print(sensor.read_value())
 本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考：
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
+
+## 自省与进化
+
+每次执行完成后，检查是否遇到以下情况：
+- 规则未覆盖的边界情况
+- 用户指出的输出错误或规则缺陷
+- 新发现的约束需求
+
+若有，立即执行：
+1. 将新规则追加到本文件对应章节
+2. 将相同修改同步写入 `G:/MicroPython_Skills/upy-gen-readme/SKILL.md`
+3. 在 `G:/MicroPython_Skills/` 目录执行：
+   `git add upy-gen-readme/SKILL.md && git commit -m "skill(upy-gen-readme): <规则描述>"`

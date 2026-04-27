@@ -19,7 +19,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 ## 执行步骤
 
-1. 读取用户指定的驱动 `.py` 文件
+1. 读取用户指定的驱动 `.py` 文件；**必须重新读取文件的完整内容，不得使用会话缓存或跳过读取步骤**
 2. 分析文件结构：识别通信接口类型、类、方法、属性、常量、导入、是否有 ISR 回调
 3. 按 P0→P2 优先级逐项改写
 4. 输出完整改写后的文件内容
@@ -34,8 +34,9 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 | # | 改写项 | 说明 |
 |---|---|---|
-| 1 | 文件头 7 行注释 | 补全或修正，`# @License : MIT` 必须独立成行，不可与其他内容合并 |
-| 2 | 4 个模块全局变量 | `__version__`、`__author__`、`__license__`、`__platform__` 紧跟文件头；若驱动依赖特定芯片特性可加可选 `__chip__` |
+| 0 | 文件命名规范检查 | 文件名须全小写+下划线，基于传感器/芯片型号，不与 MicroPython 内置模块重名；若不符合规范，在说明表中提示用户重命名（不自动重命名文件） |
+| 1 | 文件头 7 行注释 | 补全或修正，`# @License : MIT` 必须独立成行，不可与其他内容合并；`@Author` 从原文件 `__author__` 字段读取并沿用，若原文件无此字段则提示用户填写，不得使用占位符 |
+| 2 | 4 个模块全局变量 | `__version__`、`__author__`、`__license__`、`__platform__` 紧跟文件头；`__author__` 从原文件读取并沿用，若无则提示用户填写；若驱动依赖特定芯片特性可加可选 `__chip__` |
 | 3 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序；驱动文件末尾的初始化配置区和主程序区留空但必须存在 |
 | 4 | 分区内容规范 | 导入区：禁止长延时操作和硬件实例化；全局变量区：只放常量/DEBUG开关/复用缓冲区，禁止硬件对象实例化 |
 
@@ -44,7 +45,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 | # | 改写项 | 说明 |
 |---|---|---|
 | 5 | raise/print 英文 | 所有 `raise`/`print` 中的字符串改为英文，注释和 docstring 不受限 |
-| 6 | 行内注释中文 | 所有行内注释改为中文 |
+| 6 | 行内注释中文 | 所有注释改为中文；方法内部关键操作步骤（寄存器读写、数据解析、位运算、状态判断、延时等）须加中文注释说明；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
 
 #### 类设计类
 
@@ -60,6 +61,9 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 14 | Setter/Getter 封装 | 配置属性通过 `set_xxx()`/`get_xxx()` 封装并校验，禁止外部直接修改 |
 | 15 | 补全 `deinit()` | 若无 `deinit()`/`close()` 方法则补全，释放硬件资源（停止定时器、释放总线等） |
 | 16 | 显式依赖注入 | 不在类内创建硬件总线对象（I2C/SPI/UART），硬件实例必须作为参数传入 `__init__` |
+| 16a | 引脚参数改为总线实例 | 若原驱动 `__init__` 传入 I2C/UART 引脚号（如 `scl_pin`/`sda_pin`/`tx_pin`/`rx_pin`），在能改为传入总线实例的情况下，必须改写为接受 `I2C`/`UART` 实例参数 |
+| 16b | INT 引脚改为回调注入 | 若原驱动 `__init__` 传入中断引脚（如 `int_pin`），必须改写为同时接受：中断回调函数（`callback: callable`）和中断触发条件（`trigger: int`，默认 `Pin.IRQ_FALLING`），在 `__init__` 内部完成 `pin.irq()` 注册 |
+| 16c | 定时器改为实例注入 | 若原驱动内部创建 `machine.Timer`，必须改写为接受外部传入的定时器实例（`timer`），不在类内创建 Timer 对象 |
 
 #### docstring 类
 
@@ -269,6 +273,59 @@ class SHT30:
         self._i2c = I2C(0, scl=Pin(scl_pin), sda=Pin(sda_pin))  # 禁止
 ```
 
+### 引脚参数改为总线实例（16a）
+```python
+# 错误：传入引脚号（禁止）
+class SHT30:
+    def __init__(self, scl_pin: int, sda_pin: int) -> None:
+        self._i2c = I2C(0, scl=Pin(scl_pin), sda=Pin(sda_pin))
+
+# 正确：传入总线实例
+class SHT30:
+    def __init__(self, i2c: I2C, addr: int = 0x44) -> None:
+        if not hasattr(i2c, "readfrom_mem"):
+            raise ValueError("i2c must be an I2C instance")
+        self._i2c = i2c
+```
+
+### INT 引脚改为回调注入（16b）
+```python
+# 错误：传入引脚号（禁止）
+class MPU6050:
+    def __init__(self, i2c: I2C, int_pin: int) -> None:
+        self._int = Pin(int_pin, Pin.IN)
+        self._int.irq(handler=self._on_interrupt)
+
+# 正确：传入 Pin 实例 + 回调 + 触发条件
+class MPU6050:
+    def __init__(self, i2c: I2C, int_pin: Pin,
+                 callback: callable = None,
+                 trigger: int = Pin.IRQ_FALLING) -> None:
+        if not hasattr(int_pin, "irq"):
+            raise ValueError("int_pin must be a Pin instance")
+        self._int_pin = int_pin
+        if callback is not None:
+            self._int_pin.irq(handler=callback, trigger=trigger)
+```
+
+### 定时器改为实例注入（16c）
+```python
+# 错误：类内创建 Timer（禁止）
+class SensorDriver:
+    def __init__(self, i2c: I2C) -> None:
+        self._timer = machine.Timer(0)
+        self._timer.init(period=100, callback=self._on_timer)
+
+# 正确：传入 Timer 实例
+class SensorDriver:
+    def __init__(self, i2c: I2C, timer) -> None:
+        if not hasattr(timer, "init"):
+            raise ValueError("timer must be a Timer instance")
+        self._timer = timer
+        self._timer.init(period=100, mode=machine.Timer.PERIODIC,
+                         callback=self._on_timer)
+```
+
 ### I2C 通信协议标准模式
 ```python
 # 全局复用缓冲区（全局变量区声明）
@@ -380,19 +437,11 @@ class SensorDriver:
 
 ## 输出格式
 
-直接输出完整改写后的 Python 文件内容，使用代码块包裹。
-
-改写完成后附简短说明表：
-- **P0 执行情况**：列出所有 38 项，标注"已执行"或"不适用（原因）"
-- **P2 执行情况**：列出实际执行的 P2 项及判断依据
-
----
-
-## 完整规范参考
-
-本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考同仓库中的 `upy_driver_dev_spec_summary.md`，或在线查看：
-
-[upy_driver_dev_spec_summary.md](../upy_driver_dev_spec_summary.md)
+1. 输出完整改写后的 Python 文件内容（代码块预览）。
+2. 附简短说明表：
+   - **P0 执行情况**：列出所有 38 项，标注"已执行"或"不适用（原因）"
+   - **P2 执行情况**：列出实际执行的 P2 项及判断依据
+3. 询问用户："确认写入原文件吗？"，用户确认后将内容覆盖写入原文件。
 
 
 ## 完整规范参考
@@ -400,3 +449,16 @@ class SensorDriver:
 本 Skill 的改写规则基于 GraftSense 驱动编写规范文档。如需查阅完整规范（22章、2200+ 行），请参考：
 
 [完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
+
+## 自省与进化
+
+每次执行完成后，检查是否遇到以下情况：
+- 规则未覆盖的边界情况
+- 用户指出的输出错误或规则缺陷
+- 新发现的约束需求
+
+若有，立即执行：
+1. 将新规则追加到本文件对应章节
+2. 将相同修改同步写入 `G:/MicroPython_Skills/upy-norm-driver/SKILL.md`
+3. 在 `G:/MicroPython_Skills/` 目录执行：
+   `git add upy-norm-driver/SKILL.md && git commit -m "skill(upy-norm-driver): <规则描述>"`
