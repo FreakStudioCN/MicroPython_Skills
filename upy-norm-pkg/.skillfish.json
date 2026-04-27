@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-norm-pkg",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-norm-pkg",
+  "branch": "main",
+  "source": "manual"
+}
