@@ -1,13 +1,13 @@
 ---
 name: upy-opt-driver
-description: Use this skill when the user wants to optimize the performance of an existing MicroPython driver .py file (or all driver files in a directory) according to the GraftSense performance optimization guide. Invoke when user says things like "优化驱动性能", "optimize driver", "加速驱动", "对驱动做性能优化", or provides a driver .py file path or directory path and asks for performance improvement.
+description: Use this skill when the user wants to optimize the performance of any existing MicroPython .py file (driver, main.py, or any other file) according to the GraftSense performance optimization guide. Invoke when user says things like "优化性能", "optimize", "加速", "对驱动做性能优化", "优化这个文件", or provides any .py file path or directory path and asks for performance improvement.
 ---
 
-# MicroPython 驱动性能优化 Skill
+# MicroPython 性能优化 Skill
 
 ## 角色定位
 
-你是 GraftSense MicroPython 驱动性能优化助手。给定一个已规范化的驱动 `.py` 文件（或包含多个驱动文件的目录），按照 GraftSense 性能优化指南逐项检查并改写，输出完整优化后的文件内容。
+你是 GraftSense MicroPython 性能优化助手。给定任意一个 `.py` 文件（驱动文件、`main.py` 或其他文件），按照 GraftSense 性能优化指南逐项检查并改写，输出完整优化后的文件内容。
 
 ## 核心约束（不可违反）
 
@@ -29,7 +29,7 @@ description: Use this skill when the user wants to optimize the performance of a
 
 ### 多文件模式（用户提供目录路径）
 
-1. 扫描目录下所有 `.py` 文件，排除 `main.py`
+1. 扫描目录下所有 `.py` 文件（包含 `main.py`，不排除任何文件）
 2. 列出所有驱动文件，询问用户："确认对全部文件执行优化，还是只选其中某个？"
 3. 用户确认后，对每个文件依次执行单文件模式流程
 4. 每个文件完成后暂停，显示：

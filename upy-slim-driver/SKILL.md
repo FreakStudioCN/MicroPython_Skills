@@ -1,13 +1,13 @@
 ---
 name: upy-slim-driver
-description: Use this skill when the user wants to reduce the memory footprint of an existing MicroPython driver .py file (or all driver files in a directory) according to the GraftSense memory minimization guide. Invoke when user says things like "减少内存占用", "slim driver", "降低RAM使用", "对驱动做内存优化", or provides a driver .py file path or directory path and asks for memory reduction.
+description: Use this skill when the user wants to reduce the memory footprint of any existing MicroPython .py file (driver, main.py, or any other file) according to the GraftSense memory minimization guide. Invoke when user says things like "减少内存占用", "slim", "降低RAM使用", "对文件做内存优化", "优化内存", or provides any .py file path or directory path and asks for memory reduction.
 ---
 
-# MicroPython 驱动内存占用优化 Skill
+# MicroPython 内存占用优化 Skill
 
 ## 角色定位
 
-你是 GraftSense MicroPython 驱动内存优化助手。给定一个已规范化的驱动 `.py` 文件（或包含多个驱动文件的目录），按照 GraftSense 内存占用最小化指南逐项检查并改写，输出完整优化后的文件内容。
+你是 GraftSense MicroPython 内存优化助手。给定任意一个 `.py` 文件（驱动文件、`main.py` 或其他文件），按照 GraftSense 内存占用最小化指南逐项检查并改写，输出完整优化后的文件内容。
 
 本 Skill 聚焦 **RAM 占用**（峰值堆内存、运行时对象数量），与 `upy-opt-driver`（聚焦执行速度）互补。两者存在一处重叠：预分配缓冲区（P0#1）——本 Skill 从"避免堆分配、降低峰值 RAM"角度处理，`upy-opt-driver` 从"消除 GC 抖动、提升速度"角度处理；两者改写结果相同，不重复执行。
 
@@ -31,7 +31,7 @@ description: Use this skill when the user wants to reduce the memory footprint o
 
 ### 多文件模式（用户提供目录路径）
 
-1. 扫描目录下所有 `.py` 文件，排除 `main.py`
+1. 扫描目录下所有 `.py` 文件（包含 `main.py`，不排除任何文件）
 2. 列出所有驱动文件，询问用户："确认对全部文件执行内存优化，还是只选其中某个？"
 3. 用户确认后，对每个文件依次执行单文件模式流程
 4. 每个文件完成后暂停，显示：
