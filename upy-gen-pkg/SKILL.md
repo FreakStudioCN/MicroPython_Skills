@@ -48,9 +48,10 @@ micropython-lib 标准库（collections、os、json、re、hashlib 等）
 
 ### 第二步：查询 upypi
 
-对每个第三方依赖，调用：
-```
-GET https://upypi.net/api/search?q={依赖模块名}
+对每个第三方依赖，**优先使用 Bash 工具执行 curl 自动查询**：
+
+```bash
+curl -s "https://upypi.net/api/search?q={依赖模块名}"
 ```
 
 响应示例：
@@ -59,7 +60,7 @@ GET https://upypi.net/api/search?q={依赖模块名}
 ```
 
 - **有结果**：使用返回的 `url` 字段写入 deps：`["{url}", "latest"]`
-- **查询失败（网络限制）**：提示用户在浏览器访问 `https://upypi.net/api/search?q={模块名}` 并将 JSON 结果粘贴回来；收到结果后继续处理；若用户无法访问则使用 `github:` 占位格式并标注 `⚠️ 需手动确认`
+- **curl 执行失败（无网络/curl 不可用）**：提示用户在浏览器访问 `https://upypi.net/api/search?q={模块名}` 并将 JSON 结果粘贴回来；收到结果后继续处理；若用户无法访问则使用 `github:` 占位格式并标注 `⚠️ 需手动确认`
 - **无结果**：用 `github:` 占位格式写入，并在文件末尾标注 `⚠️ 需手动确认`
 
 ### 第三步：deps 字段格式
