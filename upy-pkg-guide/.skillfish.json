@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-pkg-guide",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-pkg-guide",
+  "branch": "main",
+  "source": "manual"
+}

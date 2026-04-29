@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-project",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-project",
+  "branch": "main",
+  "source": "manual"
+}

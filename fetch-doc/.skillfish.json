@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "fetch-doc",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "fetch-doc",
+  "branch": "main",
+  "source": "manual"
+}

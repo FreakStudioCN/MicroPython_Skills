@@ -62,13 +62,23 @@ mpremote --version
 
 **所有器件必须从 upypi 有驱动包的中选择，不得使用 upypi 上没有的驱动。**
 
-对每个器件执行：
+对每个器件，**必须用多个关键词并行搜索**，合并去重结果后再判断：
+
 ```bash
-curl -s "https://upypi.net/api/search?q={器件名}"
+# 示例：麦克风模块需同时搜索
+curl -s "https://upypi.net/api/search?q=mic"
+curl -s "https://upypi.net/api/search?q=microphone"
+curl -s "https://upypi.net/api/search?q=audio"
+curl -s "https://upypi.net/api/search?q=i2s"
 ```
 
+**关键词扩展规则**：
+- 用芯片型号（如 `inmp441`）+ 功能类别（如 `mic`、`microphone`、`audio`）+ 接口类型（如 `i2s`、`uart`、`i2c`）至少 3 个关键词
+- 对语音/AI 类项目额外搜索：`asr`、`tts`、`speech`、`llm`、`ai`
+- 合并所有搜索结果，去重后统一展示
+
 - **有结果** → 列出包名，推荐最匹配的，说明理由，等用户确认
-- **无结果** → 告知用户，搜索替代方案（同样从 upypi 查），推荐替代器件
+- **全部无结果** → 告知用户，搜索替代方案（同样多关键词查），推荐替代器件
 - **多个结果** → 推荐最匹配的，列出其他选项
 
 选型确认后，调用 **upy-pkg-guide skill** 获取每个器件的 API 用法，作为代码生成参考。
