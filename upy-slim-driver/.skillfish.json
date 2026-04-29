@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-slim-driver",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-slim-driver",
+  "branch": "main",
+  "source": "manual"
+}
