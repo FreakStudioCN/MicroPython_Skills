@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "mpremote-file-transfer",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "mpremote-file-transfer",
+  "branch": "main",
+  "source": "manual"
+}

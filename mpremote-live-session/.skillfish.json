@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "mpremote-live-session",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "mpremote-live-session",
+  "branch": "main",
+  "source": "manual"
+}

@@ -2,7 +2,7 @@
 
 GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行）构建。
 
-提供 11 个专用 Skill，覆盖 MicroPython 驱动开发的完整工作流：驱动规范化、测试文件规范化/生成、README 生成、package.json 生成、性能优化、内存优化、打包整理，以及项目端到端生成、器件用法查询、文档获取。
+提供 14 个专用 Skill，覆盖 MicroPython 驱动开发的完整工作流：驱动规范化、测试文件规范化/生成、README 生成、package.json 生成、性能优化、内存优化、打包整理，以及项目端到端生成、器件用法查询、文档获取；同时提供设备交互、文件传输、长连接监控三个 mpremote 操作 Skill。
 
 ---
 
@@ -40,6 +40,9 @@ GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-D
   - [upy-pkg-guide](#upy-pkg-guide--器件驱动用法查询)
   - [fetch-doc](#fetch-doc--url-内容获取)
   - [upy-project](#upy-project--micropython-项目端到端生成)
+  - [mpremote-device-interaction](#mpremote-device-interaction--设备连接与状态查询)
+  - [mpremote-file-transfer](#mpremote-file-transfer--设备文件传输)
+  - [mpremote-live-session](#mpremote-live-session--持久连接与输出监控)
 - [工作原理](#工作原理)
 - [规范文档](#规范文档)
 - [版本记录](#版本记录)
@@ -80,7 +83,8 @@ cp -r MicroPython_Skills/upy-norm-driver ~/.claude/skills/
 cd MicroPython_Skills
 for skill in upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
              upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver \
-             upy-pkg-guide fetch-doc upy-project; do
+             upy-pkg-guide fetch-doc upy-project \
+             mpremote-device-interaction mpremote-file-transfer mpremote-live-session; do
   cp -r $skill ~/.claude/skills/
 done
 ```
@@ -94,7 +98,8 @@ Copy-Item -Recurse MicroPython_Skills\upy-norm-driver $env:USERPROFILE\.claude\s
 cd MicroPython_Skills
 $skills = @("upy-norm-driver","upy-norm-main","upy-gen-main","upy-gen-readme",
             "upy-gen-pkg","upy-norm-pkg","upy-opt-driver","upy-slim-driver","upy-pack-driver",
-            "upy-pkg-guide","fetch-doc","upy-project")
+            "upy-pkg-guide","fetch-doc","upy-project",
+            "mpremote-device-interaction","mpremote-file-transfer","mpremote-live-session")
 foreach ($skill in $skills) {
   Copy-Item -Recurse $skill $env:USERPROFILE\.claude\skills\
 }
@@ -470,6 +475,83 @@ main.py                ← 统一调度
 
 ---
 
+### `/mpremote-device-interaction` — 设备连接与状态查询
+
+**用途**：通过 mpremote 连接 MicroPython 设备，执行代码，查询设备状态（内存、固件版本、文件列表等）。
+
+**平台支持**：Windows（COMn）、macOS（/dev/tty.usbmodem*）、Linux（mpy-dev 或 /dev/serial/by-id/）
+
+**核心原则**：连接运行中的设备必须使用 `resume`，否则触发软重置打断程序。
+
+**覆盖场景**：
+
+| 场景 | 命令示例 |
+|---|---|
+| 列出可用设备 | `mpremote connect list` |
+| Windows 连接 | `mpremote c3 resume` / `mpremote connect COM3 resume` |
+| macOS 连接 | `mpremote connect /dev/tty.usbmodem1101 resume` |
+| Linux 连接 | `mpremote connect $(mpy-dev tty my-board) resume` |
+| 查询固件版本 | `mpremote <device> resume exec "import sys; print(sys.version)"` |
+| 查询空闲内存 | `mpremote <device> resume exec "import gc; gc.collect(); print(gc.mem_free())"` |
+| 软重置 | `mpremote <device> soft-reset` |
+
+**使用示例**：
+```
+/mpremote-device-interaction  连接 COM3，查看固件版本和空余内存
+```
+
+---
+
+### `/mpremote-file-transfer` — 设备文件传输
+
+**用途**：使用 mpremote 在本地与设备之间复制文件，管理设备文件系统（ls、mkdir、rm、tree）。
+
+**平台支持**：Windows、macOS、Linux，各平台设备路径写法详见 Skill 内。
+
+**关键规则**：文件操作必须加 `resume`，否则每次操作前都会软重置设备。
+
+**覆盖场景**：
+
+| 场景 | 命令示例 |
+|---|---|
+| 上传文件 | `mpremote <device> resume fs cp main.py :main.py` |
+| 下载文件 | `mpremote <device> resume fs cp :main.py .` |
+| 递归同步目录 | `mpremote <device> resume fs cp -r utils/ :utils/` |
+| 更新驱动后重启 | `mpremote <device> resume fs cp driver.py :driver.py + soft-reset repl` |
+| 列出文件 | `mpremote <device> resume fs ls :` |
+| 查看存储空间 | `mpremote <device> resume exec "import os; print(os.statvfs('/'))"` |
+
+**使用示例**：
+```
+/mpremote-file-transfer  把本地 utils/ 目录同步到设备，然后重启监控
+```
+
+---
+
+### `/mpremote-live-session` — 持久连接与输出监控
+
+**用途**：对设备建立持久连接，持续发送命令并捕获输出。适用于运行 asyncio 的设备、压力测试、长时间监控。
+
+**平台支持**：Linux/macOS 使用 PTY 方案；Windows 使用 subprocess pipe 替代方案（有局限，见 Skill 内说明）。
+
+**核心原则**：反复调用 `mpremote resume exec` 会对 asyncio 设备发送 Ctrl+C，杀死事件循环；必须用持久 session 替代。
+
+**何时使用**：
+
+| 场景 | 推荐方案 |
+|---|---|
+| 单次快速查询 | `mpremote <device> resume exec "..."` |
+| 多命令序列 / 监控输出 | 本 Skill（持久 session） |
+| 设备运行 asyncio/aiorepl | 本 Skill（必须） |
+| 文件拷贝 | mpremote-file-transfer |
+
+**使用示例**：
+```
+/mpremote-live-session  对 /dev/tty.usbmodem1101 建立持久连接，每秒查询一次内存并记录到文件
+```
+
+---
+
 ## 工作原理
 
 每个 Skill 是一个 `SKILL.md` 文件，包含：
@@ -521,6 +603,7 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.1.0 | 2026-04-26 | leezisheng | 新增 upy-pack-driver；upy-norm-driver 补充 16a/16b/16c；统一许可证为 MIT；I2C 扫描规范 |
 | v1.2.0 | 2026-04-27 | leezisheng | 新增 upy-norm-pkg（Orchestrator）、upy-opt-driver（性能优化）、upy-slim-driver（内存优化）；完善多文件批量处理模式 |
 | v1.3.0 | 2026-04-29 | leezisheng | 新增 upy-pkg-guide（器件用法查询）、fetch-doc（URL 内容获取）、upy-project（项目端到端生成）；upy-gen-pkg 查询逻辑改为 Bash curl 自动执行 |
+| v1.4.0 | 2026-05-04 | leezisheng | 新增 mpremote-device-interaction、mpremote-file-transfer、mpremote-live-session；基于 andrewleech/claude-mpy-marketplace 架构，补充 Windows（COMn）和 macOS 平台支持 |
 
 ---
 
