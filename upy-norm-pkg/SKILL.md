@@ -20,14 +20,23 @@ description: Use this skill when the user wants to normalize/standardize an exis
 
 ### 第 0 步：扫描目录
 
-1. 扫描用户指定目录下所有 `.py` 文件
+1. 扫描用户指定目录下所有 `.py` 文件及子目录
 2. 分类：
-   - **驱动文件**：所有 `.py`，排除 `main.py`
+   - **驱动文件**：同级目录下的 `.py` 文件，排除 `main.py`
+   - **子包依赖目录**：同级目录下含 `__init__.py` 的子目录（不作为驱动文件处理，将在 gen-pkg 步骤查询 upypi 并写入 `deps`）
    - **测试文件**：`main.py`（若存在）
 3. 输出扫描结果：
    ```
+   目录：G:/ens160_project/
+   驱动文件（1个）：ens160sciosense.py
+   子包依赖目录（1个）：sensor_pack_2/  ← 含 __init__.py，gen-pkg 步骤将查询 upypi
+   测试文件：main.py ✓（已存在，将执行 norm-main）
+   ```
+   若无子包目录：
+   ```
    目录：G:/bmp280/
    驱动文件（2个）：bmp280_float.py、bmp280_int.py
+   子包依赖目录：无
    测试文件：main.py ✓（已存在，将执行 norm-main）
    ```
    若无 `main.py`：
@@ -94,11 +103,12 @@ description: Use this skill when the user wants to normalize/standardize an exis
 [步骤 5/5 — 打包完成]
 <chip>_driver/
 ├── code/
-│   ├── <chip>.py   ✓
-│   └── main.py     ✓
-├── package.json    ✓
-├── README.md       ✓
-└── LICENSE         ✓ (generated)
+│   ├── <chip>.py        ✓
+│   ├── main.py          ✓
+│   └── <subpkg>/        ✓ (若存在子包)
+├── package.json         ✓
+├── README.md            ✓
+└── LICENSE              ✓ (generated)
 ```
 
 ## 中断与恢复

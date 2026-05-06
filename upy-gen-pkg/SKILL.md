@@ -11,18 +11,21 @@ description: Use this skill when the user wants to generate a package.json from 
 
 ## 执行步骤
 
-1. 扫描用户指定目录下所有 `.py` 文件，排除 `main.py`；**必须重新读取每个文件的完整内容，不得使用会话缓存或跳过读取步骤**
-2. 从所有驱动文件中提取：文件名列表、`@Author`、`@Description`、`__version__`、`__license__`、所有 `import` 语句（合并去重）；`author`/`version`/`description` 优先从与目录同名的主驱动文件提取，若无同名文件则从第一个 `.py` 文件提取
-3. 分析每个 import 的来源类型（见依赖处理步骤）
-4. 对第三方依赖逐一查询 upypi
-5. 生成完整 `package.json`
+1. 扫描用户指定目录：
+   - **1a**：扫描所有顶层 `.py` 文件，排除 `main.py`，作为驱动文件列表；**必须重新读取每个文件的完整内容，不得使用会话缓存或跳过读取步骤**
+   - **1b**：扫描所有含 `__init__.py` 的子目录，作为**子包依赖候选列表**
+2. 子包依赖处理（见"子包依赖处理"章节）
+3. 从所有驱动文件中提取：文件名列表、`@Author`、`@Description`、`__version__`、`__license__`、所有 `import` 语句（合并去重）；`author`/`version`/`description` 优先从与目录同名的主驱动文件提取，若无同名文件则从第一个 `.py` 文件提取
+4. 分析每个 import 的来源类型（见依赖处理步骤）
+5. 对第三方依赖逐一查询 upypi
+6. 生成完整 `package.json`
 
 ## 必须生成的字段（全部）
 
 | 字段 | 生成规则 |
 |---|---|
 | `name` | 从目录名提取，转为小写字母+下划线（如 `BH1750_driver` → `bh1750_driver`） |
-| `urls` | 扫描目录下所有 `.py` 文件（排除 `main.py`），每个文件生成一条 `["文件名.py", "code/文件名.py"]` 映射；多文件驱动包含所有驱动文件 |
+| `urls` | 扫描目录下所有**顶层** `.py` 文件（排除 `main.py`），每个文件生成一条 `["文件名.py", "code/文件名.py"]` 映射；含 `__init__.py` 的子目录已通过 `deps` 处理，**不写入 `urls`** |
 | `version` | 从 `__version__` 提取，若无则默认 `"1.0.0"` |
 | `_comments` | 固定内容（见下方模板） |
 | `description` | 从 `@Description` 或类 docstring 提取，英文 |
@@ -30,6 +33,38 @@ description: Use this skill when the user wants to generate a package.json from 
 | `license` | 从 `__license__` 提取，默认 `"MIT"` |
 | `chips` | 默认 `"all"`，除非驱动明确依赖特定芯片（如 RP2040 PIO） |
 | `fw` | 默认 `"all"`，除非有特殊固件依赖（ulab、lvgl 等） |
+
+## 子包依赖处理
+
+对步骤 1b 扫描到的每个含 `__init__.py` 的子目录，按以下流程处理：
+
+### 有子包目录时
+
+**优先使用 Bash 工具执行 curl 自动查询**：
+
+```bash
+curl -s "https://upypi.net/api/search?q={子目录名}"
+```
+
+- **有结果**：将 url 写入 `deps`：`["{url}", "latest"]`
+- **无结果**：询问开发者：
+  ```
+  发现子包目录 `{子目录名}/`（含 __init__.py），upypi 暂无收录。
+  是否需要单独打包发布到 upypi？
+  ・是 → 建议先完成发布，再生成 package.json
+  ・否 → 使用 github:FreakStudioCN/{子目录名} 占位，标注 ⚠️ 需手动确认
+  ```
+- **curl 执行失败**：提示用户在浏览器访问 `https://upypi.net/api/search?q={子目录名}` 并粘贴 JSON 结果；若无法访问则使用 `github:` 占位并标注 ⚠️
+
+### 无子包目录时
+
+在输出 `package.json` 之前询问开发者：
+```
+当前目录未检测到子包依赖目录。
+若驱动依赖的工具模块（如 bus_service、base_sensor 等）未来需要供其他驱动复用，
+是否考虑将其单独整理为 Python 包发布到 upypi？
+（当前可跳过，继续生成 package.json）
+```
 
 ## 依赖处理（三步优先级）
 

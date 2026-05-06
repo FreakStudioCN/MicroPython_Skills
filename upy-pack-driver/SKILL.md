@@ -16,21 +16,25 @@ description: Use this skill when the user wants to package a MicroPython driver 
 ```
 <chip>_driver/
 ├── code/
-│   ├── <chip>.py     ← 驱动文件
-│   └── main.py       ← 测试文件
-├── package.json      ← 包配置文件
-├── README.md         ← 说明文档
-└── LICENSE           ← MIT 许可证
+│   ├── <chip>.py          ← 驱动文件
+│   ├── main.py            ← 测试文件
+│   └── <subpkg>/          ← 子包依赖目录（若存在）
+│       ├── __init__.py
+│       └── ...
+├── package.json           ← 包配置文件
+├── README.md              ← 说明文档
+└── LICENSE                ← MIT 许可证
 ```
 
 ## 执行步骤
 
 1. 读取用户指定的驱动 `.py` 文件
 2. 从文件名提取芯片名（去掉 `.py` 后缀即为芯片名，如 `bmp280.py` → `bmp280`）
-3. 检查同目录下是否存在以下文件：
+3. 检查同目录下是否存在以下文件及目录：
    - `main.py`
    - `README.md`
    - `package.json`
+   - 含 `__init__.py` 的子目录（子包依赖，若有则列出名称）
    缺失的文件列出 ⚠️ 警告，提示先运行对应 Skill
 4. 预览将创建的目录结构（含文件来源说明）
 5. 询问用户："确认创建 `<chip>_driver/` 目录并整理文件吗？"
@@ -38,6 +42,7 @@ description: Use this skill when the user wants to package a MicroPython driver 
    - 创建 `<chip>_driver/code/` 目录
    - 复制驱动文件 → `<chip>_driver/code/<chip>.py`
    - 复制 `main.py` → `<chip>_driver/code/main.py`
+   - **若同目录下存在含 `__init__.py` 的子包目录**：整体复制到 `<chip>_driver/code/<subpkg>/`（保留子目录内所有文件）
    - 复制 `README.md` → `<chip>_driver/README.md`
    - 复制 `package.json` → `<chip>_driver/package.json`
    - 生成 `<chip>_driver/LICENSE`（MIT 固定模板，见下方）
@@ -78,11 +83,12 @@ SOFTWARE.
    ```
    <chip>_driver/
    ├── code/
-   │   ├── <chip>.py   ✓
-   │   └── main.py     ✓
-   ├── package.json    ✓
-   ├── README.md       ✓
-   └── LICENSE         ✓ (generated)
+   │   ├── <chip>.py        ✓
+   │   ├── main.py          ✓
+   │   └── <subpkg>/        ✓ (若存在子包)
+   ├── package.json         ✓
+   ├── README.md            ✓
+   └── LICENSE              ✓ (generated)
    ```
 
 ## 完整规范参考
