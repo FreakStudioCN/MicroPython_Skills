@@ -25,7 +25,7 @@ description: Use this skill when the user wants to generate a package.json from 
 | 字段 | 生成规则 |
 |---|---|
 | `name` | 从目录名提取，转为小写字母+下划线（如 `BH1750_driver` → `bh1750_driver`） |
-| `urls` | 扫描目录下所有**顶层** `.py` 文件（排除 `main.py`），每个文件生成一条 `["文件名.py", "code/文件名.py"]` 映射；含 `__init__.py` 的子目录已通过 `deps` 处理，**不写入 `urls`** |
+| `urls` | 扫描目录下所有**顶层** `.py` 文件（排除 `main.py`），每个文件生成一条 `["文件名.py", "code/文件名.py"]` 映射；含 `__init__.py` 的子目录根据开发者选择：选②打包进 urls（含子目录路径前缀），选①③则不写入 `urls` |
 | `version` | 从 `__version__` 提取，若无则默认 `"1.0.0"` |
 | `_comments` | 固定内容（见下方模板） |
 | `description` | 从 `@Description` 或类 docstring 提取，英文 |
@@ -50,11 +50,25 @@ curl -s "https://upypi.net/api/search?q={子目录名}"
 - **无结果**：询问开发者：
   ```
   发现子包目录 `{子目录名}/`（含 __init__.py），upypi 暂无收录。
-  是否需要单独打包发布到 upypi？
-  ・是 → 建议先完成发布，再生成 package.json
-  ・否 → 使用 github:FreakStudioCN/{子目录名} 占位，标注 ⚠️ 需手动确认
+  请选择处理方式：
+  ・① 发布为独立包 → 建议先完成 upypi 发布，再生成 package.json
+  ・② 打包进本驱动 urls → 将子目录下所有文件逐条写入 urls
+  ・③ github 占位 → 写入 deps，标注 ⚠️ 需手动确认
   ```
-- **curl 执行失败**：提示用户在浏览器访问 `https://upypi.net/api/search?q={子目录名}` 并粘贴 JSON 结果；若无法访问则使用 `github:` 占位并标注 ⚠️
+  - 选 **①**：暂停，待用户完成发布后继续
+  - 选 **②**：扫描该子目录下所有 `.py` 文件（含子层级），按如下格式逐条追加到 `urls`：
+    ```json
+    ["{子目录名}/文件名.py", "code/{子目录名}/文件名.py"]
+    ```
+    示例（sensor_pack_2 有 3 个文件）：
+    ```json
+    ["sensor_pack_2/__init__.py",    "code/sensor_pack_2/__init__.py"],
+    ["sensor_pack_2/base_sensor.py", "code/sensor_pack_2/base_sensor.py"],
+    ["sensor_pack_2/bus_service.py", "code/sensor_pack_2/bus_service.py"]
+    ```
+    此时 `deps` 中不写入该子包。
+  - 选 **③**：写入 `deps`：`["github:FreakStudioCN/{子目录名}", "main"]`，标注 ⚠️
+- **curl 执行失败**：提示用户在浏览器访问 `https://upypi.net/api/search?q={子目录名}` 并粘贴 JSON 结果；若无法访问则视同"无结果"，展示三选项询问开发者
 
 ### 无子包目录时
 
