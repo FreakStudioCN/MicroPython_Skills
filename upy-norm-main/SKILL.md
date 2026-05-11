@@ -38,6 +38,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 8 | try/except/finally | 主程序区的 while 循环用 `try/except KeyboardInterrupt/OSError/Exception/finally` 包裹 |
 | 9 | finally 资源清理 | `finally` 中调用 `device.close()`/`deinit()`，`del` 硬件对象，打印退出提示 |
 | 10 | 行内注释中文 | 所有行内注释改为中文；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
+| 11 | I2C 设备扫描 + ID 验证 | 若驱动使用 I2C，初始化配置区必须包含完整扫描逻辑：① `i2c.scan()` 扫描总线，若列表为空则 `raise RuntimeError("No I2C device found")`；② 遍历设备列表，找到目标地址则记录，未找到则 `raise RuntimeError("Device not found at expected address")`；③ 读取芯片 ID 寄存器与期望值比对，打印 "Device found" 或 "Device not found"；设备 ID 寄存器地址、期望值声明为全局变量区常量（`UPPER_CASE`）；I2C 扫描所需的额外 `import` 必须放在导入区，不得在初始化配置区内 `import` |
 
 ### P1 — 尽量改
 
@@ -45,7 +46,6 @@ description: Use this skill when the user wants to normalize or standardize an e
 |---|---|---|
 | 11 | 高频函数处理 | 高频更新/模式切换函数保留定义，注释掉主程序中的自动调用，加注释说明可 REPL 手动调用 |
 | 12 | 三类测试场景覆盖检查 | 检查已有测试代码是否覆盖正常参数场景、边界参数场景（硬件极限值）、异常参数场景（非法值验证异常是否抛出），缺少的场景应补全调用代码 |
-| 12a | I2C 设备扫描 + ID 验证检查 | 若驱动使用 I2C，检查初始化配置区是否包含完整扫描逻辑（`i2c.scan()` 为空报错、遍历找目标地址报错、读取芯片 ID 比对）；缺少则补全；ID 寄存器地址和期望值须声明为全局变量区 `UPPER_CASE` 常量 |
 | 13 | 功能函数 docstring | 每个功能函数加简短中文 docstring |
 | 14 | 全局变量命名 | 改为 `snake_case`，如 `print_interval`、`last_print_time` |
 
