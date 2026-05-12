@@ -9,22 +9,46 @@ description: Use this skill when the user describes a MicroPython project — wh
 
 给定用户的项目描述，完成从需求澄清、器件选型、代码生成到设备调试的全流程，最终在用户设备上运行成功。
 
-## 前置检查（第一步必做）
+## 前置检查（第一步必做，全部通过才能继续）
 
-检查 `mpremote` 是否可用：
+### 1. 检查 Python
+
+```bash
+python --version
+```
+
+- 成功输出版本号 → 继续
+- 失败 → 停止并提示：
+  ```
+  缺少 Python，请先安装：https://python.org
+  安装完成后重新开始。
+  ```
+
+### 2. 检查 requests 库
+
+```bash
+python -c "import requests; print('requests OK')"
+```
+
+- 输出 `requests OK` → 继续
+- 失败 → 停止并提示：
+  ```
+  缺少 requests 库，请运行：pip install requests
+  安装完成后重新开始。
+  ```
+
+### 3. 检查 mpremote
 
 ```bash
 mpremote --version
 ```
 
-- 可用 → 继续
-- 不可用 → 提示用户：
+- 成功输出版本号 → 继续
+- 失败 → 停止并提示：
   ```
-  需要先安装 Python 和 mpremote：
-  1. 安装 Python: https://python.org
-  2. pip install mpremote requests
+  缺少 mpremote，请运行：pip install mpremote
+  安装完成后重新开始。
   ```
-  等用户确认安装完成后再继续。
 
 ---
 
