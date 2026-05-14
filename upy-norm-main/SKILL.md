@@ -23,6 +23,19 @@ description: Use this skill when the user wants to normalize or standardize an e
 - **#11b** 全局变量区声明 `APP_ID`/`ACCESS_TOKEN` 等凭证常量（`UPPER_CASE`），不得硬编码在实例化语句中
 - **#11c** 主程序区用 `tests = [...]` 列表驱动多场景测试，替代 `while True` 轮询结构；使用 `asyncio.run()` 作为入口
 
+**中间件库敏感数据替换规则（#11d）**：
+扫描文件中所有真实凭证值，统一替换为占位符，包括：
+| 数据类型 | 替换为 |
+|---|---|
+| WiFi SSID | `"your_wifi_ssid"` |
+| WiFi 密码 | `"your_wifi_password"` |
+| App ID / appid | `"your_app_id"` |
+| Access Token / token | `"your_access_token"` |
+| API Key | `"your_api_key"` |
+| 其他凭证字段 | `"your_<字段名>"` |
+
+替换后在全局变量区对应常量上方加注释：`# 请替换为你的实际 XXX`
+
 ## 核心约束（不可违反）
 
 - 不得修改测试的业务逻辑和 API 调用顺序

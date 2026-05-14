@@ -20,6 +20,18 @@ description: Use this skill when the user wants to generate a new main.py test f
 
 **中间件库不适用"边界参数场景"和"异常参数场景"，替换为"多参数组合场景"**：覆盖驱动支持的各类参数组合（如不同音色、语种、语速、情感风格）。同时跳过 I2C 扫描，替换为 WiFi 连接 + 凭证配置结构（见 upy-norm-main #11a/#11b/#11c）。
 
+**中间件库敏感数据替换规则**：生成的 main.py 中所有凭证字段一律使用占位符，不得写入真实值：
+| 数据类型 | 占位符 |
+|---|---|
+| WiFi SSID | `"your_wifi_ssid"` |
+| WiFi 密码 | `"your_wifi_password"` |
+| App ID / appid | `"your_app_id"` |
+| Access Token / token | `"your_access_token"` |
+| API Key | `"your_api_key"` |
+| 其他凭证字段 | `"your_<字段名>"` |
+
+每个占位符常量上方加注释：`# 请替换为你的实际 XXX`
+
 ## 执行步骤
 
 1. 读取用户指定的驱动 `.py` 文件；**必须重新读取文件的完整内容，不得使用会话缓存或跳过读取步骤**
