@@ -9,6 +9,17 @@ description: Use this skill when the user wants to generate a new main.py test f
 
 你是 GraftSense MicroPython 测试文件生成助手。给定一个驱动 `.py` 文件，分析其所有公共 API，从 0 生成符合 GraftSense 规范的完整 `main.py` 测试文件。
 
+## 类型判断（执行任何步骤前必须先完成）
+
+读取驱动文件后，立即判断类型，后续步骤按类型走对应分支：
+
+| 判断条件 | 类型 |
+|---|---|
+| 驱动位于 `middleware/` 子目录，或导入了 `network`/`urequests`/`AsyncWebsocketClient`/`asyncio` 且无 I2C/SPI/UART 硬件总线操作 | **中间件库** |
+| 其他情况 | **硬件驱动** |
+
+**中间件库不适用"边界参数场景"和"异常参数场景"，替换为"多参数组合场景"**：覆盖驱动支持的各类参数组合（如不同音色、语种、语速、情感风格）。同时跳过 I2C 扫描，替换为 WiFi 连接 + 凭证配置结构（见 upy-norm-main #11a/#11b/#11c）。
+
 ## 执行步骤
 
 1. 读取用户指定的驱动 `.py` 文件；**必须重新读取文件的完整内容，不得使用会话缓存或跳过读取步骤**

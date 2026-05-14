@@ -9,6 +9,21 @@ description: Use this skill when the user wants to generate a README.md from scr
 
 你是 GraftSense MicroPython 文档生成助手。给定一个驱动目录，读取目录下所有 `.py` 文件，综合分析后从 0 生成符合 GraftSense 规范的完整 `README.md`。
 
+## 类型判断（执行任何步骤前必须先完成）
+
+读取驱动文件后，立即判断类型，后续步骤按类型走对应分支：
+
+| 判断条件 | 类型 |
+|---|---|
+| 驱动位于 `middleware/` 子目录，或导入了 `network`/`urequests`/`AsyncWebsocketClient`/`asyncio` 且无 I2C/SPI/UART 硬件总线操作 | **中间件库** |
+| 其他情况 | **硬件驱动** |
+
+**中间件库将第5章"硬件要求"替换为"运行环境"**：
+- 网络要求（WiFi 2.4GHz，能访问目标 API 服务器）
+- API 凭证要求（App ID/Access Token 等，从控制台获取）
+- 可选外设（如 I2S 播放模块，非必须）
+- 引脚说明表格改为 API 参数说明表格（参数名 \| 类型 \| 说明）
+
 ## 执行步骤
 
 1. 扫描用户指定目录下所有 `.py` 文件；**必须重新读取每个文件的完整内容，不得使用会话缓存或跳过读取步骤**

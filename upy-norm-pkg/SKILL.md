@@ -9,6 +9,20 @@ description: Use this skill when the user wants to normalize/standardize an exis
 
 你是 GraftSense MicroPython 驱动包规范化助手。给定一个包含已验证驱动文件的目录，按固定流程对所有文件进行规范化，并生成缺失的配套文件，最终输出标准驱动包目录结构。
 
+## 类型判断（第0步扫描完成后立即执行，后续所有步骤按类型走对应分支）
+
+| 判断条件 | 类型 |
+|---|---|
+| 驱动位于 `middleware/` 子目录，或导入了 `network`/`urequests`/`AsyncWebsocketClient`/`asyncio` 且无 I2C/SPI/UART 硬件总线操作 | **中间件库** |
+| 其他情况 | **硬件驱动** |
+
+判断后输出：
+```
+包类型：中间件库（middleware） / 硬件驱动
+分类建议（中间件库）：middleware/protocol 或 middleware/network 等
+后续步骤将使用对应规则分支
+```
+
 **本 Skill 是以下 Skill 的 Orchestrator，不自行生成内容，只负责按顺序调用：**
 - `/upy-norm-driver` — 驱动文件规范化
 - `/upy-norm-main` 或 `/upy-gen-main` — 测试文件规范化或生成

@@ -9,6 +9,20 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 你是 GraftSense MicroPython 测试文件规范化助手。给定一个能用但不规范的 `main.py`，按照 GraftSense 编写规范进行改写，输出完整规范化后的文件内容。
 
+## 类型判断（执行任何步骤前必须先完成）
+
+读取对应驱动文件后，立即判断类型，后续步骤按类型走对应分支：
+
+| 判断条件 | 类型 |
+|---|---|
+| 驱动位于 `middleware/` 子目录，或导入了 `network`/`urequests`/`AsyncWebsocketClient`/`asyncio` 且无 I2C/SPI/UART 硬件总线操作 | **中间件库** |
+| 其他情况 | **硬件驱动** |
+
+**中间件库跳过 #11 I2C 扫描+ID 验证，替换为以下三条规则：**
+- **#11a** 功能函数区定义 `connect_wifi()` 函数，初始化配置区调用并打印 IP 地址
+- **#11b** 全局变量区声明 `APP_ID`/`ACCESS_TOKEN` 等凭证常量（`UPPER_CASE`），不得硬编码在实例化语句中
+- **#11c** 主程序区用 `tests = [...]` 列表驱动多场景测试，替代 `while True` 轮询结构；使用 `asyncio.run()` 作为入口
+
 ## 核心约束（不可违反）
 
 - 不得修改测试的业务逻辑和 API 调用顺序
