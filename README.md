@@ -2,7 +2,7 @@
 
 GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行）构建。
 
-提供 14 个专用 Skill，覆盖 MicroPython 驱动开发的完整工作流：驱动规范化、测试文件规范化/生成、README 生成、package.json 生成、性能优化、内存优化、打包整理，以及项目端到端生成、器件用法查询、文档获取；同时提供设备交互、文件传输、长连接监控三个 mpremote 操作 Skill。
+提供 15 个专用 Skill，覆盖 MicroPython 驱动开发的完整工作流：驱动规范化、测试文件规范化/生成、README 生成、package.json 生成、性能优化、内存优化、打包整理、设备部署验证，以及项目端到端生成、器件用法查询、文档获取；同时提供设备交互、文件传输、长连接监控三个 mpremote 操作 Skill。
 
 ---
 
@@ -34,6 +34,7 @@ GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-D
   - [upy-gen-readme](#upy-gen-readme--从-0-生成-readme)
   - [upy-gen-pkg](#upy-gen-pkg--从-0-生成-packagejson)
   - [upy-norm-pkg](#upy-norm-pkg--驱动包全流程规范化)
+  - [upy-deploy-test](#upy-deploy-test--设备部署与验证)
   - [upy-opt-driver](#upy-opt-driver--驱动性能优化)
   - [upy-slim-driver](#upy-slim-driver--驱动内存优化)
   - [upy-pack-driver](#upy-pack-driver--打包成标准目录结构)
@@ -270,7 +271,7 @@ API 处理方式：低频 API 自动执行，高频/模式切换 API 注释调�
 
 **输出**：完整规范化的驱动包（所有驱动文件 + main.py + README.md + package.json + 标准目录结构）
 
-**执行流程（5 步）**：
+**执行流程（6 步）**：
 
 | 步骤 | 操作 |
 |---|---|
@@ -280,12 +281,43 @@ API 处理方式：低频 API 自动执行，高频/模式切换 API 注释调�
 | 3 | 执行 `/upy-gen-readme` |
 | 4 | 执行 `/upy-gen-pkg` |
 | 5 | 执行 `/upy-pack-driver` |
+| 6 | 执行 `/upy-deploy-test`（用户确认后上传设备并验证） |
 
-**关键规则**：每步完成后显示 `[步骤 X/5 — skill名称: 文件名 完成]`，暂停等待用户确认再继续。
+**关键规则**：每步完成后显示 `[步骤 X/6 — skill名称: 文件名 完成]`，暂停等待用户确认再继续。
 
 **使用示例**：
 ```
 /upy-norm-pkg sensors/bh1750_driver/
+```
+
+---
+
+### `/upy-deploy-test` — 设备部署与验证
+
+**用途**：`upy-norm-pkg` 完成后，将规范化的驱动文件和 `main.py` 上传到 MicroPython 设备，运行并验证输出。
+
+**输入**：规范化后的 `code/` 目录路径 + 用户确认的 COM 端口
+
+**输出**：上传进度 + 验证报告（成功/失败 + 错误分析）
+
+**执行流程（6 步）**：
+
+| 步骤 | 操作 |
+|---|---|
+| 0 | 询问并确认 COM 端口（可执行 `mpremote connect list` 辅助） |
+| 1 | 扫描待上传文件（`.py` 文件 + 子包目录） |
+| 2 | 逐文件上传（`mpremote connect <COM> resume fs cp`） |
+| 3 | 验证设备文件完整性（`fs ls`） |
+| 4 | 运行 `main.py`（`mpremote resume run main.py`） |
+| 5 | 分析输出，输出验证报告 |
+
+**失败诊断**：`ImportError` → 文件缺失；`OSError -110` → I2C 接线；`RuntimeError: WiFi` → 检查凭证占位符是否已替换。
+
+**mpremote 参考**：`/mpremote-device-interaction`、`/mpremote-file-transfer`、`/mpremote-live-session`、[官方文档](https://docs.micropython.org/en/latest/reference/mpremote.html)
+
+**使用示例**：
+```
+/upy-deploy-test bh1750_driver/code/
 ```
 
 ---
@@ -604,6 +636,7 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.2.0 | 2026-04-27 | leezisheng | 新增 upy-norm-pkg（Orchestrator）、upy-opt-driver（性能优化）、upy-slim-driver（内存优化）；完善多文件批量处理模式 |
 | v1.3.0 | 2026-04-29 | leezisheng | 新增 upy-pkg-guide（器件用法查询）、fetch-doc（URL 内容获取）、upy-project（项目端到端生成）；upy-gen-pkg 查询逻辑改为 Bash curl 自动执行 |
 | v1.4.0 | 2026-05-04 | leezisheng | 新增 mpremote-device-interaction、mpremote-file-transfer、mpremote-live-session；基于 andrewleech/claude-mpy-marketplace 架构，补充 Windows（COMn）和 macOS 平台支持 |
+| v1.5.0 | 2026-05-14 | leezisheng | 新增 upy-deploy-test（设备部署与验证）；upy-norm-pkg 新增第6步调用 upy-deploy-test；各 skill 新增中间件库类型判断分支及敏感数据替换规则 |
 
 ---
 
