@@ -122,7 +122,7 @@ description: Use this skill when the user wants to normalize/standardize an exis
 
 执行完成后输出：
 ```
-[步骤 5/5 — 打包完成]
+[步骤 5/6 — 打包完成]
 <chip>_driver/
 ├── code/
 │   ├── <chip>.py        ✓
@@ -133,13 +133,24 @@ description: Use this skill when the user wants to normalize/standardize an exis
 └── LICENSE              ✓ (generated)
 ```
 
+询问用户："是否继续进行设备部署与验证？"，用户确认后进入第 6 步。
+
+### 第 6 步：deploy-test
+
+执行 `/upy-deploy-test`（传入打包后的 `code/` 目录路径）。
+
+执行完成后输出：
+```
+[步骤 6/6 — 设备验证完成]
+```
+
 ## 中断与恢复
 
 用户在任意步骤回复"修改"或"重做"时，重新执行当前步骤，不影响已完成步骤。
 
 ## 输出格式
 
-每步开始前显示进度：`[步骤 X/5 — skill名称: 文件名]`
+每步开始前显示进度：`[步骤 X/6 — skill名称: 文件名]`
 每步完成后暂停等待用户确认，再进入下一步。
 
 ## 上下文控制
