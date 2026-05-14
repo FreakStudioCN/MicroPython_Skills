@@ -21,6 +21,16 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 1. 读取用户指定的驱动 `.py` 文件；**必须重新读取文件的完整内容，不得使用会话缓存或跳过读取步骤**
 2. 分析文件结构：识别通信接口类型、类、方法、属性、常量、导入、是否有 ISR 回调
+2a. 判断驱动类型：
+    - 扫描 import 语句 + 文件所在路径：
+      若位于 `middleware/` 子目录，或导入了 `network`/`urequests`/`AsyncWebsocketClient`/`asyncio` 且无 I2C/SPI/UART 硬件总线操作 → 判定为【中间件库】
+      否则 → 判定为【硬件驱动】（原有流程不变）
+    - 中间件库跳过以下规则（P0 说明表中标注"不适用-中间件库"）：
+      #16 显式依赖注入、#16a 引脚参数改为总线实例、#16b INT 引脚改为回调注入、#16c 定时器改为实例注入
+      #29 ISR 禁止抛异常、#34~38 ISR 规范类全部规则
+      #39 bytearray 复用缓冲区
+    - 中间件库额外规则：
+      `__init__` 中的 `app_id`/`access_token`/`api_key` 等凭证参数必须做 None 检查 + `isinstance(str)` 类型检查
 3. 按 P0→P2 优先级逐项改写
 4. 输出完整改写后的文件内容
 

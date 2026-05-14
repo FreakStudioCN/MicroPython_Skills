@@ -32,6 +32,14 @@ description: Use this skill when the user wants to normalize/standardize an exis
    子包依赖目录（1个）：sensor_pack_2/  ← 含 __init__.py，gen-pkg 步骤将查询 upypi
    测试文件：main.py ✓（已存在，将执行 norm-main）
    ```
+3a. 判断包类型：
+    扫描驱动文件 import，若符合中间件库特征（见 upy-norm-driver 类型判断规则），输出：
+    ```
+    包类型：中间件库（middleware）
+    分类建议：middleware/protocol 或 middleware/network 等
+    后续步骤将使用中间件库规则分支
+    ```
+    并在后续每步调用对应 skill 时传入类型标记（中间件库）。
    若无子包目录：
    ```
    目录：G:/bmp280/

@@ -39,6 +39,9 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 9 | finally 资源清理 | `finally` 中调用 `device.close()`/`deinit()`，`del` 硬件对象，打印退出提示 |
 | 10 | 行内注释中文 | 所有行内注释改为中文；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
 | 11 | I2C 设备扫描 + ID 验证 | 若驱动使用 I2C，初始化配置区必须包含完整扫描逻辑：① `i2c.scan()` 扫描总线，若列表为空则 `raise RuntimeError("No I2C device found")`；② 遍历设备列表，找到目标地址则记录，未找到则 `raise RuntimeError("Device not found at expected address")`；③ 读取芯片 ID 寄存器与期望值比对，打印 "Device found" 或 "Device not found"；设备 ID 寄存器地址、期望值声明为全局变量区常量（`UPPER_CASE`）；I2C 扫描所需的额外 `import` 必须放在导入区，不得在初始化配置区内 `import` |
+| 11a | 中间件库：WiFi 连接函数 | 若驱动为中间件库（见 upy-norm-driver 类型判断规则），跳过 #11 I2C 扫描，替换为：功能函数区定义 `connect_wifi()` 函数，初始化配置区调用并打印 IP 地址 |
+| 11b | 中间件库：凭证配置区 | 全局变量区声明 `APP_ID`/`ACCESS_TOKEN` 等凭证常量（`UPPER_CASE`），不得硬编码在实例化语句中 |
+| 11c | 中间件库：场景列表结构 | 主程序区用 `tests = [...]` 列表驱动多场景测试，替代 `while True` 轮询结构；使用 `asyncio.run()` 作为入口 |
 
 ### P1 — 尽量改
 
