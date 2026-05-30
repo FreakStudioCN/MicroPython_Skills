@@ -1,0 +1,325 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Project Manifest",
+  "description": "一句话造硬件 项目清单，各阶段渐进填充。每个 Phase 只写自己负责的字段。",
+  "type": "object",
+  "required": ["schema_version", "phase", "created_at", "project_name", "requirements", "devices"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Manifest schema version"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["analyze", "select-hw", "scaffold", "generate", "verify-docs",
+               "inject-test", "wiring", "diagram", "deploy", "autofix",
+               "cold-driver", "complete", "failed"],
+      "description": "当前所处的 Phase"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp，项目首次创建时间"
+    },
+    "updated_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp，最后一次修改时间"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "项目名称，LLM 从用户描述中提取"
+    },
+
+    "requirements": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "用户原始需求的中文摘要"
+        },
+        "description_en": {
+          "type": "string",
+          "description": "English summary for search keywords"
+        },
+        "scene": {
+          "type": "string",
+          "enum": ["indoor", "outdoor", "vehicle", "industrial", "wearable", "underwater", "unknown"],
+          "default": "indoor"
+        },
+        "power": {
+          "type": "string",
+          "enum": ["usb", "battery_li", "battery_disposable", "solar", "poe", "unknown"],
+          "default": "usb"
+        },
+        "network": {
+          "type": "string",
+          "enum": ["none", "wifi", "ble", "mqtt", "zigbee", "lora", "4g", "unknown"],
+          "default": "none"
+        },
+        "sample_rate": {
+          "type": "string",
+          "enum": ["high_100hz_plus", "normal_1hz", "low_minute", "triggered", "unknown"],
+          "default": "normal_1hz"
+        },
+        "precision": {
+          "type": "string",
+          "enum": ["high", "normal", "low_power_first", "unknown"],
+          "default": "normal"
+        },
+        "response_time": {
+          "type": "string",
+          "enum": ["ms_level", "1s", "minute_level", "unknown"],
+          "default": "1s"
+        },
+        "output": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["serial", "display_oled", "display_lcd", "display_eink",
+                     "buzzer", "led", "led_rgb", "cloud_mqtt", "cloud_http",
+                     "local_file", "relay", "motor", "servo"]
+          },
+          "default": ["serial"],
+          "description": "输出方式列表"
+        },
+        "temp_range": {
+          "type": "string",
+          "enum": ["normal_0_40", "extended_-20_70", "industrial_-40_85", "unknown"],
+          "default": "normal_0_40"
+        },
+        "size_constraint": {
+          "type": "string",
+          "enum": ["none", "compact", "wearable", "custom", "unknown"],
+          "default": "none"
+        },
+        "budget_yuan": {
+          "type": "string",
+          "enum": ["low_30", "medium_50", "medium_100", "high_200", "unlimited", "unknown"],
+          "default": "medium_50"
+        },
+        "existing_hardware": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [],
+          "description": "用户已有的硬件列表（型号或通用名）"
+        },
+        "experience": {
+          "type": "string",
+          "enum": ["beginner", "experienced", "unknown"],
+          "default": "beginner"
+        },
+        "special_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["watchdog", "ota_update", "deep_sleep", "encryption", "button_control", "voice_control", "battery_monitor", "error_led", "none"]
+          },
+          "default": ["none"],
+          "description": "特殊功能需求"
+        },
+        "mcu_specified": {
+          "type": "string",
+          "description": "用户指定的 MCU 型号（未指定则为 null）"
+        }
+      }
+    },
+
+    "devices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "interface"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "器件型号，如 SHT30、INMP441"
+          },
+          "type": {
+            "type": "string",
+            "description": "器件类别：temperature_sensor, humidity_sensor, imu, microphone, speaker, display, led, button, relay, motor, servo, rtc, storage, other"
+          },
+          "interface": {
+            "type": "string",
+            "enum": ["I2C", "SPI", "UART", "GPIO", "PWM", "ADC", "I2S", "1-Wire", "CAN", "USB", "WiFi", "BLE"],
+            "description": "通信接口类型"
+          },
+          "i2c_addr": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^0x[0-9a-fA-F]{2}$"},
+            "description": "I2C 地址列表（I2C 器件必填）"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "notes": {
+            "type": "string",
+            "description": "补充说明（功耗、特殊要求等）"
+          },
+          "driver": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": ["upypi", "awesome-micropython", "github", "local", "cold-driver", "none"],
+                "description": "驱动来源"
+              },
+              "package_name": {"type": "string"},
+              "version": {"type": "string"},
+              "url": {"type": "string", "format": "uri"},
+              "install_cmd": {"type": "string"},
+              "api_ref": {
+                "type": "object",
+                "description": "从 upy-pkg-guide 获取的 API 使用要点（构造方法、核心方法、注意事项）"
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "mcu": {
+      "type": "object",
+      "description": "[Phase 2] MCU 选型结果",
+      "properties": {
+        "model": {"type": "string"},
+        "board": {"type": "string"},
+        "reason": {"type": "string"},
+        "specs": {"type": "object"}
+      }
+    },
+
+    "bom": {
+      "type": "array",
+      "description": "[Phase 2] BOM 物料清单",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "model": {"type": "string"},
+          "quantity": {"type": "integer"},
+          "unit_price_yuan": {"type": "number"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+
+    "pinout": {
+      "type": "array",
+      "description": "[Phase 2] 引脚分配表",
+      "items": {
+        "type": "object",
+        "properties": {
+          "device": {"type": "string"},
+          "pin_name": {"type": "string"},
+          "gpio": {"type": "string"},
+          "mcu_pin": {"type": "string"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+
+    "scheduler_type": {
+      "type": "string",
+      "enum": ["timer", "asyncio", "while_loop", "multi_thread"],
+      "description": "[Phase 3] 调度器类型"
+    },
+
+    "file_structure": {
+      "type": "object",
+      "description": "[Phase 3] 生成的文件结构"
+    },
+
+    "generated_files": {
+      "type": "array",
+      "description": "[Phase 4] 生成的代码文件列表",
+      "items": {"type": "object"}
+    },
+
+    "static_check": {
+      "type": "object",
+      "description": "[Phase 4] black/flake8 检查结果"
+    },
+
+    "doc_check": {
+      "type": "object",
+      "description": "[Phase 5] MPY API 文档核验结果",
+      "properties": {
+        "passed": {"type": "boolean"},
+        "issues": {"type": "array"},
+        "suggestions": {"type": "array"}
+      }
+    },
+
+    "injection": {
+      "type": "object",
+      "description": "[Phase 6] 测试点注入结果"
+    },
+
+    "unittest_files": {
+      "type": "array",
+      "description": "[Phase 6] 生成的 unittest 文件",
+      "items": {"type": "string"}
+    },
+
+    "wiring": {
+      "type": "object",
+      "description": "[Phase 7a] 接线图生成结果",
+      "properties": {
+        "wiring_png": {"type": "string"},
+        "wiring_md": {"type": "string"}
+      }
+    },
+
+    "diagrams": {
+      "type": "object",
+      "description": "[Phase 7b] 架构图和流程图生成结果",
+      "properties": {
+        "architecture_md": {"type": "string"},
+        "flowchart_md": {"type": "string"}
+      }
+    },
+
+    "deploy": {
+      "type": "object",
+      "description": "[Phase 8] 部署结果",
+      "properties": {
+        "com_port": {"type": "string"},
+        "files_uploaded": {"type": "integer"},
+        "verified": {"type": "boolean"},
+        "output_summary": {"type": "string"},
+        "exit_code": {"type": "integer"}
+      }
+    },
+
+    "fix_attempts": {
+      "type": "array",
+      "description": "[Phase 9] 自动修复尝试记录",
+      "items": {
+        "type": "object",
+        "properties": {
+          "attempt": {"type": "integer"},
+          "error_type": {"type": "string"},
+          "strategy": {"type": "string"},
+          "result": {"type": "string"},
+          "commit_hash": {"type": "string"}
+        }
+      }
+    },
+
+    "final_status": {
+      "type": "string",
+      "enum": ["pass", "fail_software", "fail_hardware", "fail_cold_driver", "pending"],
+      "default": "pending",
+      "description": "最终状态"
+    },
+
+    "error_report": {
+      "type": "object",
+      "description": "[Phase 9] 错误报告（失败时写入）"
+    }
+  }
+}
