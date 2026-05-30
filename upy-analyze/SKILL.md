@@ -47,13 +47,27 @@ python -c "import requests; print('requests OK')"
 header: "使用模式"
 question: "选择配置方式"
 options:
-  - "小白模式：帮我自动推荐 (默认)" (description: "只确认器件，其他全部自动配置")
-  - "自定义模式：我要逐项选择" (description: "场景、性能、输出方式逐项定制")
+  - "小白模式：帮我自动推荐 (默认)" (description: "只确认器件和主控，其他全部自动配置")
+  - "自定义模式：我要逐项选择" (description: "主控、场景、性能、输出方式逐项定制")
 ```
 
-#### Step 2B: 小白模式（仅 1 问）
+#### Step 2B: 小白模式（1~2 问）
 
-→ 直接确认器件清单，其余全部默认值：
+**Q1: 主控确认**（仅当用户未在描述中指定 MCU 时询问）
+
+```
+header: "主控"
+question: "用什么开发板？"
+options:
+  - "ESP32 (推荐默认)" (description: "最通用，WiFi/BLE，接口丰富")
+  - "Raspberry Pi Pico" (description: "RP2040，性价比高")
+  - "ESP32-S3" (description: "更强的 AI 能力，USB-OTG")
+  - "Other"
+```
+
+用户选 "Other" → 在 Other 中输入型号 → 见 Step 2.5 固件核验
+
+**Q2: 器件清单确认** (multiSelect)
 
 ```
 header: "器件清单"
@@ -66,7 +80,7 @@ options:
   - "缺了器件，需补充"
 ```
 
-用户确认后 → **跳过 Step 2C，直接进入 Step 3 驱动搜索。**
+用户确认后 → **进入 Step 2.5 固件核验 → Step 3 驱动搜索。**
 所有 requirements 维度使用默认值。
 `experience = "beginner"`
 
@@ -76,19 +90,31 @@ options:
 
 ##### 第一轮（4 问）
 
-**Q1: 器件清单确认** (multiSelect)
+**Q1: 主控确认**（仅当用户未指定时；已指定则跳过此问）
+
+```
+header: "主控"
+question: "用什么开发板？"
+options:
+  - "ESP32 (推荐默认)" (description: "最通用，WiFi/BLE，接口丰富")
+  - "Raspberry Pi Pico" (description: "RP2040，性价比高，无 WiFi")
+  - "ESP32-S3" (description: "AI 加速，USB-OTG")
+  - "Other"
+```
+
+**Q2: 器件清单确认** (multiSelect，含 LLM 建议新增的器件)
 
 ```
 header: "器件清单"
 question: "以下识别的器件是否正确？"
-options（含 LLM 建议新增的器件）:
+options:
   - "{器件1} — {接口}/{型号}"
   - ...
   - "+ {建议器件}（建议，{原因}）"
   - "缺了器件，需补充"
 ```
 
-**Q2: 场景与供电** (singleSelect)
+**Q3: 场景与供电** (singleSelect)
 
 ```
 header: "场景供电"
@@ -100,33 +126,79 @@ options:
   - "Other"
 ```
 
-**Q3: 性能等级** (singleSelect)
+**Q4: 性能 + 输出** (合并第 3、4 维)
 
 ```
-header: "性能等级"
-question: "对采样速度和精度的要求？"
-options:
-  - "通用级：1Hz + 常规精度 + 1秒响应 (默认)" → sample_rate=normal_1hz, precision=normal, response_time=1s
-  - "高性能：100Hz+ + 高精度 + 毫秒响应" → sample_rate=high_100hz_plus, precision=high, response_time=ms_level
-  - "低功耗优先：低频 + 省电 + 可延迟" → sample_rate=low_minute, precision=low_power_first, response_time=minute_level
-  - "Other"
+header: "性能输出"
+question: "性能和输出要求？"
+options (前 3 个 singleSelect-like 但用 multiSelect 实现单选行为):
+  - "通用级 + 串口打印 (默认)" → sample_rate=normal_1hz, precision=normal, response_time=1s, output=["serial"]
+  - "高性能 + 屏幕显示" → sample_rate=high_100hz_plus, precision=high, response_time=ms_level, output=["display_oled","serial"]
+  - "低功耗 + 串口打印" → sample_rate=low_minute, precision=low_power_first, response_time=minute_level, output=["serial"]
+  - "Other（逐项指定）"
 ```
 
-**Q4: 输出与交互** (multiSelect)
-
-```
-header: "输出方式"
-question: "数据/结果如何呈现？"
-options:
-  - "串口打印 (默认)" → output=["serial"]
-  - "屏幕显示 (OLED/LCD/电子墨水)" → output=["display_oled"]
-  - "声光反馈 (蜂鸣器/LED/RGB)" → output=["buzzer","led"]
-  - "WiFi/蓝牙上报云平台" → output=["cloud_mqtt"], network=wifi
-```
+若用户选 "Other" → 第二轮追加性能 + 输出各一问。
 
 ##### 第二轮（按需）
 
-仅当 Q1~Q4 有 "Other" 或 "缺器件" 时追加一问补充。
+仅当 Q2~Q4 有 "Other" 或 "缺器件" 时追加补充。
+
+#### Step 2.5: MCU 固件核验 + 下载链接
+
+**每次 MCU 确定后（用户选择或用户指定），必须核验 MicroPython 固件是否支持，并给用户下载链接。**
+
+**固件查询方法：**
+
+```
+1. 已知支持 MPY 的型号 → 直接生成下载链接，无需查询：
+   URL 模式：https://micropython.org/download/{BOARD_NAME}/
+   
+   常用 BOARD_NAME 映射：
+   ESP32                 → ESP32_GENERIC
+   ESP32-S3              → ESP32_GENERIC_S3
+   ESP32-C3              → ESP32_GENERIC_C3
+   ESP32-S2              → ESP32_GENERIC_S2
+   ESP32-C6              → ESP32_GENERIC_C6
+   Raspberry Pi Pico     → RPI_PICO
+   Raspberry Pi Pico W   → RPI_PICO_W
+   Raspberry Pi Pico 2   → RPI_PICO2
+   Raspberry Pi Pico 2 W → RPI_PICO2_W
+   ESP8266               → ESP8266_GENERIC
+   STM32F4 Discovery     → STM32F4DISC
+   STM32F7 Discovery     → STM32F7DISC
+   Pyboard               → PYBV11
+   M5Stack Core          → M5STACK_ATOM
+   Seeed XIAO ESP32-C3   → XIAO_ESP32C3
+   Seeed XIAO RP2040     → XIAO_RP2040
+   Wio Terminal          → WIO_TERMINAL
+   Teensy 4.0            → TEENSY40
+   Teensy 4.1            → TEENSY41
+   Arduino Nano RP2040   → ARDUINO_NANO_RP2040_CONNECT
+   Arduino Nano ESP32    → ARDUINO_NANO_ESP32
+   (更多 → https://micropython.org/download/)
+
+2. 用户选 "Other" 或指定不在已知列表的型号 → 用 WebSearch 查询：
+   site:micropython.org/download {用户型号}
+   
+   搜到 → 提取 BOARD_NAME，生成下载链接
+   搜不到 → 停止并告知：
+     "{型号} 没有 MicroPython 固件支持。
+      建议替代：ESP32 (最通用) / Pico (性价比) / ESP32-S3 (AI)"
+     重新选择 MCU → 回到 Step 2B 或 2C 的 Q1
+```
+
+**固件核验后输出给用户：**
+
+```
+主控：ESP32
+固件：✅ 支持
+下载：https://micropython.org/download/ESP32_GENERIC/
+烧录工具：
+  ESP32 → esptool.py
+  Pico  → 按住 BOOTSEL 拖拽 .uf2
+  STM32 → STM32CubeProgrammer 或 dfu-util
+```
 
 ---
 
@@ -146,7 +218,7 @@ options:
 | experience | "beginner" | "experienced" | 由分流决定 |
 | existing_hardware | [] | [] | 默认，不提 |
 | special_requirements | ["none"] | ["none"] | 默认，不提 |
-| mcu_specified | null | null | Phase 2 选型 |
+| mcu_specified | "ESP32"（或用户选择） | 由 Q1 推导 | Step 2 确定，Step 2.5 核验 |
 
 ### Step 3: 驱动搜索
 
