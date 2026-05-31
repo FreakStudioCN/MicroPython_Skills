@@ -369,14 +369,6 @@ def generate_main_py_timer(manifest: dict) -> str:
     lines.append("from lib.logger import install_rotating")
     lines.append("from tasks.maintenance import maintenance_tick")
     lines.append("")
-
-    # Import task stubs
-    for d in devices:
-        name = safe_var_name(d.get("name", ""))
-        if d.get("driver", {}).get("source") != "none":
-            lines.append("# from tasks.{} import {}_tick".format(name, name))
-
-    lines.append("")
     lines.append("# ── Logger setup ──")
     lines.append("# Redirect to rotating log files on device")
     lines.append("install_rotating('/log', max_files=4, lines_per_file=150)")
@@ -411,11 +403,7 @@ def generate_main_py_timer(manifest: dict) -> str:
     lines.append("")
     lines.append("# ── Register tasks ──")
     lines.append("sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)")
-    for d in devices:
-        name = safe_var_name(d.get("name", ""))
-        if d.get("driver", {}).get("source") != "none":
-            lines.append("# sc.add_task({}_tick, interval_ms=1000, name='{}')".format(name, name))
-
+    lines.append("# TODO: upy-generate registers tasks here")
     lines.append("")
     lines.append("# ── Start ──")
     lines.append('print("[OK] {} starting scheduler".format(conf.PROJECT_NAME))')
@@ -474,10 +462,7 @@ def generate_main_py_async(manifest: dict) -> str:
     lines.append("")
     lines.append("async def main():")
     lines.append("    info('{} booting (asyncio)...'.format(conf.PROJECT_NAME))")
-    for d in devices:
-        name = safe_var_name(d.get("name", ""))
-        if d.get("driver", {}).get("source") != "none":
-            lines.append("    # asyncio.create_task({}_coro())  # TODO: upy-generate".format(name))
+    lines.append("    # TODO: upy-generate creates async tasks here")
     lines.append("")
     lines.append("    while True:")
     lines.append("        maintenance_tick()")
@@ -540,11 +525,7 @@ def generate_main_py_thread(manifest: dict) -> str:
     lines.append("")
     lines.append("# ── Start threads ──")
     lines.append("info('{} booting (thread)...'.format(conf.PROJECT_NAME))")
-    for d in devices:
-        name = safe_var_name(d.get("name", ""))
-        if d.get("driver", {}).get("source") != "none":
-            lines.append("# _thread.start_new_thread({}_loop, ())  # TODO: upy-generate".format(name))
-
+    lines.append("# TODO: upy-generate starts threads here")
     lines.append("")
     lines.append("# Main thread: maintenance loop")
     lines.append("while True:")
@@ -552,52 +533,6 @@ def generate_main_py_thread(manifest: dict) -> str:
     lines.append("    time.sleep_ms(100)")
     lines.append("")
 
-    return "\n".join(lines)
-
-
-def generate_task_stub(manifest: dict, mode: str) -> str:
-    """Generate tasks/sensor_task.py stub based on scheduler mode."""
-    devices = manifest.get("devices", [])
-    device_names = [d.get("name", "") for d in devices if d.get("driver", {}).get("source") != "none"]
-
-    lines = []
-    lines.append("# -*- coding: utf-8 -*-")
-    lines.append("# @Generated : upy-scaffold (mode: {})".format(mode))
-    lines.append("# @File    : sensor_task.py")
-    lines.append("# @Description : Sensor reading task — {} mode.".format(mode))
-    lines.append("#               TODO: upy-generate fills the actual logic.")
-    lines.append("")
-
-    if mode == "async":
-        lines.append("from time_helper import timed_coro")
-        lines.append("")
-        lines.append("")
-        lines.append("@timed_coro")
-        lines.append("async def sensor_coro():")
-        lines.append('    """Read sensors: {}."""'.format(", ".join(device_names) if device_names else "TBD"))
-        lines.append("    # TODO: upy-generate fills this")
-        lines.append("    pass")
-    elif mode == "thread":
-        lines.append("import time")
-        lines.append("from time_helper import timed_function")
-        lines.append("")
-        lines.append("")
-        lines.append("@timed_function")
-        lines.append("def sensor_loop():")
-        lines.append('    """Read sensors: {}."""'.format(", ".join(device_names) if device_names else "TBD"))
-        lines.append("    # TODO: upy-generate fills this")
-        lines.append("    time.sleep_ms(100)")
-    else:
-        lines.append("from time_helper import timed_function")
-        lines.append("")
-        lines.append("")
-        lines.append("@timed_function")
-        lines.append("def sensor_tick():")
-        lines.append('    """Read sensors: {}."""'.format(", ".join(device_names) if device_names else "TBD"))
-        lines.append("    # TODO: upy-generate fills this")
-        lines.append("    pass")
-
-    lines.append("")
     return "\n".join(lines)
 
 
@@ -774,11 +709,10 @@ def main():
             f.write("# Scheduler package\nfrom .timer_sched import Scheduler\n")
         print("[OK] firmware/lib/scheduler/ (timer mode)")
 
-    # 10. Generate tasks/sensor_task.py
-    path = os.path.join(project_dir, "firmware", "tasks", "sensor_task.py")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(generate_task_stub(manifest, mode))
-    print("[OK] firmware/tasks/sensor_task.py")
+    # 10. Remove stale sensor_task.py (was generated by old scaffold, now upy-generate's job)
+    stale_task = os.path.join(project_dir, "firmware", "tasks", "sensor_task.py")
+    if os.path.exists(stale_task):
+        os.remove(stale_task)
 
     # 11. Copy maintenance.py
     src = os.path.join(TEMPLATES_DIR, "tasks", "maintenance.py")
@@ -856,6 +790,24 @@ def main():
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
     print("[OK] project-manifest.json (phase: scaffold, mode: {})".format(mode))
+
+    # 20. flake8 verification (includes pycodestyle E/W checks)
+    import subprocess
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "flake8", "firmware/", "tools/"],
+            cwd=project_dir, capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print("[LINT] flake8 issues:")
+            for line in result.stdout.strip().split("\n"):
+                if line.strip():
+                    print("  {}".format(line))
+            print("[WARN] Review .flake8 config or fix the above.", file=sys.stderr)
+        else:
+            print("[OK] flake8 — clean")
+    except Exception:
+        print("[WARN] flake8 not available, skipping lint check")
 
     # ── Summary ──
     print("")

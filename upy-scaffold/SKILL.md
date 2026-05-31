@@ -127,7 +127,6 @@ python G:/MicroPython_Skills/upy-scaffold/scripts/init_scaffold.py \
 | lib/logger/* | logging + rotating_logger + __init__ | 复制模板 |
 | lib/time_helper.py | timed_function + timed_coro | 复制模板 |
 | lib/scheduler/* | timer_sched.py + __init__ | **仅 timer 模式** |
-| tasks/sensor_task.py | 按模式生成 stub（tick/coro/loop） | 生成 |
 | tasks/maintenance.py | GC 检查 + 错误回调 | 复制模板 |
 | drivers/* | 每个器件一个 stub 包 | 生成 |
 | tools/flash_device.py | .py→.mpy 编译 + 烧录 + 上传 | 复制模板 |
@@ -141,24 +140,40 @@ python G:/MicroPython_Skills/upy-scaffold/scripts/init_scaffold.py \
 | firmware/assets/ | 设备端资源文件（音频等） | .gitkeep |
 | README.md | 项目名 + BOM + 引脚表 | 生成 |
 | LICENSE | MIT | 生成 |
+| .flake8 | F821/F401 豁免 + max-line=120 | 生成 |
+| — | flake8 验证 | 脚本末尾自动执行 |
 
 ---
 
 ### 三种模式的 main.py 形态
 
+main.py 由 scaffold **仅生成硬件实例化 + 调度器框架**，task 注册留给 `upy-generate`。
+
 **Timer：**
 ```python
-from libs.scheduler.timer_sched import Scheduler
+from machine import Pin, I2C
+from lib.scheduler.timer_sched import Scheduler
+from tasks.maintenance import maintenance_tick
+
+i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+# ...
+
 sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)
-sc.add_task(sensor_tick, interval_ms=1000)
+# TODO: upy-generate registers tasks here
 sc.start()
 ```
 
 **asyncio：**
 ```python
 import uasyncio as asyncio
+from machine import Pin, I2C
+from tasks.maintenance import maintenance_tick
+
+i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+# ...
+
 async def main():
-    asyncio.create_task(sensor_coro())
+    # TODO: upy-generate creates async tasks here
     while True:
         maintenance_tick()
         await asyncio.sleep_ms(100)
@@ -168,44 +183,16 @@ asyncio.run(main())
 **_thread：**
 ```python
 import _thread
-_thread.start_new_thread(sensor_loop, ())
+import time
+from machine import Pin, I2C
+from tasks.maintenance import maintenance_tick
+
+i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+# ...
+
+# TODO: upy-generate starts threads here
 while True:
     maintenance_tick()
-    time.sleep_ms(100)
-```
-
----
-
-### 三种模式的任务 stub 形态
-
-**Timer (`tasks/sensor_task.py`)：**
-```python
-from libs.time_helper import timed_function
-
-@timed_function
-def sensor_tick():
-    """Read sensors. TODO: upy-generate fills this."""
-    pass
-```
-
-**asyncio：**
-```python
-from libs.time_helper import timed_coro
-
-@timed_coro
-async def sensor_coro():
-    """Read sensors. TODO: upy-generate fills this."""
-    pass
-```
-
-**_thread：**
-```python
-import time
-from libs.time_helper import timed_function
-
-@timed_function
-def sensor_loop():
-    """Read sensors. TODO: upy-generate fills this."""
     time.sleep_ms(100)
 ```
 
@@ -223,9 +210,10 @@ def sensor_loop():
 
 ## 强约束
 
-- **不写业务逻辑**：task stub 只含 `pass`，实际代码由 `upy-generate` 填充
+- **不生成业务 task 文件**：`tasks/` 下只放通用工具（`maintenance.py` + `__init__.py`），业务 task（sensor/display/alarm/network）由 `upy-generate` 创建
 - **不转换驱动**：驱动同步/异步转换是 `upy-generate` 的职责
 - **asyncio / _thread 模式不注入 scheduler.py**：直接用原生 API，不额外封装
 - **timer 模式使用已有 Scheduler.py 参考实现**：ISR 只计数，主循环执行
 - **board.py 不做硬件初始化**：只存常量映射，实例创建在 main.py
 - **conf.py 不放敏感数据**：无 Wi-Fi 密码、API Key
+- **生成结束自动 flake8**：脚本末尾自动验证，不通过打印 warning
