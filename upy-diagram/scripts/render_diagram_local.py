@@ -1,0 +1,734 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Render diagram.json to Mermaid .md files.
+Reads the intermediate JSON from docs/diagram.json, outputs:
+  - architecture.md  (layered dependency graph)
+  - flowchart.md     (main.py execution sequence)
+  - data_flow.md     (inter-module data flow)
+
+Also supports --format png via mermaid.ink API (zero local deps).
+Also supports --format png-local via mermaid-cli (requires Node.js).
+
+Usage:
+  python render_diagram_local.py --input docs/diagram.json --output docs/
+  python render_diagram_local.py --input docs/diagram.json --output docs/ --format png
+  python render_diagram_local.py --input docs/diagram.json --output docs/ --format png-local
+
+Defensive: every field access uses .get() with fallbacks.
+Missing or malformed sections are skipped with a stderr warning, never crash.
+"""
+
+import argparse
+import json
+import os
+import sys
+
+
+def safe_get(d, key, default=None):
+    """Get key from dict, never raise."""
+    try:
+        return d.get(key, default)
+    except Exception:
+        return default
+
+
+def safe_list(d, key):
+    """Get list from dict, always returns a list."""
+    try:
+        val = d.get(key, [])
+        return val if isinstance(val, list) else []
+    except Exception:
+        return []
+
+
+def safe_int(d, key, default=0):
+    """Get int from dict, returns default on failure."""
+    try:
+        return int(d.get(key, default))
+    except Exception:
+        return default
+
+
+def load_diagram_json(path):
+    """Load diagram.json. Returns (data, error)."""
+    if not os.path.isfile(path):
+        return None, "diagram.json not found: {}".format(path)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f), None
+    except json.JSONDecodeError as e:
+        return None, "JSON parse error: {}".format(e)
+    except Exception as e:
+        return None, "read error: {}".format(e)
+
+
+# ═══════════════════════════════════════════════════════════
+#  Layer colours (mermaid-compatible)
+# ═══════════════════════════════════════════════════════════
+
+LAYER_STYLES = {
+    "entry":  {"fill": "#FFF3E0", "stroke": "#E65100"},
+    "task":   {"fill": "#E8F5E9", "stroke": "#2E7D32"},
+    "driver": {"fill": "#E3F2FD", "stroke": "#1565C0"},
+    "lib":    {"fill": "#F3E5F5", "stroke": "#7B1FA2"},
+    "board":  {"fill": "#ECEFF1", "stroke": "#546E7A"},
+    "host":   {"fill": "#FFF8E1", "stroke": "#F9A825"},
+    "test":   {"fill": "#FBE9E7", "stroke": "#D84315"},
+}
+
+safe_mermaid_chars = str.maketrans({'"': "'", "<": "[", ">": "]", "{": "(", "}": ")"})
+
+
+def mermaid_escape(text):
+    """Escape special characters for Mermaid node labels."""
+    if not text:
+        return ""
+    try:
+        return str(text).translate(safe_mermaid_chars).replace("\n", " ")
+    except Exception:
+        return str(text)
+
+
+# ═══════════════════════════════════════════════════════════
+#  architecture.md
+# ═══════════════════════════════════════════════════════════
+
+def render_architecture(diagram, output_dir):
+    """Generate architecture.md with layered Mermaid graph. Returns (filepath, warnings)."""
+    warnings = []
+    try:
+        arch = safe_get(diagram, "architecture", {})
+        layers = safe_list(arch, "layers")
+        if not layers:
+            return None, ["no architecture.layers found"]
+
+        lines = []
+        meta = safe_get(diagram, "meta", {})
+        project = safe_get(meta, "project", "Unknown Project")
+        mode = safe_get(meta, "mode", "timer")
+
+        lines.append("# {} — 软件架构图".format(project))
+        lines.append("")
+        lines.append("> 调度模式: **{}** | 生成时间: {}".format(
+            mode, safe_get(meta, "generated_at", "N/A")))
+        lines.append("")
+        lines.append("```mermaid")
+        lines.append("graph TB")
+
+        # Track all module node IDs for cross-layer deps
+        module_ids = {}
+        layer_count = 0
+
+        for layer in layers:
+            if not isinstance(layer, dict):
+                continue
+            layer_count += 1
+            try:
+                lid = safe_get(layer, "id", "layer{}".format(layer_count))
+                llabel = safe_get(layer, "label", lid)
+                style_cfg = LAYER_STYLES.get(lid, LAYER_STYLES["board"])
+
+                lines.append("  subgraph {id}[{label}]".format(id=lid, label=mermaid_escape(llabel)))
+                lines.append("    style {id} fill:{fill},stroke:{stroke},color:#333".format(
+                    id=lid, fill=style_cfg["fill"], stroke=style_cfg["stroke"]))
+
+                modules = safe_list(layer, "modules")
+                for mod in modules:
+                    if not isinstance(mod, dict):
+                        continue
+                    try:
+                        mname = safe_get(mod, "name", "unknown")
+                        # Generate unique, safe node ID
+                        node_id = mname.replace(".", "_").replace("-", "_").replace("/", "_")
+                        mrole = safe_get(mod, "role", "")
+                        depends_machine = safe_get(mod, "depends_on_machine", False)
+                        has_mock = safe_get(mod, "has_mock", False)
+                        is_generated = safe_get(mod, "is_generated", False)
+                        source = safe_get(mod, "source", "")
+
+                        # Build label with badges
+                        label_parts = [mermaid_escape(mname.split(".")[-1])]
+                        if mrole:
+                            label_parts.append("<br/>{}".format(mermaid_escape(mrole)))
+                        badges = []
+                        if depends_machine:
+                            badges.append("⚡machine")
+                        if has_mock:
+                            badges.append("🧪mock")
+                        if is_generated:
+                            badges.append("🤖gen")
+                        if source and source not in ("llm_generated", "scaffold_template"):
+                            badges.append(source)
+                        if badges:
+                            label_parts.append("<br/><i>{}</i>".format(
+                                mermaid_escape(" ".join(badges))))
+
+                        label = "".join(label_parts)
+                        lines.append('    {}["{}"]'.format(node_id, label))
+                        module_ids[mname] = node_id
+                    except Exception as e:
+                        warnings.append("arch module '{}' failed: {}".format(
+                            safe_get(mod, "name", "?"), e))
+
+                lines.append("  end")
+                lines.append("")
+
+            except Exception as e:
+                warnings.append("arch layer '{}' failed: {}".format(
+                    safe_get(layer, "id", "?"), e))
+
+        # Cross-layer dependencies
+        cross_deps = safe_list(arch, "cross_layer_deps")
+        dep_lines_added = 0
+        for dep in cross_deps:
+            if not isinstance(dep, dict):
+                continue
+            try:
+                _from = safe_get(dep, "from", "")
+                _to = safe_get(dep, "to", "")
+                _label = safe_get(dep, "label", "")
+                _style = safe_get(dep, "style", "solid")
+
+                from_id = module_ids.get(_from, _from.replace(".", "_"))
+                to_id = module_ids.get(_to, _to.replace(".", "_"))
+
+                arrow = " --> "
+                if _style == "dashed":
+                    arrow = " -.-> "
+                elif _style == "dotted":
+                    arrow = " -.-> "
+
+                if _label:
+                    arrow_mid = "|{}|".format(mermaid_escape(_label))
+                    lines.append("  {}{}{}{}".format(from_id, arrow[:3], arrow_mid, to_id))
+                else:
+                    lines.append("  {}{}{}".format(from_id, arrow, to_id))
+                dep_lines_added += 1
+            except Exception as e:
+                warnings.append("cross_dep render failed: {}".format(e))
+
+        # Also render module-level depends_on for modules in module_ids
+        if dep_lines_added == 0:
+            # Fallback: render from modules[].depends_on
+            for layer in layers:
+                if not isinstance(layer, dict):
+                    continue
+                for mod in safe_list(layer, "modules"):
+                    if not isinstance(mod, dict):
+                        continue
+                    try:
+                        mname = safe_get(mod, "name", "")
+                        node_id = module_ids.get(mname, mname.replace(".", "_"))
+                        deps = safe_list(mod, "depends_on")
+                        for d in deps:
+                            if not isinstance(d, str):
+                                continue
+                            dep_id = module_ids.get(d, d.replace(".", "_"))
+                            lines.append("  {} --> {}".format(node_id, dep_id))
+                    except Exception:
+                        pass
+
+        lines.append("```")
+        lines.append("")
+
+        # Diagnostics section
+        diag = safe_get(diagram, "diagnostics", {})
+        if diag:
+            lines.append("## 代码诊断")
+            lines.append("")
+            try:
+                lines.append("- 总模块数: {}".format(safe_int(diag, "total_modules")))
+                lines.append("- 总依赖数: {}".format(safe_int(diag, "total_dependencies")))
+                lines.append("- 依赖最大深度: {}".format(safe_int(diag, "max_depth")))
+            except Exception:
+                pass
+            circ = safe_list(diag, "circular_deps")
+            if circ:
+                lines.append("- ⚠️ 循环依赖: {}".format(circ))
+            orphans = safe_list(diag, "orphan_modules")
+            if orphans:
+                lines.append("- 孤立模块: {}".format(", ".join(str(o) for o in orphans)))
+            machine_access = safe_list(diag, "machine_direct_access")
+            if machine_access:
+                lines.append("- ⚠️ 直接 import machine: {}".format(
+                    ", ".join(str(m) for m in machine_access)))
+
+        out_path = os.path.join(output_dir, "architecture.md")
+        os.makedirs(output_dir, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+        return out_path, warnings
+    except Exception as e:
+        return None, ["architecture render exception: {}".format(e)]
+
+
+# ═══════════════════════════════════════════════════════════
+#  flowchart.md
+# ═══════════════════════════════════════════════════════════
+
+PHASE_COLORS = {
+    "boot":     "#ECEFF1",
+    "init":     "#E8F5E9",
+    "scan":     "#E3F2FD",
+    "create":   "#FFF3E0",
+    "assembly": "#F3E5F5",
+    "run":      "#E8F5E9",
+    "shutdown": "#FFEBEE",
+}
+
+
+def render_flowchart(diagram, output_dir):
+    """Generate flowchart.md with Mermaid sequence diagram. Returns (filepath, warnings)."""
+    warnings = []
+    try:
+        flow = safe_list(diagram, "flow")
+        if not flow:
+            return None, ["no flow[] data found"]
+
+        lines = []
+        meta = safe_get(diagram, "meta", {})
+        project = safe_get(meta, "project", "Unknown Project")
+
+        lines.append("# {} — 执行流程图".format(project))
+        lines.append("")
+        lines.append("```mermaid")
+        lines.append("sequenceDiagram")
+        lines.append("  autonumber")
+        lines.append("  participant D as Device(MCU)")
+
+        current_phase = None
+
+        for step in flow:
+            if not isinstance(step, dict):
+                continue
+            try:
+                _seq = safe_int(step, "seq", 0)
+                _phase = safe_get(step, "phase", "init")
+                _action = safe_get(step, "action", "Step {}".format(_seq))
+                _detail = safe_get(step, "detail", "")
+                _on_error = safe_get(step, "on_error", "")
+                _is_conditional = safe_get(step, "is_conditional", False)
+                branches = safe_list(step, "branches")
+
+                # Phase separator
+                if _phase != current_phase:
+                    current_phase = _phase
+                    phase_label = {
+                        "boot": "── boot ──",
+                        "init": "── init ──",
+                        "scan": "── scan ──",
+                        "create": "── create ──",
+                        "assembly": "── assembly ──",
+                        "run": "── run loop ──",
+                        "shutdown": "── shutdown ──",
+                    }.get(_phase, "── {} ──".format(_phase))
+                    lines.append("  Note over D: {}".format(phase_label))
+
+                action_text = mermaid_escape(_action)
+                if _detail:
+                    action_text = "{}<br/>{}".format(
+                        action_text, mermaid_escape(_detail))
+
+                lines.append("  D->>D: {}".format(action_text))
+
+                if _on_error:
+                    lines.append("  opt on_error={}".format(_on_error))
+                    lines.append("  Note right of D: On failure: {}".format(_on_error))
+                    lines.append("  end")
+
+                if _is_conditional and branches:
+                    for br in branches:
+                        if not isinstance(br, dict):
+                            continue
+                        cond = safe_get(br, "condition", "")
+                        goto = safe_int(br, "goto_step", 0)
+                        cond_text = mermaid_escape(cond)
+                        lines.append(
+                            "  alt {}".format(cond_text) if cond_text else "  alt branch")
+                        lines.append("  Note right of D: → goto step {}".format(goto))
+                        lines.append("  end")
+
+            except Exception as e:
+                warnings.append("flow step seq={} failed: {}".format(
+                    safe_int(step, "seq", -1), e))
+
+        # Task registry
+        task_reg = safe_list(diagram, "task_registry")
+        if task_reg:
+            lines.append("  Note over D: ── task registry ──")
+            for tr in task_reg:
+                if not isinstance(tr, dict):
+                    continue
+                try:
+                    tname = safe_get(tr, "name", "?")
+                    tcb = safe_get(tr, "callback", "?")
+                    tinterval = safe_int(tr, "interval_ms", 0)
+                    lines.append("  Note over D: Task '{}': {}() every {}ms".format(
+                        mermaid_escape(tname), mermaid_escape(tcb), tinterval))
+                except Exception:
+                    pass
+
+        lines.append("```")
+        lines.append("")
+
+        out_path = os.path.join(output_dir, "flowchart.md")
+        os.makedirs(output_dir, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+        return out_path, warnings
+    except Exception as e:
+        return None, ["flowchart render exception: {}".format(e)]
+
+
+# ═══════════════════════════════════════════════════════════
+#  data_flow.md
+# ═══════════════════════════════════════════════════════════
+
+CHANNEL_ARROWS = {
+    "function_return": "==>",
+    "shared_dict":    "-->",
+    "global_var":     "-->",
+    "queue":          "-->>",
+    "callback_param": "-.->",
+}
+
+
+def render_data_flow(diagram, output_dir):
+    """Generate data_flow.md with Mermaid data flow graph. Returns (filepath, warnings)."""
+    warnings = []
+    try:
+        data_flows = safe_list(diagram, "data_flow")
+        if not data_flows:
+            return None, ["no data_flow[] data found"]
+
+        lines = []
+        meta = safe_get(diagram, "meta", {})
+        project = safe_get(meta, "project", "Unknown Project")
+
+        lines.append("# {} — 数据流图".format(project))
+        lines.append("")
+        lines.append("```mermaid")
+        lines.append("graph LR")
+
+        node_ids = {}
+        node_counter = [0]
+
+        def node_id(name):
+            nid = "N{}".format(node_counter[0])
+            node_counter[0] += 1
+            node_ids[name] = nid
+            return nid
+
+        edges = []
+        for df in data_flows:
+            if not isinstance(df, dict):
+                continue
+            try:
+                _from = safe_get(df, "from", "?")
+                _to = safe_get(df, "to", "?")
+                _data = safe_get(df, "data", "?")
+                _channel = safe_get(df, "channel", "shared_dict")
+                _rate = safe_get(df, "rate", "")
+
+                # Assign node IDs
+                if _from not in node_ids:
+                    fid = node_id(_from)
+                    lines.append("  {}[{}]".format(fid, mermaid_escape(_from)))
+                else:
+                    fid = node_ids[_from]
+
+                if _to not in node_ids:
+                    tid = node_id(_to)
+                    lines.append("  {}[{}]".format(tid, mermaid_escape(_to)))
+                else:
+                    tid = node_ids[_to]
+
+                arrow = CHANNEL_ARROWS.get(_channel, "-->")
+                edge_label = mermaid_escape(_data)
+                if _rate:
+                    edge_label = "{} @{}".format(edge_label, _rate)
+
+                edges.append("  {} {}|{}| {}".format(fid, arrow, edge_label, tid))
+            except Exception as e:
+                warnings.append("data_flow render failed: {}".format(e))
+
+        lines.extend(edges)
+        lines.append("```")
+        lines.append("")
+
+        out_path = os.path.join(output_dir, "data_flow.md")
+        os.makedirs(output_dir, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+        return out_path, warnings
+    except Exception as e:
+        return None, ["data_flow render exception: {}".format(e)]
+
+
+# ═══════════════════════════════════════════════════════════
+#  PNG via mermaid.ink (zero local deps)
+# ═══════════════════════════════════════════════════════════
+
+def render_mermaid_ink(mermaid_code, output_path):
+    """Convert Mermaid code to PNG via mermaid.ink API. Returns (path, error)."""
+    import base64
+    import urllib.request
+
+    try:
+        encoded = base64.urlsafe_b64encode(mermaid_code.encode("utf-8")).decode("ascii")
+        url = "https://mermaid.ink/img/{}?type=png".format(encoded)
+        req = urllib.request.Request(url, headers={"User-Agent": "upy-diagram/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = resp.read()
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "wb") as f:
+            f.write(data)
+        return output_path, None
+    except Exception as e:
+        return None, "mermaid.ink render failed: {}".format(e)
+
+
+def render_all_to_png(diagram, output_dir, method="ink"):
+    """Render all diagram types to PNG. Returns (paths_dict, warnings)."""
+    warnings = []
+    results = {}
+
+    # Architecture
+    arch = safe_get(diagram, "architecture", {})
+    if arch:
+        try:
+            mermaid_code = _build_architecture_mermaid(diagram)
+            if mermaid_code:
+                out = os.path.join(output_dir, "architecture.png")
+                path, err = render_mermaid_ink(mermaid_code, out)
+                if path:
+                    results["architecture_png"] = path
+                if err:
+                    warnings.append(err)
+        except Exception as e:
+            warnings.append("architecture png: {}".format(e))
+
+    # Flowchart
+    flow = safe_list(diagram, "flow")
+    if flow:
+        try:
+            mermaid_code = _build_flowchart_mermaid(diagram)
+            if mermaid_code:
+                out = os.path.join(output_dir, "flowchart.png")
+                path, err = render_mermaid_ink(mermaid_code, out)
+                if path:
+                    results["flowchart_png"] = path
+                if err:
+                    warnings.append(err)
+        except Exception as e:
+            warnings.append("flowchart png: {}".format(e))
+
+    # Data flow
+    data_flows = safe_list(diagram, "data_flow")
+    if data_flows:
+        try:
+            mermaid_code = _build_data_flow_mermaid(diagram)
+            if mermaid_code:
+                out = os.path.join(output_dir, "data_flow.png")
+                path, err = render_mermaid_ink(mermaid_code, out)
+                if path:
+                    results["data_flow_png"] = path
+                if err:
+                    warnings.append(err)
+        except Exception as e:
+            warnings.append("data_flow png: {}".format(e))
+
+    return results, warnings
+
+
+def _build_architecture_mermaid(diagram):
+    """Build Mermaid graph TB string for architecture. Returns str or None."""
+    try:
+        lines = ["graph TB"]
+        arch = safe_get(diagram, "architecture", {})
+        layers = safe_list(arch, "layers")
+        module_ids = {}
+
+        for layer in layers:
+            if not isinstance(layer, dict):
+                continue
+            lid = safe_get(layer, "id", "?")
+            llabel = safe_get(layer, "label", lid)
+            lines.append("  subgraph {}[{}]".format(
+                mermaid_escape(lid), mermaid_escape(llabel)))
+            for mod in safe_list(layer, "modules"):
+                if not isinstance(mod, dict):
+                    continue
+                mname = safe_get(mod, "name", "?")
+                node_id = mname.replace(".", "_").replace("-", "_").replace("/", "_")
+                mrole = safe_get(mod, "role", "")
+                label = mermaid_escape(mname.split(".")[-1])
+                if mrole:
+                    label = "{}<br/>{}".format(label, mermaid_escape(mrole))
+                lines.append('    {}["{}"]'.format(node_id, label))
+                module_ids[mname] = node_id
+            lines.append("  end")
+
+        for layer in layers:
+            if not isinstance(layer, dict):
+                continue
+            for mod in safe_list(layer, "modules"):
+                if not isinstance(mod, dict):
+                    continue
+                mname = safe_get(mod, "name", "")
+                node_id = module_ids.get(mname, mname.replace(".", "_"))
+                for dep in safe_list(mod, "depends_on"):
+                    dep_id = module_ids.get(str(dep), str(dep).replace(".", "_"))
+                    lines.append("  {} --> {}".format(node_id, dep_id))
+
+        return "\n".join(lines)
+    except Exception:
+        return None
+
+
+def _build_flowchart_mermaid(diagram):
+    """Build Mermaid sequenceDiagram string. Returns str or None."""
+    try:
+        lines = ["sequenceDiagram", "  autonumber", "  participant D as Device(MCU)"]
+        current_phase = None
+        for step in safe_list(diagram, "flow"):
+            if not isinstance(step, dict):
+                continue
+            _phase = safe_get(step, "phase", "init")
+            _action = safe_get(step, "action", "?")
+            _detail = safe_get(step, "detail", "")
+            if _phase != current_phase:
+                current_phase = _phase
+                lines.append("  Note over D: ── {} ──".format(_phase))
+            text = mermaid_escape(_action)
+            if _detail:
+                text = "{}<br/>{}".format(text, mermaid_escape(_detail))
+            lines.append("  D->>D: {}".format(text))
+        return "\n".join(lines)
+    except Exception:
+        return None
+
+
+def _build_data_flow_mermaid(diagram):
+    """Build Mermaid graph LR string for data flow. Returns str or None."""
+    try:
+        lines = ["graph LR"]
+        node_ids = {}
+        counter = [0]
+
+        def nid(name):
+            c = "N{}".format(counter[0])
+            counter[0] += 1
+            node_ids[name] = c
+            return c
+
+        for df in safe_list(diagram, "data_flow"):
+            if not isinstance(df, dict):
+                continue
+            _from = safe_get(df, "from", "?")
+            _to = safe_get(df, "to", "?")
+            _data = safe_get(df, "data", "?")
+            _channel = safe_get(df, "channel", "shared_dict")
+            if _from not in node_ids:
+                fid = nid(_from)
+                lines.append("  {}[{}]".format(fid, mermaid_escape(_from)))
+            else:
+                fid = node_ids[_from]
+            if _to not in node_ids:
+                tid = nid(_to)
+                lines.append("  {}[{}]".format(tid, mermaid_escape(_to)))
+            else:
+                tid = node_ids[_to]
+            arrow = CHANNEL_ARROWS.get(_channel, "-->")
+            lines.append("  {} {}|{}| {}".format(fid, arrow, mermaid_escape(_data), tid))
+
+        return "\n".join(lines)
+    except Exception:
+        return None
+
+
+# ═══════════════════════════════════════════════════════════
+#  main
+# ═══════════════════════════════════════════════════════════
+
+def main():
+    parser = argparse.ArgumentParser(description="Render diagram.json to Mermaid .md files")
+    parser.add_argument("--input", required=True, help="Path to diagram.json")
+    parser.add_argument("--output", required=True, help="Output directory (e.g. docs/)")
+    parser.add_argument("--format", default="md",
+                        choices=["md", "png", "png-local", "all"],
+                        help="Output format: md (Mermaid text), png (mermaid.ink), "
+                             "png-local (mermaid-cli), all (md + png)")
+    args = parser.parse_args()
+
+    diagram, err = load_diagram_json(args.input)
+    if err:
+        print("[FAIL] {}".format(err), file=sys.stderr)
+        sys.exit(1)
+
+    all_warnings = []
+    ok_count = 0
+
+    # ── Markdown outputs ──
+    if args.format in ("md", "all"):
+        for render_fn, name in [
+            (render_architecture, "architecture.md"),
+            (render_flowchart, "flowchart.md"),
+            (render_data_flow, "data_flow.md"),
+        ]:
+            try:
+                path, warns = render_fn(diagram, args.output)
+                all_warnings.extend(warns)
+                if path:
+                    print("[OK] {}".format(path))
+                    ok_count += 1
+            except Exception as e:
+                all_warnings.append("{} render crashed: {}".format(name, e))
+                print("[WARN] {} render crashed: {}".format(name, e), file=sys.stderr)
+
+    # ── PNG outputs via mermaid.ink ──
+    if args.format in ("png", "all"):
+        try:
+            png_results, png_warns = render_all_to_png(diagram, args.output, method="ink")
+            all_warnings.extend(png_warns)
+            for name, path in png_results.items():
+                print("[OK] {}".format(path))
+                ok_count += 1
+        except Exception as e:
+            all_warnings.append("png render crashed: {}".format(e))
+            print("[WARN] png render crashed: {}".format(e), file=sys.stderr)
+
+    # ── PNG outputs via mermaid-cli ──
+    if args.format == "png-local":
+        all_warnings.append(
+            "png-local requires Node.js + mermaid-cli. Falling back to mermaid.ink.")
+        try:
+            png_results, png_warns = render_all_to_png(diagram, args.output, method="ink")
+            all_warnings.extend(png_warns)
+            for name, path in png_results.items():
+                print("[OK] {}".format(path))
+                ok_count += 1
+        except Exception as e:
+            all_warnings.append("png-local fallback crashed: {}".format(e))
+            print("[WARN] png-local fallback crashed: {}".format(e), file=sys.stderr)
+
+    # ── Report ──
+    if all_warnings:
+        print("\n{} warning(s):".format(len(all_warnings)), file=sys.stderr)
+        for w in all_warnings:
+            print("  - {}".format(w), file=sys.stderr)
+
+    if ok_count > 0:
+        print("\nDone. {} file(s) generated.".format(ok_count))
+        sys.exit(0)
+    else:
+        print("\n[FAIL] No output generated.", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

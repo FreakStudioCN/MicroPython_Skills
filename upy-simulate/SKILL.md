@@ -269,16 +269,23 @@ class MockModbus:
 
 #### 2C. 可视化形式
 
-LLM 根据项目器件组合自主选择：
+**CLI + rich 优先。tkinter GUI 为可选降级方案。**
 
-| 项目特征 | 推荐方案 | 说明 |
+tkinter 在 Windows 上存在已知问题：`root.after()` 回调链中 `StringVar.set()` / Canvas 操作可能不刷新，`sys.stdout` 重定向会干扰事件循环。CLI + rich 无此问题，且开发迭代更快。
+
+| 项目特征 | 首选方案 | 说明 |
 |---------|---------|------|
-| 1-2 传感器，无 display，无执行器 | `print` + ANSI 颜色 | 每 tick 一行，够用 |
-| 3+ 传感器但无 display | `rich` 库 (Live/Table/Panel) | 终端动态仪表盘 |
-| **有 display 器件**（OLED/LCD/TFT） | **`tkinter`**（默认） | 模拟的本质是把物理器件搬上屏幕——虚拟 OLED 屏幕、Buzzer/LED 状态指示灯，tkinter 比 CLI 更能直观展示 |
-| 有执行器（Buzzer/LED/Relay） | `tkinter` 或 rich | Buzzer/LED 状态用 GUI 指示灯更直观 |
+| 所有项目 | **`rich` 库 (Live/Table/Panel/Layout)** | 终端动态仪表盘，跨平台无渲染问题 |
+| 有 display 器件（OLED/LCD/TFT） | rich `Panel` + `Text` 模拟屏幕内容 | Panel 标题标注器件型号，内容区实时更新虚拟屏幕文本 |
+| 有执行器（Buzzer/LED/Relay） | rich `Table` 行内状态标记 | `ON`/`OFF` 带颜色高亮（绿色=激活，灰色=待机） |
+| 日志输出 | rich `Live` 底部固定区域滚动 | 不劫持 `sys.stdout`，直接写入 Panel |
 
-**LLM 必须同时生成 CLI 和 GUI 两种模式**，通过 `--mode cli|gui` 切换。默认模式根据上表决定。
+**LLM 默认只生成 CLI 模式（rich）**。`--mode gui`（tkinter）仅在用户明确要求时生成，且生成时遵循以下注意事项：
+- 不使用 `sys.stdout` 重定向，改为直接调用 `log_widget.insert()` 
+- `root.after()` 回调末尾调用 `root.update_idletasks()` 强制刷新
+- 每个 `scheduler_tick()` 包裹 `try/except` 防止静默失败
+
+GUI 模式在 sim_main.py 头部标注：`# @GUI: experimental — prefer --mode cli for reliable output`
 
 #### 2D. 数据场景（时序演化 + 覆盖框架）
 
@@ -474,7 +481,7 @@ test/pc/
 - 回调包装方式与 `firmware/main.py` 保持一致
 - 任务注册方式与 `firmware/main.py` 保持一致
 - `_data` dict 的 key 与 `firmware/main.py` 保持一致
-- 接受 `--ticks`（运行轮数）、`--scenario`（场景）、`--mode`（CLI/GUI）命令行参数
+- 接受 `--ticks`（运行轮数）、`--scenario`（场景）、`--mode`（CLI/GUI，默认 CLI）命令行参数
 - **每个场景必须定义数据发生器函数** `gen_xxx(tick) → value`，tick 变化则返回值变化
 - **在 sensor callback 执行前，必须更新 mock 内部状态**：`mock._measure = gen_sht30(tick_count)`，确保 task 函数拿到当前 tick 的数据
 - **禁止一次创建 Mock 后不再更新其内部状态**
@@ -516,7 +523,7 @@ flask8 + pylint 均通过后，用 **AskUserQuestion** 询问。
 
 #### 5b. AskUserQuestion 内容
 
-**默认推荐模式根据项目器件决定**：有 display → 推荐 GUI，无 display → 推荐 CLI。
+**默认模式始终为 CLI（rich）。**
 
 ```
 header: "模拟运行"
@@ -528,9 +535,10 @@ question: "PC 模拟脚本已通过语法校验，是否开始运行？
   normal 场景仅验证数据流通，不触发任何业务分支。
 "
 options:
-  - 运行推荐场景 (Recommended) — temp_rising --mode gui --ticks 60
+  - 运行推荐场景 (Recommended) — temp_rising --mode cli --ticks 60
   - 运行 normal 场景 — 仅验证数据流通 + 调度
-  - 切换模式/场景运行 — 在 Other 中输入（如 --mode cli --scenario intermittent_failure）
+  - 切换场景运行 — 在 Other 中输入（如 --mode cli --scenario intermittent_failure）
+  - 运行 GUI 模式（实验性） — 在 Other 中输入（如 --mode gui --scenario temp_rising）
   - 自定义场景 — 在 Other 中输入自然语言描述（如 "WiFi 断连 5 秒"）
   - 暂不运行 — 保留 test/pc/sim_main.py，稍后手动运行
 ```
@@ -623,37 +631,66 @@ import threading
 
 ## 可视化示例（供 LLM 参考，非强制）
 
-### CLI: rich 库终端仪表盘
+### 首选：rich CLI 终端仪表盘
 
 ```python
 from rich.live import Live
 from rich.table import Table
 from rich.panel import Panel
+from rich.layout import Layout
+from rich.text import Text
 
-# 每 tick 更新 Table
-table = Table(title="环境监测装置 — PC 模拟")
-table.add_column("Tick")
-table.add_column("温度")
-table.add_column("湿度")
-table.add_column("气压")
-table.add_column("告警")
+# 主布局：传感器数据表 + 虚拟屏幕 + 状态面板
+layout = Layout()
+layout.split_column(
+    Layout(Table(...), name="data"),
+    Layout(Panel("", title="SSD1306 OLED 128x64"), name="display"),
+)
 
-with Live(table, refresh_per_second=10) as live:
+# 每 tick 更新
+with Live(layout, refresh_per_second=10, transient=False) as live:
     while running:
-        # ... 执行 task ...
-        table.add_row(str(tick), f"{temp:.1f}°C", ...)
+        # 更新传感器 Table
+        table.add_row(str(tick), f"{temp:.1f}°C", f"{hum:.1f}%", ...)
+
+        # 更新虚拟 OLED Panel（模拟 display 器件）
+        oled_content = f"T: {temp:.1f}°C\nH: {hum:.1f}%\n{'ALARM!' if alarm else 'OK'}"
+        layout["display"].renderable = Panel(oled_content, title="SSD1306")
+
+        # 执行器状态：用 rich Text 带颜色标记
+        buzzer_text = Text("Buzzer: ", style="bold")
+        buzzer_text.append("ON", style="bold red") if buzzer_on else buzzer_text.append("OFF", style="dim")
 ```
 
-### tkinter: 简单窗口
+display 器件用 `rich.Panel` 模拟虚拟屏幕内容，执行器状态用 `rich.Text` 颜色标记（绿色=正常，红色=激活，灰色=待机）。不劫持 `sys.stdout`，日志直接追加到独立的 `log_lines` 列表并在 `Live` 刷新时写入底部 Panel。
+
+### 可选：tkinter GUI（实验性）
+
+仅用户明确要求时生成。生成时必须在代码头部标注 `# @GUI: experimental — prefer --mode cli for reliable output`。
 
 ```python
 import tkinter as tk
 root = tk.Tk()
-root.title("PC 模拟")
-# Label 显示传感器数据
-# Canvas 显示告警灯（红/绿圆）
-# Button 暂停/继续/停止
-# root.after(tick_ms, tick_callback) 驱动调度循环
+root.title("PC 模拟 [EXPERIMENTAL GUI]")
+
+# 关键规则：
+# 1. 不重定向 sys.stdout → 直接调用 log_widget.insert()
+# 2. 每次更新后调用 root.update_idletasks()
+# 3. scheduler_tick() 包裹 try/except 防止静默失败
+
+def scheduler_tick():
+    try:
+        sc.execute_one_tick()
+        render_oled()
+        update_status()
+        root.update_idletasks()  # ← 强制刷新
+    except Exception as e:
+        print(f"[GUI ERROR] {e}", file=sys.stderr)
+    if sc._running:
+        root.after(sc._tick_ms, scheduler_tick)
+
+root.after(100, scheduler_tick)
+root.mainloop()
 ```
 
 ---
@@ -688,8 +725,10 @@ upy-generate
 - **运行前必须 AskUserQuestion 询问用户**
 - **调度方案由 LLM 根据 manifest.mode 自主决定**，不预置框架
 - **可视化形式由 LLM 根据项目器件组合自主决定**，不硬编码
-- **有 display 器件的项目必须生成 tkinter GUI 模式**，将虚拟屏幕渲染到窗口，执行器状态用指示灯展示
-- **Mock 数据必须随时间变化**：使用数据发生器函数 `gen_xxx(tick)` ，禁止静态常量。传感器数据在每个 tick 必须有不同值，才能触发业务逻辑分支（告警阈值跨越、故障恢复等）
+- **CLI + rich 为首选模式**：所有项目默认生成 CLI 模式（rich Live/Table/Panel），数据随时间变化在终端动态刷新
+- **有 display 器件的项目，用 rich Panel 模拟虚拟屏幕**：Panel 标题标注器件型号，内容区每 tick 更新当前显示文本
+- **不劫持 sys.stdout**：日志直接写入 rich Panel 或独立的 `loguru`/`print`，避免重定向干扰输出时序
+- **tkinter GUI 为可选实验模式**：仅用户明确要求时生成，生成时须在代码头部标注 `# @GUI: experimental`，且遵循 GUI 安全规则（无 stdout 重定向、update_idletasks、try/except 包裹）
 - **在 sensor callback 执行前，必须更新 mock 内部状态**（如 `mock._measure = gen_sht30(tick_count)`），不改 firmware/ 代码的前提下让 task 函数拿到动态数据
 - **模拟入口 `sim_main.py` 必须支持 `--ticks`, `--scenario`, `--mode` 三个命令行参数**，`--mode` 可选 `cli|gui`
 - **不模拟驱动内部细节**（传感器协议、I2C 时序等），仅通过 Mock 对象的返回值和异常注入验证业务逻辑

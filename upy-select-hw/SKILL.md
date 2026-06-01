@@ -167,6 +167,48 @@ python --version
   冲突检查：通过 ✓
 ```
 
+**引脚电气类型 (type) 枚举映射：**
+
+| 引脚用途 | type 值 |
+|---------|---------|
+| 3.3V 电源输出 | `power_3v3` |
+| 5V 电源输出 | `power_5v` |
+| GND | `gnd` |
+| I2C SDA | `i2c_data` |
+| I2C SCL | `i2c_clock` |
+| SPI MOSI | `spi_mosi` |
+| SPI MISO | `spi_miso` |
+| SPI SCK | `spi_sck` |
+| SPI CS | `spi_cs` |
+| UART TX | `uart_tx` |
+| UART RX | `uart_rx` |
+| GPIO 输出 (LED/蜂鸣器/继电器) | `gpio_out` |
+| GPIO 输入 (按键) | `gpio_in` |
+| GPIO 输入+上拉 | `gpio_in_pullup` |
+| ADC 输入 | `adc` |
+| PWM 输出 | `pwm` |
+| I2S | `i2s` |
+
+**物理引脚编号 (physical_pin) 获取规则：**
+- Pico 系列：GP0=Pin1, GP1=Pin2, ..., GP28=Pin34；3V3(OUT)=Pin36；GND=Pin3/8/13/18/23/28/33/38
+- ESP32 系列：查阅引脚图，标注 GPIO 编号对应的物理引脚编号
+- 其他 MCU：从引脚图/数据手册获取
+
+#### Step 2D: 电源引脚分配
+
+**LLM 必须把电源引脚也写入 pinout：**
+
+```
+电源引脚分配：
+  3V3(OUT) → 所有 I2C/SPI 器件的 VCC（传感器、屏幕等）
+  5V(VBUS) → 需要 5V 的大功率器件（舵机、电机等）
+  GND      → 所有器件的 GND（每个器件一根）
+
+pinout 增加条目：
+  {device: "电源", pin_name: "3V3(OUT)", gpio: "3V3", physical_pin: 36, type: "power_3v3", side: "right", pos: 16}
+  {device: "电源", pin_name: "GND", gpio: "GND", physical_pin: 38, type: "gnd", side: "right", pos: 18}
+```
+
 ---
 
 ### Step 3: BOM 生成
@@ -205,7 +247,11 @@ python G:/MicroPython_Skills/upy-select-hw/scripts/update_manifest.py \
 --- 写入字段：
 - `phase`: "select-hw"
 - `mcu`: {model, board, firmware_url, flash_tool}
-- `pinout`: [{device, pin_name, gpio, notes}]
+- `pinout`: [{device, pin_name, gpio, physical_pin, type, side, pos, notes}]
+  - `physical_pin`: 物理引脚编号（如 Pico 的 GP4 = Pin 6）
+  - `type`: 引脚电气类型枚举（见下方映射表）
+  - `side`: 引脚在 MCU 哪一侧（left/right/top/bottom）
+  - `pos`: 在 side 上的顺序位置（0-based）
 - `bom`: [{name, model, quantity, unit_price_yuan, notes}]
 
 ---
