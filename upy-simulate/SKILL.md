@@ -61,49 +61,85 @@ LLM 基于 Step 1 的全量上下文，自主决定以下 4 件事。**不预置
 
 **timer 模式特别注意**：LLM 生成的 `SimScheduler` 必须与原始 `Scheduler` 接口一致。CPython 用 `time.sleep` 循环替代 ISR，在每个 tick 递增所有 task 的计数器，执行到期的 callback。
 
-#### 2B. Mock 器件组装
+#### 2B. Mock 器件组装 + 数据发生器（核心）
+
+**这是 upy-simulate 最关键的设计决策。** 不能把 Mock 设为静态值——`MockSHT30(measure=(25.0, 60.0))` 每次都返回相同数据，tick 之间无变化，业务逻辑分支永远测不到。
+
+**正确做法：数据发生器 = 以 tick 为自变量的函数。**
 
 LLM 读取每个 `drivers/*/mock.py`，从中确定：
-
 - `__init__` 接受哪些参数（如 `measure=(25.0, 60.0)`, `temp=25.5`）
 - 支持哪些 `_raise_on` 值（如 `'measure'`, `'read_compensated_data'`）
 - 提供了哪些方法
 
-LLM 自主决定：
-- 初始 mock 数据（默认典型值）
-- 场景切换机制（CLI 参数 `--scenario`）
-- 是否需要动态/序列数据（随时间变化）
+**数据注入机制**（不改 firmware/ 代码）：
 
-至少支持以下场景：
+```python
+# sim_main.py 中定义数据发生器（tick → 返回值）
+def gen_sht30(tick):
+    """温度 22-28°C 正弦波动，周期 60s"""
+    import math
+    temp = 25.0 + 3.0 * math.sin(2 * math.pi * tick / 600)
+    hum = 60.0 + 10.0 * math.cos(2 * math.pi * tick / 600)
+    return (temp, hum)
+
+def gen_bmp280(tick):
+    """气压 1000-1020 hPa，带随机噪声"""
+    import random
+    press = 101000 + 1000 * math.sin(2 * math.pi * tick / 300) + random.uniform(-200, 200)
+    return (25.0, press, 55.0)  # temp, pressure, humidity
+
+# 在每个 sensor callback 执行前，更新 mock 内部状态
+def _sensor_cb():
+    sht30._measure = gen_sht30(tick_count)   # ← 动态注入
+    bmp280._read_data = gen_bmp280(tick_count)
+    sensor_read(sht30, bmp280, _data)
 ```
---scenario normal      → 所有传感器返回典型正常值
---scenario boundary    → 数据逼近告警阈值
---scenario failure     → 部分传感器 _raise_on 注入异常
-```
+
+**Mock 状态更新必须在 callback 之前**，确保 task 函数调用 `mock.measure()` 时拿到的是当前 tick 的数据。
 
 #### 2C. 可视化形式
 
-LLM 根据项目复杂度自主选择：
+LLM 根据项目器件组合自主选择：
 
-| 项目复杂度 | 推荐方案 | 说明 |
-|-----------|---------|------|
-| 1-2 传感器，无 display | `print` + ANSI 颜色 | 每 tick 一行，够用 |
-| 3+ 器件，有 display | `rich` 库 (Live/Table/Panel) | 终端动态仪表盘 |
-| 需要截图/演示/GUI | `tkinter` | 窗口化实时数据展示 |
+| 项目特征 | 推荐方案 | 说明 |
+|---------|---------|------|
+| 1-2 传感器，无 display，无执行器 | `print` + ANSI 颜色 | 每 tick 一行，够用 |
+| 3+ 传感器但无 display | `rich` 库 (Live/Table/Panel) | 终端动态仪表盘 |
+| **有 display 器件**（OLED/LCD/TFT） | **`tkinter`**（默认） | 模拟的本质是把物理器件搬上屏幕——虚拟 OLED 屏幕、Buzzer/LED 状态指示灯，tkinter 比 CLI 更能直观展示 |
+| 有执行器（Buzzer/LED/Relay） | `tkinter` 或 rich | Buzzer/LED 状态用 GUI 指示灯更直观 |
 
-LLM 可混合设计：默认 CLI，`--mode gui` 切换 tkinter。最终决定权在 LLM。
+**LLM 必须同时生成 CLI 和 GUI 两种模式**，通过 `--mode cli|gui` 切换。默认模式根据上表决定。
 
-#### 2D. 数据场景
+#### 2D. 数据场景（时序演化）
 
-LLM 根据 `conf.py` 的阈值、`tasks/*.py` 的逻辑分支，设计场景数据：
+LLM 根据 `conf.py` 的阈值、`tasks/*.py` 的逻辑分支，**为每个 `--scenario` 设计数据发生器**。关键是数据必须随时间变化，才能触发不同的业务逻辑分支。
 
 ```
-正常      → mock 返回典型值，验证数据流通
-边界      → 逼近告警阈值，验证 alarm_check 分支
-故障      → 注入 OSError，验证 except 容错分支
-缺失      → 传感器 is None，验证 None 检查分支
-随机      → random 波动，模拟真实环境
+--scenario normal
+    温度正弦波动 22-28°C，湿度 50-70%，气压微幅震荡
+    → 验证数据流通、scheduler 正常调度
+
+--scenario temp_rising
+    温度从 25°C 线性升至 40°C（跨越 35°C 高阈值）
+    应在某个 tick 触发 [alarm] temp high → Buzzer ON、LED ON
+    → 验证高温告警 + 执行器触发 + 告警冷却
+
+--scenario temp_dropping
+    温度从 25°C 线性降至 0°C（跨越 5°C 低阈值）
+    → 验证低温告警
+
+--scenario intermittent_failure
+    SHT30 每 3 次 read 抛一次 OSError，随后恢复
+    BMP280 正常
+    → 验证单传感器故障时系统的容错 + 恢复能力
+
+--scenario sensor_death
+    前 5 次 read 正常，之后 SHT30 持续抛异常
+    → 验证传感器永久失效后的 graceful degradation
 ```
+
+每个场景是一个 **Python 函数 `(tick: int) → data`**，LLM 自主设计数学表达式（正弦、线性、随机游走）或查表序列。
 
 ---
 
@@ -132,6 +168,9 @@ test/pc/
 - 任务注册方式与 `firmware/main.py` 保持一致
 - `_data` dict 的 key 与 `firmware/main.py` 保持一致
 - 接受 `--ticks`（运行轮数）、`--scenario`（场景）、`--mode`（CLI/GUI）命令行参数
+- **每个场景必须定义数据发生器函数** `gen_xxx(tick) → value`，tick 变化则返回值变化
+- **在 sensor callback 执行前，必须更新 mock 内部状态**：`mock._measure = gen_sht30(tick_count)`，确保 task 函数拿到当前 tick 的数据
+- **禁止一次创建 Mock 后不再更新其内部状态**
 
 ---
 
@@ -158,14 +197,14 @@ python -m pylint test/pc/sim_main.py --max-line-length=120 --disable=missing-doc
 
 ### Step 5: 询问用户
 
-flask8 + pylint 均通过后，用 **AskUserQuestion** 询问：
+flask8 + pylint 均通过后，用 **AskUserQuestion** 询问。**默认推荐模式根据项目器件决定：有 display → 推荐 GUI，无 display → 推荐 CLI。**
 
 ```
 header: "模拟运行"
 question: "PC 模拟脚本已通过语法校验，是否开始运行？"
 options:
-  - 开始运行 (Recommended) — 以 CLI 模式运行 30 轮
-  - 自定义运行 — 在 Other 中输入参数（如 --ticks 100 --mode gui --scenario boundary）
+  - 开始运行 (Recommended) — 以默认模式运行 30 轮（有 display 器件时默认 GUI）
+  - 切换模式运行 — 在 Other 中输入（如 --mode cli 或 --mode gui --scenario boundary）
   - 暂不运行 — 保留 test/pc/sim_main.py，稍后手动运行
 ```
 
@@ -297,7 +336,9 @@ upy-generate
 - **flake8 + pylint 校验必须通过**，否则循环修复
 - **运行前必须 AskUserQuestion 询问用户**
 - **调度方案由 LLM 根据 manifest.mode 自主决定**，不预置框架
-- **可视化形式由 LLM 根据项目复杂度自主决定**，不硬编码
-- **Mock 数据场景由 LLM 根据 conf.py 阈值和 task 逻辑分支自主设计**
-- **模拟入口 `sim_main.py` 必须支持 `--ticks`, `--scenario`, `--mode` 三个命令行参数**
+- **可视化形式由 LLM 根据项目器件组合自主决定**，不硬编码
+- **有 display 器件的项目必须生成 tkinter GUI 模式**，将虚拟屏幕渲染到窗口，执行器状态用指示灯展示
+- **Mock 数据必须随时间变化**：使用数据发生器函数 `gen_xxx(tick)` ，禁止静态常量。传感器数据在每个 tick 必须有不同值，才能触发业务逻辑分支（告警阈值跨越、故障恢复等）
+- **在 sensor callback 执行前，必须更新 mock 内部状态**（如 `mock._measure = gen_sht30(tick_count)`），不改 firmware/ 代码的前提下让 task 函数拿到动态数据
+- **模拟入口 `sim_main.py` 必须支持 `--ticks`, `--scenario`, `--mode` 三个命令行参数**，`--mode` 可选 `cli|gui`
 - **不模拟驱动内部细节**（传感器协议、I2C 时序等），仅通过 Mock 对象的返回值和异常注入验证业务逻辑
