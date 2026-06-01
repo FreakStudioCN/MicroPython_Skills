@@ -439,7 +439,7 @@ Phase 2-7 完成后，LLM 执行最终审查，逐项核验：
 1. `test/pc/test_*.py` 是否覆盖正常 + 异常（传感器报错）+ 边界（传感器为 None）三种情况
 2. `test/device/test_smoke.py` 是否只用 MPY unittest 允许的 assert 方法
 
-### 8E: 发现问题时直接修改对应文件，然后重新运行 Phase 7 flake8 和 PC 测试。
+### 8E: 发现问题时直接修改对应文件，然后重新运行 Phase 7 flake8 + pylint 和 PC 测试。
 
 ---
 
