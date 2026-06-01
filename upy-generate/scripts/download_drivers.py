@@ -240,8 +240,7 @@ def main():
         if not any(r["type"] == "driver" for r in result):
             print("[WARN] No driver .py downloaded for {}".format(name))
 
-    # ── Update manifest phase ──
-    manifest["phase"] = "generate"
+    # ── Record download timestamp (phase stays scaffold until Phase 9) ──
     manifest["generate"] = manifest.get("generate", {})
     manifest["generate"]["driver_downloaded_at"] = datetime.now(timezone.utc).isoformat()
     manifest_path = os.path.join(project_dir, "project-manifest.json")

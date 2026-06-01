@@ -27,9 +27,11 @@ description: 第四步——业务代码生成。读取 scaffold 阶段的 proje
 ```bash
 python --version
 python -c "import requests; print('requests OK')"
+python -c "import flake8; print('flake8 OK')"
+python -c "import pylint; print('pylint OK')"
 ```
 
-无外部依赖（Python 3 标准库 + requests）。
+无外部依赖（Python 3 标准库 + requests + flake8 + pylint）。
 
 ---
 
@@ -116,6 +118,10 @@ example.py 可以告诉你真实的调用方式：
 
 ### 2C: 生成工厂函数 → `drivers/<name>_driver/__init__.py`
 
+工厂文件是 DI 链条的第一环，导出 `create_<name>` 和 `scan_<name>_i2c` 两个函数，行为必须一致可靠。
+
+**参考来源**：下载的 `lib/<name>_example.py`（即驱动包的 `code/main.py`）展示了真实的 I2C 地址、通信速率配置和调用方式，LLM 必须阅读该文件后再生成工厂代码。
+
 ```python
 # -*- coding: utf-8 -*-
 # @Generated : upy-generate
@@ -127,42 +133,45 @@ try:
 except ImportError:
     <DriverClass> = None
 
+# Default I2C address from driver source / example.py
+_<NAME>_DEFAULT_ADDR = <default_addr>
+
 
 def create_<name>(i2c, address=None):
     """Create <DriverClass> instance. Returns driver object or None on failure."""
     if i2c is None:
         return None
     try:
-        obj = <DriverClass>(i2c=i2c, address=address if address is not None else <default_addr>)
+        obj = <DriverClass>(i2c=i2c, address=address if address is not None else _<NAME>_DEFAULT_ADDR)
         return obj
     except Exception as e:
+        from lib.logger import warning
+        warning('Driver <NAME> init failed: {}'.format(e))
         print('[DRIVER] <NAME> init failed:', e)
         return None
+
+
+def scan_<name>_i2c(i2c, address=None):
+    """Scan I2C bus for <NAME>. Returns True if device found at address.
+
+    Does NOT create a driver instance — only checks if the I2C address
+    responds on the bus. Used by upy-deploy-test for hardware connectivity check.
+
+    NOTE: Some sensors (e.g. GT911) have software-configurable addresses
+    that cannot be detected via passive scan. For these, consult the
+    downloaded example.py — scan may return False until the device is
+    initialized, or require a different detection strategy.
+    """
+    if i2c is None:
+        return False
+    addr = address if address is not None else _<NAME>_DEFAULT_ADDR
+    return addr in i2c.scan()
 ```
 
-- I2C 器件：工厂接受 `i2c, address=None`
-- GPIO 器件（buzzer/led，source=none）：工厂接受 `pin_num`，内部创建 `Pin(pin_num, Pin.OUT)`。**GPIO 器件没有现成驱动，需要 LLM 从头写合理的封装**（on/off/toggle/value），Mock 同样覆盖这些方法
+- I2C 器件：工厂接受 `i2c, address=None`，扫描函数独立于驱动实例
+- GPIO 器件（buzzer/led，source=none）：工厂接受 `pin_num`，内部创建 `Pin(pin_num, Pin.OUT)`。**GPIO 器件没有现成驱动，需要 LLM 从头写合理的封装**（on/off/toggle/value），Mock 同样覆盖这些方法。GPIO 器件不需要 scan 函数
 - SPI 器件：工厂接受 `spi, cs_pin`，内部创建 `Pin(cs_pin, Pin.OUT)`
 - 自建 I2C 驱动改过后：同样接受 `i2c, address=None`
-
-### 2E: async 模式特殊处理
-
-如果 `manifest.scaffold_mode` 为 `async`：
-
-**默认规则**：驱动本身不改（保持同步，async 化在封装层完成），工厂函数返回同步驱动对象不变。task 函数形态和 main.py 入口由 scaffold 骨架阶段决定，generate 阶段沿用。
-
-**例外 —— 驱动中存在阻塞式方法时必须修改驱动源码**：
-
-1. **I2S 外设等硬件阻塞操作**：查阅 MicroPython asyncio 官方文档确认是否有异步替代 API。若有（如 `I2S.readinto()` 的异步版本），在工厂封装层包装；若没有，需在驱动中增加非阻塞轮询路径。
-
-2. **`time.sleep()` / `time.sleep_ms()` 等延时**：驱动中如果有延时等待（如传感器上电稳定等待、复位后延时），必须修改：
-   - 将 `time.sleep(n)` 替换为 `await asyncio.sleep(n)` 或 `await asyncio.sleep_ms(n)`
-   - 对应方法签名改为 `async def`
-   - 参考文档：https://docs.micropython.org/en/latest/library/asyncio.html
-
-3. **轮询等待 I2C 响应等忙等待**：改为 `await asyncio.sleep_ms()` 让步给事件循环。
-
-修改驱动后，更新对应 Mock 的方法签名（`async def` 匹配），task 协程中用 `await` 调用。
 
 ### 2D: 生成 Mock → `drivers/<name>_driver/mock.py`
 
@@ -192,93 +201,128 @@ class Mock<Name>:
 - 返回元组 → `(<典型值>)`，如 `(25.0, 60.0)`
 - 返回 None → 不存 `self._xxx`，方法体直接 `pass`
 
+### 2E: async 模式特殊处理
+
+如果 `manifest.scaffold_mode` 为 `async`：
+
+**默认规则**：驱动本身不改（保持同步，async 化在封装层完成），工厂函数返回同步驱动对象不变。task 函数形态和 main.py 入口由 scaffold 骨架阶段决定，generate 阶段沿用。
+
+**例外 —— 驱动中存在阻塞式方法时必须修改驱动源码**：
+
+1. **I2S 外设等硬件阻塞操作**：查阅 MicroPython asyncio 官方文档确认是否有异步替代 API。若有（如 `I2S.readinto()` 的异步版本），在工厂封装层包装；若没有，需在驱动中增加非阻塞轮询路径。
+
+2. **`time.sleep()` / `time.sleep_ms()` 等延时**：驱动中如果有延时等待（如传感器上电稳定等待、复位后延时），必须修改：
+   - 将 `time.sleep(n)` 替换为 `await asyncio.sleep(n)` 或 `await asyncio.sleep_ms(n)`
+   - 对应方法签名改为 `async def`
+   - 参考文档：https://docs.micropython.org/en/latest/library/asyncio.html
+
+3. **轮询等待 I2C 响应等忙等待**：改为 `await asyncio.sleep_ms()` 让步给事件循环。
+
+修改驱动后，更新对应 Mock 的方法签名（`async def` 匹配），task 协程中用 `await` 调用。
+
 ---
 
 ## Phase 3: LLM 生成任务文件
 
 读取 `manifest.requirements.description`（用户需求描述）和 `manifest.devices` 列表 → 生成 task 文件。
 
-**task 是纯粹的 Python 函数**，不 import machine，通过参数接收驱动对象：
+**约束（LLM 必须在生成代码中满足）：**
 
-```python
-# tasks/sensor_task.py
-from lib.logger import debug, info, warning, error
-from lib.time_helper import timed_function
+1. **纯函数 + DI**：task 是纯 Python 函数，不 `import machine`，所有硬件通过参数传入驱动对象
+2. **独立异常处理**：每个传感器/器件的读写操作独立 try/except，一个挂了不影响其他
+3. **print() 与 `lib.logger` 共存**：`print()` 输出到 REPL（实时调试），`lib.logger` 输出到设备文件系统（REPL 断开后仍可通过 mpremote 读取）。关键流程节点（初始化、异常、报警）两边都写；纯调试细节可只用 `print()`。日志消息需带时间上下文，具体格式由 LLM 自主决定（如 `[2026-06-01 17:44:24] [sensor] temp=25.1C`）
+4. **温度键冲突处理**：当同时有温湿度传感器和气压传感器时，气压传感器的温度写入 `pressure_temp`，避免覆盖主温度
+5. **无硬编码阈值**：所有阈值、间隔从 conf.py 导入
+6. **装饰器**：timer 模式用 `@timed_function`，async 模式用 `@timed_coro`
 
-@timed_function
-def sensor_tick(sht30, bmp280):
-    data = {}
+**task 日志插入点（LLM 必须在对应位置插入，级别和具体措辞可自主调整）：**
 
-    if sht30 is not None:
-        try:
-            t, h = sht30.measure()
-            data["temperature"] = t
-            data["humidity"] = h
-        except Exception as e:
-            warning('SHT30 read error: {}'.format(e))
-    else:
-        debug('SHT30 not available, skipping')
-    # ...
-    return data
-```
+| 位置 | 级别 | 内容要求 |
+|------|------|------|
+| 传感器读取成功 | `debug` | 含传感器名 + 实际读值 |
+| 传感器读取失败 | `warning` | 含传感器名 + 异常信息 |
+| 报警触发 | `warning` | 含参数名 + 当前值 + 阈值 |
+| 报警恢复 | `info` | 含参数名 + 当前值 |
+| 显示更新失败 | `warning` | 含异常信息 |
+| 未预期 Exception | `error`/`exception` | 含上下文（哪个 task、在处理什么数据） |
 
-**温度键冲突处理**：当同时有温湿度传感器和气压传感器时，气压传感器的温度写入 `pressure_temp`，避免覆盖主温度。
+**LLM 自主决定：**
+- 函数签名（参数名、驱动对象的顺序和数量）
+- data dict 的键名和结构
+- 业务逻辑流程（采集→处理→输出）
+- 需要生成几个 task 文件（按功能拆分：传感器采集 / 报警 / 显示 / 网络等）
 
 ---
 
 ## Phase 4: LLM 补充 conf.py
 
-读取 asset 中的 `firmware/conf.py`，按项目需求补充业务常量：
+读取 scaffold 生成的 `firmware/conf.py`，按项目需求补充业务常量。
 
-```python
-# 告警阈值
-ALARM_TEMP_HIGH = 40.0
-ALARM_TEMP_LOW = 5.0
-ALARM_HUMIDITY_HIGH = 80.0
+**约束：**
 
-# 显示刷新间隔
-DISPLAY_REFRESH_MS = 1000
+1. **阈值不硬编码**：所有告警阈值、校准偏移、刷新间隔等从 conf.py 导入，不在 task/main 中写死数值
+2. **日志配置必须包含**：
+   ```python
+   LOG_DIR = "/log"
+   LOG_MAX_FILES = 4
+   LOG_LINES_PER_FILE = 150
+   ```
+3. 不放敏感数据（无 Wi-Fi 密码、API Key）
 
-# 传感器校准偏移
-TEMP_OFFSET = 0.0
-HUM_OFFSET = 0.0
-```
+**日志消息原则（LLM 生成所有日志消息时遵守）：**
+
+- **可检索性**：消息中应含模块名或关键字（如 `[sensor]`、`[alarm]`），方便在日志文件中 grep/搜索
+- **可读性**：一行日志即可理解发生了什么，无需对照代码上下文
+- **分级别**：`debug`=开发调试细节（可默认关闭）、`info`=关键流程节点、`warning`=可恢复异常、`error`/`critical`=不可恢复错误
+- **含关键数据**：传感器日志带实际读值，报警日志带当前值和阈值，异常日志带异常类名和 message
+
+**LLM 自主决定：** 根据 `manifest.requirements.description` 推断需要的常量名和值（告警阈值、校准值、显示间隔等），日志消息中的时间戳格式和模块标识前缀。
 
 ---
 
-## Phase 5: LLM 生成 main.py（DI 装配）
+## Phase 5: LLM 生成 main.py（DI 装配 + 日志初始化）
 
-读取所有工厂文件 + task 文件 + conf.py → 生成 main.py，完成完整的 DI 装配链：
+读取所有工厂文件 + task 文件 + conf.py → 生成 main.py。
 
-```
-machine.I2C → create_sht30(i2c) → sht30
-            → create_bmp280(i2c) → bmp280
-                                     ↓
-                              sensor_tick(sht30, bmp280) → data
-```
+**约束：**
+
+1. **DI 装配链**：`machine.I2C/Pin → 工厂 create_xxx() → 驱动对象 → task 函数参数`，完整串联
+2. **I2C 地址冲突处理**：先尝试所有器件挂同一 I2C，地址冲突时创建第二个 I2C 实例
+3. **日志必须初始化**：
 
 ```python
-from machine import I2C, Pin
-from libs.scheduler.timer_sched import Scheduler
-from drivers.sht30_driver import create_sht30
-from drivers.bmp280_driver import create_bmp280
-from tasks.sensor_task import sensor_tick
-from tasks.maintenance import maintenance_tick
-from conf import SAMPLE_RATE_MS
+from lib.logger import install_rotating, getLogger, info, warning, error
+from conf import LOG_DIR, LOG_MAX_FILES, LOG_LINES_PER_FILE
 
-i2c = I2C(scl=Pin(5), sda=Pin(4))
-sht30 = create_sht30(i2c)
-bmp280 = create_bmp280(i2c)
-
-sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)
-sc.add_task(lambda: sensor_tick(sht30, bmp280), interval_ms=1000)
-sc.start()
+# 安装轮转日志 —— 所有 logger 输出写入 /log/run_*.log
+# fmt 参数由 LLM 自主决定，不指定则使用默认 "%(levelname)s:%(name)s:%(message)s"
+install_rotating(LOG_DIR, max_files=LOG_MAX_FILES, lines_per_file=LOG_LINES_PER_FILE)
+_log = getLogger("main")
 ```
 
-**I2C 分配规则**：
-- 先尝试把所有同 bus 的器件挂在一个 I2C 上
-- 地址冲突时创建第二个 I2C 实例
-- 不是简单一个器件一个 I2C
+补一句 `print()` 输出固件名称+版本到 REPL，再 `info(...)` 写入日志。
+
+**为什么 print() + 轮转日志两者都要：**
+- `print()` → REPL 实时输出，mpremote 连接时即时可见
+- 轮转日志 → 写入设备端 `/log/run_*.log`，REPL 断开后仍可通过 `mpremote fs` 读取回溯
+- 参考实现：`G:\MicroPython_Claude_Assistant\device\main.py`（第 13-24 行）
+
+4. **启动时 I2C 扫描**：对每个 I2C 器件调用 `scan_<name>_i2c(i2c)`，结果用 info/warning + print 双写
+
+**main.py 日志插入点（LLM 必须在对应位置插入，级别和具体措辞可自主调整）：**
+
+| 位置 | 级别 | 内容要求 |
+|------|------|------|
+| 固件启动 | `info` | 项目名 + 版本号 + 板名 |
+| 轮转日志安装 | `debug`/`info` | LOG_DIR 路径 |
+| I2C 总线初始化 | `info` | bus id + SCL/SDA pin 号 |
+| 各驱动创建成功 | `info` | 驱动名 + I2C 地址 |
+| 各驱动创建失败 | `warning` | 驱动名 + 异常信息 |
+| I2C 扫描结果 | `info`/`warning` | 器件名 + found/missing |
+| 调度器/事件循环启动 | `info` | tick_ms 或等效参数 |
+| 调度器主循环异常 | `error` | 致命错误，含 traceback |
+
+**LLM 自主决定：** import 组织、初始化顺序、`install_rotating(fmt=...)` 参数、启动日志具体措辞、GPIO/SPI 器件的创建方式。
 
 ---
 
@@ -286,57 +330,39 @@ sc.start()
 
 ### 6A: PC 端单元测试 `test/pc/test_<task>.py`
 
-```python
-import unittest
-import sys
-sys.path.insert(0, 'firmware')
+**约束（LLM 必须在生成代码中满足）：**
 
-# 用 Mock 替换真实 driver
-from drivers.sht30_driver.mock import MockSht30
-from drivers.bmp280_driver.mock import MockBmp280
-from tasks.sensor_task import sensor_tick
+1. **至少覆盖三种场景**：正常数据、传感器缺失（传入 None）、传感器异常（驱动抛异常）
+2. **导入 Mock 替换真实驱动**：`from drivers.<name>_driver.mock import Mock<Name>`
+3. **用 `sys.path.insert(0, 'firmware')`** 确保能在 CPython 下导入 firmware/ 下的模块
+4. **使用 CPython unittest**
 
-class TestSensorTask(unittest.TestCase):
-    def test_normal_reading(self):
-        sht30 = MockSht30(measure=(25.0, 60.0))
-        bmp280 = MockBmp280(read_compensated_data=(25.0, 101325.0, 50.0))
-        data = sensor_tick(sht30, bmp280)
-        self.assertEqual(data["temperature"], 25.0)
-        self.assertEqual(data["humidity"], 60.0)
-
-    def test_sensor_none(self):
-        data = sensor_tick(None, None)
-        self.assertEqual(data, {})
-
-    def test_sensor_error(self):
-        # Mock 抛出异常
-        bad = MockSht30()
-        bad.measure = lambda: (_ for _ in ()).throw(Exception("fail"))
-        data = sensor_tick(bad, None)
-        self.assertNotIn("temperature", data)
-
-if __name__ == '__main__':
-    unittest.main()
-```
-
-覆盖三种情况：正常数据、传感器缺失（None）、传感器异常（抛异常）。
+**LLM 自主决定：** 测试类命名、Mock 参数配置、断言内容和数量、是否扩展更多边界用例。
 
 ### 6B: 设备端冒烟测试 `test/device/test_smoke.py`
 
-只测硬件可用性（I2C scan、Pin 初始化），不测业务逻辑。
+只测硬件可用性，不测业务逻辑。
 
 **只用 MicroPython unittest 支持的 assert 方法**（`assertTrue`、`assertEqual`、`assertIsNotNone`、`assertRaises`），**禁止使用** `assertIsInstance`、`assertIn`、`assertNotIn`、`assertGreater` 等 CPython 扩展。
 
 ```python
 from machine import I2C, Pin
 import unittest
+from drivers.<name>_driver import scan_<name>_i2c
 
 class TestSmoke(unittest.TestCase):
-    def test_i2c_scan(self):
-        i2c = I2C(scl=Pin(5), sda=Pin(4))
+    def test_i2c_bus_scan(self):
+        i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>))
         devices = i2c.scan()
-        self.assertTrue(len(devices) > 0, "No I2C devices found")
+        self.assertTrue(len(devices) > 0, "No I2C devices found on bus")
+
+    def test_<name>_present(self):
+        i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>))
+        self.assertTrue(scan_<name>_i2c(i2c),
+                        "<NAME> not found at expected address")
 ```
+
+**LLM 自主决定：** 为每个 I2C 器件生成对应的 `test_<name>_present` 方法，添加 GPIO/SPI 器件的硬件测试。Pin 脚号从 manifest 读取。
 
 ### 6C: CPython 兼容性
 
@@ -344,10 +370,44 @@ PC 端测试（`test/pc/`）会遇到 MicroPython 特有模块在 CPython 不存
 
 ---
 
-## Phase 7: flake8 验证
+## Phase 7: flake8 + pylint 验证
+
+### 7A: flake8
 
 ```bash
 cd {project_dir} && python -m flake8 firmware/ --extend-exclude=firmware/lib --max-line-length=120 2>&1
+```
+
+### 7B: pylint
+
+项目目录下需存在 `.pylintrc`，忽略 MicroPython 特有模块的 import-error：
+
+```ini
+[MASTER]
+ignore-paths=^firmware/lib/.*\.py$
+ignore-patterns=test_
+
+[MESSAGES CONTROL]
+disable=
+    import-error,      # machine/micropython 等 MPY 模块在 CPython 不存在
+    no-member,         # MPY 动态注入成员 pylint 无法推断
+    no-name-in-module,
+    c-extension-no-member
+
+[TYPECHECK]
+ignored-modules=
+    machine,micropython,pyb,esp,esp32,espnow,rp2,mimxrt,zephyr,wipy,stm,
+    neopixel,network,bluetooth,framebuf,uctypes,cryptolib,deflate,btree,
+    vfs,openamp,lcd160cr,WM8960,
+    uasyncio,uselect,utime,ujson,uos,ustruct,ure,uzlib,uhashlib,
+    ubinascii,ucollections,urandom,uerrno,uheapq,uselect,ussl,usocket
+
+[FORMAT]
+max-line-length=120
+```
+
+```bash
+cd {project_dir} && python -m pylint firmware/ --rcfile=.pylintrc 2>&1
 ```
 
 有错直接修，修完重新验证，直到 pass。
@@ -423,6 +483,8 @@ print('[OK] manifest phase → generate')
 - **独立 try/except**：每个 task_tick 独立异常处理，一个传感器挂了不影响其他
 - **阈值在 conf.py**：不硬编码数值
 - **Mock 方法签名与真实驱动一致**：通过阅读驱动源码和 example.py 确认
+- **所有 I2C 驱动工厂必须导出 `scan_<name>_i2c(i2c, address)` 函数**：不依赖驱动实例，仅扫描 I2C 总线检查地址是否存在，为后续调试/部署 skill 提供硬件连通性判断依据。软件可配置地址的器件（如 GT911）需查阅 example.py 确定检测策略
+- **日志写入设备文件系统**：main.py 启动时安装轮转日志（`lib.logger.install_rotating`）。关键流程节点 `print()` + `lib.logger` 双写（REPL 即时可见 + 设备端持久化）；纯调试细节可只用 `print()`。即使 REPL 断开，日志仍可通过 mpremote 读取设备端文件
 
 ---
 
@@ -440,6 +502,6 @@ print('[OK] manifest phase → generate')
 - **可以修改 lib/ 下的驱动源码**（仅限：①添加 DI 支持如 i2c=None 参数 ②修复非标准换行符影响 CPython 编译）
 - **不生成全局 firmware/mock/ 目录**
 - **async 模式下驱动默认不改**，但如果驱动存在阻塞式方法（`time.sleep`、I2S 阻塞操作等），必须修改为异步版本并查阅 asyncio 官方文档确认 API；异步化也可在封装层处理
-- **生成结束自动 flake8 验证 + PC 测试运行**，不通过不结束
+- **生成结束自动 flake8 + pylint 验证 + PC 测试运行**，不通过不结束
 - **lib/ 下文件需保证 CPython 兼容**：`micropython.const`、`time.ticks_ms` 等 MPY 专有 API 要有 fallback（logger、time_helper 等 scaffold 文件可能遗漏）
 - **设备端测试只用 MPY unittest assert 子集**：`assertTrue`、`assertEqual`、`assertIsNotNone`、`assertRaises`，禁止 `assertIn`/`assertIsInstance` 等

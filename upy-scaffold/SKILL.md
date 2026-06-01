@@ -15,9 +15,11 @@ description: 第三步——项目骨架生成。读取 select-hw 阶段的 proj
 
 ```bash
 python --version
+python -c "import flake8; print('flake8 OK')"
+python -c "import pylint; print('pylint OK')"
 ```
 
-无外部依赖（Python 3 标准库）。
+无外部依赖（Python 3 标准库 + flake8 + pylint）。
 
 ---
 
@@ -141,7 +143,8 @@ python G:/MicroPython_Skills/upy-scaffold/scripts/init_scaffold.py \
 | README.md | 项目名 + BOM + 引脚表 | 生成 |
 | LICENSE | MIT | 生成 |
 | .flake8 | F821/F401 豁免 + max-line=120 | 生成 |
-| — | flake8 验证 | 脚本末尾自动执行 |
+| .pylintrc | MPY 模块 import-error 豁免 + max-line=120 | 生成 |
+| — | flake8 + pylint 验证 | 脚本末尾自动执行 |
 
 ---
 
@@ -155,7 +158,8 @@ from machine import Pin, I2C
 from lib.scheduler.timer_sched import Scheduler
 from tasks.maintenance import maintenance_tick
 
-i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+# Pin numbers from manifest.hardware.pinout
+i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
 sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)
@@ -169,7 +173,7 @@ import uasyncio as asyncio
 from machine import Pin, I2C
 from tasks.maintenance import maintenance_tick
 
-i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
 async def main():
@@ -187,7 +191,7 @@ import time
 from machine import Pin, I2C
 from tasks.maintenance import maintenance_tick
 
-i2c = I2C(0, scl=Pin(5), sda=Pin(4), freq=400000)
+i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
 # TODO: upy-generate starts threads here
@@ -216,4 +220,4 @@ while True:
 - **timer 模式使用已有 Scheduler.py 参考实现**：ISR 只计数，主循环执行
 - **board.py 不做硬件初始化**：只存常量映射，实例创建在 main.py
 - **conf.py 不放敏感数据**：无 Wi-Fi 密码、API Key
-- **生成结束自动 flake8**：脚本末尾自动验证，不通过打印 warning
+- **生成结束自动 flake8 + pylint**：脚本末尾自动验证，不通过打印 warning
