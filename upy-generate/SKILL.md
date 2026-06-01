@@ -286,6 +286,14 @@ class Mock<Name>:
 
 **约束：**
 
+0. **启动延时（强制第一行代码）**：main.py 在 import 语句之后、任何业务逻辑之前，**必须**插入 3 秒启动延时，给 mpremote 在设备软复位后重新枚举 USB 并建立连接的时间窗口：
+
+```python
+import time; time.sleep(3)  # Boot delay: allow mpremote to reconnect after reset
+```
+
+这确保 deploy/autofix 的持久会话在 main.py 输出第一行日志之前就已连接，不会遗漏任何启动输出。
+
 1. **DI 装配链**：`machine.I2C/Pin → 工厂 create_xxx() → 驱动对象 → task 函数参数`，完整串联
 2. **I2C 地址冲突处理**：先尝试所有器件挂同一 I2C，地址冲突时创建第二个 I2C 实例
 3. **日志必须初始化**：
