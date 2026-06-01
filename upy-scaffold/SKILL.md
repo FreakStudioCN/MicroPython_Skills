@@ -204,9 +204,9 @@ while True:
 
 - ← `upy-select-hw`：输入 manifest（mcu + pinout + bom + devices）
 - → `upy-generate`：传入完整骨架 + manifest，业务代码生成
-- → `upy-verify-docs`：对生成的 `.py` 文件做 MPY API 文档核验
 - → `upy-wiring`：引脚分配表 → 接线图
 - → `upy-diagram`：代码结构 → 架构图
+- → `upy-simulate`：PC 端全流程业务模拟
 
 ---
 

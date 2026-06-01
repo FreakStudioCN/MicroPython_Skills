@@ -12,9 +12,9 @@
     },
     "phase": {
       "type": "string",
-      "enum": ["analyze", "select-hw", "scaffold", "generate", "verify-docs",
-               "inject-test", "wiring", "diagram", "deploy", "autofix",
-               "cold-driver", "complete", "failed"],
+      "enum": ["analyze", "select-hw", "scaffold", "generate",
+               "wiring", "diagram", "deploy", "autofix",
+               "cold-driver", "simulate", "complete", "failed"],
       "description": "当前所处的 Phase"
     },
     "created_at": {
