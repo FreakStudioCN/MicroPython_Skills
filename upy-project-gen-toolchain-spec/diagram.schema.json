@@ -1,0 +1,253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Diagram Intermediate JSON",
+  "description": "软件架构图 + 流程图中间表示，从 firmware/ 代码和 project-manifest.json 生成，被任意渲染器消费。与 Mermaid/Graphviz/Visio 等具体工具无关。",
+  "type": "object",
+  "required": ["meta", "architecture", "flow", "data_flow"],
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "description": "元数据",
+      "required": ["project", "mode", "generated_at", "source_phase"],
+      "properties": {
+        "project": { "type": "string", "description": "项目名称" },
+        "mode": { "type": "string", "enum": ["timer", "asyncio", "thread"], "description": "调度模式" },
+        "generated_at": { "type": "string", "description": "ISO 8601 时间戳" },
+        "source_phase": { "type": "string", "enum": ["scaffold", "generate"], "description": "从哪个 phase 的代码生成" },
+        "mcu": { "type": "string", "description": "MCU 型号" }
+      }
+    },
+
+    "architecture": {
+      "type": "object",
+      "description": "分层架构依赖图",
+      "required": ["layers"],
+      "properties": {
+        "layers": {
+          "type": "array",
+          "description": "按架构层次排列（自下而上：Board → Library → Driver → Task → Entry）",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "modules"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": ["board", "lib", "driver", "task", "entry", "host", "test"],
+                "description": "层 ID，决定渲染顺序和颜色"
+              },
+              "label": {
+                "type": "string",
+                "description": "层的中文标签，如 板级层(Board)"
+              },
+              "color": {
+                "type": "string",
+                "description": "渲染建议色（hex），可由渲染器覆盖"
+              },
+              "modules": {
+                "type": "array",
+                "description": "该层包含的模块",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "path", "provides", "depends_on"],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "模块名（Python import 路径），如 tasks.sensor_task"
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "相对于项目根的文件路径，如 firmware/tasks/sensor_task.py"
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "模块职责的中文描述，从 docstring 首行提取或 LLM 补写"
+                    },
+                    "provides": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "对外导出的符号列表（函数名/类名）"
+                    },
+                    "depends_on": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "依赖的模块名列表（Python import 路径）"
+                    },
+                    "depends_on_machine": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "是否直接依赖 machine 模块（即是否 import machine.Pin/I2C/SPI 等）"
+                    },
+                    "has_mock": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "是否有对应的 mock 实现"
+                    },
+                    "is_generated": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "是否由 upy-generate 自动生成"
+                    },
+                    "is_template": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "是否来自 scaffold 模板库（非生成、非驱动源码）"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["scaffold_template", "llm_generated", "upypi_download", "github_download", "cold_driver", "user_custom"],
+                      "description": "模块来源"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "cross_layer_deps": {
+          "type": "array",
+          "description": "跨层依赖关系（去重后的 depends_on 全集）",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "label": { "type": "string", "description": "可选边标签" },
+              "style": { "type": "string", "enum": ["solid", "dashed", "dotted"], "default": "solid" }
+            }
+          }
+        }
+      }
+    },
+
+    "flow": {
+      "type": "array",
+      "description": "main.py 执行流程的步骤序列",
+      "items": {
+        "type": "object",
+        "required": ["seq", "phase", "action"],
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "description": "步骤序号（从 1 开始）"
+          },
+          "phase": {
+            "type": "string",
+            "enum": ["boot", "init", "scan", "create", "assembly", "run", "shutdown"],
+            "description": "步骤所属阶段"
+          },
+          "action": {
+            "type": "string",
+            "description": "动作描述（中文简短标题）"
+          },
+          "detail": {
+            "type": "string",
+            "description": "动作细节，如具体参数值、I2C 地址等"
+          },
+          "source_line": {
+            "type": "integer",
+            "description": "在 main.py 中的行号，渲染器可用于生成源码链接"
+          },
+          "depends_on_step": {
+            "type": "integer",
+            "description": "依赖的前置步骤 seq（用于流程图中的依赖箭头）"
+          },
+          "on_error": {
+            "type": "string",
+            "enum": ["fatal", "skip_device", "retry", "degrade"],
+            "description": "此步骤失败时的处理策略"
+          },
+          "is_conditional": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否为条件分支（如 if scan success → create else → skip）"
+          },
+          "branches": {
+            "type": "array",
+            "description": "条件分支的描述（is_conditional=true 时使用）",
+            "items": {
+              "type": "object",
+              "properties": {
+                "condition": { "type": "string" },
+                "goto_step": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "data_flow": {
+      "type": "array",
+      "description": "模块间的数据流",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "data"],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "数据来源（函数名、变量名或模块名）"
+          },
+          "to": {
+            "type": "string",
+            "description": "数据去向"
+          },
+          "data": {
+            "type": "string",
+            "description": "传递的数据描述"
+          },
+          "channel": {
+            "type": "string",
+            "enum": ["function_return", "shared_dict", "global_var", "queue", "callback_param"],
+            "default": "shared_dict",
+            "description": "数据传输通道类型"
+          },
+          "rate": {
+            "type": "string",
+            "description": "数据刷新频率，如 1Hz、on_change"
+          }
+        }
+      }
+    },
+
+    "task_registry": {
+      "type": "array",
+      "description": "调度器任务注册清单（从 main.py 提取）",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "任务名" },
+          "callback": { "type": "string", "description": "回调函数名" },
+          "interval_ms": { "type": "integer", "description": "执行间隔（毫秒）" },
+          "mode": { "type": "string", "enum": ["periodic", "once", "on_event"], "default": "periodic" }
+        }
+      }
+    },
+
+    "diagnostics": {
+      "type": "object",
+      "description": "代码结构诊断信息（供审查参考，非渲染必需）",
+      "properties": {
+        "total_modules": { "type": "integer" },
+        "total_dependencies": { "type": "integer" },
+        "max_depth": { "type": "integer", "description": "依赖图最大深度" },
+        "circular_deps": {
+          "type": "array",
+          "items": { "type": "array", "items": { "type": "string" } },
+          "description": "检测到的循环依赖（应为空）"
+        },
+        "orphan_modules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "未被任何模块依赖的模块"
+        },
+        "machine_direct_access": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "直接 import machine 的模块（除 main.py 外应警告）"
+        }
+      }
+    }
+
+  }
+}

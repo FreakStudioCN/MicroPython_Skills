@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Wiring Diagram Intermediate JSON",
+  "description": "接线图中间表示，从 project-manifest.json 的 pinout/mcu/devices/bom 生成，被任意渲染器消费。与具体作图工具无关。",
+  "type": "object",
+  "required": ["meta", "mcu", "buses", "standalone", "power", "alerts"],
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "description": "元数据",
+      "required": ["project", "generated_at", "source_phase"],
+      "properties": {
+        "project": { "type": "string", "description": "项目名称" },
+        "mcu_model": { "type": "string", "description": "MCU 型号，如 Raspberry Pi Pico" },
+        "generated_at": { "type": "string", "description": "ISO 8601 时间戳" },
+        "source_phase": { "type": "string", "enum": ["select-hw", "scaffold", "generate"], "description": "从哪个 phase 的 manifest 生成" }
+      }
+    },
+
+    "mcu": {
+      "type": "object",
+      "description": "MCU 封装信息 + 所用引脚几何布局",
+      "required": ["name", "package", "pins"],
+      "properties": {
+        "name": { "type": "string", "description": "芯片型号" },
+        "package": { "type": "string", "description": "封装类型：DIP-40, QFN-56 等" },
+        "pin_count": { "type": "integer", "description": "总引脚数" },
+        "orientation": { "type": "string", "enum": ["horizontal", "vertical"], "default": "vertical", "description": "芯片在画布上的朝向" },
+        "pins": {
+          "type": "array",
+          "description": "本项目中实际用到的引脚列表",
+          "items": {
+            "type": "object",
+            "required": ["gpio", "side", "label", "type"],
+            "properties": {
+              "gpio": { "type": "string", "description": "引脚编号，如 GP4、GP5、3V3" },
+              "physical_pin": { "type": "integer", "description": "物理引脚位置编号（DIP 封装时，如 Pico 的 6 号脚 = GP4）" },
+              "side": { "type": "string", "enum": ["left", "right", "top", "bottom"], "description": "引脚在芯片哪一侧" },
+              "pos": { "type": "integer", "description": "在 side 上的顺序位置（0-based 或 1-based）" },
+              "label": { "type": "string", "description": "引脚功能标签，如 I2C0 SDA、Buzzer" },
+              "type": {
+                "type": "string",
+                "enum": ["power_3v3", "power_5v", "gnd", "i2c_data", "i2c_clock",
+                         "spi_mosi", "spi_miso", "spi_sck", "spi_cs",
+                         "uart_tx", "uart_rx", "gpio_out", "gpio_in", "gpio_in_pullup",
+                         "adc", "pwm", "i2s", "special"],
+                "description": "引脚电气类型，决定渲染颜色和图标"
+              },
+              "conflict": { "type": "string", "description": "冲突说明（如 '启动敏感，避免使用'）" }
+            }
+          }
+        }
+      }
+    },
+
+    "buses": {
+      "type": "array",
+      "description": "共享通信总线列表。一条总线 = 一组共享物理线路 + 上面挂的所有器件",
+      "items": {
+        "type": "object",
+        "required": ["type", "id", "signals", "devices"],
+        "properties": {
+          "type": { "type": "string", "enum": ["i2c", "spi", "uart", "onewire", "can"], "description": "总线协议类型" },
+          "id": { "type": "string", "description": "总线编号，如 I2C0、SPI1、UART1" },
+          "frequency_hz": { "type": "integer", "description": "通信速率" },
+          "signals": {
+            "type": "array",
+            "description": "该总线的物理信号线",
+            "items": {
+              "type": "object",
+              "required": ["role", "gpio"],
+              "properties": {
+                "role": { "type": "string", "enum": ["SDA", "SCL", "MOSI", "MISO", "SCK", "CS", "TX", "RX", "DQ"], "description": "信号角色" },
+                "gpio": { "type": "string", "description": "对应 MCU 的哪个引脚" }
+              }
+            }
+          },
+          "devices": {
+            "type": "array",
+            "description": "该总线上挂载的器件",
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "properties": {
+                "name": { "type": "string", "description": "器件名称" },
+                "type": { "type": "string", "description": "器件类别" },
+                "addr": { "type": "string", "pattern": "^0x[0-9a-fA-F]{2}$", "description": "I2C 地址（I2C 器件必填）" },
+                "cs_gpio": { "type": "string", "description": "片选引脚（SPI 器件必填）" },
+                "quantity": { "type": "integer", "default": 1 },
+                "notes": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "standalone": {
+      "type": "array",
+      "description": "不挂任何总线的独立 GPIO 器件（LED/蜂鸣器/按键/继电器等）",
+      "items": {
+        "type": "object",
+        "required": ["name", "pin", "type"],
+        "properties": {
+          "name": { "type": "string" },
+          "pin": { "type": "string", "description": "连接的 GPIO 编号" },
+          "type": { "type": "string", "enum": ["gpio_out", "gpio_in", "gpio_in_pullup", "pwm", "adc"] },
+          "active_level": { "type": "string", "enum": ["high", "low"], "default": "high", "description": "有效电平" },
+          "external_components": { "type": "string", "description": "外围元件，如 '串联220Ω限流电阻'" },
+          "quantity": { "type": "integer", "default": 1 }
+        }
+      }
+    },
+
+    "power": {
+      "type": "array",
+      "description": "供电分配方案",
+      "items": {
+        "type": "object",
+        "required": ["rail", "source_pins", "consumers"],
+        "properties": {
+          "rail": { "type": "string", "enum": ["3.3V", "5V", "Vin", "GND"], "description": "电源轨" },
+          "source_pins": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "MCU 上该电源轨的引脚列表"
+          },
+          "consumers": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "从该电源轨取电的器件名称列表"
+          }
+        }
+      }
+    },
+
+    "canvas": {
+      "type": "object",
+      "description": "布局坐标（由布局算法填充，渲染器以此为参考）",
+      "properties": {
+        "width_px": { "type": "integer", "description": "画布宽" },
+        "height_px": { "type": "integer", "description": "画布高" },
+        "mcu_position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "integer" }, "y": { "type": "integer" },
+            "w": { "type": "integer" }, "h": { "type": "integer" }
+          }
+        },
+        "device_positions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "x": { "type": "integer" }, "y": { "type": "integer" },
+              "w": { "type": "integer" }, "h": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+
+    "alerts": {
+      "type": "array",
+      "description": "自动生成的注意事项（规则引擎产出，LLM 不参与）",
+      "items": {
+        "type": "object",
+        "required": ["level", "msg"],
+        "properties": {
+          "level": { "type": "string", "enum": ["info", "warning", "danger"], "description": "严重级别" },
+          "msg": { "type": "string", "description": "注意事项文本（英文）" },
+          "category": { "type": "string", "enum": ["pullup", "power", "level_shift", "conflict", "startup", "current_limit", "general"], "description": "注意类别" }
+        }
+      }
+    }
+
+  }
+}
