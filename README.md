@@ -1,8 +1,10 @@
 # MicroPython Skills for GraftSense
 
-GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行）构建。
+GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两大体系：
 
-提供 15 个专用 Skill，覆盖 MicroPython 驱动开发的完整工作流：驱动规范化、测试文件规范化/生成、README 生成、package.json 生成、性能优化、内存优化、打包整理、设备部署验证，以及项目端到端生成、器件用法查询、文档获取；同时提供设备交互、文件传输、长连接监控三个 mpremote 操作 Skill。
+**A. 一句话造硬件 — AI 嵌入式代码生成流水线（10 个 skill）**：从自然语言需求出发，自动完成硬件选型、代码生成、PC 仿真、烧录部署、错误修复的完整闭环。
+
+**B. 驱动开发规范化（15 个 skill）**：基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行），覆盖驱动规范化、测试文件生成、README 生成、性能优化、内存优化、打包、设备部署。
 
 ---
 
@@ -27,7 +29,8 @@ GraftSense MicroPython 驱动开发规范化 Skill 集合，基于 [GraftSense-D
 ## 目录
 
 - [安装方法](#安装方法)
-- [Skill 列表](#skill-列表)
+- [一句话造硬件 — AI 嵌入式代码生成流水线](#一句话造硬件--ai-嵌入式代码生成流水线)
+- [驱动开发规范化 Skill 列表](#skill-列表)
   - [upy-norm-driver](#upy-norm-driver--驱动文件规范化)
   - [upy-norm-main](#upy-norm-main--测试文件规范化)
   - [upy-gen-main](#upy-gen-main--从-0-生成测试文件)
@@ -82,7 +85,9 @@ cp -r MicroPython_Skills/upy-norm-driver ~/.claude/skills/
 
 # 安装全部 skill（在克隆目录内执行）
 cd MicroPython_Skills
-for skill in upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
+for skill in upy-analyze upy-select-hw upy-scaffold upy-generate upy-simulate \
+             upy-deploy upy-autofix upy-wiring upy-diagram upy-cold-driver \
+             upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
              upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver \
              upy-pkg-guide fetch-doc upy-project \
              mpremote-device-interaction mpremote-file-transfer mpremote-live-session; do
@@ -97,7 +102,9 @@ Copy-Item -Recurse MicroPython_Skills\upy-norm-driver $env:USERPROFILE\.claude\s
 
 # 安装全部 skill（在克隆目录内执行）
 cd MicroPython_Skills
-$skills = @("upy-norm-driver","upy-norm-main","upy-gen-main","upy-gen-readme",
+$skills = @("upy-analyze","upy-select-hw","upy-scaffold","upy-generate","upy-simulate",
+            "upy-deploy","upy-autofix","upy-wiring","upy-diagram","upy-cold-driver",
+            "upy-norm-driver","upy-norm-main","upy-gen-main","upy-gen-readme",
             "upy-gen-pkg","upy-norm-pkg","upy-opt-driver","upy-slim-driver","upy-pack-driver",
             "upy-pkg-guide","fetch-doc","upy-project",
             "mpremote-device-interaction","mpremote-file-transfer","mpremote-live-session")
@@ -135,7 +142,90 @@ done
 
 ---
 
-## Skill 列表
+## 一句话造硬件 — AI 嵌入式代码生成流水线
+
+用户只需用自然语言描述需求（"做一个温湿度监测仪，超过阈值蜂鸣器报警"），系统自动完成从选型、生成代码、PC仿真、烧录到错误修复的全流程。
+
+### 流水线概览
+
+```
+用户说一句话
+    ↓
+Phase 1: upy-analyze    → 需求解析 + 驱动搜索
+Phase 2: upy-select-hw  → MCU 选型 + 引脚分配 + BOM
+Phase 3: upy-scaffold   → 项目骨架生成
+Phase 4: upy-generate   → 业务代码生成
+Phase 4.5: upy-simulate → PC 端全流程模拟（无需硬件）
+Phase 5: upy-deploy     → 一键烧录运行
+Phase 6: upy-autofix    → 错误分级决策 + 委托修复
+Phase 7: upy-wiring     → 接线图生成
+       upy-diagram      → 架构图 + 流程图
+异常路径: upy-cold-driver → 冷门硬件驱动生成
+```
+
+### Skill 清单
+
+| # | Skill | 阶段 | 状态 | 说明 |
+|---|-------|------|------|------|
+| 1 | `upy-analyze` | Phase 1 | 已落地 | 自然语言 → 器件清单 + 驱动 API 参考 |
+| 2 | `upy-select-hw` | Phase 2 | 已落地 | MCU 选型 + 固件核验 + 引脚分配 + BOM |
+| 3 | `upy-scaffold` | Phase 3 | 已落地 | 生成 firmware/ 完整骨架（Timer/asyncio/Thread） |
+| 4 | `upy-generate` | Phase 4 | 已落地 | 驱动下载 + DI 架构业务代码 + Mock + unittest |
+| 5 | `upy-simulate` | Phase 4.5 | 已落地 | PC 端 CLI+rich 全流程模拟（数据发生器 + 多场景） |
+| 6 | `upy-deploy` | Phase 5 | 已落地 | mpremote 上传 + 烧录 + 持久会话 + 初判 PASS/FAIL |
+| 7 | `upy-autofix` | Phase 6 | 待测试 | 编排协调层：triage.py 采集 → LLM 分级决策 → 委托上游 skill |
+| 8 | `upy-wiring` | Phase 7 | 草稿 | 接线图生成（CLI 文本 + 可选 SVG） |
+| 9 | `upy-diagram` | Phase 7 | 草稿 | 架构图 + 流程图（Mermaid 文本，CLI 原生可读） |
+| 10 | `upy-cold-driver` | 异常路径 | 待建 | PDF/Arduino → 规范化 MPY 驱动 |
+
+**配套支撑：**
+- `upy-project-gen-toolchain-spec` — 整体架构文档 + manifest/schema 定义
+- `upy-pkg-guide` — 器件驱动用法查询（被 upy-analyze 调用）
+- `fetch-doc` — URL 内容获取（被 upy-pkg-guide 调用）
+
+### 各 Skill 简介
+
+#### `/upy-analyze` — 需求解析 + 驱动搜索
+
+输入用户自然语言描述，LLM 拆解意图 → 多关键词并行搜索 upypi + awesome-micropython → 提取驱动 API 参考 → 输出 `project-manifest.json`（phase: analyze）。
+
+#### `/upy-select-hw` — MCU 选型 + 引脚分配
+
+读取 manifest → 根据场景/功耗/网络需求推荐 MCU → I2C 地址冲突检测 → 生成引脚分配表（含电气类型枚举 + 物理引脚编号）→ 输出 BOM 物料清单。
+
+#### `/upy-scaffold` — 项目骨架生成
+
+读取 manifest → AskUserQuestion 选择调度模式（Timer/asyncio/_thread）和可选模块 → 调用 `init_scaffold.py` 生成完整 `firmware/` 骨架（board.py, conf.py, boot.py, main.py, drivers/*, tasks/*, lib/*, tools/*）。
+
+#### `/upy-generate` — 业务代码生成
+
+读取 firmware/ 骨架 + 驱动 API 参考 → 下载驱动 → upy-norm-driver 规范化 → 生成 DI 架构的 task 代码 + conf.py + main.py + Mock 层 + unittest → black + flake8 + pylint 校验。
+
+#### `/upy-simulate` — PC 端全流程模拟
+
+LLM 阅读 firmware/ 全部代码 → 自主设计：调度方案 + 数据发生器 `gen_xxx(tick)` + 可视化（CLI+rich 优先）+ 多场景覆盖 → 生成 `test/pc/sim_main.py` → flake8 + pylint 校验 → 运行。**无需真实硬件即可验证业务逻辑。**
+
+#### `/upy-deploy` — 一键烧录运行
+
+mpremote 上传 firmware/ → 校验文件完整性 → 软复位 + 重连等待 → 持久会话采集输出 → 设备端日志抓取 → 本地规则初判 PASS/FAIL。
+
+#### `/upy-autofix` — 编排协调层
+
+deploy 失败后自动进入。`triage.py` 采集结构化数据（错误解析 + I2C 硬件检测 + git 管理）→ LLM 读取 JSON + 原始日志 → 分级决策（P0~P3）→ 委托上游 skill 修复（generate/select-hw/analyze）→ 可选 PC 验证 → 重新部署。最多 3 次尝试。
+
+#### `/upy-wiring` — 接线图生成
+
+读取 manifest 的 pinout/mcu/devices → LLM 生成中间 JSON → 脚本渲染 CLI 文本接线图 + 可选 SVG。
+
+#### `/upy-diagram` — 架构图 + 流程图
+
+扫描 firmware/ 代码结构 → LLM 生成中间 JSON → 脚本渲染 Mermaid 架构图 + 流程图（.md 代码块，CLI 原生可读）。
+
+#### `/upy-cold-driver` — 冷门硬件驱动生成（待建）
+
+upypi + GitHub 均无驱动时，从 PDF 数据手册或 Arduino 代码生成规范化 MPY 驱动。
+
+---
 
 ### `/upy-norm-driver` — 驱动文件规范化
 
@@ -607,11 +697,12 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 输出完整规范化文件 + 改写说明表
 ```
 
-### 为什么拆成 9 个 Skill
+### 为什么拆成多个 Skill
 
 规范文档 22 章、2200+ 行，单个 Skill 内嵌全部规范会导致上下文过长、改写质量下降。按"改写对象"和"优化目标"拆分后，每个 Skill 只内嵌对应章节的规范摘要，上下文可控。
 
 **Skill 分类**：
+- **AI 代码生成流水线**（10 个）：`upy-analyze`、`upy-select-hw`、`upy-scaffold`、`upy-generate`、`upy-simulate`、`upy-deploy`、`upy-autofix`、`upy-wiring`、`upy-diagram`、`upy-cold-driver`
 - **规范化**：`upy-norm-driver`、`upy-norm-main`、`upy-norm-pkg`（Orchestrator）
 - **生成**：`upy-gen-main`、`upy-gen-readme`、`upy-gen-pkg`
 - **优化**：`upy-opt-driver`（性能）、`upy-slim-driver`（内存）
@@ -637,6 +728,7 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.3.0 | 2026-04-29 | leezisheng | 新增 upy-pkg-guide（器件用法查询）、fetch-doc（URL 内容获取）、upy-project（项目端到端生成）；upy-gen-pkg 查询逻辑改为 Bash curl 自动执行 |
 | v1.4.0 | 2026-05-04 | leezisheng | 新增 mpremote-device-interaction、mpremote-file-transfer、mpremote-live-session；基于 andrewleech/claude-mpy-marketplace 架构，补充 Windows（COMn）和 macOS 平台支持 |
 | v1.5.0 | 2026-05-14 | leezisheng | 新增 upy-deploy-test（设备部署与验证）；upy-norm-pkg 新增第6步调用 upy-deploy-test；各 skill 新增中间件库类型判断分支及敏感数据替换规则 |
+| v1.6.0 | 2026-06-02 | leezisheng | 新增"一句话造硬件"AI 代码生成流水线（10 个 skill）：analyze/select-hw/scaffold/generate/simulate/deploy/autofix/wiring/diagram/cold-driver + 整体架构文档。upy-simulate 改为 CLI+rich 优先。upy-select-hw 增加引脚电气类型枚举 + 物理引脚规则。Skill 总数从 15 增至 25。 |
 
 ---
 
