@@ -4,14 +4,13 @@
 Usage:
     python log_report.py --log-file output.log           # from file
     python log_report.py --input <(read_device_log.py)   # piped from device (bash)
-    python log_report.py --port COM3                     # read directly from device
 """
 
 import json
 import re
 import sys
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 _ERROR_PATTERNS = [
@@ -21,6 +20,8 @@ _ERROR_PATTERNS = [
     (re.compile(r"Guru Meditation Error:.*"), "P1_GURU_MEDITATION"),
     (re.compile(r"\[FAIL\]\s*(.*)"), "P2_FAIL"),
     (re.compile(r"\[ERROR\]\s*(.*)"), "P2_ERROR"),
+    (re.compile(r"MemoryError"), "P1_MEMORY"),
+    (re.compile(r"ENOMEM"), "P1_MEMORY"),
 ]
 
 
@@ -38,7 +39,7 @@ def parse_log(text):
                     "context": lines[max(0, i-2):i+3],
                 })
     return {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "total_lines": len(lines),
         "error_count": len(errors),
         "errors": errors,

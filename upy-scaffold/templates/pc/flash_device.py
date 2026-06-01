@@ -209,9 +209,10 @@ def upload_files():
 
 
 def reset_device():
-    print("[reset] Rebooting device...")
+    """Soft-reset the device to restart MicroPython interpreter."""
+    print("[reset] Soft-resetting device...")
     try:
-        _mpremote(["reset"])
+        _mpremote(["soft-reset"])
     except Exception:
         pass
 
@@ -225,6 +226,7 @@ def main():
     parser.add_argument("--flash", action="store_true", help="Flash firmware to device")
     parser.add_argument("--upload", action="store_true", help="Upload project files to device")
     parser.add_argument("--all", action="store_true", help="Compile + flash + upload")
+    parser.add_argument("--no-reset", action="store_true", help="Skip device reset after upload")
     args = parser.parse_args()
 
     if not any([args.compile, args.flash, args.upload, args.all]):
@@ -247,7 +249,8 @@ def main():
 
     if do_upload:
         upload_files()
-        reset_device()
+        if not args.no_reset:
+            reset_device()
 
     if do_all:
         print("\n" + "=" * 50)
