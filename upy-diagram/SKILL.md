@@ -26,6 +26,42 @@ SVG 渲染需要网络（mermaid.ink API，零本地依赖），详见 Step 6。
 
 ## 执行步骤
 
+### Step 0: 选择复杂度级别
+
+**在执行任何分析之前，先询问用户需要的架构图复杂度。** 复杂度控制下面所有约束参数的上限，影响图的精简程度。
+
+```python
+AskUserQuestion(
+  questions=[{
+    "question": "架构图需要哪种复杂度？",
+    "header": "架构图复杂度",
+    "options": [
+      {"label": "简单", "description": "高度精简，只保留核心模块/依赖/步骤，适合快速浏览"},
+      {"label": "中等 (推荐)", "description": "平衡信息量和可读性，适合日常开发和沟通"},
+      {"label": "详细", "description": "完整展开，模块/步骤/数据流全部保留，适合复杂项目或归档文档"}
+    ],
+    "multiSelect": False
+  }]
+)
+```
+
+**参数对照表（LLM 以选中档位为约束上限）：**
+
+| 参数 | 简单 | 中等（默认） | 详细 |
+|------|:----:|:--------:|:----:|
+| `architecture` 总模块数 | ≤6 | ≤10 | ≤16 |
+| 每层模块上限 | ≤2 | ≤4 | ≤6 |
+| `cross_layer_deps` 总边数 | ≤6 | ≤12 | ≤20 |
+| `cross_layer_deps[].label` | ≤4 字 | ≤6 字 | ≤10 字 |
+| `role` | ≤8 字 | ≤10 字 | ≤14 字 |
+| `flow[]` 总步数 | ≤5 | ≤8 | ≤14 |
+| `flow[].action` | ≤4 字 | ≤6 字 | ≤8 字 |
+| `flow[].detail` | ≤8 字 | ≤12 字 | ≤16 字 |
+| `data_flow[]` 总边数 | ≤2 | ≤4 | ≤8 |
+| `data_flow[].data` | ≤6 字 | ≤8 字 | ≤12 字 |
+
+**选择后 LLM 严格按对应栏位的数值作为上限**，Step 3 中所有约束描述均以选中档位为准。默认：中等。
+
 ### Step 1: LLM 阅读 Schema → 理解结构
 
 读取中间 JSON schema：
@@ -76,7 +112,7 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
 **每个 module 对象：**
 - `name`：Python import 路径，如 `tasks.sensor_task`
 - `path`：相对文件路径，如 `firmware/tasks/sensor_task.py`
-- `role`：模块职责的中文简述，**≤15 字**（从 docstring 首行提取，无 docstring 则 LLM 补写。节点框宽度有限，过长文本会导致节点膨胀、布局拥挤）
+- `role`：模块职责的中文简述，上限以 Step 0 所选档位为准（从 docstring 首行提取，无 docstring 则 LLM 补写。节点框宽度有限，过长文本会导致节点膨胀、布局拥挤）
 - `provides`：导出的函数名/类名列表（从 `def` / `class` 提取，排除 `_` 前缀的私有符号）
 - `depends_on`：依赖的模块名列表（从 `import` / `from X import` 提取，排除 `machine` 和标准库）
 - `depends_on_machine`：是否直接 `import machine`（true 仅 main.py）
@@ -86,9 +122,10 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
 - `source`：来源枚举（`scaffold_template` / `llm_generated` / `upypi_download` / `github_download` / `cold_driver` / `user_custom`）
 
 **LLM 自主决定：**
-- 是否拆分一个 task 文件为多个 module（如果一个 task 文件有多个独立功能）；但**总模块数 ≤25，每层 ≤8**，超出时合并功能相近的模块
-- `cross_layer_deps[].label`：边标签，**≤8 字**（如 "导入"、"注入"、"日志输出"；过长的边标签会使连线拥挤难以辨认）
+- 是否拆分一个 task 文件为多个 module（如果一个 task 文件有多个独立功能）；但模块总数、每层上限、跨层依赖边数和标签长度均以 Step 0 所选复杂度档位为上限，超出时合并功能相近的模块
+- `cross_layer_deps[].label`：边标签上限以 Step 0 所选档位为准（如 "导入"、"注入"、"日志"；过长的边标签会使连线拥挤难以辨认）
 - `cross_layer_deps[].style`：solid（直接依赖）/ dashed（DI 注入依赖）/ dotted（测试依赖）
+- **16:9 比例预演：每写入一个模块/边/步骤，确认在 16:9 画布内各方向元素不超过容纳量 70%，否则合并或删除**
 
 #### 3C: `flow[]` — 执行流程
 
@@ -103,21 +140,21 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
   - `assembly` → DI 装配（驱动注入 task）
   - `run` → 调度器启动 / 事件循环运行
   - `shutdown` → 清理（如存在）
-- `action`：中文简短标题，**≤10 字**（如 "初始化 I2C0 总线"；时序图参与者宽度有限，过长文本会被截断）
-- `detail`：具体参数，**≤20 字**（I2C 地址、Pin 脚号、频率等；会在 action 下方折行显示）
+- `action`：中文简短标题，上限以 Step 0 所选档位为准（如 "初始化 I2C"；时序图参与者宽度有限，过长文本会被截断）
+- `detail`：具体参数，上限以 Step 0 所选档位为准（I2C 地址、Pin 脚号、频率等；会在 action 下方折行显示）
 - `source_line`：在 main.py 中的行号
 - `depends_on_step`：前置步骤 seq（如 create 依赖 scan 成功）
 - `on_error`：失败策略（`fatal` 终止 / `skip_device` 跳过该器件继续 / `retry` 重试 / `degrade` 降级运行）
 - `is_conditional` + `branches`：条件分支（如 scan 成功→create，失败→skip）
 
-**LLM 自主决定：** 步骤粒度（一个 init 动作可拆成多步或合并），**总步骤数 ≤20**（合并相似操作，不要每个函数调用都单独一步）；条件分支的细节。
+**LLM 自主决定：** 步骤粒度（一个 init 动作可拆成多步或合并），**总步骤数以 Step 0 所选档位为上限**（合并相似操作，不要每个函数调用都单独一步）；条件分支的细节。
 
 #### 3D: `data_flow[]` — 数据流
 
 分析 task 函数之间的数据传递：
 
 - `from` / `to`：数据来源和去向（模块名或函数名）
-- `data`：传递的数据描述，**≤12 字**（如 "温湿度读数 dict"、"报警状态 bool"）
+- `data`：传递的数据描述，上限以 Step 0 所选档位为准（如 "温湿度读数"、"报警状态"）
 - `channel`：传输通道
   - `shared_dict` → 通过共享 dict 传递（如 `data["temp"] = ...`）
   - `function_return` → 函数返回值传递
@@ -126,7 +163,7 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
   - `callback_param` → 回调函数参数
 - `rate`：刷新频率（如 `1Hz`、`on_change`、`100ms`）
 
-**LLM 自主决定：** data_flow 的粒度（可合并同类型流或逐条列出），**总边数 ≤8**（只保留核心数据流，过于细节或单向无分支的流省略）。
+**LLM 自主决定：** data_flow 的粒度（可合并同类型流或逐条列出），**总边数以 Step 0 所选档位为上限**（只保留核心数据流，过于细节或单向无分支的流省略）。
 
 #### 3E: `task_registry[]` — 任务注册清单
 
@@ -160,7 +197,7 @@ python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_jso
 
 ### Step 5: 生成 Mermaid .md + SVG 文件 (联合必需输出)
 
-**这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件（内含 Mermaid 代码块）+ 3 个 PNG 图片。CLI 直接可读，VS Code / GitHub 原生渲染。
+**这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件（内含 Mermaid 代码块）+ 3 个 SVG + 3 个 PNG 图片。CLI 直接可读，VS Code / GitHub 原生渲染。
 
 ```bash
 python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
@@ -168,7 +205,7 @@ python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
   --output {project_dir}/docs/
 ```
 
-脚本默认 `--format all`，同时输出 .md 和 PNG：
+脚本默认 `--format all`，同时输出 .md、.svg 和 .png：
 
 | 文件 | Mermaid 图类型 | 内容 |
 |------|---------------|------|
@@ -257,16 +294,19 @@ print('[OK] manifest diagrams updated')
 - **provides/depends_on 从真实 import 和 def 提取**：不编造符号
 - **diagnostics 如实填写**：包括 orphan_modules 和 machine_direct_access 警告
 - **渲染脚本防御式读取**：缺失字段不会崩溃，但会在 stderr 输出警告
-- **SVG 为必需输出**：脚本默认 `--format all`，同时生成 .md 和 .svg；仅 `--format md` 可跳过 SVG
-- **可读性约束（保证 PNG 在 ~1200px 宽度下清晰可读）**：
+- **SVG + PNG 为必需输出**：脚本默认 `--format all`，同时生成 .md、.svg 和 .png；仅 `--format md` 可跳过图片
+- **可读性约束（各档位上限见 Step 0 参数对照表，默认中等。保证 PNG 在 16:9 比例下清晰可读）**：
 
-  | 字段 | 上限 | 说明 |
-  |------|------|------|
-  | `role` | ≤15 字 | 节点框第 2 行，过长导致节点膨胀 |
-  | `cross_layer_deps[].label` | ≤8 字 | 边标签嵌在箭头中间，过长使连线拥挤 |
-  | `flow[].action` | ≤10 字 | 时序图参与者宽度 ~200px |
-  | `flow[].detail` | ≤20 字 | 在 action 下方折行，过长侵占垂直空间 |
-  | `flow[]` 总步数 | ≤20 | 合并相似步骤，不要逐行翻译代码 |
-  | `data_flow[].data` | ≤12 字 | 边标签，过长导致箭头被挤压 |
-  | `data_flow[]` 总边数 | ≤8 | 只保留核心数据流 |
-  | `architecture` 总模块数 | ≤25（每层 ≤8） | 合并功能相近的模块 |
+  | 字段 | 简单 | 中等（默认） | 详细 | 说明 |
+  |------|:----:|:--------:|:----:|------|
+  | `architecture` 总模块数 | ≤6 | ≤10 | ≤16 | 合并功能相近的模块 |
+  | 每层模块数 | ≤2 | ≤4 | ≤6 | 按层拆分上限 |
+  | `role` | ≤8 字 | ≤10 字 | ≤14 字 | 节点框第 2 行，过长导致节点膨胀 |
+  | `cross_layer_deps[].label` | ≤4 字 | ≤6 字 | ≤10 字 | 边标签嵌在箭头中间，过长使连线拥挤 |
+  | `cross_layer_deps[]` 总边数 | ≤6 | ≤12 | ≤20 | 跨层边是拥挤主因，只保留核心依赖 |
+  | `flow[].action` | ≤4 字 | ≤6 字 | ≤8 字 | 时序图纵向空间受 16:9 限制 |
+  | `flow[].detail` | ≤8 字 | ≤12 字 | ≤16 字 | 在 action 下方折行，过长侵占垂直空间 |
+  | `flow[]` 总步数 | ≤5 | ≤8 | ≤14 | 合并相似步骤，不要逐行翻译代码 |
+  | `data_flow[].data` | ≤6 字 | ≤8 字 | ≤12 字 | 边标签，过长导致箭头被挤压 |
+  | `data_flow[]` 总边数 | ≤2 | ≤4 | ≤8 | 只保留核心数据流 |
+  | 16:9 比例 | ≤70% | ≤70% | ≤70% | LLM 预演 Mermaid 渲染，超出即合并 |

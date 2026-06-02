@@ -576,8 +576,8 @@ def main():
     parser.add_argument("--output", required=True, help="Output directory (e.g. docs/)")
     parser.add_argument("--format", default="all",
                         choices=["md", "svg", "png", "all"],
-                        help="Output format: md (Mermaid .md), svg (vector via mermaid.ink, default image), "
-                             "png (raster via mermaid.ink, may be blurry), all (md + svg)")
+                        help="Output format: md (Mermaid .md), svg (vector via mermaid.ink), "
+                             "png (raster via mermaid.ink, may be blurry), all (md + svg + png)")
     args = parser.parse_args()
 
     wiring, err = load_wiring_json(args.input)
@@ -612,7 +612,7 @@ def main():
             all_warnings.append("wiring SVG crashed: {}".format(e))
             print("[WARN] wiring SVG crashed: {}".format(e), file=sys.stderr)
 
-    if args.format == "png":
+    if args.format in ("png", "all"):
         try:
             path, warns = render_wiring_svg(wiring, args.output, fmt="png")
             all_warnings.extend(warns)

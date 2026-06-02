@@ -576,8 +576,8 @@ def main():
     parser.add_argument("--output", required=True, help="Output directory (e.g. docs/)")
     parser.add_argument("--format", default="all",
                         choices=["md", "svg", "png", "all"],
-                        help="Output format: md (Mermaid text), svg (mermaid.ink vector, default image), "
-                             "png (mermaid.ink raster), all (md + svg)")
+                        help="Output format: md (Mermaid text), svg (mermaid.ink vector), "
+                             "png (mermaid.ink raster), all (md + svg + png)")
     args = parser.parse_args()
 
     diagram, err = load_diagram_json(args.input)
@@ -618,7 +618,7 @@ def main():
             print("[WARN] svg render crashed: {}".format(e), file=sys.stderr)
 
     # ── PNG outputs via mermaid.ink (raster, may be blurry) ──
-    if args.format == "png":
+    if args.format in ("png", "all"):
         try:
             results, warns = render_all_to_svg(diagram, args.output, fmt="png")
             all_warnings.extend(warns)
