@@ -231,7 +231,7 @@ def main():
     print(f"        with driver: {len(has_driver)} ({', '.join(has_driver) if has_driver else 'none'})")
     print(f"        no driver:  {len(no_driver)} ({', '.join(no_driver) if no_driver else 'none'})")
     if no_driver:
-        print(f"      WARNING: devices without driver will trigger upy-cold-driver")
+        print(f"      WARNING: devices without driver will trigger upy-gen-driver")
 
 
 if __name__ == "__main__":

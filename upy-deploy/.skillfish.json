@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-deploy",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-deploy",
+  "branch": "main",
+  "source": "manual"
+}

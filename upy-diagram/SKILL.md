@@ -1,13 +1,13 @@
 ---
 name: upy-diagram
-description: 第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ 必需 SVG。触发：upy-generate 完成后。
+description: 第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ SVG + PNG + HTML（双击浏览器可看）。触发：upy-generate 完成后。
 ---
 
 # 软件架构图生成 Skill
 
 ## 角色定位
 
-给定 `project-manifest.json`（phase: generate）和 `firmware/` 下所有 `.py` 文件，LLM 理解 `diagram.schema.json` 后分析代码结构、执行流程、数据流向，填入中间 JSON，再由脚本校验并生成 Mermaid 文本图（Markdown 代码块）+ PNG 图片。**Mermaid .md + PNG 均为必需输出，脚本默认 --format all。LLM 负责阅读代码并填写 JSON，脚本只做校验和文本图/PNG 生成。**
+给定 `project-manifest.json`（phase: generate）和 `firmware/` 下所有 `.py` 文件，LLM 理解 `diagram.schema.json` 后分析代码结构、执行流程、数据流向，填入中间 JSON，再由脚本校验并生成 Mermaid 文本图（Markdown 代码块）+ SVG + PNG + HTML。**Mermaid .md + SVG + PNG + HTML 均为必需输出，脚本默认 --format all。LLM 负责阅读代码并填写 JSON，脚本只做校验和渲染。**
 
 ---
 
@@ -195,9 +195,9 @@ python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_jso
 
 校验失败 → 修改 diagram.json → 重新校验，直到 pass。
 
-### Step 5: 生成 Mermaid .md + SVG 文件 (联合必需输出)
+### Step 5: 生成 Mermaid .md + SVG + PNG + HTML 文件 (联合必需输出)
 
-**这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件（内含 Mermaid 代码块）+ 3 个 SVG + 3 个 PNG 图片。CLI 直接可读，VS Code / GitHub 原生渲染。
+**这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件（内含 Mermaid 代码块）+ 3 个 SVG + 3 个 PNG + 3 个 HTML。CLI 直接可读，VS Code / GitHub 原生渲染，HTML 双击浏览器即看。
 
 ```bash
 python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
@@ -205,13 +205,13 @@ python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
   --output {project_dir}/docs/
 ```
 
-脚本默认 `--format all`，同时输出 .md、.svg 和 .png：
+脚本默认 `--format all`，同时输出 .md、.svg、.png 和 .html：
 
 | 文件 | Mermaid 图类型 | 内容 |
 |------|---------------|------|
-| `docs/architecture.md` + `.svg` | `graph TB` | 分层架构图：subgraph 按层分组，节点=模块，边=依赖 |
-| `docs/flowchart.md` + `.svg` | `sequenceDiagram` | 执行流程图：MCU 参与者，按 phase 分组，条件分支 + 错误处理 |
-| `docs/data_flow.md` + `.svg` | `graph LR` | 数据流图：模块间数据通道，不同类型箭头表示不同 channel |
+| `docs/architecture.md` + `.svg` + `.png` + `.html` | `graph TB` | 分层架构图：subgraph 按层分组，节点=模块，边=依赖 |
+| `docs/flowchart.md` + `.svg` + `.png` + `.html` | `sequenceDiagram` | 执行流程图：MCU 参与者，按 phase 分组，条件分支 + 错误处理 |
+| `docs/data_flow.md` + `.svg` + `.png` + `.html` | `graph LR` | 数据流图：模块间数据通道，不同类型箭头表示不同 channel |
 
 SVG 通过 mermaid.ink API 渲染（零本地依赖，需要网络），矢量格式清晰不模糊。
 
@@ -228,6 +228,8 @@ python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
 ```
 
 原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=svg` → 保存 SVG。
+
+HTML 使用 Mermaid.js CDN 直接在浏览器中渲染，与 mermaid.ink 无关。
 
 **备选方案 — PNG（mermaid.ink 同样支持）：**
 
@@ -261,10 +263,16 @@ m['diagrams'] = m.get('diagrams', {})
 m['diagrams']['json'] = 'docs/diagram.json'
 m['diagrams']['architecture'] = 'docs/architecture.md'
 m['diagrams']['architecture_svg'] = 'docs/architecture.svg'
+m['diagrams']['architecture_png'] = 'docs/architecture.png'
+m['diagrams']['architecture_html'] = 'docs/architecture.html'
 m['diagrams']['flowchart'] = 'docs/flowchart.md'
 m['diagrams']['flowchart_svg'] = 'docs/flowchart.svg'
+m['diagrams']['flowchart_png'] = 'docs/flowchart.png'
+m['diagrams']['flowchart_html'] = 'docs/flowchart.html'
 m['diagrams']['data_flow'] = 'docs/data_flow.md'
 m['diagrams']['data_flow_svg'] = 'docs/data_flow.svg'
+m['diagrams']['data_flow_png'] = 'docs/data_flow.png'
+m['diagrams']['data_flow_html'] = 'docs/data_flow.html'
 m['diagrams']['generated_at'] = datetime.now(timezone.utc).isoformat()
 with open(path, 'w', encoding='utf-8') as f:
     json.dump(m, f, ensure_ascii=False, indent=2)
@@ -294,7 +302,7 @@ print('[OK] manifest diagrams updated')
 - **provides/depends_on 从真实 import 和 def 提取**：不编造符号
 - **diagnostics 如实填写**：包括 orphan_modules 和 machine_direct_access 警告
 - **渲染脚本防御式读取**：缺失字段不会崩溃，但会在 stderr 输出警告
-- **SVG + PNG 为必需输出**：脚本默认 `--format all`，同时生成 .md、.svg 和 .png；仅 `--format md` 可跳过图片
+- **SVG + PNG + HTML 为必需输出**：脚本默认 `--format all`，同时生成 .md、.svg、.png 和 .html；仅 `--format md` 可跳过图片和HTML
 - **可读性约束（各档位上限见 Step 0 参数对照表，默认中等。保证 PNG 在 16:9 比例下清晰可读）**：
 
   | 字段 | 简单 | 中等（默认） | 详细 | 说明 |

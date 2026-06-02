@@ -178,7 +178,7 @@ options (前 3 个 singleSelect-like 但用 multiSelect 实现单选行为):
 
   B. 无驱动 + 器件型号是用户明确指定的
      → 标记 driver.source = "none"
-     → 后续由 upy-cold-driver 处理
+     → 后续由 upy-gen-driver 处理
 
   C. 无驱动 + 器件型号是系统推荐的（用户未指定具体型号）
      → 触发 Step 3B：同类替代推荐
@@ -242,7 +242,7 @@ upypi 支持模糊搜索，不需要维护静态替代列表。**每次触发 3B
 
 **确认后：** 用替代器件更新 devices 列表，填充 driver 信息，继续 Step 4。
 
-**若替代搜索也无结果：** 该类别的所有器件都没有驱动 → 标记 `driver.source = "none"`，触发 upy-cold-driver。
+**若替代搜索也无结果：** 该类别的所有器件都没有驱动 → 标记 `driver.source = "none"`，触发 upy-gen-driver。
 
 ### Step 4: 输出 manifest
 
@@ -364,7 +364,7 @@ Q4 [输出方式] (多选)
 
 - ← 用户输入：自然语言项目描述
 - → `upy-select-hw`：传入 manifest（含 devices + requirements），硬件选型 + 引脚分配
-- → `upy-cold-driver`：对 `driver.source = "none"` 的器件，触发冷硬件驱动生成
+- → `upy-gen-driver`：对 `driver.source = "none"` 的器件，触发冷硬件驱动生成
 
 ## 强约束
 

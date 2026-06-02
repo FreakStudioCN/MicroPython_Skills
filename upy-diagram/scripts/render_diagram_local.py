@@ -567,6 +567,177 @@ def _build_data_flow_mermaid(diagram):
 
 
 # ═══════════════════════════════════════════════════════════
+#  HTML output — self-contained browser pages (Mermaid.js CDN)
+# ═══════════════════════════════════════════════════════════
+
+DIAGRAM_HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<style>
+  :root {{ --bg: #fff; --text: #333; --border: #e0e0e0; --code-bg: #f8f8f8; --tab-active: #1a73e8; }}
+  @media (prefers-color-scheme: dark) {{ :root {{ --bg: #1e1e1e; --text: #ddd; --border: #444; --code-bg: #2d2d2d; --tab-active: #5caeff; }} }}
+  body {{ font-family: system-ui, -apple-system, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); }}
+  h1 {{ font-size: 1.4em; margin-bottom: 4px; }}
+  .meta {{ color: #888; font-size: 0.85em; margin-bottom: 16px; }}
+  .tabs {{ display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }}
+  .tabs button {{ padding: 8px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; color: var(--text); border-bottom: 2px solid transparent; margin-bottom: -2px; }}
+  .tabs button:hover {{ color: var(--tab-active); }}
+  .tabs button.active {{ color: var(--tab-active); border-bottom-color: var(--tab-active); font-weight: 600; }}
+  .panel {{ display: none; }}
+  .panel.active {{ display: block; }}
+  .source {{ background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; }}
+  .source pre {{ margin: 0; white-space: pre-wrap; font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace; font-size: 13px; line-height: 1.5; }}
+  .mermaid {{ text-align: center; padding: 20px 0; }}
+  .mermaid svg {{ max-width: 100%; height: auto; }}
+  #fallback {{ display: none; }}
+</style>
+</head>
+<body>
+<h1>{title}</h1>
+<div class="meta">Project: {project} | Mode: {mode} | Generated: {generated_at}</div>
+
+<div class="tabs">
+  <button class="active" onclick="switchTab('diagram')">{tab_diagram}</button>
+  <button onclick="switchTab('source')">{tab_source}</button>
+</div>
+
+<div id="diagram" class="panel active">
+  <div class="mermaid">
+{MERMAID_CODE}
+  </div>
+  <div id="fallback" class="source">
+    <p style="color:#f44336">Mermaid.js failed to load. Showing source code instead.</p>
+    <pre>{MERMAID_ESCAPED}</pre>
+  </div>
+</div>
+
+<div id="source" class="panel">
+  <div class="source">
+    <pre>{MERMAID_ESCAPED}</pre>
+  </div>
+</div>
+
+<script>
+function switchTab(id) {{
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({{ startOnLoad: true, theme: 'default', securityLevel: 'loose' }});
+  window.addEventListener('error', function(e) {{
+    if (e.target && e.target.tagName === 'SCRIPT' && e.target.src.includes('mermaid')) {{
+      document.getElementById('fallback').style.display = 'block';
+    }}
+  }}, true);
+</script>
+</body>
+</html>"""
+
+
+def _mermaid_html_escape(text):
+    """Escape Mermaid code for safe embedding in HTML <pre>."""
+    if not text:
+        return ""
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _render_one_html(mermaid_code, meta, title, output_path):
+    """Render a single HTML file from Mermaid code. Returns (filepath, warnings)."""
+    warnings = []
+    try:
+        project = safe_get(meta, "project", "Unknown Project")
+        mode = safe_get(meta, "mode", "timer")
+        generated_at = safe_get(meta, "generated_at", "N/A")
+
+        html = DIAGRAM_HTML_TEMPLATE.format(
+            title=title,
+            project=project,
+            mode=mode,
+            generated_at=generated_at,
+            tab_diagram="图表",
+            tab_source="Mermaid 源码",
+            MERMAID_CODE=mermaid_code,
+            MERMAID_ESCAPED=_mermaid_html_escape(mermaid_code),
+        )
+
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html)
+
+        return output_path, warnings
+    except Exception as e:
+        return None, ["HTML render exception: {}".format(e)]
+
+
+def render_all_to_html(diagram, output_dir):
+    """Render all diagram types to self-contained HTML pages. Returns (paths_dict, warnings)."""
+    warnings = []
+    results = {}
+    meta = safe_get(diagram, "meta", {})
+    project = safe_get(meta, "project", "Unknown Project")
+
+    # Architecture
+    arch = safe_get(diagram, "architecture", {})
+    if arch:
+        try:
+            mermaid_code = _build_architecture_mermaid(diagram)
+            if mermaid_code:
+                out = os.path.join(output_dir, "architecture.html")
+                path, err = _render_one_html(
+                    mermaid_code, meta,
+                    "{} — 软件架构图".format(project), out)
+                if path:
+                    results["architecture_html"] = path
+                if err:
+                    warnings.extend(err)
+        except Exception as e:
+            warnings.append("architecture HTML: {}".format(e))
+
+    # Flowchart
+    flow = safe_list(diagram, "flow")
+    if flow:
+        try:
+            mermaid_code = _build_flowchart_mermaid(diagram)
+            if mermaid_code:
+                out = os.path.join(output_dir, "flowchart.html")
+                path, err = _render_one_html(
+                    mermaid_code, meta,
+                    "{} — 执行流程图".format(project), out)
+                if path:
+                    results["flowchart_html"] = path
+                if err:
+                    warnings.extend(err)
+        except Exception as e:
+            warnings.append("flowchart HTML: {}".format(e))
+
+    # Data flow
+    data_flows = safe_list(diagram, "data_flow")
+    if data_flows:
+        try:
+            mermaid_code = _build_data_flow_mermaid(diagram)
+            if mermaid_code:
+                out = os.path.join(output_dir, "data_flow.html")
+                path, err = _render_one_html(
+                    mermaid_code, meta,
+                    "{} — 数据流图".format(project), out)
+                if path:
+                    results["data_flow_html"] = path
+                if err:
+                    warnings.extend(err)
+        except Exception as e:
+            warnings.append("data_flow HTML: {}".format(e))
+
+    return results, warnings
+
+
+# ═══════════════════════════════════════════════════════════
 #  main
 # ═══════════════════════════════════════════════════════════
 
@@ -575,9 +746,10 @@ def main():
     parser.add_argument("--input", required=True, help="Path to diagram.json")
     parser.add_argument("--output", required=True, help="Output directory (e.g. docs/)")
     parser.add_argument("--format", default="all",
-                        choices=["md", "svg", "png", "all"],
+                        choices=["md", "svg", "png", "html", "all"],
                         help="Output format: md (Mermaid text), svg (mermaid.ink vector), "
-                             "png (mermaid.ink raster), all (md + svg + png)")
+                             "png (mermaid.ink raster), html (self-contained browser pages), "
+                             "all (md + svg + png + html)")
     args = parser.parse_args()
 
     diagram, err = load_diagram_json(args.input)
@@ -628,6 +800,18 @@ def main():
         except Exception as e:
             all_warnings.append("png render crashed: {}".format(e))
             print("[WARN] png render crashed: {}".format(e), file=sys.stderr)
+
+    # ── HTML outputs (self-contained browser pages) ──
+    if args.format in ("html", "all"):
+        try:
+            results, warns = render_all_to_html(diagram, args.output)
+            all_warnings.extend(warns)
+            for name, path in results.items():
+                print("[OK] {}".format(path))
+                ok_count += 1
+        except Exception as e:
+            all_warnings.append("html render crashed: {}".format(e))
+            print("[WARN] html render crashed: {}".format(e), file=sys.stderr)
 
     # ── Report ──
     if all_warnings:

@@ -566,6 +566,122 @@ def render_pin_table(wiring, output_dir):
 
 
 # ═══════════════════════════════════════════════════════════
+#  wiring.html — self-contained HTML page (Mermaid.js CDN)
+# ═══════════════════════════════════════════════════════════
+
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<style>
+  :root {{ --bg: #fff; --text: #333; --border: #e0e0e0; --code-bg: #f8f8f8; --tab-active: #1a73e8; }}
+  @media (prefers-color-scheme: dark) {{ :root {{ --bg: #1e1e1e; --text: #ddd; --border: #444; --code-bg: #2d2d2d; --tab-active: #5caeff; }} }}
+  body {{ font-family: system-ui, -apple-system, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); }}
+  h1 {{ font-size: 1.4em; margin-bottom: 4px; }}
+  .meta {{ color: #888; font-size: 0.85em; margin-bottom: 16px; }}
+  .tabs {{ display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }}
+  .tabs button {{ padding: 8px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; color: var(--text); border-bottom: 2px solid transparent; margin-bottom: -2px; }}
+  .tabs button:hover {{ color: var(--tab-active); }}
+  .tabs button.active {{ color: var(--tab-active); border-bottom-color: var(--tab-active); font-weight: 600; }}
+  .panel {{ display: none; }}
+  .panel.active {{ display: block; }}
+  .source {{ background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; }}
+  .source pre {{ margin: 0; white-space: pre-wrap; font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace; font-size: 13px; line-height: 1.5; }}
+  .mermaid {{ text-align: center; padding: 20px 0; }}
+  .mermaid svg {{ max-width: 100%; height: auto; }}
+  #fallback {{ display: none; }}
+</style>
+</head>
+<body>
+<h1>{title}</h1>
+<div class="meta">MCU: {mcu_model} | Project: {project} | Generated: {generated_at}</div>
+
+<div class="tabs">
+  <button class="active" onclick="switchTab('diagram')">{tab_diagram}</button>
+  <button onclick="switchTab('source')">{tab_source}</button>
+</div>
+
+<div id="diagram" class="panel active">
+  <div class="mermaid">
+{MERMAID_CODE}
+  </div>
+  <div id="fallback" class="source">
+    <p style="color:#f44336">Mermaid.js failed to load. Showing source code instead.</p>
+    <pre>{MERMAID_ESCAPED}</pre>
+  </div>
+</div>
+
+<div id="source" class="panel">
+  <div class="source">
+    <pre>{MERMAID_ESCAPED}</pre>
+  </div>
+</div>
+
+<script>
+function switchTab(id) {{
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({{ startOnLoad: true, theme: 'default', securityLevel: 'loose' }});
+  window.addEventListener('error', function(e) {{
+    if (e.target && e.target.tagName === 'SCRIPT' && e.target.src.includes('mermaid')) {{
+      document.getElementById('fallback').style.display = 'block';
+    }}
+  }}, true);
+</script>
+</body>
+</html>"""
+
+
+def _mermaid_html_escape(text):
+    """Escape Mermaid code for safe embedding in HTML <pre>."""
+    if not text:
+        return ""
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def render_wiring_html(wiring, output_dir):
+    """Generate wiring.html — self-contained HTML with Mermaid.js CDN. Returns (filepath, warnings)."""
+    warnings = []
+    try:
+        mermaid_code = _build_wiring_mermaid(wiring)
+        if not mermaid_code:
+            return None, ["failed to build wiring mermaid code for HTML"]
+
+        meta = safe_get(wiring, "meta", {})
+        project = safe_get(meta, "project", "Unknown Project")
+        mcu_model = safe_get(meta, "mcu_model", "MCU")
+        generated_at = safe_get(meta, "generated_at", "N/A")
+
+        html = HTML_TEMPLATE.format(
+            title="{} — 接线示意图".format(project),
+            project=project,
+            mcu_model=mcu_model,
+            generated_at=generated_at,
+            tab_diagram="接线图",
+            tab_source="Mermaid 源码",
+            MERMAID_CODE=mermaid_code,
+            MERMAID_ESCAPED=_mermaid_html_escape(mermaid_code),
+        )
+
+        out_path = os.path.join(output_dir, "wiring.html")
+        os.makedirs(output_dir, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(html)
+
+        return out_path, warnings
+    except Exception as e:
+        return None, ["wiring HTML render exception: {}".format(e)]
+
+
+# ═══════════════════════════════════════════════════════════
 #  main
 # ═══════════════════════════════════════════════════════════
 
@@ -575,9 +691,10 @@ def main():
     parser.add_argument("--input", required=True, help="Path to wiring.json")
     parser.add_argument("--output", required=True, help="Output directory (e.g. docs/)")
     parser.add_argument("--format", default="all",
-                        choices=["md", "svg", "png", "all"],
+                        choices=["md", "svg", "png", "html", "all"],
                         help="Output format: md (Mermaid .md), svg (vector via mermaid.ink), "
-                             "png (raster via mermaid.ink, may be blurry), all (md + svg + png)")
+                             "png (raster via mermaid.ink), html (self-contained browser page), "
+                             "all (md + svg + png + html)")
     args = parser.parse_args()
 
     wiring, err = load_wiring_json(args.input)
@@ -622,6 +739,18 @@ def main():
         except Exception as e:
             all_warnings.append("wiring PNG crashed: {}".format(e))
             print("[WARN] wiring PNG crashed: {}".format(e), file=sys.stderr)
+
+    # ── HTML (self-contained browser page) ──
+    if args.format in ("html", "all"):
+        try:
+            path, warns = render_wiring_html(wiring, args.output)
+            all_warnings.extend(warns)
+            if path:
+                print("[OK] {}".format(path))
+                ok_count += 1
+        except Exception as e:
+            all_warnings.append("wiring HTML crashed: {}".format(e))
+            print("[WARN] wiring HTML crashed: {}".format(e), file=sys.stderr)
 
     # ── Pin table (always generated) ──
     try:

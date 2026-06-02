@@ -1,13 +1,13 @@
 ---
 name: upy-wiring
-description: 接线图生成。通读 firmware/ 全部 .py 源码提取实际引脚/地址/总线，与 project-manifest.json 交叉验证后 LLM 生成中间 JSON，脚本渲染 Mermaid 接线图（.md 代码块，CLI 原生可读）+ 必需 SVG + PNG。触发：upy-scaffold 或 upy-generate 完成后。
+description: 接线图生成。通读 firmware/ 全部 .py 源码提取实际引脚/地址/总线，与 project-manifest.json 交叉验证后 LLM 生成中间 JSON，脚本渲染 Mermaid 接线图（.md 代码块，CLI 原生可读）+ SVG + PNG + HTML（双击浏览器可看）。触发：upy-scaffold 或 upy-generate 完成后。
 ---
 
 # 接线图生成 Skill
 
 ## 角色定位
 
-**通读 `firmware/` 全部 `.py` 源码 + `project-manifest.json`**，以 firmware 为权威数据源、manifest 为设计参考，交叉验证后 LLM 填写中间 JSON，脚本校验并渲染 Mermaid 接线图 + SVG + PNG + 引脚交叉引用表。**LLM 负责理解数据并填写 JSON，脚本只做校验和渲染。**
+**通读 `firmware/` 全部 `.py` 源码 + `project-manifest.json`**，以 firmware 为权威数据源、manifest 为设计参考，交叉验证后 LLM 填写中间 JSON，脚本校验并渲染 Mermaid 接线图 + SVG + PNG + HTML + 引脚交叉引用表。**LLM 负责理解数据并填写 JSON，脚本只做校验和渲染。**
 
 ---
 
@@ -207,9 +207,9 @@ python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_jso
 
 校验失败 → 修改 wiring.json → 重新校验，直到 pass。
 
-### Step 6: 生成 Mermaid .md + SVG + PNG 文件（联合必需输出）
+### Step 6: 生成 Mermaid .md + SVG + PNG + HTML 文件（联合必需输出）
 
-**这是本 skill 的主要输出。** 脚本从 wiring.json 生成 Mermaid 接线图 .md + SVG + PNG + 引脚交叉引用表。架构与 `upy-diagram` 一致：JSON → Mermaid 代码 → .md + SVG + PNG。
+**这是本 skill 的主要输出。** 脚本从 wiring.json 生成 Mermaid 接线图 .md + SVG + PNG + HTML + 引脚交叉引用表。架构与 `upy-diagram` 一致：JSON → Mermaid 代码 → .md + SVG + PNG + HTML。
 
 ```bash
 python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
@@ -224,6 +224,7 @@ python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
 | `docs/wiring.md` | Mermaid `graph TB` 接线示意图：MCU 引脚子图 + 总线子图 + 独立 GPIO + 电源连线 + 注意事项 |
 | `docs/wiring.svg` | SVG 接线图（矢量格式，清晰不模糊） |
 | `docs/wiring.png` | PNG 接线图（位图格式，通用兼容） |
+| `docs/wiring.html` | 自包含 HTML 页面（Mermaid.js CDN 动态渲染，Tab 切换接线图/源码，浏览器双击即看） |
 | `docs/wiring_pins.md` | Markdown 引脚交叉引用表（GPIO → 器件 → 类型 → 备注） |
 
 ### Step 7: SVG 渲染（必需，已包含在 Step 6 的 --format all 中）
@@ -240,6 +241,8 @@ python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
 
 原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=svg` → 保存 SVG。
 
+HTML 使用 Mermaid.js CDN 直接在浏览器中渲染，与 mermaid.ink 无关。
+
 ### Step 8: 更新 manifest
 
 ```bash
@@ -253,6 +256,7 @@ m['wiring'] = m.get('wiring', {})
 m['wiring']['json'] = 'docs/wiring.json'
 m['wiring']['svg'] = 'docs/wiring.svg'
 m['wiring']['png'] = 'docs/wiring.png'
+m['wiring']['html'] = 'docs/wiring.html'
 m['wiring']['md'] = 'docs/wiring.md'
 m['wiring']['generated_at'] = datetime.now(timezone.utc).isoformat()
 with open(path, 'w', encoding='utf-8') as f:
@@ -284,7 +288,7 @@ print('[OK] manifest wiring updated')
 - **I2C 器件必须有 `addr`**：格式 `0x00`，正则 `^0x[0-9a-fA-F]{2}$`。地址以 driver `_DEFAULT_ADDR` 为准
 - **SPI 器件必须有 `cs_gpio`**：片选引脚
 - **告警由 LLM 按规则判断并写入 alerts[]**
-- **SVG + PNG 为必需输出**：脚本默认 `--format all`，同时生成 .md、.svg 和 .png；仅 `--format md` 可跳过图片渲染
+- **SVG + PNG + HTML 为必需输出**：脚本默认 `--format all`，同时生成 .md、.svg、.png 和 .html；仅 `--format md` 可跳过图片渲染
 - **canvas 可为空对象**：渲染器自动布局，不要求 LLM 计算坐标
 - **渲染脚本防御式读取**：缺失字段不会崩溃，但会在 stderr 输出警告
 - **与 upy-diagram 共用 mermaid.ink 管线**：两者 PNG 渲染方式一致

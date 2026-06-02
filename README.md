@@ -86,10 +86,10 @@ cp -r MicroPython_Skills/upy-norm-driver ~/.claude/skills/
 # 安装全部 skill（在克隆目录内执行）
 cd MicroPython_Skills
 for skill in upy-analyze upy-select-hw upy-scaffold upy-generate upy-simulate \
-             upy-deploy upy-autofix upy-wiring upy-diagram upy-cold-driver \
+             upy-deploy upy-deploy-test upy-autofix upy-wiring upy-diagram upy-gen-driver \
              upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
              upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver \
-             upy-pkg-guide fetch-doc upy-project \
+             upy-pkg-guide fetch-doc upy-project review \
              mpremote-device-interaction mpremote-file-transfer mpremote-live-session; do
   cp -r $skill ~/.claude/skills/
 done
@@ -103,10 +103,10 @@ Copy-Item -Recurse MicroPython_Skills\upy-norm-driver $env:USERPROFILE\.claude\s
 # 安装全部 skill（在克隆目录内执行）
 cd MicroPython_Skills
 $skills = @("upy-analyze","upy-select-hw","upy-scaffold","upy-generate","upy-simulate",
-            "upy-deploy","upy-autofix","upy-wiring","upy-diagram","upy-cold-driver",
+            "upy-deploy","upy-deploy-test","upy-autofix","upy-wiring","upy-diagram","upy-gen-driver",
             "upy-norm-driver","upy-norm-main","upy-gen-main","upy-gen-readme",
             "upy-gen-pkg","upy-norm-pkg","upy-opt-driver","upy-slim-driver","upy-pack-driver",
-            "upy-pkg-guide","fetch-doc","upy-project",
+            "upy-pkg-guide","fetch-doc","upy-project","review",
             "mpremote-device-interaction","mpremote-file-transfer","mpremote-live-session")
 foreach ($skill in $skills) {
   Copy-Item -Recurse $skill $env:USERPROFILE\.claude\skills\
@@ -160,7 +160,7 @@ Phase 5: upy-deploy     → 一键烧录运行
 Phase 6: upy-autofix    → 错误分级决策 + 委托修复
 Phase 7: upy-wiring     → 接线图生成
        upy-diagram      → 架构图 + 流程图
-异常路径: upy-cold-driver → 冷门硬件驱动生成
+异常路径: upy-gen-driver → 冷门硬件驱动生成
 ```
 
 ### Skill 清单
@@ -173,10 +173,10 @@ Phase 7: upy-wiring     → 接线图生成
 | 4 | `upy-generate` | Phase 4 | 已落地 | 驱动下载 + DI 架构业务代码 + Mock + unittest |
 | 5 | `upy-simulate` | Phase 4.5 | 已落地 | PC 端 CLI+rich 全流程模拟（数据发生器 + 多场景） |
 | 6 | `upy-deploy` | Phase 5 | 已落地 | mpremote 上传 + 烧录 + 持久会话 + 初判 PASS/FAIL |
-| 7 | `upy-autofix` | Phase 6 | 待测试 | 编排协调层：triage.py 采集 → LLM 分级决策 → 委托上游 skill |
-| 8 | `upy-wiring` | Phase 7 | 草稿 | 接线图生成（CLI 文本 + 可选 SVG） |
-| 9 | `upy-diagram` | Phase 7 | 草稿 | 架构图 + 流程图（Mermaid 文本，CLI 原生可读） |
-| 10 | `upy-cold-driver` | 异常路径 | 待建 | PDF/Arduino → 规范化 MPY 驱动 |
+| 7 | `upy-autofix` | Phase 6 | 已落地 | 编排协调层：triage.py 采集 → LLM 分级决策 → 委托上游 skill |
+| 8 | `upy-wiring` | Phase 7 | 已落地 | 接线图生成（Mermaid .md + SVG + PNG + HTML） |
+| 9 | `upy-diagram` | Phase 7 | 已落地 | 架构图 + 流程图 + 数据流图（Mermaid .md + SVG + PNG + HTML） |
+| 10 | `upy-gen-driver` | 异常路径 | 已落地 | PDF/Arduino → 调试版驱动 → 硬件验证循环 → 规范化 MPY 驱动 |
 
 **配套支撑：**
 - `upy-project-gen-toolchain-spec` — 整体架构文档 + manifest/schema 定义
@@ -215,15 +215,15 @@ deploy 失败后自动进入。`triage.py` 采集结构化数据（错误解析 
 
 #### `/upy-wiring` — 接线图生成
 
-读取 manifest 的 pinout/mcu/devices → LLM 生成中间 JSON → 脚本渲染 CLI 文本接线图 + 可选 SVG。
+通读 firmware/ 全部 .py 源码提取实际引脚/地址/总线 → 与 manifest 交叉验证 → LLM 生成中间 JSON → 脚本渲染 Mermaid 接线图 .md + SVG + PNG + 自包含 HTML（双击浏览器即看）+ 引脚交叉引用表。
 
 #### `/upy-diagram` — 架构图 + 流程图
 
-扫描 firmware/ 代码结构 → LLM 生成中间 JSON → 脚本渲染 Mermaid 架构图 + 流程图（.md 代码块，CLI 原生可读）。
+扫描 firmware/ 代码结构 + manifest → LLM 生成中间 JSON → 脚本渲染 Mermaid 架构图 + 流程图 + 数据流图，各输出 .md + SVG + PNG + 自包含 HTML（Tabs 切换图表/源码，暗色模式自适应）。支持简单/中等/详细三档复杂度。
 
-#### `/upy-cold-driver` — 冷门硬件驱动生成（待建）
+#### `/upy-gen-driver` — 驱动代码生成（异常路径）
 
-upypi + GitHub 均无驱动时，从 PDF 数据手册或 Arduino 代码生成规范化 MPY 驱动。
+upypi + GitHub 均无驱动时触发。从 PDF 数据手册或 Arduino 代码提取信息 → LLM 生成调试版单文件驱动（含全量自检逻辑）→ `mpremote resume run` 硬件验证循环（最多 10 轮）→ 脱调试 → `upy-norm-driver` 规范化。可被 `upy-analyze`、`upy-autofix` 或用户直接调用。
 
 ---
 
@@ -539,6 +539,27 @@ API 处理方式：低频 API 自动执行，高频/模式切换 API 注释调�
 
 ---
 
+### `/review` — MicroPython 代码审查
+
+**用途**：基于 MicroPython 维护者历史审查模式（~19.5K 条分类审查评论），对 MPY 驱动代码进行 AI 辅助审查。
+
+**输入**：MicroPython 代码变更（分支、commit、diff、PR）
+
+**输出**：语义搜索匹配的历史审查模式 + 审查上下文建议
+
+**核心能力**：
+- 语义搜索 ~19.5K 条分类审查评论，找到相关历史审查模式
+- 支持 MCP server（`review_diff`、`search_reviews` 等工具）和 CLI 两种方式
+- MCP server 保持 embedding model 预热，消除每次查询 2-3s 冷启动
+
+**使用示例**：
+```
+/review 审查当前分支对 main 的 diff
+/review 检查 sensors/bmp280_driver/code/bmp280.py
+```
+
+---
+
 ### `/upy-project` — MicroPython 项目端到端生成
 
 **用途**：用户描述项目需求，自动完成从需求澄清、器件选型、代码生成到设备调试的全流程。
@@ -702,7 +723,8 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 规范文档 22 章、2200+ 行，单个 Skill 内嵌全部规范会导致上下文过长、改写质量下降。按"改写对象"和"优化目标"拆分后，每个 Skill 只内嵌对应章节的规范摘要，上下文可控。
 
 **Skill 分类**：
-- **AI 代码生成流水线**（10 个）：`upy-analyze`、`upy-select-hw`、`upy-scaffold`、`upy-generate`、`upy-simulate`、`upy-deploy`、`upy-autofix`、`upy-wiring`、`upy-diagram`、`upy-cold-driver`
+- **AI 代码生成流水线**（10 个）：`upy-analyze`、`upy-select-hw`、`upy-scaffold`、`upy-generate`、`upy-simulate`、`upy-deploy`、`upy-autofix`、`upy-wiring`、`upy-diagram`、`upy-gen-driver`
+- **代码审查**：`review`（mpy-review，MPY 驱动代码审查）
 - **规范化**：`upy-norm-driver`、`upy-norm-main`、`upy-norm-pkg`（Orchestrator）
 - **生成**：`upy-gen-main`、`upy-gen-readme`、`upy-gen-pkg`
 - **优化**：`upy-opt-driver`（性能）、`upy-slim-driver`（内存）
@@ -729,6 +751,8 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.4.0 | 2026-05-04 | leezisheng | 新增 mpremote-device-interaction、mpremote-file-transfer、mpremote-live-session；基于 andrewleech/claude-mpy-marketplace 架构，补充 Windows（COMn）和 macOS 平台支持 |
 | v1.5.0 | 2026-05-14 | leezisheng | 新增 upy-deploy-test（设备部署与验证）；upy-norm-pkg 新增第6步调用 upy-deploy-test；各 skill 新增中间件库类型判断分支及敏感数据替换规则 |
 | v1.6.0 | 2026-06-02 | leezisheng | 新增"一句话造硬件"AI 代码生成流水线（10 个 skill）：analyze/select-hw/scaffold/generate/simulate/deploy/autofix/wiring/diagram/cold-driver + 整体架构文档。upy-simulate 改为 CLI+rich 优先。upy-select-hw 增加引脚电气类型枚举 + 物理引脚规则。Skill 总数从 15 增至 25。 |
+| v1.7.0 | 2026-06-03 | leezisheng | upy-cold-driver 重命名为 upy-gen-driver，定位为独立可调用 skill（非仅异常路径）。upy-gen-driver 流程落地：调试版驱动 → mpremote 硬件验证循环 → 脱调试 → 规范化。upy-wiring + upy-diagram 新增 HTML 输出（自包含浏览器页面，Mermaid.js CDN + Tab 切换），--format all 现在输出 md + svg + png + html 全部四种格式。全部 25 个 skill 补全 .skillfish.json。 |
+| v1.7.1 | 2026-06-03 | leezisheng | README.md 安装脚本补充 upy-deploy-test + review skill。功能规划.md 修复：模块四可视化方案（Pillow→Mermaid）、模块七 gen-driver 流程补充硬件验证环、triage.py 行数修正、项目架构脚本名刷新、/cold-driver→/gen-driver。 |
 
 ---
 

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-autofix",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-autofix",
+  "branch": "main",
+  "source": "manual"
+}
