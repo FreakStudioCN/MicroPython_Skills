@@ -1,13 +1,13 @@
 ---
 name: upy-diagram
-description: 第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ 可选 PNG。触发：upy-generate 完成后。
+description: 第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ 必需 SVG。触发：upy-generate 完成后。
 ---
 
 # 软件架构图生成 Skill
 
 ## 角色定位
 
-给定 `project-manifest.json`（phase: generate）和 `firmware/` 下所有 `.py` 文件，LLM 理解 `diagram.schema.json` 后分析代码结构、执行流程、数据流向，填入中间 JSON，再由脚本校验并生成 Mermaid 文本图（Markdown 代码块）。**Mermaid .md 是主要输出（纯文本，CLI 原生可读），PNG 是可选后端。LLM 负责阅读代码并填写 JSON，脚本只做校验和文本图生成。**
+给定 `project-manifest.json`（phase: generate）和 `firmware/` 下所有 `.py` 文件，LLM 理解 `diagram.schema.json` 后分析代码结构、执行流程、数据流向，填入中间 JSON，再由脚本校验并生成 Mermaid 文本图（Markdown 代码块）+ PNG 图片。**Mermaid .md + PNG 均为必需输出，脚本默认 --format all。LLM 负责阅读代码并填写 JSON，脚本只做校验和文本图/PNG 生成。**
 
 ---
 
@@ -20,7 +20,7 @@ python -c "import jsonschema; print('jsonschema OK')"
 
 缺失则提示安装：`pip install jsonschema`
 
-PNG 渲染需要额外依赖，详见 Step 6 选项。
+SVG 渲染需要网络（mermaid.ink API，零本地依赖），详见 Step 6。
 
 ---
 
@@ -76,7 +76,7 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
 **每个 module 对象：**
 - `name`：Python import 路径，如 `tasks.sensor_task`
 - `path`：相对文件路径，如 `firmware/tasks/sensor_task.py`
-- `role`：模块职责的中文简述（从 docstring 首行提取，无 docstring 则 LLM 补写）
+- `role`：模块职责的中文简述，**≤15 字**（从 docstring 首行提取，无 docstring 则 LLM 补写。节点框宽度有限，过长文本会导致节点膨胀、布局拥挤）
 - `provides`：导出的函数名/类名列表（从 `def` / `class` 提取，排除 `_` 前缀的私有符号）
 - `depends_on`：依赖的模块名列表（从 `import` / `from X import` 提取，排除 `machine` 和标准库）
 - `depends_on_machine`：是否直接 `import machine`（true 仅 main.py）
@@ -86,7 +86,8 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
 - `source`：来源枚举（`scaffold_template` / `llm_generated` / `upypi_download` / `github_download` / `cold_driver` / `user_custom`）
 
 **LLM 自主决定：**
-- 是否拆分一个 task 文件为多个 module（如果一个 task 文件有多个独立功能）
+- 是否拆分一个 task 文件为多个 module（如果一个 task 文件有多个独立功能）；但**总模块数 ≤25，每层 ≤8**，超出时合并功能相近的模块
+- `cross_layer_deps[].label`：边标签，**≤8 字**（如 "导入"、"注入"、"日志输出"；过长的边标签会使连线拥挤难以辨认）
 - `cross_layer_deps[].style`：solid（直接依赖）/ dashed（DI 注入依赖）/ dotted（测试依赖）
 
 #### 3C: `flow[]` — 执行流程
@@ -102,21 +103,21 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
   - `assembly` → DI 装配（驱动注入 task）
   - `run` → 调度器启动 / 事件循环运行
   - `shutdown` → 清理（如存在）
-- `action`：中文简短标题（如 "初始化 I2C0 总线"）
-- `detail`：具体参数（I2C 地址、Pin 脚号、频率等）
+- `action`：中文简短标题，**≤10 字**（如 "初始化 I2C0 总线"；时序图参与者宽度有限，过长文本会被截断）
+- `detail`：具体参数，**≤20 字**（I2C 地址、Pin 脚号、频率等；会在 action 下方折行显示）
 - `source_line`：在 main.py 中的行号
 - `depends_on_step`：前置步骤 seq（如 create 依赖 scan 成功）
 - `on_error`：失败策略（`fatal` 终止 / `skip_device` 跳过该器件继续 / `retry` 重试 / `degrade` 降级运行）
 - `is_conditional` + `branches`：条件分支（如 scan 成功→create，失败→skip）
 
-**LLM 自主决定：** 步骤粒度（一个 init 动作可拆成多步或合并）、条件分支的细节。
+**LLM 自主决定：** 步骤粒度（一个 init 动作可拆成多步或合并），**总步骤数 ≤20**（合并相似操作，不要每个函数调用都单独一步）；条件分支的细节。
 
 #### 3D: `data_flow[]` — 数据流
 
 分析 task 函数之间的数据传递：
 
 - `from` / `to`：数据来源和去向（模块名或函数名）
-- `data`：传递的数据描述（如 "sensor_data dict {temp, humidity, pressure}"）
+- `data`：传递的数据描述，**≤12 字**（如 "温湿度读数 dict"、"报警状态 bool"）
 - `channel`：传输通道
   - `shared_dict` → 通过共享 dict 传递（如 `data["temp"] = ...`）
   - `function_return` → 函数返回值传递
@@ -125,7 +126,7 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
   - `callback_param` → 回调函数参数
 - `rate`：刷新频率（如 `1Hz`、`on_change`、`100ms`）
 
-**LLM 自主决定：** data_flow 的粒度（可合并同类型流或逐条列出）。
+**LLM 自主决定：** data_flow 的粒度（可合并同类型流或逐条列出），**总边数 ≤8**（只保留核心数据流，过于细节或单向无分支的流省略）。
 
 #### 3E: `task_registry[]` — 任务注册清单
 
@@ -157,9 +158,9 @@ python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_jso
 
 校验失败 → 修改 diagram.json → 重新校验，直到 pass。
 
-### Step 5: 生成 Mermaid .md 文件 (主要输出)
+### Step 5: 生成 Mermaid .md + SVG 文件 (联合必需输出)
 
-**这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件，每个文件内含 Mermaid 代码块，CLI 直接可读，VS Code / GitHub 原生渲染。
+**这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件（内含 Mermaid 代码块）+ 3 个 PNG 图片。CLI 直接可读，VS Code / GitHub 原生渲染。
 
 ```bash
 python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
@@ -167,19 +168,31 @@ python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
   --output {project_dir}/docs/
 ```
 
-输出 3 个 Markdown 文件（内含 Mermaid 代码块）：
+脚本默认 `--format all`，同时输出 .md 和 PNG：
 
 | 文件 | Mermaid 图类型 | 内容 |
 |------|---------------|------|
-| `docs/architecture.md` | `graph TB` | 分层架构图：subgraph 按层分组，节点=模块，边=依赖 |
-| `docs/flowchart.md` | `sequenceDiagram` | 执行流程图：MCU 参与者，按 phase 分组，条件分支 + 错误处理 |
-| `docs/data_flow.md` | `graph LR` | 数据流图：模块间数据通道，不同类型箭头表示不同 channel |
+| `docs/architecture.md` + `.svg` | `graph TB` | 分层架构图：subgraph 按层分组，节点=模块，边=依赖 |
+| `docs/flowchart.md` + `.svg` | `sequenceDiagram` | 执行流程图：MCU 参与者，按 phase 分组，条件分支 + 错误处理 |
+| `docs/data_flow.md` + `.svg` | `graph LR` | 数据流图：模块间数据通道，不同类型箭头表示不同 channel |
 
-### Step 6: PNG 渲染（可选）
+SVG 通过 mermaid.ink API 渲染（零本地依赖，需要网络），矢量格式清晰不模糊。
 
-渲染脚本内置两种 PNG 方案：
+### Step 6: SVG 渲染（必需，已包含在 Step 5 的 --format all 中）
 
-**方案 A — mermaid.ink API（零本地依赖，需要网络）：**
+脚本默认使用 mermaid.ink API 渲染 SVG（零本地依赖，需要网络）：
+
+```bash
+# 仅 SVG（跳过 .md 重写）：
+python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
+  --input {project_dir}/docs/diagram.json \
+  --output {project_dir}/docs/ \
+  --format svg
+```
+
+原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=svg` → 保存 SVG。
+
+**备选方案 — PNG（mermaid.ink 同样支持）：**
 
 ```bash
 python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
@@ -188,9 +201,7 @@ python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
   --format png
 ```
 
-原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=png` → 保存 PNG。
-
-**方案 B — mermaid-cli（本地渲染，需要 Node.js）：**
+**备选方案 — mermaid-cli（本地渲染，需要 Node.js）：**
 
 ```bash
 npm install -g @mermaid-js/mermaid-cli
@@ -199,8 +210,6 @@ python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
   --output {project_dir}/docs/ \
   --format png-local
 ```
-
-默认使用 `--format md`（方案 A 适合服务器端，方案 B 适合本地 PC）。
 
 ### Step 7: 更新 manifest
 
@@ -214,8 +223,11 @@ with open(path, 'r', encoding='utf-8') as f:
 m['diagrams'] = m.get('diagrams', {})
 m['diagrams']['json'] = 'docs/diagram.json'
 m['diagrams']['architecture'] = 'docs/architecture.md'
+m['diagrams']['architecture_svg'] = 'docs/architecture.svg'
 m['diagrams']['flowchart'] = 'docs/flowchart.md'
+m['diagrams']['flowchart_svg'] = 'docs/flowchart.svg'
 m['diagrams']['data_flow'] = 'docs/data_flow.md'
+m['diagrams']['data_flow_svg'] = 'docs/data_flow.svg'
 m['diagrams']['generated_at'] = datetime.now(timezone.utc).isoformat()
 with open(path, 'w', encoding='utf-8') as f:
     json.dump(m, f, ensure_ascii=False, indent=2)
@@ -229,7 +241,7 @@ print('[OK] manifest diagrams updated')
 
 - ← `upy-generate`：输入完整 firmware 代码 + manifest
 - 与 `upy-wiring` 并行：可同时生成
-- → VS Code 插件 WebView：展示 Mermaid 图（Markdown 预览）或 PNG
+- → VS Code 插件 WebView：展示 Mermaid 图（Markdown 预览）或 SVG
 
 ---
 
@@ -245,3 +257,16 @@ print('[OK] manifest diagrams updated')
 - **provides/depends_on 从真实 import 和 def 提取**：不编造符号
 - **diagnostics 如实填写**：包括 orphan_modules 和 machine_direct_access 警告
 - **渲染脚本防御式读取**：缺失字段不会崩溃，但会在 stderr 输出警告
+- **SVG 为必需输出**：脚本默认 `--format all`，同时生成 .md 和 .svg；仅 `--format md` 可跳过 SVG
+- **可读性约束（保证 PNG 在 ~1200px 宽度下清晰可读）**：
+
+  | 字段 | 上限 | 说明 |
+  |------|------|------|
+  | `role` | ≤15 字 | 节点框第 2 行，过长导致节点膨胀 |
+  | `cross_layer_deps[].label` | ≤8 字 | 边标签嵌在箭头中间，过长使连线拥挤 |
+  | `flow[].action` | ≤10 字 | 时序图参与者宽度 ~200px |
+  | `flow[].detail` | ≤20 字 | 在 action 下方折行，过长侵占垂直空间 |
+  | `flow[]` 总步数 | ≤20 | 合并相似步骤，不要逐行翻译代码 |
+  | `data_flow[].data` | ≤12 字 | 边标签，过长导致箭头被挤压 |
+  | `data_flow[]` 总边数 | ≤8 | 只保留核心数据流 |
+  | `architecture` 总模块数 | ≤25（每层 ≤8） | 合并功能相近的模块 |

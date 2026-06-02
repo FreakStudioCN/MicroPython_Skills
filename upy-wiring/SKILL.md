@@ -1,13 +1,13 @@
 ---
 name: upy-wiring
-description: 第七步——接线图生成。读取 project-manifest.json 的 pinout/mcu/devices/bom，LLM 生成中间 JSON + CLI 文本接线图，可选 SVG 渲染。触发：upy-scaffold 或 upy-generate 完成后。
+description: 接线图生成。读取 project-manifest.json 的 pinout/mcu/devices/bom，LLM 生成中间 JSON，脚本渲染 Mermaid 接线图（.md 代码块，CLI 原生可读）+ 必需 SVG。触发：upy-scaffold 或 upy-generate 完成后。
 ---
 
 # 接线图生成 Skill
 
 ## 角色定位
 
-给定 `project-manifest.json`（phase: scaffold 或 generate），LLM 理解 `wiring.schema.json` 后从 manifest 提取引脚、总线、器件、供电信息，生成中间 JSON 并直接输出 **CLI 文本接线图**（Unicode box-drawing 字符）。脚本负责 JSON 校验 + 可选 SVG 渲染。**LLM 生成 JSON + 文本图，脚本只做校验和可选的图像渲染。**
+给定 `project-manifest.json`（phase: scaffold 或 generate），LLM 理解 `wiring.schema.json` 后从 manifest 提取引脚、总线、器件、供电信息，填入中间 JSON，再由脚本校验并生成 Mermaid 接线图 + PNG 图片 + 引脚交叉引用表。**LLM 负责理解数据并填写 JSON，脚本只做校验和渲染。**
 
 ---
 
@@ -18,9 +18,9 @@ python --version
 python -c "import jsonschema; print('jsonschema OK')"
 ```
 
-必需：`pip install jsonschema`
+缺失则提示安装：`pip install jsonschema`
 
-可选（SVG 渲染）：`pip install matplotlib Pillow`
+SVG 渲染需要网络（mermaid.ink API，零本地依赖）。
 
 ---
 
@@ -100,16 +100,18 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/wiring.schema.json
 
 #### 2D: 告警自动生成
 
+**告警信息必须精简，每条 `msg` ≤60 英文字符**（告警框在接线图中宽度固定 ~260px，过长文本会被截断或挤占整个布局）。
+
 | 条件 | level | category | msg |
 |------|-------|----------|-----|
-| I2C 地址冲突（多个器件同地址） | `danger` | `conflict` | "I2C address conflict: {device1} and {device2} both at {addr}" |
-| I2C 无上拉电阻说明 | `warning` | `pullup` | "Verify I2C pull-up resistors on SDA/SCL (typically 4.7kΩ to 3.3V)" |
-| 5V 器件接 3.3V 引脚 | `danger` | `level_shift` | "{device} requires 5V but connected to 3.3V pin" |
-| 3.3V 器件接 5V 引脚 | `danger` | `level_shift` | "{device} is 3.3V but connected to 5V pin — level shifter required" |
-| 使用 GP0/GP1（Pico 启动敏感） | `warning` | `startup` | "GP0/GP1 are used during boot on some boards; verify compatibility" |
-| 蜂鸣器无限流电阻 | `info` | `current_limit` | "Add a 220Ω current-limiting resistor in series with buzzer" |
-| LED 无电阻 | `warning` | `current_limit` | "Add a 220Ω current-limiting resistor in series with LED" |
-| SPI 器件缺 CS 引脚 | `warning` | `general` | "SPI device {name} missing CS pin assignment" |
+| I2C 地址冲突（多个器件同地址） | `danger` | `conflict` | "{d1} and {d2} both at {addr} — address conflict" |
+| I2C 无上拉电阻说明 | `warning` | `pullup` | "Verify I2C pull-up resistors on SDA/SCL (4.7kΩ to 3.3V)" |
+| 5V 器件接 3.3V 引脚 | `danger` | `level_shift` | "{device}: 5V device on 3.3V pin — level shifter needed" |
+| 3.3V 器件接 5V 引脚 | `danger` | `level_shift` | "{device}: 3.3V device on 5V pin — risk of damage" |
+| 使用 GP0/GP1（Pico 启动敏感） | `warning` | `startup` | "GP0/GP1 used during boot on some boards; verify compatible" |
+| 蜂鸣器无限流电阻 | `info` | `current_limit` | "Add 220Ω current-limiting resistor in series with buzzer" |
+| LED 无电阻 | `warning` | `current_limit` | "Add 220Ω current-limiting resistor in series with LED" |
+| SPI 器件缺 CS 引脚 | `warning` | `general` | "SPI device {name}: missing CS pin assignment" |
 
 ### Step 3: LLM 生成 wiring.json
 
@@ -127,117 +129,37 @@ python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_jso
 
 校验失败 → 修改 wiring.json → 重新校验，直到 pass。
 
----
+### Step 5: 生成 Mermaid .md + PNG 文件（联合必需输出）
 
-### Step 5: LLM 生成 CLI 文本接线图 (主要输出)
-
-**这是本 skill 的主要输出。LLM 根据 wiring.json 的数据直接生成 Unicode box-drawing 文本图，包裹在 Markdown 代码块中。**
-
-#### 5A: 布局规则
-
-```
-水平布局（推荐）：
-  [3V3 Rail]──────────────[5V Rail]──────────────
-   │                      │
-  ┌┴──────────────────────┴──────────────────────┐
-  │              Raspberry Pi Pico                │
-  │  ┌──────────────────────────────────────────┐ │
-  │  │ 左排 GPIO                   右排 GPIO     │ │
-  │  │ GP0  □ Pin1      Pin40 □ VBUS           │ │
-  │  │ GP1  □ Pin2      Pin39 □ VSYS           │ │
-  │  │ ...                                      │ │
-  │  │ GP4  □ Pin6 ───I2C0 SDA──→ SHT30(0x44)  │ │
-  │  │ GP5  □ Pin7 ───I2C0 SCL──→ BMP280(0x76) │ │
-  │  │                           └→ OLED(0x3C)  │ │
-  │  │ ...                                      │ │
-  │  │ GP16 □ Pin21───→ Buzzer                  │ │
-  │  │ GP17 □ Pin22───→ LED(220Ω)               │ │
-  │  │ GND  □ Pin38───→ 所有器件 GND             │ │
-  │  └──────────────────────────────────────────┘ │
-  └──────────────────────────────────────────────┘
-   │                      │
-  [GND Rail]──────────────┘
-
-图例: ─ I2C  ═ SPI  ·· UART  ── GPIO  ▓ Power
-```
-
-#### 5B: 绘制约定
-
-- MCU 芯片用 **粗线框** `┌┐└┘` 包围
-- 每个使用的引脚显示其标签和物理编号
-- 通信总线用 **不同线型**：I2C=`──`(实线)、SPI=`══`(双线)、UART=`····`(虚线)
-- GPIO 直接连接：`GP16 □ Pin21 ───→ Buzzer`
-- 电源轨用 **粗线** 在顶部/底部
-- 末尾附简要图例
-
-#### 5C: 文本图必须包含的元素
-
-1. **MCU 封装框**：包含型号名、pin 编号、GPIO 标签
-2. **总线连接**：每条总线的信号线从 MCU 到器件，标注 GPIO 和信号角色
-3. **独立 GPIO**：直接连接线 + 器件名 + 外围元件（如"串联220Ω"）
-4. **电源轨**：顶部/底部 3V3 / 5V / GND 分配
-5. **图例**：线型说明
-
-#### 5D: 输出到文件
-
-LLM 将文本图直接写入 Markdown 文件，保存为代码块：
-
-````markdown
-# 环境监测装置 — 接线图
-
-## 接线示意图
-
-```
- ┌──────────────────────────────────────────────┐
- │              Raspberry Pi Pico                │
- │  ┌──────────────────────────────────────────┐ │
- │  │  左排                       右排          │ │
- │  │  GP0  □ Pin1       Pin40 □ VBUS          │ │
- │  │  ...                                      │ │
- │  │  GP4  □ Pin6 ───I2C0 SDA──→ SHT30(0x44)  │ │
- │  │                        └──→ BMP280(0x76)  │ │
- │  │                        └──→ OLED(0x3C)    │ │
- │  │  GP5  □ Pin7 ───I2C0 SCL──→ (同上)        │ │
- │  │  GP16 □ Pin21 ──→ Buzzer                  │ │
- │  │  GP17 □ Pin22 ──→ LED(220Ω)               │ │
- │  │  GND  □ Pin38 ──→ 共地                    │ │
- │  └──────────────────────────────────────────┘ │
- └──────────────────────────────────────────────┘
-```
-
-## 引脚对照表
-
-| # | 器件 | MCU 引脚 | GPIO | 协议 | 地址/备注 |
-|---|------|---------|------|------|----------|
-| 1 | SHT30 | 6 | GP4 | I2C I2C0 (SDA=GP4, SCL=GP5) | 0x44 |
-| 2 | BMP280 | 6,7 | GP4,GP5 | I2C I2C0 (SDA=GP4, SCL=GP5) | 0x76 |
-| 3 | SSD1306 OLED | 6,7 | GP4,GP5 | I2C I2C0 (SDA=GP4, SCL=GP5) | 0x3C |
-| 4 | 有源蜂鸣器 | 21 | GP16 | GPIO | 串联220Ω限流电阻 |
-| 5 | LED | 22 | GP17 | GPIO | 串联220Ω限流电阻 |
-
-## 注意事项
-
-> **WARNING** Verify I2C pull-up resistors on SDA/SCL (typically 4.7kΩ to 3.3V)
-> Add a 220Ω current-limiting resistor in series with buzzer
-> **WARNING** Add a 220Ω current-limiting resistor in series with LED
-````
-
-写入 `{project_dir}/docs/wiring.md`。
-
-### Step 6: 可选 — SVG/PNG 渲染（需要 matplotlib）
-
-如果用户明确要求图片格式，或 VS Code WebView 需要渲染：
+**这是本 skill 的主要输出。** 脚本从 wiring.json 生成 Mermaid 接线图 .md + SVG + 引脚交叉引用表。架构与 `upy-diagram` 一致：JSON → Mermaid 代码 → .md + SVG。
 
 ```bash
 python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
   --input {project_dir}/docs/wiring.json \
-  --output {project_dir}/docs/ \
-  --format all
+  --output {project_dir}/docs/
 ```
 
-输出 `docs/wiring.svg` + `docs/wiring.md`（脚本版引脚表）。
+脚本默认 `--format all`，同时输出：
 
-> 注意：SVG 中的中文标签需要系统安装中文字体（SimHei / Microsoft YaHei）。脚本会自动检测并使用第一个可用中文字体。
+| 文件 | 内容 |
+|------|------|
+| `docs/wiring.md` | Mermaid `graph TB` 接线示意图：MCU 引脚子图 + 总线子图 + 独立 GPIO + 电源连线 + 注意事项 |
+| `docs/wiring.svg` | SVG 接线图（通过 mermaid.ink API 渲染，矢量格式清晰不模糊） |
+| `docs/wiring_pins.md` | Markdown 引脚交叉引用表（GPIO → 器件 → 类型 → 备注） |
+
+### Step 6: SVG 渲染（必需，已包含在 Step 5 的 --format all 中）
+
+脚本默认使用 mermaid.ink API 渲染 SVG（零本地依赖，需要网络）：
+
+```bash
+# 仅 SVG（跳过 .md 重写）：
+python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
+  --input {project_dir}/docs/wiring.json \
+  --output {project_dir}/docs/ \
+  --format svg
+```
+
+原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=svg` → 保存 SVG。
 
 ### Step 7: 更新 manifest
 
@@ -250,8 +172,8 @@ with open(path, 'r', encoding='utf-8') as f:
     m = json.load(f)
 m['wiring'] = m.get('wiring', {})
 m['wiring']['json'] = 'docs/wiring.json'
+m['wiring']['svg'] = 'docs/wiring.svg'
 m['wiring']['md'] = 'docs/wiring.md'
-m['wiring']['cli_text'] = True
 m['wiring']['generated_at'] = datetime.now(timezone.utc).isoformat()
 with open(path, 'w', encoding='utf-8') as f:
     json.dump(m, f, ensure_ascii=False, indent=2)
@@ -259,30 +181,34 @@ print('[OK] manifest wiring updated')
 "
 ```
 
-如果 Step 6 也执行了，额外追加 `svg` 路径：
-```python
-m['wiring']['svg'] = 'docs/wiring.svg'
-```
-
 ---
 
 ## 与其他 skill 的关系
 
 - ← `upy-scaffold` / `upy-generate`：输入 manifest（含 pinout/mcu/devices/bom）
-- 与 `upy-diagram` 并行：可同时生成
-- → VS Code 插件 WebView：展示 Markdown 中的 CLI 文本图（或 SVG）
+- 与 `upy-diagram` 并行：可同时生成，共用 mermaid.ink SVG 渲染管线
+- → VS Code 插件 WebView：展示 Mermaid 图（Markdown 预览）或 PNG
 
 ---
 
 ## 强约束
 
-- **LLM 生成 JSON + CLI 文本图**：JSON 通过 schema 校验，文本图直接写入 .md
-- **文本图是主要输出**：不依赖 matplotlib，中文直接显示，终端原生可读
+- **LLM 生成 JSON，脚本只做校验 + 渲染**：与 `upy-generate` / `upy-diagram` 模式一致
+- **schema 是唯一契约**：wiring.json 必须通过 `validate_json.py` 校验
 - **LLM 必须推断缺失字段**：manifest.pinout 数据不完整时，根据 Pico/ESP32 引脚图知识补全 physical_pin、type、side、pos
 - **LLM 必须补充电源引脚**：3V3、GND 始终要被加入 mcu.pins[]
-- **schema 是 JSON 的唯一契约**：wiring.json 必须通过 `validate_json.py` 校验
-- **引脚 type 必须用 schema enum 值**：`i2c_data` 不是 `i2c_sda`，大小写严格匹配
+- **引脚类型枚举必须匹配**：`mcu.pins[].type` 必须是 schema 定义的 enum 值
 - **I2C 器件必须有 `addr`**：格式 `0x00`，正则 `^0x[0-9a-fA-F]{2}$`
-- **SPI 器件必须有 `cs_gpio`**
+- **SPI 器件必须有 `cs_gpio`**：片选引脚
 - **告警由 LLM 按规则判断并写入 alerts[]**
-- **文本图绘制用 Unicode box-drawing 字符**：`─│┌┐└┘├┤┬┴┼□→`
+- **SVG 为必需输出**：脚本默认 `--format all`，同时生成 .md 和 .svg；仅 `--format md` 可跳过 SVG
+- **canvas 可为空对象**：渲染器自动布局，不要求 LLM 计算坐标
+- **渲染脚本防御式读取**：缺失字段不会崩溃，但会在 stderr 输出警告
+- **与 upy-diagram 共用 mermaid.ink 管线**：两者 PNG 渲染方式一致
+- **可读性约束（保证 PNG 在 ~1200px 宽度下清晰可读）**：
+
+  | 字段 | 上限 | 说明 |
+  |------|------|------|
+  | `alerts[].msg` | ≤60 英文字符 | 告警框宽度 ~260px，过长被截断或挤占布局 |
+  | `standalone[].external_components` | ≤20 字 | 器件附属说明，过长使独立器件框膨胀 |
+  | `buses[].devices[].notes` | ≤20 字 | 器件备注，保持简洁 |
