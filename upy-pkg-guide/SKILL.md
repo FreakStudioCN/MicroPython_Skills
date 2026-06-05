@@ -54,13 +54,11 @@ base_url = `https://upypi.net/pkgs/{name}/{version}/`
 
 upypi 无结果时执行此路径。
 
-#### 调用搜索脚本
+#### 调用包搜索工具
 
-```bash
-python "C:/Users/Administrator/.claude/skills/upy-pkg-guide/scripts/search_awesome.py" "{器件名}"
-```
+调用 `search_packages` / `resolve_package_candidates` 搜索 awesome-micropython fallback 候选。
 
-脚本返回 JSON，格式：
+工具返回 JSON，格式：
 ```json
 {
   "query": "spacecan",

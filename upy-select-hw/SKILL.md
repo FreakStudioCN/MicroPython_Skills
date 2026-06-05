@@ -236,13 +236,7 @@ pinout 增加条目：
 
 ### Step 4: 更新 manifest
 
-调用脚本写入 `project-manifest.json`：
-
-```bash
-python G:/MicroPython_Skills/upy-select-hw/scripts/update_manifest.py \
-  --project-dir {project_dir} \
-  --input {llm_output_json}
-```
+调用 `propose_manifest` 更新 `project-manifest.json`，随后调用 `run_validate` 校验 canonical schema。
 
 --- 写入字段：
 - `phase`: "select-hw"

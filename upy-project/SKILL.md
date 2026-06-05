@@ -194,7 +194,7 @@ if not devices:
     raise RuntimeError("No I2C device found")
 
 time.sleep(3)
-print("FreakStudio: {项目名} starting...")
+print("{项目名} starting...")
 
 # 初始化所有模块
 obj_a = init_a()

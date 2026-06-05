@@ -109,13 +109,7 @@ WebFetch: https://docs.python.org/3.5/library/_thread.html#module-_thread
 
 ### Step 3: 生成项目骨架
 
-调用 `init_scaffold.py`：
-
-```bash
-python G:/MicroPython_Skills/upy-scaffold/scripts/init_scaffold.py \
-  --project-dir {project_dir} \
-  --mode {timer|async|thread}
-```
+调用 `run_scaffold`，传入 `mode={timer|async|thread}`。
 
 **脚本自动完成：**
 
@@ -161,7 +155,7 @@ i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
 sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)
-# TODO: upy-generate registers tasks here
+# upy-generate registers tasks here
 sc.start()
 ```
 
@@ -175,7 +169,7 @@ i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
 async def main():
-    # TODO: upy-generate creates async tasks here
+    # upy-generate creates async tasks here
     while True:
         maintenance_tick()
         await asyncio.sleep_ms(100)
@@ -192,7 +186,7 @@ from tasks.maintenance import maintenance_tick
 i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
-# TODO: upy-generate starts threads here
+# upy-generate starts threads here
 while True:
     maintenance_tick()
     time.sleep_ms(100)

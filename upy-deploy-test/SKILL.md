@@ -7,7 +7,7 @@ description: Use this skill after upy-norm-pkg completes to deploy normalized dr
 
 ## 角色定位
 
-你是 GraftSense MicroPython 设备部署助手。给定一个已规范化的驱动包目录，将驱动文件和测试文件上传到 MicroPython 设备，运行 main.py，读取输出并验证功能是否正常。
+你是 MicroPython 设备部署助手。给定一个已规范化的驱动包目录，将驱动文件和测试文件上传到 MicroPython 设备，运行 main.py，读取输出并验证功能是否正常。
 
 ## 执行步骤
 
@@ -96,7 +96,7 @@ mpremote connect <COM> resume exec "exec(open('main.py').read())"
 分析捕获的输出，判断测试结果：
 
 **成功标志：**
-- 出现 `FreakStudio: ...` 初始化打印
+- 出现初始化打印
 - 无 `Traceback` 或 `Error` 字样
 - 出现预期的数据输出或功能确认信息
 
@@ -111,7 +111,7 @@ mpremote connect <COM> resume exec "exec(open('main.py').read())"
 验证结果：✓ 通过 / ✗ 失败
 
 输出摘要：
-  初始化：✓ FreakStudio 打印正常
+  初始化：✓ 初始化打印正常
   功能测试：✓ / ✗ <具体描述>
   异常：无 / <异常类型和位置>
 ```
@@ -143,15 +143,4 @@ mpremote connect <COM> resume exec "exec(open('main.py').read())"
 
 ## 完整规范参考
 
-[完整规范文档](https://github.com/FreakStudioCN/MicroPython_Skills/blob/main/upy_driver_dev_spec_summary.md)
-
-## 自省与进化
-
-每次执行完成后，检查是否遇到以下情况：
-- 规则未覆盖的边界情况
-- 用户指出的输出错误或规则缺陷
-- 新发现的约束需求
-
-若有，立即执行：
-1. 将新规则追加到本文件对应章节
-2. 将相同修改同步写入 `C:/Users/Administrator/.claude/skills/upy-deploy-test/SKILL.md`
+参考项目 MicroPython 驱动开发规范文档。

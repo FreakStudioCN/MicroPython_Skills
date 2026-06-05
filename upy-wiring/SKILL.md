@@ -30,9 +30,7 @@ SVG 渲染需要网络（mermaid.ink API，零本地依赖）。
 
 读取中间 JSON schema：
 
-```
-G:/MicroPython_Skills/upy-project-gen-toolchain-spec/wiring.schema.json
-```
+通过 `run_validate` 使用 canonical wiring schema 校验。
 
 理解 6 个必需字段：`meta`, `mcu`, `buses`, `standalone`, `power`, `alerts`，以及可选字段 `canvas`。
 
@@ -199,11 +197,7 @@ G:/MicroPython_Skills/upy-project-gen-toolchain-spec/wiring.schema.json
 
 ### Step 5: 校验 wiring.json
 
-```bash
-python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_json.py \
-  --schema G:/MicroPython_Skills/upy-project-gen-toolchain-spec/wiring.schema.json \
-  --json {project_dir}/docs/wiring.json
-```
+调用 `run_validate`，传入 `path="docs/wiring.json"` 和 `schema="wiring"`。
 
 校验失败 → 修改 wiring.json → 重新校验，直到 pass。
 
@@ -211,11 +205,7 @@ python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_jso
 
 **这是本 skill 的主要输出。** 脚本从 wiring.json 生成 Mermaid 接线图 .md + SVG + PNG + HTML + 引脚交叉引用表。架构与 `upy-diagram` 一致：JSON → Mermaid 代码 → .md + SVG + PNG + HTML。
 
-```bash
-python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
-  --input {project_dir}/docs/wiring.json \
-  --output {project_dir}/docs/
-```
+调用 `render_wiring`，默认 `format="md"`；需要 SVG/PNG/HTML 时传入对应 `format`。
 
 脚本默认 `--format all`，同时输出：
 
@@ -231,13 +221,7 @@ python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
 
 脚本默认使用 mermaid.ink API 渲染 SVG（零本地依赖，需要网络）：
 
-```bash
-# 仅 SVG（跳过 .md 重写）：
-python G:/MicroPython_Skills/upy-wiring/scripts/render_wiring_local.py \
-  --input {project_dir}/docs/wiring.json \
-  --output {project_dir}/docs/ \
-  --format svg
-```
+仅 SVG（跳过 .md 重写）：调用 `render_wiring` 并传入 `format="svg"`。
 
 原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=svg` → 保存 SVG。
 

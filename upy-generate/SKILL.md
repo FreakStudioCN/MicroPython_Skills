@@ -37,9 +37,7 @@ python -c "import pylint; print('pylint OK')"
 
 ## Phase 1: 下载驱动
 
-```bash
-python G:/MicroPython_Skills/upy-generate/scripts/download_drivers.py --project-dir {project_dir}
-```
+调用 `run_download_drivers`。
 
 脚本从 upypi / GitHub 拉取驱动 .py 文件到 `firmware/lib/`，同时尝试拉取 `README.md` 和 `code/main.py` 作为参考材料：
 
@@ -313,7 +311,7 @@ _log = getLogger("main")
 **为什么 print() + 轮转日志两者都要：**
 - `print()` → REPL 实时输出，mpremote 连接时即时可见
 - 轮转日志 → 写入设备端 `/log/run_*.log`，REPL 断开后仍可通过 `mpremote fs` 读取回溯
-- 参考实现：`G:\MicroPython_Claude_Assistant\device\main.py`（第 13-24 行）
+- 参考实现：遵循本项目 scaffold 生成的日志初始化模式
 
 4. **启动时 I2C 扫描**：对每个 I2C 器件调用 `scan_<name>_i2c(i2c)`，结果用 info/warning + print 双写
 
