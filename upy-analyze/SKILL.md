@@ -47,15 +47,27 @@ python -c "import requests; print('requests OK')"
 header: "使用模式"
 question: "选择配置方式"
 options:
-  - "小白模式：帮我自动推荐 (默认)" (description: "只确认器件清单，主控/性能等技术细节全部自动")
+  - "小白模式：帮我自动推荐 (默认)" (description: "只确认器件和主控，其他全部自动配置")
   - "自定义模式：我要逐项选择" (description: "主控、场景、性能、输出方式逐项定制")
 ```
 
-#### Step 2B: 小白模式（1 问）
+#### Step 2B: 小白模式（1~2 问）
 
-**主控：不询问。** 开发板是技术选择，小白模式自动选用最合适的开发板（默认 ESP32）；仅当用户已在描述中指定了 MCU 时才采用用户指定值。MCU 固件核验仍由 Phase 2 `upy-select-hw` 负责。
+**Q1: 主控确认**（仅当用户未在描述中指定 MCU 时询问）
 
-**Q1: 器件清单确认** (multiSelect)
+```
+header: "主控"
+question: "用什么开发板？"
+options:
+  - "ESP32 (推荐默认)" (description: "最通用，WiFi/BLE，接口丰富")
+  - "Raspberry Pi Pico" (description: "RP2040，性价比高")
+  - "ESP32-S3" (description: "更强的 AI 能力，USB-OTG")
+  - "Other"
+```
+
+用户选 "Other" → 记录 `mcu_specified` = Other 输入值，具体核验交给 Phase 2 `upy-select-hw`
+
+**Q2: 器件清单确认** (multiSelect)
 
 ```
 header: "器件清单"
@@ -234,7 +246,15 @@ upypi 支持模糊搜索，不需要维护静态替代列表。**每次触发 3B
 
 ### Step 4: 输出 manifest
 
-调用 `propose_manifest` 写入 `project-manifest.json`，随后调用 `run_validate` 校验 canonical schema。
+调用 `init_manifest.py` 写入 `project-manifest.json`：
+
+```bash
+python G:/MicroPython_Skills/upy-analyze/scripts/init_manifest.py \
+  --project-dir {project_dir} \
+  --input {llm_output_json}
+```
+
+脚本校验 JSON 结构、补充元数据、写入项目目录。
 
 **manifest 结构要点：**
 - `phase`: "analyze"

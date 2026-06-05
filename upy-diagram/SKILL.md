@@ -66,7 +66,9 @@ AskUserQuestion(
 
 读取中间 JSON schema：
 
-通过 `run_validate` 使用 canonical diagram schema 校验。
+```
+G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json
+```
 
 理解 4 个必需字段：`meta`, `architecture`, `flow`, `data_flow`，以及可选字段 `task_registry`, `diagnostics`。
 
@@ -185,7 +187,11 @@ LLM 分析代码后填写：
 
 ### Step 4: 校验 diagram.json
 
-调用 `run_validate`，传入 `path="docs/diagram.json"` 和 `schema="diagram"`。
+```bash
+python G:/MicroPython_Skills/upy-project-gen-toolchain-spec/scripts/validate_json.py \
+  --schema G:/MicroPython_Skills/upy-project-gen-toolchain-spec/diagram.schema.json \
+  --json {project_dir}/docs/diagram.json
+```
 
 校验失败 → 修改 diagram.json → 重新校验，直到 pass。
 
@@ -193,7 +199,11 @@ LLM 分析代码后填写：
 
 **这是本 skill 的主要输出。** 脚本从 diagram.json 生成 3 个 Markdown 文件（内含 Mermaid 代码块）+ 3 个 SVG + 3 个 PNG + 3 个 HTML。CLI 直接可读，VS Code / GitHub 原生渲染，HTML 双击浏览器即看。
 
-调用 `render_diagram`，默认 `format="md"`。
+```bash
+python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
+  --input {project_dir}/docs/diagram.json \
+  --output {project_dir}/docs/
+```
 
 脚本默认 `--format all`，同时输出 .md、.svg、.png 和 .html：
 
@@ -209,7 +219,13 @@ SVG 通过 mermaid.ink API 渲染（零本地依赖，需要网络），矢量�
 
 脚本默认使用 mermaid.ink API 渲染 SVG（零本地依赖，需要网络）：
 
-仅 SVG（跳过 .md 重写）：调用 `render_diagram` 并传入 `format="svg"`。
+```bash
+# 仅 SVG（跳过 .md 重写）：
+python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
+  --input {project_dir}/docs/diagram.json \
+  --output {project_dir}/docs/ \
+  --format svg
+```
 
 原理：Mermaid 代码 Base64 编码 → GET `https://mermaid.ink/img/{base64}?type=svg` → 保存 SVG。
 
@@ -217,11 +233,22 @@ HTML 使用 Mermaid.js CDN 直接在浏览器中渲染，与 mermaid.ink 无关�
 
 **备选方案 — PNG（mermaid.ink 同样支持）：**
 
-调用 `render_diagram` 并传入 `format="png"`。
+```bash
+python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
+  --input {project_dir}/docs/diagram.json \
+  --output {project_dir}/docs/ \
+  --format png
+```
 
 **备选方案 — mermaid-cli（本地渲染，需要 Node.js）：**
 
-如需本地 PNG 渲染，先安装 `@mermaid-js/mermaid-cli`，再调用 `render_diagram` 并传入 `format="png-local"`。
+```bash
+npm install -g @mermaid-js/mermaid-cli
+python G:/MicroPython_Skills/upy-diagram/scripts/render_diagram_local.py \
+  --input {project_dir}/docs/diagram.json \
+  --output {project_dir}/docs/ \
+  --format png-local
+```
 
 ### Step 7: 更新 manifest
 

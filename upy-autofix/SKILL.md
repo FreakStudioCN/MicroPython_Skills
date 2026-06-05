@@ -7,9 +7,9 @@ description: 第六步——编排协调层。读取设备日志，解析错误�
 
 ## 角色定位
 
-**编排协调层，不是独立修复机。** 核心逻辑：读取工具结果、串口输出和原始日志 → 分级决策 → 委托上游 skill 修复 → 验证。
+**编排协调层，不是独立修复机。** 核心逻辑：`triage.py` 采集结构化数据 → LLM 读取 JSON + 原始日志 → 分级决策 → 委托上游 skill 修复 → 验证。
 
-数据采集只提供事实，不做修复决策。所有判断由 LLM 完成。
+脚本只做数据采集 + git 管理，不做修复决策。所有判断由 LLM 完成。
 
 ---
 
@@ -17,17 +17,24 @@ description: 第六步——编排协调层。读取设备日志，解析错误�
 
 - `upy-deploy` Phase 6 判定 FAIL
 - `deploy_logs/` 目录下有设备端原始日志文件（`run_*.log`）
-- 上一轮工具结果、串口输出或部署日志可读
+- `triage.py` 可用（本 skill 自带的脚本）
 
 ---
 
 ## 执行步骤
 
-### Step 1: 采集结构化排查事实
+### Step 1: 运行 triage.py 采集结构化数据
 
-读取部署日志、串口输出和上一轮工具结果，整理为结构化排查事实。
+```bash
+python G:/MicroPython_Skills/upy-autofix/scripts/triage.py \
+  --log-dir {deploy_logs路径} \
+  --port {COM} \
+  --attempt 1
+```
 
-**每个字段都有默认值**——日志缺失或格式异常时用 `unknown` / `null`，并在 `warnings` 字段列出所有降级情况。
+输出 JSON 到 stdout，LLM 捕获并解析。JSON 结构见 `triage.py` 文件头部注释。
+
+**每个字段都有默认值**——脚本已做 try/except，不会因日志格式异常而崩溃。`warnings` 字段列出所有降级情况。
 
 ### Step 2: LLM 综合研判
 
@@ -35,16 +42,16 @@ LLM 同时读取两个信息源：
 
 | 来源 | 作用 | 何时读 |
 |------|------|--------|
-| 结构化排查事实 | 快速定位：错误类型、P 级别、I2C 状态、attempt 计数 | 每次都读 |
-| deploy_logs/*.log / 串口原始输出 | 深度理解：完整 traceback、print 时序、上下文 | 结构化事实不足以判断时 |
+| triage.py JSON | 快速定位：错误类型、P 级别、I2C 状态、attempt 计数 | 每次都读 |
+| deploy_logs/*.log 原始日志 | 深度理解：完整 traceback、print 时序、上下文 | JSON 不足以判断时 |
 
 **研判顺序：**
 
-1. 先看结构化事实的 `i2c_ok` 字段
+1. 先看 JSON 的 `i2c_ok` 字段
    - `false` → 硬件问题，跳 Step 5（输出排查指引），**不修代码**
    - `true` 或 `null`（无 I2C 设备）→ 软件问题，继续
 
-2. 看结构化事实的 `p_level` + `error_type`
+2. 看 JSON 的 `p_level` + `error_type`
    - P0 拼写/import → LLM 直接 Edit 文件（一行修复，不值得启动上游 skill）
    - P0 驱动 API 错误 → Step 3 委托 upy-generate
    - P1 引脚/地址冲突 → Step 3 委托 upy-select-hw
@@ -55,7 +62,7 @@ LLM 同时读取两个信息源：
 
 ### Step 3: 委托上游 skill 修复
 
-LLM 使用 `load_skill` 工具调用上游 skill，**打包 error context**：
+LLM 使用 `Skill` 工具调用上游 skill，**打包 error context**：
 
 **委托 upy-generate 时传入：**
 - 原始 traceback（从 JSON 或原始日志提取）
@@ -79,13 +86,13 @@ LLM 使用 `load_skill` 工具调用上游 skill，**打包 error context**：
 ```
 修复完成
   ↓
-可选：加载 `upy-simulate` 做 PC 端快速验证（2-3s，省去串口烧录延迟）
+可选：Skill("upy-simulate") PC 端快速验证（2-3s，省去串口烧录延迟）
   ↓
-加载 `upy-deploy` 重新烧录运行
+Skill("upy-deploy") 重新烧录运行
   ↓
-重新读取工具结果、串口输出和日志
+再次运行 triage.py（--attempt N+1）
   ↓
-读结构化事实：
+读 JSON：
   ├─ status="pass" → 成功，输出 PASS 摘要
   └─ status="fail" → 回到 Step 2 重新研判（可能升级回退层级）
 ```
@@ -124,6 +131,10 @@ I2C 总线扫描不到设备，已尝试 software I2C 和低速模式，均无�
 
 ### Step 6: 3 次全败 — 回滚 + 总结
 
+```bash
+python G:/MicroPython_Skills/upy-autofix/scripts/triage.py --rollback --log-dir {deploy_logs路径}
+```
+
 然后 LLM 输出中文卡点报告：
 
 ```
@@ -135,14 +146,14 @@ I2C 总线扫描不到设备，已尝试 software I2C 和低速模式，均无�
   2. {strategy2} → {result2}
   3. {strategy3} → {result3}
 
-已保留修复前状态，建议从最后一次有效版本继续。
+git 已回滚到修复前状态。
 
 建议手动排查方向：{具体建议}
 ```
 
 ### Step 7: 错误数据记录
 
-将每次修复的历史记录到 `logs/error_report.json`（追加模式，若项目存在该目录），包含：时间戳、MCU 型号、错误类型、traceback、每次尝试的策略和结果、使用的 skill 版本。
+triage.py 自动将每次修复的历史写入 `logs/error_report.json`（追加模式），包含：时间戳、MCU 型号、错误类型、traceback、每次尝试的策略和结果、使用的 skill 版本。
 
 LLM 在 3 次全败时额外补充 `llm_analysis` 字段（根因分析 + 知识盲区标记）。
 
@@ -154,7 +165,7 @@ LLM 在 3 次全败时额外补充 `llm_analysis` 字段（根因分析 + 知识
 upy-deploy FAIL
     ↓
 upy-autofix (本 skill)
-    ├── 工具结果 / 串口 / 日志 → 采集数据
+    ├── triage.py → 采集数据
     ├── LLM 研判
     ├── 委托 → upy-generate（代码修复）
     ├── 委托 → upy-select-hw（引脚/地址修复）
@@ -175,11 +186,11 @@ upy-autofix (本 skill)
 
 ## 强约束
 
-- **采集层不做修复决策**：只提供结构化事实，LLM 读事实 + 原始日志后独立判断
+- **triage.py 不做修复决策**：只采集数据输出 JSON，LLM 读 JSON + 原始日志后独立判断
 - **硬件检测必须最先做**：I2C 扫描为空 → 直接输出排查指引，不进入修复循环
-- **每次修复前保留可回滚快照**：不要要求 LLM 执行版本控制提交
-- **最多 3 次尝试**：3 次全败 → 停止自动修复 + 输出卡点报告
-- **LLM 必须读原始日志**：结构化事实可能 `error_type: "unknown"`，此时 LLM 必须从原始日志独立判断
+- **每次修复前 git commit 保存快照**（triage.py `--snapshot`）
+- **最多 3 次尝试**：3 次全败 → git 回滚 + 输出卡点报告
+- **LLM 必须读原始日志**：triage.py JSON 可能 `error_type: "unknown"`，此时 LLM 必须从原始日志独立判断
 - **P0 拼写/import 由 LLM 直接 Edit**：不值得启动上游 skill 的开销
 - **所有其他修复必须委托上游 skill**：autofix 自己不写修复代码
 - **错误数据回流**：每次修复记录到 `error_report.json`，驱动 CI/CD 持续改进
