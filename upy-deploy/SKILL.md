@@ -58,8 +58,8 @@ deploy Phase 5 抓取日志文件作为补充——即使持久会话因断连�
 **首选方案**：使用项目自带的 `tools/flash_device.py`（由 upy-scaffold 生成）：
 
 ```bash
-# 上传 firmware/ 全部文件，--no-reset 让 deploy 自己控制复位时机
-python tools/flash_device.py --upload --no-reset --port <COM>
+# 编译 .py → .mpy（排除 main.py/boot.py）+ 上传，--no-reset 让 deploy 自己控制复位时机
+python tools/flash_device.py --compile --upload --no-reset --port <COM>
 ```
 
 `flash_device.py` 自动完成：递归遍历 firmware/、跳过 .gitkeep、创建远程目录、逐文件 cp、main.py 排到最后上传。
@@ -313,6 +313,8 @@ FAIL → 将完整上下文（REPL 输出 + deploy_log_report.json + deploy_logs
 
 - **不调服务端 AI**：deploy 纯本地操作，快速闭环。错误分析留给 autofix
 - **不修改代码**：只上传、运行、判定。修复是 autofix 的职责
+- **上传前必须 mpy-cross 编译**：除 main.py 和 boot.py 外，所有 .py 必须先编译为 .mpy 再上传。减小 Flash 占用，避免设备端 import 时内存不足
+- **main.py / boot.py 必须保留 .py**：MicroPython 启动只认 .py 入口文件，编译为 .mpy 后无法自动执行
 - **main.py 必须最后上传**：它触发设备启动主逻辑，先传依赖再传入口
 - **fs cp 必须带 resume**：不带 resume 的 fs cp 会先软复位，传输中间文件损坏
 - **重连超时 60s**：覆盖 USB 重枚举 + main.py 3s 延时 + 启动初始化

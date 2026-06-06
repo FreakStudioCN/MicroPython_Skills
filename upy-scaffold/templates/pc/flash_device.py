@@ -22,6 +22,7 @@ FIRMWARE_DIR = os.path.join(ROOT, "firmware")
 BUILD_DIR = os.path.join(ROOT, "build")
 MPY_DIR = os.path.join(BUILD_DIR, "mpy")
 MANIFEST_PATH = os.path.join(ROOT, "project-manifest.json")
+ENTRY_FILES = {"main.py", "boot.py"}
 
 _COM_PORT = ""
 _MPY_CROSS_AVAILABLE = None
@@ -95,7 +96,7 @@ def compile_py_files():
     py_files = []
     for root, dirs, files in os.walk(FIRMWARE_DIR):
         for f in files:
-            if f.endswith(".py"):
+            if f.endswith(".py") and f not in ENTRY_FILES:
                 py_files.append(os.path.join(root, f))
 
     if not py_files:
@@ -179,11 +180,8 @@ def flash_firmware():
             print("        Firmware: {}".format(fw_url))
 
 
-def upload_files():
-    """Upload build/mpy/ (or firmware/ if no .mpy) to device."""
-    source_dir = MPY_DIR if (os.path.exists(MPY_DIR) and os.listdir(MPY_DIR)) else FIRMWARE_DIR
-    print("[upload] Source: {} → device".format(os.path.relpath(source_dir, ROOT)))
-
+def _upload_dir(source_dir: str, label: str):
+    """Upload all files from source_dir to device."""
     for root, dirs, files in os.walk(source_dir):
         for f in files:
             if f == ".gitkeep":
@@ -192,9 +190,8 @@ def upload_files():
             rel = os.path.relpath(src, source_dir).replace("\\", "/")
             remote = ":{}".format(rel)
 
-            # Create remote directories as needed
             remote_dir = ":{}".format(os.path.dirname(rel).replace("\\", "/"))
-            if remote_dir != ":":
+            if remote_dir not in (":", ":."):
                 _mpremote(["fs", "mkdir", remote_dir], check=False)
 
             try:
@@ -204,6 +201,32 @@ def upload_files():
             except SystemExit:
                 print("[ERROR] upload failed: {}".format(f))
                 sys.exit(1)
+
+
+def upload_files():
+    """Upload .mpy (or .py) files to device, with main.py/boot.py always from firmware/.
+
+    When build/mpy/ exists, uploads .mpy from there plus main.py/boot.py from firmware/.
+    Otherwise falls back to uploading all .py from firmware/.
+    """
+    use_mpy = os.path.exists(MPY_DIR) and os.listdir(MPY_DIR)
+
+    if use_mpy:
+        print("[upload] Source: build/mpy/ + firmware/{main,boot}.py → device")
+        _upload_dir(MPY_DIR, "mpy")
+        # Always upload entry files as .py from firmware/
+        for entry in ENTRY_FILES:
+            src = os.path.join(FIRMWARE_DIR, entry)
+            if os.path.exists(src):
+                try:
+                    _mpremote(["cp", src, ":{}".format(entry)])
+                    print("  OK  :{}  ({:.1f} KB)".format(entry, os.path.getsize(src) / 1024))
+                except SystemExit:
+                    print("[ERROR] upload failed: {}".format(entry))
+                    sys.exit(1)
+    else:
+        print("[upload] Source: firmware/ → device (no .mpy available)")
+        _upload_dir(FIRMWARE_DIR, "py")
 
     print("[upload] Done")
 

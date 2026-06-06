@@ -230,21 +230,36 @@ class Mock<Name>:
 
 1. **纯函数 + DI**：task 是纯 Python 函数，不 `import machine`，所有硬件通过参数传入驱动对象
 2. **独立异常处理**：每个传感器/器件的读写操作独立 try/except，一个挂了不影响其他
-3. **print() 与 `lib.logger` 共存**：`print()` 输出到 REPL（实时调试），`lib.logger` 输出到设备文件系统（REPL 断开后仍可通过 mpremote 读取）。关键流程节点（初始化、异常、报警）两边都写；纯调试细节可只用 `print()`。日志消息需带时间上下文，具体格式由 LLM 自主决定（如 `[2026-06-01 17:44:24] [sensor] temp=25.1C`）
+3. **print() 与 `lib.logger` 强制双写**：`install_rotating()` 会 monkey-patch 所有 logger 输出（包括 `debug()`/`info()`/`warning()`/`error()`）重定向到 `/log/run_*.log` 文件，REPL 完全看不到。因此 `print()` 是 REPL 唯一可见通道，必须严格遵守以下规则：
+
+   **必须双写（logger + print 同时存在）的场景：**
+   - 传感器/器件每次数据采集成功 → `debug(msg)` + `print(msg)`
+   - 显示更新内容 → `debug(msg)` + `print(msg)`
+   - 初始化/启动/调度器开始 → `info(msg)` + `print(msg)`
+   - 异常/错误 → `warning/error(msg)` + `print(msg)`
+   - 报警触发/恢复 → `warning/info(msg)` + `print(msg)`
+
+   **不可双写（只用一处）的场景：**
+   - I2C 扫描细节、驱动内部状态变更等非用户关心信息 → 只用 `debug()`
+   - 临时调试打印（后续会删除） → 只用 `print()`
+
+   日志消息需带模块标识前缀（如 `[sensor]`、`[display]`、`[alarm]`），具体格式由 LLM 自主决定
 4. **温度键冲突处理**：当同时有温湿度传感器和气压传感器时，气压传感器的温度写入 `pressure_temp`，避免覆盖主温度
 5. **无硬编码阈值**：所有阈值、间隔从 conf.py 导入
 6. **装饰器**：timer 模式用 `@timed_function`，async 模式用 `@timed_coro`
 
 **task 日志插入点（LLM 必须在对应位置插入，级别和具体措辞可自主调整）：**
 
-| 位置 | 级别 | 内容要求 |
-|------|------|------|
-| 传感器读取成功 | `debug` | 含传感器名 + 实际读值 |
-| 传感器读取失败 | `warning` | 含传感器名 + 异常信息 |
-| 报警触发 | `warning` | 含参数名 + 当前值 + 阈值 |
-| 报警恢复 | `info` | 含参数名 + 当前值 |
-| 显示更新失败 | `warning` | 含异常信息 |
-| 未预期 Exception | `error`/`exception` | 含上下文（哪个 task、在处理什么数据） |
+| 位置 | 级别 | 双写 | 内容要求 |
+|------|------|:---:|------|
+| 传感器读取成功 | `debug` | **必须** | 含传感器名 + 实际读值。`debug(msg)` + `print(msg)` 缺一不可 |
+| 传感器读取失败 | `warning` | **必须** | 含传感器名 + 异常信息。`warning(msg)` + `print(msg)` |
+| 报警触发 | `warning` | **必须** | 含参数名 + 当前值 + 阈值。`warning(msg)` + `print(msg)` |
+| 报警恢复 | `info` | **必须** | 含参数名 + 当前值。`info(msg)` + `print(msg)` |
+| 显示更新 | `debug` | **必须** | 含当前显示内容摘要。`debug(msg)` + `print(msg)` |
+| 显示更新失败 | `warning` | **必须** | 含异常信息。`warning(msg)` + `print(msg)` |
+| 未预期 Exception | `error`/`exception` | **必须** | 含上下文（哪个 task、在处理什么数据）。logger + print 双写 |
+| 纯内部状态（GC 统计、计数器递增等） | `debug` | 可选 | 用户不关心的内部细节，logger 记录即可，可不 print |
 
 **LLM 自主决定：**
 - 函数签名（参数名、驱动对象的顺序和数量）
@@ -299,12 +314,19 @@ import time; time.sleep(3)  # Boot delay: allow mpremote to reconnect after rese
 3. **日志必须初始化**：
 
 ```python
-from lib.logger import install_rotating, getLogger, info, warning, error
-from conf import LOG_DIR, LOG_MAX_FILES, LOG_LINES_PER_FILE
+from lib.logger import install_rotating, getLogger, info, warning, error, setLevel, DEBUG, INFO
+from conf import LOG_DIR, LOG_MAX_FILES, LOG_LINES_PER_FILE, LOG_LEVEL
 
 # 安装轮转日志 —— 所有 logger 输出写入 /log/run_*.log
 # fmt 参数由 LLM 自主决定，不指定则使用默认 "%(levelname)s:%(name)s:%(message)s"
 install_rotating(LOG_DIR, max_files=LOG_MAX_FILES, lines_per_file=LOG_LINES_PER_FILE)
+
+# 激活 conf.LOG_LEVEL —— install_rotating() 后 logger 输出只进文件，
+# setLevel() 控制哪些级别真正写入（DEBUG 全量 / INFO 跳过 debug）
+if LOG_LEVEL == 'DEBUG':
+    setLevel(DEBUG)
+else:
+    setLevel(INFO)
 _log = getLogger("main")
 ```
 
@@ -420,6 +442,116 @@ cd {project_dir} && python -m pylint firmware/ --rcfile=.pylintrc 2>&1
 
 有错直接修，修完重新验证，直到 pass。
 
+### 7C: MicroPython 导入兼容性检查
+
+**这是关键拦截点**：CPython 有大量内置模块（`logging`、`collections`、`typing`、`pathlib` 等），MicroPython 没有。PC 端测试通过不代表设备上能运行。
+
+扫描 `firmware/` 下所有 `.py` 文件（排除 `firmware/lib/`），提取顶层 `import X` 和 `from X import Y` 中的 `X`，逐一检查是否在已知 MicroPython 可用模块白名单中：
+
+**MicroPython 内置 + stdlib 白名单（63 个）：**
+
+```
+sys, os, time, machine, micropython, gc, math, cmath, struct, json,
+binascii, collections, errno, hashlib, io, platform, random, re, select,
+socket, ssl, array, network, bluetooth, framebuf, uctypes, cryptolib,
+deflate, btree, vfs, openamp, lcd160cr, neopixel, esp, esp32, espnow,
+rp2, mimxrt, zephyr, wipy, stm, uasyncio, uarray, ubinascii, ucollections,
+ucryptolib, uctypes, uerrno, uhashlib, uheapq, uio, ujson, uos, uplatform,
+urandom, ure, uselect, usocket, ussl, ustruct, utime, uzlib, threading
+```
+
+**LLM 执行步骤：**
+
+1. 扫描文件列表（排除 `firmware/lib/` 外部驱动）：
+
+```bash
+cd {project_dir} && find firmware -name "*.py" -not -path "firmware/lib/*" | sort
+```
+
+2. 逐个文件读取，提取顶层 `import X` 和 `from X import Y` 中的模块名 X（忽略 `.` 开头的相对导入）
+
+3. 对每个 X 做三层判断：
+
+```
+X 在白名单中？
+  → 跳过（MPY 原生支持）
+
+X 不在白名单，但 firmware/ 下存在 X.py 或 X/__init__.py？
+  → 错误：应改为相对导入。示例：
+    文件 firmware/tasks/my_task.py 中有 import logging
+    → firmware/lib/logger/logging.py 存在
+    → 修复为 from lib.logger import logging 或相对路径导入
+
+X 不在白名单，firmware/ 下也不存在？
+  → 警告：MicroPython 可能无此模块。LLM 判断是否需要替代方案
+     常见陷阱：
+       import typing        → MicroPython 不支持，删除类型注解导入
+       import pathlib       → 改用 os.path / os.mkdir 等
+       import dataclasses   → 改用普通类
+       import collections   → 只用 list/dict（MPY 有 ucollections 但功能受限）
+       import logging       → 用本项目的 lib.logger.logging
+```
+
+4. 发现可自动修复的导入错误（同项目内有对应 .py 文件）→ 直接改，改完标注 `[FIX]`
+
+5. 发现不可自动修复的（无替代模块）→ 打印 warning，记录到审查清单，Phase 8 最终审查时处理
+
+**此检查在 flake8/pylint 之后执行**，因为 pylint 已配置 `ignored-modules` 白名单跳过 MPY 模块的 import-error，但那是为了 CPython lint 通过——本检查是反过来，在 CPython 能通过但 MPY 不通过的情况做拦截。
+
+### 7D: conf.py 死配置检测
+
+**这是关键拦截点**：Phase 4 补充 `conf.py` 时可能加入常量，但 Phase 3 已生成的 task 文件未必引用。结果是配置项定义了但无人使用——"看起来有配置，实际不生效"。
+
+**LLM 执行步骤：**
+
+1. 提取 `conf.py` 中所有模块级 `UPPER_CASE = value` 常量名（排除 `__` 开头的 Python 内置变量）：
+
+```bash
+cd {project_dir} && python -c "
+import re, sys
+with open('firmware/conf.py', 'r', encoding='utf-8') as f:
+    text = f.read()
+# Match module-level CONSTANT = value
+consts = set(re.findall(r'^([A-Z][A-Z_0-9]+)\s*=', text, re.MULTILINE))
+print('\n'.join(sorted(consts)))
+"
+```
+
+2. 对每个常量，扫描 `firmware/` 下所有 `.py` 文件（排除 `firmware/lib/` 外部驱动和 `firmware/conf.py` 自身），检查是否被引用：
+
+```
+引用形式:
+  import conf        → 后续 conf.CONSTANT_NAME   ✓
+  from conf import X → 直接使用 X                 ✓
+  from conf import (X, Y) → X, Y 被使用           ✓
+```
+
+3. 输出死配置清单：
+
+```
+死配置 (定义于 conf.py 但未被任何 firmware/*.py 引用):
+  BUZZER_ALARM_DURATION_MS     → 无文件使用
+  BUZZER_ALARM_INTERVAL_MS     → 无文件使用
+```
+
+4. 对每个死配置做两级处理：
+
+```
+死配置的语义是否明确需要？
+  ├─ 是（如 BUZZER_ALARM_DURATION_MS 表示"蜂鸣器应脉冲而非长响"）
+  │   → 修 task 文件：在对应逻辑中引入此常量，让配置生效
+  │
+  └─ 否（如某个 LLM 自行发明的、无实际用途的常量）
+      → 从 conf.py 中删除，保持配置干净
+```
+
+5. 修复后重新运行步骤 1-2，确认零死配置。
+
+**典型陷阱（LLM 必须注意）：**
+- scaffold 模板自带的基础常量（`LOG_DIR`、`SAMPLE_INTERVAL_MS` 等）不会被误判——它们一定被 main.py 或模板文件引用
+- `conf.py` 中仅被 `test/` 目录引用的常量不算死配置——测试也算使用
+- 静态配置值（如 I2C 地址、Pin 脚号）可能只在 `main.py` DI 装配阶段使用，不在 task 文件中出现——这正常
+
 ---
 
 ## Phase 8: AI 生成后审查
@@ -447,7 +579,19 @@ Phase 2-7 完成后，LLM 执行最终审查，逐项核验：
 1. `test/pc/test_*.py` 是否覆盖正常 + 异常（传感器报错）+ 边界（传感器为 None）三种情况
 2. `test/device/test_smoke.py` 是否只用 MPY unittest 允许的 assert 方法
 
-### 8E: 发现问题时直接修改对应文件，然后重新运行 Phase 7 flake8 + pylint 和 PC 测试。
+### 8E: MicroPython 导入兼容性审查
+
+1. 复核 Phase 7C 的扫描结果：所有不在白名单的绝对导入是否已处理（修复为相对导入或删除）
+2. 重点检查 `firmware/lib/` 下的外部驱动是否有 CPython 特有的绝对导入（如 `import typing`、`import logging`）——这些在设备上会 ImportError
+3. 如果 Phase 7C 标记了 warning，此处最终裁决是否可接受
+
+### 8F: conf.py 死配置终审
+
+1. 复核 Phase 7D 的死配置清单：是否所有定义都有明确使用者
+2. 特别注意 Phase 4 补充的"意图型"常量（如脉冲间隔、超时阈值）——它们揭示了 LLM 的设计意图但生成的 task 可能漏了实现
+3. 判决：常量保留 + 补实现 / 常量删除 / 标记为"预留"（未来扩展用，当前版本不用）
+
+### 8G: 发现问题时直接修改对应文件，然后重新运行 Phase 7 flake8 + pylint + 7C import 检查 + 7D 死配置检查和 PC 测试。
 
 ---
 

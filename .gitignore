@@ -1,0 +1,19 @@
+# Python runtime
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual environment
+.venv/
+venv/
+
+# Build output
+build/
+dist/
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

@@ -92,8 +92,14 @@ class _RotatingFile:
 if _IS_MICROPYTHON:
     def install(log_dir, max_files=4, lines_per_file=150, prefix="run",
                 fmt="%(levelname)s:%(name)s:%(message)s"):
-        """MicroPython: monkey-patch Logger.log to redirect to rotating files."""
-        import logging as _logging
+        """MicroPython: monkey-patch Logger.log to redirect to rotating files.
+
+        WARNING: After install, ALL logger output (debug/info/warning/error)
+        goes ONLY to /log/run_*.log files.  The original stderr channel is
+        cut off — nothing from the logger will appear on the REPL.  Use
+        print() for REPL-visible output alongside logger calls.
+        """
+        from . import logging as _logging
 
         _rot = _RotatingFile(log_dir, max_files, lines_per_file, prefix)
 

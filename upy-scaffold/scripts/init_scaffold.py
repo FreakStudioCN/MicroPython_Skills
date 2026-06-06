@@ -319,9 +319,6 @@ def generate_conf_py(manifest: dict) -> str:
     lines.append('LOG_FILES_MAX = 4')
     lines.append('LOG_LINES_PER_FILE = 150')
     lines.append("")
-    lines.append("# ── WDT ──")
-    lines.append("WDT_TIMEOUT_MS = 10000")
-    lines.append("")
 
     return "\n".join(lines)
 
@@ -333,17 +330,13 @@ def generate_boot_py(manifest: dict) -> str:
     lines.append("# @Generated : upy-scaffold {}".format(
         datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
     lines.append("# @File    : boot.py")
-    lines.append("# @Description : Early boot initialization (WDT, emergency buffer)")
+    lines.append("# @Description : Early boot initialization (emergency buffer)")
     lines.append("# @License : MIT")
     lines.append("")
     lines.append("import micropython")
-    lines.append("import machine")
     lines.append("")
     lines.append("# Allocate emergency exception buffer for ISR errors")
     lines.append("micropython.alloc_emergency_exception_buf(100)")
-    lines.append("")
-    lines.append("# Enable hardware watchdog")
-    lines.append("wdt = machine.WDT(timeout=10000)")
     lines.append("")
     return "\n".join(lines)
 
