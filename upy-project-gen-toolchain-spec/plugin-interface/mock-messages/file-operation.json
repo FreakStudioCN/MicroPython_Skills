@@ -1,0 +1,78 @@
+[
+  {
+    "msg_id": "s2p-fileop-001",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "scaffold",
+    "timestamp": "2026-06-17T13:00:00Z",
+    "type": "file_operation",
+    "payload": {
+      "op_id": "fo_write_main",
+      "op": "write",
+      "path": "firmware/main.py",
+      "content": "# 温湿度监测报警器\n# MicroPython 主程序\n\nimport machine\nimport time\nfrom drivers.ssd1306_driver import SSD1306\nfrom drivers.sht30_driver import SHT30\n\n# I2C 初始化\ni2c = machine.I2C(0, scl=machine.Pin(22), sda=machine.Pin(21))\n\n# 外设初始化\ndisplay = SSD1306(i2c, addr=0x3C)\nsensor = SHT30(i2c, addr=0x44)\nbuzzer = machine.Pin(23, machine.Pin.OUT)\n\n# 阈值设定\nTEMP_THRESHOLD = 30.0\nHUMID_THRESHOLD = 70.0\n\ndef read_and_display():\n    temp, hum = sensor.read()\n    display.clear()\n    display.text(f'T: {temp:.1f}C', 0, 0)\n    display.text(f'H: {hum:.1f}%', 0, 16)\n    display.show()\n    return temp, hum\n\ndef alarm_if_needed(temp, hum):\n    if temp > TEMP_THRESHOLD or hum > HUMID_THRESHOLD:\n        buzzer.on()\n        time.sleep(0.5)\n        buzzer.off()\n\n# 主循环\nwhile True:\n    t, h = read_and_display()\n    alarm_if_needed(t, h)\n    time.sleep(2)\n",
+      "encoding": "utf-8"
+    }
+  },
+  {
+    "msg_id": "s2p-fileop-002",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "scaffold",
+    "timestamp": "2026-06-17T13:01:00Z",
+    "type": "file_operation",
+    "payload": {
+      "op_id": "fo_read_manifest",
+      "op": "read",
+      "path": "firmware/.upy/project-manifest.json"
+    }
+  },
+  {
+    "msg_id": "s2p-fileop-003",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T15:10:00Z",
+    "type": "file_operation",
+    "payload": {
+      "op_id": "fo_append_log",
+      "op": "append",
+      "path": "firmware/drivers/sht30_driver/test_log.txt",
+      "content": "[2026-06-17T15:10:00] 独立测试通过: 读取温度 25.3°C, 湿度 52.1%\n",
+      "encoding": "utf-8"
+    }
+  },
+  {
+    "msg_id": "s2p-fileop-004",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "scaffold",
+    "timestamp": "2026-06-17T13:02:00Z",
+    "type": "file_operation",
+    "payload": {
+      "op_id": "fo_mkdir_drivers",
+      "op": "mkdir",
+      "path": "firmware/drivers"
+    }
+  },
+  {
+    "msg_id": "s2p-fileop-005",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "scaffold",
+    "timestamp": "2026-06-17T13:03:00Z",
+    "type": "file_operation",
+    "payload": {
+      "op_id": "fo_list_firmware",
+      "op": "list",
+      "path": "firmware"
+    }
+  },
+  {
+    "msg_id": "s2p-fileop-006",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "publish",
+    "timestamp": "2026-06-17T16:00:00Z",
+    "type": "file_operation",
+    "payload": {
+      "op_id": "fo_delete_temp",
+      "op": "delete",
+      "path": "firmware/tasks/.tmp_sensor.py"
+    }
+  }
+]

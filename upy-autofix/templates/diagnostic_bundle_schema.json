@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upy-toolchain/diagnostic_bundle/v1",
+  "title": "Diagnostic Bundle",
+  "description": "3 次排查失败后生成的诊断包，供人工 + LLM 联合分析",
+  "type": "object",
+  "required": ["bundle_id", "generated_at", "project", "error_summary", "attempts", "llm_analysis"],
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "description": "唯一 ID，格式 diag_YYYYMMDDTHHmmss"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 生成时间"
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "mcu", "chip_family"],
+      "properties": {
+        "name": { "type": "string", "description": "项目名称" },
+        "mcu": { "type": "string", "description": "MCU 型号" },
+        "chip_family": { "type": "string", "description": "芯片家族" },
+        "firmware": { "type": "string", "description": "MicroPython 固件版本" },
+        "com_port": { "type": "string", "description": "串口号" }
+      }
+    },
+    "error_summary": {
+      "type": "object",
+      "required": ["primary_error", "persistent", "across_attempts"],
+      "properties": {
+        "primary_error": { "type": "string", "description": "主错误类型枚举" },
+        "persistent": { "type": "boolean", "description": "是否持续出现" },
+        "across_attempts": { "type": "integer", "minimum": 1 },
+        "first_seen_at": { "type": "string", "format": "date-time" },
+        "last_seen_at": { "type": "string", "format": "date-time" },
+        "symptom_description": { "type": "string" }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["attempt_number", "strategy", "result"],
+        "properties": {
+          "attempt_number": { "type": "integer", "minimum": 1 },
+          "strategy": { "type": "string", "description": "修复策略描述" },
+          "skill_delegated": { "type": "string", "description": "委托的 skill 名称" },
+          "reasoning": { "type": "string", "description": "为什么选此策略" },
+          "files_changed": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "code_diff": {
+            "type": "object",
+            "properties": {
+              "file_path": { "type": "string" },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "line_start": { "type": "integer" },
+                    "line_end": { "type": "integer" },
+                    "old_text": { "type": "string" },
+                    "new_text": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "hardware_sanity_result": {
+            "type": "object",
+            "description": "硬件信号验证结果（如有）",
+            "properties": {
+              "tests": { "type": "array" },
+              "summary": { "type": "object" }
+            }
+          },
+          "deploy_result": {
+            "type": "string",
+            "enum": ["PASS", "FAIL", null]
+          },
+          "repl_output_snippet": { "type": "string" },
+          "user_observation": { "type": "string" },
+          "analysis": { "type": "string", "description": "本轮尝试的 LLM 分析" }
+        }
+      }
+    },
+    "hardware_context": {
+      "type": "object",
+      "description": "硬件检测历史",
+      "properties": {
+        "i2c_scan_history": {
+          "type": "array",
+          "items": { "type": "array", "items": { "type": "string" } }
+        },
+        "i2c_ok": { "type": "boolean" },
+        "board_led_ok": { "type": "boolean" },
+        "devices_in_manifest": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "interface": { "type": "string" },
+              "address": { "type": "string" },
+              "status": { "type": "string", "enum": ["found", "not_found", "unknown"] }
+            }
+          }
+        }
+      }
+    },
+    "code_snapshot": {
+      "type": "object",
+      "description": "当前代码快照，key=文件路径，value=文件内容",
+      "additionalProperties": { "type": "string" }
+    },
+    "logs": {
+      "type": "object",
+      "description": "各轮 deploy 的完整日志，key=deploy_N, value={log_filename: content}",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "llm_analysis": {
+      "type": "object",
+      "required": ["root_cause_assessment", "eliminated_causes", "suspected_causes", "knowledge_gap"],
+      "properties": {
+        "root_cause_assessment": { "type": "string", "description": "根因总体评估" },
+        "eliminated_causes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "已排除的原因列表（最重要——避免重复劳动）"
+        },
+        "suspected_causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "cause": { "type": "string" },
+              "probability": { "type": "string", "enum": ["high", "medium", "low"] },
+              "test_method": { "type": "string" }
+            }
+          }
+        },
+        "knowledge_gap": { "type": "string", "description": "LLM 承认的盲区" },
+        "recommended_next_step": { "type": "string" }
+      }
+    },
+    "user_context": {
+      "type": "object",
+      "properties": {
+        "user_notes": { "type": "string" },
+        "user_observations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "user_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

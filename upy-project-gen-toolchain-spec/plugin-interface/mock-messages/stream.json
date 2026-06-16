@@ -1,0 +1,100 @@
+[
+  {
+    "msg_id": "s2p-stream-001",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:05:00Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "device_repl_001",
+      "stream_type": "device_output",
+      "chunk": "MPY: soft reboot\n",
+      "chunk_index": 0,
+      "done": false
+    }
+  },
+  {
+    "msg_id": "s2p-stream-002",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:05:01Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "device_repl_001",
+      "stream_type": "device_output",
+      "chunk": "[0.5s] I2C scan result: [48, 60]\n",
+      "chunk_index": 1,
+      "done": false
+    }
+  },
+  {
+    "msg_id": "s2p-stream-003",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:05:02Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "device_repl_001",
+      "stream_type": "device_output",
+      "chunk": "[1.0s] SSD1306 init OK\n[1.1s] SHT30 init OK\n[1.2s] Temperature: 25.3°C, Humidity: 52.1%\n",
+      "chunk_index": 2,
+      "done": false
+    }
+  },
+  {
+    "msg_id": "s2p-stream-004",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:05:04Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "device_repl_001",
+      "stream_type": "device_output",
+      "chunk": "[1.7s] Entering main loop...\n[2.0s] T: 25.3°C | H: 52.1%\n[4.0s] T: 25.4°C | H: 52.0%\n[6.0s] T: 25.4°C | H: 51.9%\n",
+      "chunk_index": 3,
+      "done": false
+    }
+  },
+  {
+    "msg_id": "s2p-stream-005",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:05:05Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "device_repl_001",
+      "stream_type": "device_output",
+      "chunk": "[8.0s] T: 25.5°C | H: 51.8%\n[10.0s] T: 25.5°C | H: 51.7%\n",
+      "chunk_index": 4,
+      "done": true
+    }
+  },
+  {
+    "msg_id": "s2p-stream-006",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T15:25:00Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "script_stdout_001",
+      "stream_type": "script_stdout",
+      "chunk": "Running test_sht30.py on COM3...\n",
+      "chunk_index": 0,
+      "done": false
+    }
+  },
+  {
+    "msg_id": "s2p-stream-007",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T15:25:03Z",
+    "type": "stream",
+    "payload": {
+      "stream_id": "script_stdout_001",
+      "stream_type": "script_stdout",
+      "chunk": "SHT30 Test Report\n==================\nI2C Scan: [68] -> SHT30 detected\nReading sensor...\n  Temperature: 25.3°C\n  Humidity: 52.1%\n  Checksum: OK\n\nTEST PASSED ✓\n",
+      "chunk_index": 1,
+      "done": true
+    }
+  }
+]

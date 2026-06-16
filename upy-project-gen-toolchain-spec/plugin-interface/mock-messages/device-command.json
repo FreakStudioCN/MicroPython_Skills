@@ -1,0 +1,83 @@
+[
+  {
+    "msg_id": "s2p-devcmd-001",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:00:00Z",
+    "type": "device_command",
+    "payload": {
+      "cmd_id": "dc_scan_i2c",
+      "action": "exec",
+      "code": "import machine; i2c=machine.I2C(0, scl=machine.Pin(22), sda=machine.Pin(21)); print(i2c.scan())",
+      "timeout_ms": 5000,
+      "expect_output": true
+    }
+  },
+  {
+    "msg_id": "s2p-devcmd-002",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:01:00Z",
+    "type": "device_command",
+    "payload": {
+      "cmd_id": "dc_upload_main",
+      "action": "cp",
+      "src": "firmware/main.py",
+      "dst": "/main.py",
+      "timeout_ms": 10000
+    }
+  },
+  {
+    "msg_id": "s2p-devcmd-003",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:02:00Z",
+    "type": "device_command",
+    "payload": {
+      "cmd_id": "dc_mkdir_lib",
+      "action": "mkdir",
+      "dst": "/lib",
+      "timeout_ms": 5000
+    }
+  },
+  {
+    "msg_id": "s2p-devcmd-004",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:03:00Z",
+    "type": "device_command",
+    "payload": {
+      "cmd_id": "dc_list_root",
+      "action": "ls",
+      "dst": "/",
+      "timeout_ms": 5000
+    }
+  },
+  {
+    "msg_id": "s2p-devcmd-005",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:04:00Z",
+    "type": "device_command",
+    "payload": {
+      "cmd_id": "dc_soft_reset",
+      "action": "soft_reset",
+      "timeout_ms": 10000,
+      "expect_output": false
+    }
+  },
+  {
+    "msg_id": "s2p-devcmd-006",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T15:00:00Z",
+    "type": "device_command",
+    "payload": {
+      "cmd_id": "dc_run_test",
+      "action": "run",
+      "src": "firmware/drivers/sht30_driver/test_sht30.py",
+      "timeout_ms": 30000,
+      "expect_output": true
+    }
+  }
+]

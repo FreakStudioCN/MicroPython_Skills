@@ -1,0 +1,92 @@
+[
+  {
+    "msg_id": "s2p-script-001",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T15:05:00Z",
+    "type": "script_run",
+    "payload": {
+      "script_id": "sr_lint",
+      "interpreter": "python",
+      "script": "flake8",
+      "args": ["--max-line-length=100", "firmware/drivers/sht30_driver/"],
+      "cwd": "{project_dir}",
+      "timeout_ms": 15000
+    }
+  },
+  {
+    "msg_id": "s2p-script-002",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "analyze",
+    "timestamp": "2026-06-17T10:30:10Z",
+    "type": "script_run",
+    "payload": {
+      "script_id": "sr_validate_manifest",
+      "interpreter": "python",
+      "script": ".upy/scripts/init_manifest.py",
+      "args": ["--stdin"],
+      "cwd": "{project_dir}",
+      "timeout_ms": 10000
+    }
+  },
+  {
+    "msg_id": "s2p-script-003",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "publish",
+    "timestamp": "2026-06-17T16:10:00Z",
+    "type": "script_run",
+    "payload": {
+      "script_id": "sr_pack",
+      "interpreter": "python",
+      "script": ".upy/scripts/pack_driver.py",
+      "args": ["--input", "firmware/drivers/sht30_driver", "--output", "dist/sht30_driver/", "--json-summary"],
+      "cwd": "{project_dir}",
+      "timeout_ms": 15000
+    }
+  },
+  {
+    "msg_id": "s2p-script-004",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T14:50:00Z",
+    "type": "script_run",
+    "payload": {
+      "script_id": "sr_extract_pdf",
+      "interpreter": "python",
+      "script": ".upy/scripts/extract_pdf.py",
+      "args": ["firmware/drivers/sht30_driver/datasheet.pdf", "--output", "firmware/drivers/sht30_driver/datasheet_extracted.json"],
+      "cwd": "{project_dir}",
+      "timeout_ms": 30000
+    }
+  },
+  {
+    "msg_id": "s2p-script-005",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "gen-driver",
+    "timestamp": "2026-06-17T15:20:00Z",
+    "type": "script_run",
+    "payload": {
+      "script_id": "sr_device_test",
+      "interpreter": "python",
+      "script": ".upy/scripts/run_on_device.py",
+      "args": ["--file", "firmware/drivers/sht30_driver/test_sht30.py", "--com", "COM3", "--capture", "--timeout-ms", "30000", "--json-summary"],
+      "cwd": "{project_dir}",
+      "timeout_ms": 35000
+    }
+  },
+  {
+    "msg_id": "s2p-script-006",
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "phase": "deploy",
+    "timestamp": "2026-06-17T14:10:00Z",
+    "type": "script_run",
+    "payload": {
+      "script_id": "sr_flash",
+      "interpreter": "python",
+      "script": ".upy/scripts/flash_device.py",
+      "args": ["--com", "COM3", "--firmware", "https://micropython.org/download/ESP32_GENERIC/"],
+      "cwd": "{project_dir}",
+      "timeout_ms": 60000
+    }
+  }
+]
