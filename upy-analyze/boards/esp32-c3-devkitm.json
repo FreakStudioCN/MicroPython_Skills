@@ -1,0 +1,69 @@
+{
+  "id": "esp32-c3-devkitm",
+  "display_name": "ESP32-C3-DevKitM-1",
+  "mcu": "ESP32-C3-MINI-1",
+  "chip_family": "esp32c3",
+  "firmware": {
+    "url": "https://micropython.org/download/ESP32_GENERIC_C3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_C3",
+    "latest_version": "1.24.1"
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 22,
+    "adc": 6,
+    "dac": 0,
+    "i2c": 1,
+    "spi": 2,
+    "uart": 2,
+    "pwm": 6,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": false
+  },
+  "typical_use_cases": ["低功耗传感器", "电池供电", "可穿戴", "简单IoT节点"],
+  "beginner_friendly": false,
+  "price_yuan": 15,
+  "notes": "RISC-V 核心，超低功耗，价格低。仅 1 路硬件 I2C，多个 I2C 器件需用软 I2C（bitbang）",
+
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "interface": "GPIO",
+      "occupied_pins": { "led": 8 },
+      "always_used": false,
+      "notes": "板载指示灯。大多数项目不需要控制，可释放 GPIO8"
+    }
+  ],
+
+  "pin_layout": {
+    "model": "flexible",
+    "default_bus_pins": {
+      "i2c0": { "sda": 5, "scl": 6 },
+      "spi0": { "mosi": 7, "miso": 2, "clk": 6, "cs": 10 },
+      "uart0": { "tx": 21, "rx": 20 },
+      "uart1": { "tx": 18, "rx": 19 }
+    },
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [2, 8, 9],
+      "flash_psram_occupied": [12, 13, 14, 15, 16, 17],
+      "adc2_wifi_conflict": [0, 1, 2, 3, 4, 5],
+      "usb_serial_pins": [18, 19]
+    },
+    "pin_options": {},
+    "notes": [
+      "所有 I2C/SPI/UART 可通过 GPIO Matrix 重映射（比 ESP32 简单，没有 input_only 脚）",
+      "GPIO 2/8/9 是 strapping 脚，启动时电平影响工作模式",
+      "GPIO 8 同时是板载 LED，用作 strapping 需注意",
+      "GPIO 12-17 被内部 Flash 占用，不可外接",
+      "GPIO 18/19 是 USB 串口脚，使用 USB 串口时不能挪作他用",
+      "仅 1 路硬件 I2C 控制器。接多个 I2C 器件时，地址不冲突可以共用一条总线；地址冲突需用 machine.SoftI2C 在其他 GPIO 上模拟（任何空闲 GPIO 均可）",
+      "RISC-V 核心，部分 MicroPython 库可能不如 Xtensa（ESP32）成熟"
+    ]
+  }
+}

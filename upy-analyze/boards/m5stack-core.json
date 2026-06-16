@@ -1,0 +1,152 @@
+{
+  "id": "m5stack-core",
+  "display_name": "M5Stack Core (ESP32)",
+  "mcu": "ESP32-D0WDQ6",
+  "chip_family": "esp32",
+  "firmware": {
+    "url": "https://micropython.org/download/M5STACK_ATOM/",
+    "port": "esp32",
+    "board_name": "M5STACK_ATOM",
+    "latest_version": "1.24.1"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 0,
+    "gpio": 16,
+    "adc": 2,
+    "dac": 0,
+    "i2c": 1,
+    "spi": 1,
+    "uart": 1,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": false
+  },
+  "typical_use_cases": ["快速原型", "显示屏项目", "便携设备", "教育演示"],
+  "beginner_friendly": true,
+  "price_yuan": 120,
+  "notes": "集成 2 英寸彩屏 + 3 个按键 + 电池管理 + 磁吸外壳，到手即用。GPIO 引出少，扩展性有限",
+
+  "onboard_peripherals": [
+    {
+      "name": "ILI9342C LCD",
+      "type": "display",
+      "interface": "SPI",
+      "occupied_pins": {
+        "mosi": 23,
+        "miso": 38,
+        "clk": 18,
+        "cs": 5,
+        "dc": 15,
+        "rst": -1,
+        "backlight": -1
+      },
+      "driver": {
+        "source": "upypi",
+        "package_name": "ili934x-mpy",
+        "url": "https://upypi.net/pkgs/ili934x-mpy/",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/ili934x-mpy/latest/package.json"
+      },
+      "always_used": true,
+      "notes": "320x240, 2.0 英寸 TFT。SPI 总线始终占用（硬件 SPI 唯一）。rst=-1 表示由 ESP32 RST 引脚控制，不占 GPIO；backlight=-1 表示默认常亮不占 GPIO"
+    },
+    {
+      "name": "MPU6886 IMU",
+      "type": "imu",
+      "interface": "I2C",
+      "occupied_pins": { "sda": 21, "scl": 22 },
+      "i2c_addr": "0x68",
+      "driver": {
+        "source": "upypi",
+        "package_name": "mpu6886-mpy",
+        "url": "https://upypi.net/pkgs/mpu6886-mpy/",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/mpu6886-mpy/latest/package.json"
+      },
+      "always_used": true,
+      "notes": "6 轴陀螺仪+加速度计。始终挂在 I2C 总线上"
+    },
+    {
+      "name": "3 Buttons",
+      "type": "button",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "btn_a": 39,
+        "btn_b": 38,
+        "btn_c": 37
+      },
+      "always_used": true,
+      "notes": "3 个物理按键。GPIO 37/38/39 仅输入无下拉，需在代码中 `Pin(37, Pin.IN, Pin.PULL_UP)`"
+    },
+    {
+      "name": "I2S Speaker",
+      "type": "speaker",
+      "interface": "I2S",
+      "occupied_pins": { "data": 25 },
+      "always_used": false,
+      "notes": "板载扬声器。不用时可释放 GPIO25"
+    },
+    {
+      "name": "TF Card Slot",
+      "type": "storage",
+      "interface": "SPI",
+      "occupied_pins": { "cs": 4, "mosi": 23, "miso": 19, "clk": 18 },
+      "always_used": false,
+      "notes": "TF 卡槽共享 SPI 总线（与 LCD 共用 MOSI/CLK），仅额外占用 CS=GPIO4。不用 TF 卡时释放 GPIO4"
+    },
+    {
+      "name": "Power Management IC (IP5306)",
+      "type": "power_mgmt",
+      "interface": "I2C",
+      "occupied_pins": { "sda": 21, "scl": 22 },
+      "i2c_addr": "0x75",
+      "always_used": true,
+      "notes": "I2C 与 MPU6886 共享总线，地址 0x75。管理电池充放电"
+    },
+    {
+      "name": "USB-to-UART (CP2104)",
+      "type": "usb_uart",
+      "interface": "UART",
+      "occupied_pins": { "tx": 1, "rx": 3 },
+      "always_used": true,
+      "notes": "USB 串口芯片，接 GPIO1/3。UART0 被占用"
+    }
+  ],
+
+  "pin_layout": {
+    "model": "flexible",
+    "default_bus_pins": {
+      "i2c0": { "sda": 21, "scl": 22 },
+      "spi0": { "mosi": 23, "miso": 19, "clk": 18, "cs": -1 },
+      "uart0": { "tx": 1, "rx": 3 }
+    },
+    "restricted_gpio": {
+      "input_only": [34, 35, 36, 39],
+      "strapping": [0, 2, 5, 12, 15],
+      "flash_psram_occupied": [6, 7, 8, 9, 10, 11],
+      "adc2_wifi_conflict": [],
+      "onboard_occupied": [
+        1, 3, 4, 5, 12, 15, 18, 19, 21, 22, 23, 25, 37, 38, 39
+      ]
+    },
+    "pin_options": {},
+    "notes": [
+      "GPIO Matrix 可软重映射，但硬件总线资源极度受限：",
+      "  - I2C：板载已经占用 SDA=21/SCL=22（MPU6886 + IP5306 共享）",
+      "    如果要外接 I2C 传感器，地址不冲突可共用；地址冲突则用 SoftI2C 在其他 GPIO 上模拟",
+      "  - SPI：板载已经占用 MOSI=23/CLK=18，MISO 可以是 19 或 38（LCD 用 38，TF 卡用 19，共享 MOSI/CLK）",
+      "    如果要外接 SPI 器件，CS 可选空闲 GPIO，其他脚与板载共用总线",
+      "  - UART：仅 UART0（TX=1/RX=3），已被 USB 串口芯片占用",
+      "    如需外接 UART 器件，用 SoftUART 在其他 GPIO 模拟",
+      "可用 GPIO（总计约 10 个）：",
+      "  - GPIO 0/2/4/12/13/14/15/16/17/19/25/26/27/32/33/34/35/36/37/38/39",
+      "  - 其中 0/2/12/15 是 strapping，需小心使用",
+      "  - 其中 34/35/36/39 是 input_only",
+      "  - 其中 37/38/39 已被按键占用（input_only + 按键），实际上不可用",
+      "  - 其中 25 被 I2S 扬声器占用（always_used=false，可释放）",
+      "  - 其中 4 被 TF 卡 CS 占用（always_used=false，可释放）",
+      "实际可用 GPIO：0, 2, 13, 14, 16, 17, 26, 27, 32, 33"
+    ]
+  }
+}

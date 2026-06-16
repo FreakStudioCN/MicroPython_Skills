@@ -1,0 +1,52 @@
+{
+  "id": "",
+  "display_name": "",
+  "mcu": "",
+  "chip_family": "",
+  "firmware": {
+    "url": "",
+    "port": "",
+    "board_name": "",
+    "latest_version": ""
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 0,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": false
+  },
+  "typical_use_cases": [],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "",
+
+  "onboard_peripherals": [
+  ],
+
+  "pin_layout": {
+    "model": "flexible",
+    "default_bus_pins": {
+      "i2c0": {"sda": 0, "scl": 0},
+      "spi0": {"mosi": 0, "miso": 0, "clk": 0, "cs": 0},
+      "uart0": {"tx": 0, "rx": 0}
+    },
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "other": []
+    },
+    "pin_options": {},
+    "notes": []
+  }
+}

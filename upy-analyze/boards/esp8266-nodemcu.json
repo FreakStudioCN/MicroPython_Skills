@@ -1,0 +1,69 @@
+{
+  "id": "esp8266-nodemcu",
+  "display_name": "ESP8266 NodeMCU V3",
+  "mcu": "ESP8266EX",
+  "chip_family": "esp8266",
+  "firmware": {
+    "url": "https://micropython.org/download/ESP8266_GENERIC/",
+    "port": "esp8266",
+    "board_name": "ESP8266_GENERIC",
+    "latest_version": "1.22.2"
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 17,
+    "adc": 1,
+    "dac": 0,
+    "i2c": 1,
+    "spi": 1,
+    "uart": 1,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": false,
+    "usb_otg": false
+  },
+  "typical_use_cases": ["超低预算WiFi项目", "简单开关控制", "WiFi透传"],
+  "beginner_friendly": true,
+  "price_yuan": 10,
+  "notes": "极致低价，MicroPython 固件已停止活跃更新（最后版本 1.22.2）。仅推荐给预算极度受限的简单 WiFi 项目",
+
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "interface": "GPIO",
+      "occupied_pins": { "led": 2 },
+      "always_used": false,
+      "notes": "板载指示灯（D4/GPIO2），低电平点亮。大多数项目可释放"
+    }
+  ],
+
+  "pin_layout": {
+    "model": "flexible",
+    "default_bus_pins": {
+      "i2c0": { "sda": 5, "scl": 4 },
+      "spi0": { "mosi": 13, "miso": 12, "clk": 14, "cs": 15 },
+      "uart0": { "tx": 1, "rx": 3 }
+    },
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [0, 2, 15],
+      "flash_psram_occupied": [6, 7, 8, 9, 10, 11],
+      "adc2_wifi_conflict": [],
+      "boot_fail_risk": [0, 1, 2, 3, 9, 10]
+    },
+    "pin_options": {},
+    "notes": [
+      "I2C/SPI 可通过软件映射（所有 GPIO 都能用），但仅 1 路硬件",
+      "GPIO 0/2/15 是 strapping 脚，启动时电平影响工作模式",
+      "GPIO 6-11 被内部 Flash 占用，不可外接",
+      "GPIO 16 是特殊唤醒脚，Deep Sleep 时才能用",
+      "GPIO 1/3 是 UART0（串口调试），避免挪作他用",
+      "模拟输入仅 GPIO0（A0），范围 0-1V（内置 100k/220k 分压后约 0-3.3V）",
+      "所有 GPIO 高电平仅能输出 12mA（ESP32 是 40mA），驱动 LED 需加电阻",
+      "WiFi 和 GPIO 共用内部资源，高负载 WiFi 时尽量不要同时做 GPIO 操作"
+    ]
+  }
+}
