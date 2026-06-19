@@ -28,7 +28,8 @@ plugin-interface/
 │   ├── upy-autofix.md           ← [待填写] Phase 6 自动修复
 │   ├── upy-wiring.md            ← [待填写] Phase 7a 接线图
 │   ├── upy-diagram.md           ← [待填写] Phase 7b 架构图
-│   └── upy-gen-driver.md        ← [待填写] 异常路径 冷硬件驱动
+│   ├── upy-gen-driver.md        ← [待填写] 异常路径 冷硬件驱动
+│   └── upy-firmware-wrapper.md   ← [待填写] 固件 API Wrapper 包编写规范
 │
 └── mock-messages/               ← 各消息类型的 mock JSON 样本
     ├── README.md                ← mock 使用说明
@@ -54,7 +55,7 @@ plugin-interface/
 - `01-architecture.md` — 已填充
 - `02-protocol.md` — 已填充
 - `03-parallel-dev.md` — 已填充
-- `skills/` — 全部待填充（逐个进行）
+- `skills/` — 部分已填写（10/12 已定稿，1 待填写，1 非 Phase）
 - `mock-messages/` — 待填充
 
 ## 相关文件（不在本目录）

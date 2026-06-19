@@ -15,6 +15,7 @@
 | 9 | upy-diagram | Phase 7b | ✅ 已定稿 | — | 架构图生成 |
 | 10 | upy-gen-driver | 异常路径 | ✅ 已定稿 | — | 冷门硬件驱动生成 |
 | 11 | upy-publish | 收尾 | ⚠ 待填写 | — | 驱动规范打包 + 发布 upypi |
+| 12 | upy-firmware-wrapper | 非 Phase | ⚠ 待填写 | — | 固件 API Wrapper 包编写规范 |
 
 状态说明：⚠ 待填写 → 📝 填写中 → ✅ 已定稿 → 🔄 需修订
 
