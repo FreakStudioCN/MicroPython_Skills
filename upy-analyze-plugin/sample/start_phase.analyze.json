@@ -1,0 +1,14 @@
+{
+  "type": "start_phase",
+  "phase": "analyze",
+  "session_id": "demo-session-001",
+  "payload": {
+    "user_description": "做一个温湿度监测仪，超过阈值蜂鸣器报警，并在 OLED 上显示数据",
+    "pre_selected_board": null,
+    "preferences": {
+      "mode": "beginner",
+      "locale": "zh"
+    },
+    "existing_hardware": []
+  }
+}

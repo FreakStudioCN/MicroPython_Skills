@@ -164,7 +164,7 @@
             "properties": {
               "source": {
                 "type": "string",
-                "enum": ["upypi", "awesome-micropython", "github", "local", "cold-driver", "none"],
+                "enum": ["builtin_runtime", "micropython_lib", "upypi", "awesome-micropython", "github", "local", "cold-driver", "none"],
                 "description": "驱动来源"
               },
               "package_name": {"type": "string"},

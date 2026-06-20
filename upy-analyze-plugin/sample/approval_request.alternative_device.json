@@ -1,0 +1,42 @@
+{
+  "type": "approval_request",
+  "payload": {
+    "approval_id": "alternative_device",
+    "header": "温湿度传感器：推荐替代器件",
+    "question": "当前器件无现成驱动，推荐以下替代器件",
+    "items": [
+      {
+        "id": "alt1",
+        "name": "HDC1080",
+        "subtitle": "精度较高，已有 upypi 驱动",
+        "meta": "推荐",
+        "selected": false
+      },
+      {
+        "id": "alt2",
+        "name": "AHT20",
+        "subtitle": "成本较低，已有 upypi 驱动",
+        "meta": "备选",
+        "selected": false
+      }
+    ],
+    "allow_add": false,
+    "allow_remove": false,
+    "multi_select": false,
+    "actions": [
+      {
+        "label": "用 HDC1080（推荐）",
+        "value": "accept_alt1",
+        "primary": true
+      },
+      {
+        "label": "用 AHT20",
+        "value": "accept_alt2"
+      },
+      {
+        "label": "坚持原器件，走冷门驱动",
+        "value": "cold_driver"
+      }
+    ]
+  }
+}

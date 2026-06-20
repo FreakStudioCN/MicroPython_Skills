@@ -1,0 +1,51 @@
+{
+  "type": "approval_request",
+  "payload": {
+    "approval_id": "requirement_supplement",
+    "header": "补充需求信息",
+    "question": "请补充场景、供电、性能和输出要求",
+    "summary": {
+      "project_name": "植物助手"
+    },
+    "items": [
+      {
+        "id": "scene_indoor",
+        "name": "室内桌面场景",
+        "subtitle": "默认推荐",
+        "meta": "scene=indoor",
+        "selected": true
+      },
+      {
+        "id": "power_usb",
+        "name": "USB 供电",
+        "subtitle": "默认推荐",
+        "meta": "power=usb",
+        "selected": true
+      },
+      {
+        "id": "perf_normal",
+        "name": "通用性能",
+        "subtitle": "1Hz / 常规精度 / 1秒响应",
+        "meta": "sample_rate=normal_1hz",
+        "selected": true
+      },
+      {
+        "id": "output_serial_oled",
+        "name": "串口 + OLED 输出",
+        "subtitle": "默认推荐",
+        "meta": "output=serial,display_oled,buzzer",
+        "selected": true
+      }
+    ],
+    "allow_add": false,
+    "allow_remove": false,
+    "multi_select": true,
+    "actions": [
+      {
+        "label": "确认补充信息",
+        "value": "confirm",
+        "primary": true
+      }
+    ]
+  }
+}

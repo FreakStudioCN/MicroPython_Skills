@@ -1,0 +1,70 @@
+{
+  "id": "esp32-devkit-v1",
+  "display_name": "ESP32 DevKit V1",
+  "mcu": "ESP32-WROOM-32",
+  "chip_family": "esp32",
+  "firmware": {
+    "url": "https://micropython.org/download/ESP32_GENERIC/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC",
+    "latest_version": "1.24.1"
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 34,
+    "adc": 18,
+    "dac": 2,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 16,
+    "touch": 10,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": false
+  },
+  "typical_use_cases": ["智能家居", "环境监测", "物联网", "WiFi应用", "入门学习"],
+  "beginner_friendly": true,
+  "price_yuan": 25,
+  "notes": "最通用的 ESP32 开发板，社区资源最丰富，新手首选",
+
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "interface": "GPIO",
+      "occupied_pins": { "led": 2 },
+      "always_used": false,
+      "notes": "板载指示灯。大多数项目不需要控制，可释放 GPIO2"
+    }
+  ],
+
+  "pin_layout": {
+    "model": "flexible",
+    "default_bus_pins": {
+      "i2c0": { "sda": 21, "scl": 22 },
+      "i2c1": { "sda": 18, "scl": 19 },
+      "spi0": { "mosi": 23, "miso": 19, "clk": 18, "cs": 5 },
+      "spi1": { "mosi": 13, "miso": 12, "clk": 14, "cs": 15 },
+      "uart0": { "tx": 1, "rx": 3 },
+      "uart1": { "tx": 17, "rx": 16 },
+      "i2s": { "bck": 4, "ws": 15, "data_out": 2, "data_in": 13 }
+    },
+    "restricted_gpio": {
+      "input_only": [34, 35, 36, 39],
+      "strapping": [0, 2, 5, 12, 15],
+      "flash_psram_occupied": [6, 7, 8, 9, 10, 11],
+      "adc2_wifi_conflict": [0, 2, 4, 12, 13, 14, 15, 25, 26, 27]
+    },
+    "pin_options": {},
+    "notes": [
+      "所有 I2C/SPI/UART/I2S 可通过 GPIO Matrix 重映射到任意空闲 GPIO",
+      "GPIO 34-39 只能做输入，无内部上下拉电阻",
+      "GPIO 0 启动时必须上拉，拉低会进入下载模式",
+      "GPIO 2/5/12/15 是 strapping 脚，启动时电平影响工作模式",
+      "GPIO 6-11 被内部 Flash 占用，不可外接",
+      "ADC2 与 WiFi 共用电路，WiFi 开启时 ADC2 读数不可靠，优先用 ADC1（GPIO 32-33/36-39）"
+    ]
+  }
+}

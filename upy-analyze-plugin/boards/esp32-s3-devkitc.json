@@ -1,0 +1,80 @@
+{
+  "id": "esp32-s3-devkitc",
+  "display_name": "ESP32-S3-DevKitC-1",
+  "mcu": "ESP32-S3-WROOM-1",
+  "chip_family": "esp32s3",
+  "firmware": {
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "latest_version": "1.24.1"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 14,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": ["AI语音", "摄像头", "显示屏", "USB设备", "高性能计算"],
+  "beginner_friendly": false,
+  "price_yuan": 45,
+  "notes": "带 8MB PSRAM，适合大内存应用。USB-OTG 可直接模拟键盘/鼠标/U盘。板载 RGB LED",
+
+  "onboard_peripherals": [
+    {
+      "name": "RGB LED (WS2812)",
+      "type": "led_rgb",
+      "interface": "GPIO",
+      "occupied_pins": { "data": 48 },
+      "always_used": false,
+      "notes": "可编程 RGB LED。不用时可释放 GPIO48"
+    },
+    {
+      "name": "BOOT Button",
+      "type": "button",
+      "interface": "GPIO",
+      "occupied_pins": { "boot": 0 },
+      "always_used": true,
+      "notes": "启动键，按下时拉低 GPIO0。不能用于其他功能"
+    }
+  ],
+
+  "pin_layout": {
+    "model": "flexible",
+    "default_bus_pins": {
+      "i2c0": { "sda": 5, "scl": 6 },
+      "i2c1": { "sda": 43, "scl": 44 },
+      "spi0": { "mosi": 11, "miso": 13, "clk": 12, "cs": 10 },
+      "spi1": { "mosi": 35, "miso": 37, "clk": 36, "cs": 38 },
+      "uart0": { "tx": 43, "rx": 44 },
+      "uart1": { "tx": 17, "rx": 18 },
+      "i2s": { "bck": 9, "ws": 45, "data_out": 8, "data_in": 6 }
+    },
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [0, 3, 45, 46],
+      "flash_psram_occupied": [26, 27, 28, 29, 30, 31, 32],
+      "adc2_wifi_conflict": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+      "usb_otg_pins": [19, 20]
+    },
+    "pin_options": {},
+    "notes": [
+      "所有 I2C/SPI/UART 可通过 GPIO Matrix 重映射到任意空闲 GPIO",
+      "GPIO 0 是 strapping 脚（Boot 键），不能改功能",
+      "GPIO 3 是 JTAG strapping，建议保留",
+      "GPIO 45/46 是 strapping，影响启动电压",
+      "GPIO 26-32 被 Octal PSRAM 占用（WROOM-1 模块），不可外接",
+      "GPIO 19/20 是 USB OTG 专用，用作普通 GPIO 会失去 USB 功能",
+      "ADC2 与 WiFi 冲突，优先用 ADC1（GPIO 1-10）"
+    ]
+  }
+}

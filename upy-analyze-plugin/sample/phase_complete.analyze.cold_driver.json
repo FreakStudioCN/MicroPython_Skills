@@ -1,0 +1,61 @@
+{
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "success",
+    "summary": "器件分析完成：检测到用户指定器件无现成驱动，已标记冷门驱动路径",
+    "next_phase": "select-hw",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "analyze",
+      "project_name": "植物助手",
+      "requirements": {
+        "description": "读取土壤温湿度，支持触摸交互和语音对话",
+        "scene": "indoor",
+        "power": "usb",
+        "network": "none",
+        "sample_rate": "normal_1hz",
+        "precision": "normal",
+        "response_time": "1s",
+        "temp_range": "normal_0_40",
+        "size_constraint": "none",
+        "budget_yuan": "medium_50",
+        "experience": "beginner",
+        "output": [
+          "serial"
+        ],
+        "existing_hardware": [],
+        "special_requirements": [
+          "none"
+        ],
+        "mcu_specified": "ESP32-S3-WROOM-1"
+      },
+      "devices": [
+        {
+          "name": "土壤湿度传感器",
+          "type": "soil_moisture_sensor",
+          "interface": "ADC",
+          "source": "user_specified",
+          "quantity": 1,
+          "driver": {
+            "source": "cold-driver"
+          }
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "type": "table",
+        "title": "器件驱动状态",
+        "headers": ["器件", "接口", "驱动来源", "状态"],
+        "rows": [
+          ["土壤湿度传感器", "ADC", "cold-driver", "需后续冷门驱动生成与验证"]
+        ]
+      }
+    ],
+    "warnings": [
+      "用户指定器件无现成驱动，后续应进入冷门驱动生成与验证流程"
+    ],
+    "errors": []
+  }
+}

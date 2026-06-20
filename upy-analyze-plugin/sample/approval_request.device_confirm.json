@@ -1,0 +1,54 @@
+{
+  "type": "approval_request",
+  "payload": {
+    "approval_id": "device_confirm",
+    "header": "确认项目方案",
+    "question": "请确认以下器件是否正确",
+    "summary": {
+      "project_name": "植物助手",
+      "description": "读取土壤温湿度，支持触摸交互和语音对话",
+      "board": {
+        "status": "selected",
+        "display_name": "ESP32-S3-DevKitC-1",
+        "mcu": "ESP32-S3-WROOM-1"
+      }
+    },
+    "items": [
+      {
+        "id": "d1",
+        "name": "土壤湿度传感器",
+        "subtitle": "ADC 土壤湿度传感器",
+        "meta": "系统推荐",
+        "selected": true
+      },
+      {
+        "id": "d2",
+        "name": "SHT30",
+        "subtitle": "I2C 温湿度传感器",
+        "meta": "系统推荐",
+        "selected": true
+      },
+      {
+        "id": "d3",
+        "name": "I2S 麦克风",
+        "subtitle": "I2S 语音输入",
+        "meta": "系统推荐",
+        "selected": true
+      }
+    ],
+    "allow_add": true,
+    "allow_remove": true,
+    "multi_select": true,
+    "actions": [
+      {
+        "label": "确认，开始搜索驱动",
+        "value": "confirm",
+        "primary": true
+      },
+      {
+        "label": "修改器件清单",
+        "value": "modify"
+      }
+    ]
+  }
+}

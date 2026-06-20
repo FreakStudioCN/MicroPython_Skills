@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-analyze-plugin",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-analyze-plugin",
+  "branch": "main",
+  "source": "manual"
+}

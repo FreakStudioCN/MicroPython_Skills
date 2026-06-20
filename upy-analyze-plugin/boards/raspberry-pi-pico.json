@@ -1,0 +1,88 @@
+{
+  "id": "raspberry-pi-pico",
+  "display_name": "Raspberry Pi Pico",
+  "mcu": "RP2040",
+  "chip_family": "rp2",
+  "firmware": {
+    "url": "https://micropython.org/download/RPI_PICO/",
+    "port": "rp2",
+    "board_name": "RPI_PICO",
+    "latest_version": "1.24.1"
+  },
+  "specs": {
+    "flash_mb": 2,
+    "psram_mb": 0,
+    "gpio": 26,
+    "adc": 3,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 2,
+    "uart": 2,
+    "pwm": 16,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": false
+  },
+  "typical_use_cases": ["纯GPIO控制", "电机驱动", "教育学习", "低预算项目"],
+  "beginner_friendly": true,
+  "price_yuan": 20,
+  "notes": "USB 拖拽烧录，入门极简单。无 WiFi/BLE，需要联网的话选 Pico W",
+
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "interface": "GPIO",
+      "occupied_pins": { "led": 25 },
+      "always_used": false,
+      "notes": "板载指示灯。大多数项目不需要控制，可释放 GPIO25"
+    }
+  ],
+
+  "pin_layout": {
+    "model": "fixed",
+    "default_bus_pins": {
+      "i2c0": { "sda": 4, "scl": 5 },
+      "i2c1": { "sda": 2, "scl": 3 },
+      "spi0": { "mosi": 3, "miso": 0, "clk": 2, "cs": 1 },
+      "spi1": { "mosi": 11, "miso": 8, "clk": 10, "cs": 9 },
+      "uart0": { "tx": 0, "rx": 1 },
+      "uart1": { "tx": 4, "rx": 5 }
+    },
+    "restricted_gpio": {
+      "adc_only": [26, 27, 28],
+      "other": []
+    },
+    "pin_options": {
+      "i2c0_sda": [0, 4, 8, 12, 16, 20],
+      "i2c0_scl": [1, 5, 9, 13, 17, 21],
+      "i2c1_sda": [2, 6, 10, 14, 18, 26],
+      "i2c1_scl": [3, 7, 11, 15, 19, 27],
+      "spi0_mosi": [3, 7, 11, 15, 19, 23],
+      "spi0_miso": [0, 4, 8, 12, 16, 20],
+      "spi0_clk":  [2, 6, 10, 14, 18, 22],
+      "spi0_cs":   [1, 5, 9, 13, 17, 21],
+      "spi1_mosi": [11, 15, 19, 23, 27],
+      "spi1_miso": [8, 12, 16, 20, 24],
+      "spi1_clk":  [10, 14, 18, 22, 26],
+      "spi1_cs":   [9, 13, 17, 21, 25],
+      "uart0_tx":  [0, 12, 16, 28],
+      "uart0_rx":  [1, 13, 17, 29],
+      "uart1_tx":  [4, 8, 20, 24],
+      "uart1_rx":  [5, 9, 21, 25]
+    },
+    "notes": [
+      "RP2040 外设与 GPIO 固定绑定。每个功能只能从 pin_options 中列出的一组脚里选",
+      "I2C0/I2C1：6 选 1 各成对（sda 和 scl 必须选同一组）",
+      "SPI0/SPI1：4-6 选 1，各脚来自固定 GPIO 组",
+      "UART0/UART1：4-5 选 1",
+      "PWM：每个 GPIO 都可以做 PWM（共 8 个 slice，每 slice 2 通道）",
+      "ADC：仅 GPIO 26/27/28 能用，GPIO 29 是 ADC 参考或输入（不同板不同）",
+      "GPIO 23 是 SMPS 控制，一般不用",
+      "GPIO 24 是 VBUS 检测，一般不用",
+      "GPIO 25 是板载 LED，可用但建议别挪作他用",
+      "默认 I2C0 (GPIO4/5) 是最常用的，注意别和 UART1 (默认 TX=4/RX=5) 冲突"
+    ]
+  }
+}

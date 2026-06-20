@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "description": "板卡选型打分规则。LLM 根据用户需求触发对应规则，对 chip_family 做 boost(加分) 或 exclude(排除)。分数最高的两块板卡作为推荐。",
+  "rules": [
+    {
+      "id": "wifi_required",
+      "trigger": "用户需求涉及 WiFi 联网",
+      "action": "boost",
+      "chip_families": ["esp32", "esp32s3", "esp32c3", "rp2", "esp8266"],
+      "note": "rp2 指 Pico W（Pico 无 WiFi，由 specs.wifi 二次过滤）"
+    },
+    {
+      "id": "ble_required",
+      "trigger": "用户需求涉及蓝牙/BLE",
+      "action": "boost",
+      "chip_families": ["esp32", "esp32s3", "esp32c3", "rp2"]
+    },
+    {
+      "id": "low_power_battery",
+      "trigger": "电池供电 + 低功耗需求",
+      "action": "boost",
+      "chip_families": ["esp32c3", "rp2"]
+    },
+    {
+      "id": "display_lcd_required",
+      "trigger": "需要驱动 LCD/OLED 显示屏",
+      "action": "boost",
+      "chip_families": ["esp32s3", "esp32"]
+    },
+    {
+      "id": "usb_otg_required",
+      "trigger": "需要 USB 设备模式（模拟键盘/鼠标/U盘）",
+      "action": "boost",
+      "chip_families": ["esp32s3"]
+    },
+    {
+      "id": "extreme_budget",
+      "trigger": "预算极限（¥20 以下）",
+      "action": "boost",
+      "chip_families": ["esp8266", "rp2", "esp32c3"]
+    },
+    {
+      "id": "beginner_user",
+      "trigger": "新手用户 (experience=beginner)",
+      "action": "boost",
+      "chip_families": ["esp32", "rp2", "esp32"]
+    },
+    {
+      "id": "multiple_i2c_devices",
+      "trigger": "≥2 个 I2C 器件需要独立硬件 I2C 总线",
+      "action": "exclude",
+      "chip_families": ["esp8266", "esp32c3"]
+    },
+    {
+      "id": "high_gpio_count",
+      "trigger": "需要大量 GPIO（≥10 个外接器件或电机）",
+      "action": "boost",
+      "chip_families": ["esp32", "esp32s3", "rp2"]
+    },
+    {
+      "id": "psram_required",
+      "trigger": "需要大内存（摄像头/AI/大屏显示）",
+      "action": "boost",
+      "chip_families": ["esp32s3"]
+    }
+  ]
+}
