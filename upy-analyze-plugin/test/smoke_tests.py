@@ -126,6 +126,29 @@ def check_external_claude_samples() -> None:
     if not phase_complete_path.exists():
         raise AssertionError(f"external sample missing: {phase_complete_path}")
 
+    with open(phase_complete_path, "r", encoding="utf-8") as f:
+        phase_complete = json.load(f)
+    phase_payload = phase_complete.get("payload", phase_complete)
+    declared_files = []
+    for artifact in phase_payload.get("artifacts", []):
+        if artifact.get("type") == "file_list":
+            declared_files.extend(file_item.get("path") for file_item in artifact.get("files", []))
+    for rel_path in declared_files:
+        if not rel_path:
+            raise AssertionError(f"external phase_complete has empty file_list path: {phase_complete_path}")
+        if not (EXTERNAL_SAMPLE_DIR / rel_path).exists():
+            raise AssertionError(f"external phase_complete declares missing artifact file: {rel_path}")
+
+    required_declared_files = {
+        "manifest_draft.json",
+        "manifest_validated.json",
+        "phase_complete.analyze.json",
+        "driver_search_log.md",
+    }
+    missing_declared = sorted(required_declared_files.difference(declared_files))
+    if missing_declared:
+        raise AssertionError(f"external phase_complete file_list missing required files: {missing_declared}")
+
     proc = run(
         [
             sys.executable,

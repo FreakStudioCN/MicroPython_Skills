@@ -543,6 +543,7 @@ Analyze 最终必须把以下内容交给下游：
 
 ```text
 {project_dir}/manifest_draft.json
+{project_dir}/manifest_validated.json
 {project_dir}/phase_complete.analyze.json
 {project_dir}/driver_search_log.md
 ```
@@ -550,8 +551,12 @@ Analyze 最终必须把以下内容交给下游：
 写入内容：
 
 - `manifest_draft.json`
-  - 校验前或校验后的 manifest 草稿
+  - 校验前的 manifest 草稿
   - 必须包含 `project_name`、`requirements`、`devices`
+- `manifest_validated.json`
+  - `init_manifest.py` 校验和规范化后的 manifest
+  - 必须与最终 `phase_complete.manifest_content` 保持一致
+  - 必须包含 `schema_version`、`phase`、`created_at`、`updated_at`、`final_status`
 - `phase_complete.analyze.json`
   - 完整 `phase_complete` 消息载荷
   - 必须包含 `manifest_content`
@@ -564,6 +569,7 @@ Analyze 最终必须把以下内容交给下游：
       "files": [
         { "path": "manifest_draft.json", "status": "created" },
         { "path": "manifest_validated.json", "status": "created" },
+        { "path": "phase_complete.analyze.json", "status": "created" },
         { "path": "driver_search_log.md", "status": "created" }
       ]
     }
