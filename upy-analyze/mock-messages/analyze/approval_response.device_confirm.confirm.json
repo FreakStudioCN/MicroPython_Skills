@@ -1,0 +1,18 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "eb7eb6c6-0f54-43c9-a54d-f6340cd5a8b5",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:02Z",
+  "type": "approval_response",
+  "payload": {
+    "approval_id": "device_confirm",
+    "action": "confirm",
+    "selected_ids": [
+      "d1",
+      "d2"
+    ],
+    "added_items": [],
+    "notes": ""
+  }
+}

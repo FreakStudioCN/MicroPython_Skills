@@ -1,0 +1,138 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "550e8400-e29b-41d4-a716-446655440001",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:05Z",
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "success",
+    "summary": "器件分析完成：识别到 2 个器件，均有可用运行时或驱动。",
+    "next_phase": "select-hw",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "analyze",
+      "project_name": "温湿度监测报警器",
+      "requirements": {
+        "description": "定时采集温湿度，超过阈值蜂鸣器报警",
+        "scene": "indoor",
+        "power": "usb",
+        "network": "none",
+        "sample_rate": "normal_1hz",
+        "precision": "normal",
+        "response_time": "1s",
+        "temp_range": "normal_0_40",
+        "size_constraint": "none",
+        "budget_yuan": "medium_50",
+        "experience": "beginner",
+        "output": [
+          "serial",
+          "buzzer"
+        ],
+        "existing_hardware": [],
+        "special_requirements": [
+          "none"
+        ],
+        "mcu_specified": null
+      },
+      "devices": [
+        {
+          "name": "AHT20",
+          "type": "temperature_humidity_sensor",
+          "interface": "I2C",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "upypi",
+            "package_name": "aht20_driver",
+            "version": "1.0.0",
+            "install_cmd": "mpremote mip install https://upypi.net/pkgs/aht20_driver/1.0.0/package.json",
+            "module": "ahtx0",
+            "api_ref": {
+              "init": "AHT20(i2c, address=0x38)",
+              "read_temp": "sensor.temperature",
+              "read_humidity": "sensor.relative_humidity"
+            }
+          }
+        },
+        {
+          "name": "有源蜂鸣器",
+          "type": "buzzer",
+          "interface": "GPIO",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.Pin",
+            "notes": "有源蜂鸣器通过 GPIO 输出高低电平控制，无需外部驱动。"
+          }
+        }
+      ],
+      "final_status": "pending"
+    },
+    "artifacts": [
+      {
+        "type": "table",
+        "title": "器件驱动状态",
+        "headers": [
+          "器件",
+          "接口",
+          "驱动来源",
+          "状态"
+        ],
+        "rows": [
+          [
+            "AHT20",
+            "I2C",
+            "upypi",
+            "有驱动"
+          ],
+          [
+            "有源蜂鸣器",
+            "GPIO",
+            "builtin_runtime",
+            "内置"
+          ]
+        ]
+      },
+      {
+        "type": "file_list",
+        "title": "Claude Code 直测产物",
+        "files": [
+          {
+            "path": "manifest_draft.json",
+            "status": "created",
+            "kind": "manifest_draft",
+            "mime_type": "application/json",
+            "description": "校验前 manifest 草稿"
+          },
+          {
+            "path": "manifest_validated.json",
+            "status": "created",
+            "kind": "manifest",
+            "mime_type": "application/json",
+            "description": "校验规范化后的 analyze manifest"
+          },
+          {
+            "path": "phase_complete.analyze.json",
+            "status": "created",
+            "kind": "phase_complete",
+            "mime_type": "application/json",
+            "description": "完整 analyze 阶段完成消息"
+          },
+          {
+            "path": "driver_search_log.md",
+            "status": "created",
+            "kind": "log",
+            "mime_type": "text/markdown",
+            "description": "驱动搜索记录"
+          }
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": []
+  }
+}

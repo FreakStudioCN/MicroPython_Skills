@@ -1,0 +1,7 @@
+{
+  "checkpoint_id": "b8f23d64-1b77-42ab-b7df-36f0d7e2a010",
+  "resume_phase": "analyze",
+  "resume_step": "driver_search",
+  "resume_label": "继续 analyze 驱动搜索",
+  "reason": "user_cancelled"
+}

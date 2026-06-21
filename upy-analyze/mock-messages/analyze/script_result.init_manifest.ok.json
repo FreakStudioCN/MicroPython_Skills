@@ -1,0 +1,15 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "4d312147-e5e6-4414-a2c1-812f1e913ba0",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:04Z",
+  "type": "script_result",
+  "payload": {
+    "script_id": "validate_analyze_manifest",
+    "success": true,
+    "stdout": "{\"status\":\"ok\",\"errors\":[],\"warnings\":[]}",
+    "stderr": "",
+    "exit_code": 0
+  }
+}

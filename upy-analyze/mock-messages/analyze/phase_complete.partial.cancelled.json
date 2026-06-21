@@ -1,0 +1,70 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "5f9089fd-3862-49af-a08b-df86ae350bd1",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:06Z",
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "partial",
+    "summary": "用户在器件确认阶段取消，已保存当前需求解析 checkpoint。",
+    "next_phase": null,
+    "checkpoint": {
+      "checkpoint_id": "b8f23d64-1b77-42ab-b7df-36f0d7e2a010",
+      "resume_phase": "analyze",
+      "resume_step": "device_confirm",
+      "resume_label": "继续确认 analyze 器件清单",
+      "reason": "user_cancelled"
+    },
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "analyze",
+      "project_name": "温湿度监测报警器",
+      "requirements": {
+        "description": "定时采集温湿度，超过阈值蜂鸣器报警",
+        "scene": "indoor",
+        "power": "usb",
+        "network": "none",
+        "sample_rate": "normal_1hz",
+        "precision": "normal",
+        "response_time": "1s",
+        "temp_range": "normal_0_40",
+        "size_constraint": "none",
+        "budget_yuan": "medium_50",
+        "experience": "beginner",
+        "output": [
+          "serial"
+        ],
+        "existing_hardware": [],
+        "special_requirements": [
+          "none"
+        ],
+        "mcu_specified": null
+      },
+      "devices": [
+        {
+          "name": "AHT20",
+          "type": "temperature_humidity_sensor",
+          "interface": "I2C",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "upypi",
+            "package_name": "aht20_driver",
+            "version": "1.0.0",
+            "install_cmd": "mpremote mip install https://upypi.net/pkgs/aht20_driver/1.0.0/package.json",
+            "module": "ahtx0"
+          }
+        }
+      ],
+      "final_status": "pending"
+    },
+    "artifacts": [],
+    "warnings": [
+      "用户取消后未进入 select-hw。"
+    ],
+    "errors": [],
+    "structured_errors": []
+  }
+}

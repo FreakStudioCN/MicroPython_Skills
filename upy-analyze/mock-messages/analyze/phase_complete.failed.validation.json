@@ -1,0 +1,68 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "60a72e1e-17f8-4605-8312-491e8685d4b6",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:07Z",
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "failed",
+    "summary": "manifest 校验失败，无法进入 select-hw。",
+    "next_phase": null,
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "analyze",
+      "project_name": "非法示例",
+      "requirements": {
+        "description": "非法示例",
+        "scene": "indoor",
+        "power": "usb",
+        "network": "none",
+        "sample_rate": "normal_1hz",
+        "precision": "normal",
+        "response_time": "1s",
+        "temp_range": "normal_0_40",
+        "size_constraint": "none",
+        "budget_yuan": "medium_50",
+        "experience": "beginner",
+        "output": [
+          "serial"
+        ],
+        "existing_hardware": [],
+        "special_requirements": [
+          "none"
+        ],
+        "mcu_specified": null
+      },
+      "devices": [
+        {
+          "name": "未知器件",
+          "type": "unknown_sensor",
+          "interface": "I2C",
+          "source": "user_specified",
+          "quantity": 1,
+          "driver": {
+            "source": "cold-driver"
+          }
+        }
+      ],
+      "final_status": "pending"
+    },
+    "artifacts": [],
+    "warnings": [],
+    "errors": [
+      "manifest 校验失败"
+    ],
+    "structured_errors": [
+      {
+        "code": "manifest_validation_failed",
+        "message": "manifest 校验失败",
+        "severity": "error",
+        "recoverable": true,
+        "retryable": true,
+        "source": "init_manifest.py"
+      }
+    ]
+  }
+}

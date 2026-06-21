@@ -1,375 +1,515 @@
 ---
-name: upy-analyze
-description: 第一步——解析用户自然语言需求，多关键词并行搜索 upypi 和 awesome-micropython 驱动，输出结构化 project-manifest.json。触发：用户描述嵌入式项目需求，"我想做"、"做一个"、"帮我写一个"。
+name: upy-analyze-plugin
+description: 插件化 V0 analyze 阶段。读取一句话硬件项目需求和插件上下文，完成需求解析、器件确认、驱动搜索、替代推荐或冷门驱动标记，并输出完整 envelope 的 phase_complete + manifest_content。触发：插件 start_phase(analyze)、用户描述“做一个/我想做/帮我写一个”MicroPython 硬件项目、需要生成 project manifest。
 ---
 
-# 需求解析与驱动搜索 Skill
+# upy-analyze
 
-## 角色定位
+## 职责
 
-给定用户的一句话项目描述，完成**意图拆解 → 交互确认 → 驱动搜索 → 输出 manifest**。不选型、不生成代码、不分配引脚。输出 `project-manifest.json` 给下游 `upy-select-hw`。
+把用户的一句话硬件需求转换为可交给 `upy-select-hw` 的 analyze manifest。
 
-## 前置检查
+只做：
 
-```bash
-python --version
-python -c "import requests; print('requests OK')"
-```
+- 解析需求和实现族。
+- 生成并确认器件清单。
+- 搜索内置运行时能力和具体器件驱动。
+- 标记替代推荐或冷门驱动路径。
+- 输出 `phase_complete`，其中 `payload.manifest_content` 是下游唯一主交接物。
 
-任一失败则停止，提示用户安装。
+不做：
 
----
+- 不选 MCU 和板卡。
+- 不分配引脚。
+- 不生成业务代码。
+- 不烧录设备。
+- 不把插件端 UI 或设备日志解析逻辑写进插件。
 
-## 执行步骤
+## 运行模式
 
-### Step 1: 意图拆解
+## 协议字段说明
 
-从用户描述中提取结构化信息：
+先按本文件执行流程。需要构造或排查具体消息字段时，读取 `references/v0-protocol.md`；它定义 envelope、`start_phase`、`approval_request`、`status_update`、`script_run`、manifest、`phase_complete`、checkpoint、structured errors 和 artifacts 的字段含义与枚举。
 
-| 维度 | 提取内容 | 用途 |
-|------|---------|------|
-| 功能描述 | 要做什么（采集/控制/显示/通信/报警） | 生成交互确认 |
-| 器件列表 | 传感器/模块/执行器（型号或通用名） | 驱动搜索 |
-| 接口类型 | I2C/SPI/UART/GPIO/I2S 等 | 驱动搜索关键词 |
-| 关键词 | 英文章词：功能类别 + 接口 + 芯片型号 | 并行搜索 |
+输出 JSON 时优先使用 `templates/*.json` 和 `mock-messages/analyze/*.json` 的形状，不要自由发挥字段名。
 
-**注意：**
-- 用户可能只说了器件通用名（"温湿度传感器"），未指定型号 → 先在交互确认中追问
-- 用户可能完全没说器件 → 根据功能反推（"监测温度" → 需要温度传感器）→ 在交互确认中呈现
+### 正式插件模式
 
-### Step 2: 交互确认
-
-**先分流，再确认。使用 `AskUserQuestion`，用户点击即可。**
-
-#### Step 2A: 分流（1 问）
-
-```
-header: "使用模式"
-question: "选择配置方式"
-options:
-  - "小白模式：帮我自动推荐 (默认)" (description: "只确认器件和主控，其他全部自动配置")
-  - "自定义模式：我要逐项选择" (description: "主控、场景、性能、输出方式逐项定制")
-```
-
-#### Step 2B: 小白模式（1~2 问）
-
-**Q1: 主控确认**（仅当用户未在描述中指定 MCU 时询问）
-
-```
-header: "主控"
-question: "用什么开发板？"
-options:
-  - "ESP32 (推荐默认)" (description: "最通用，WiFi/BLE，接口丰富")
-  - "Raspberry Pi Pico" (description: "RP2040，性价比高")
-  - "ESP32-S3" (description: "更强的 AI 能力，USB-OTG")
-  - "Other"
-```
-
-用户选 "Other" → 记录 `mcu_specified` = Other 输入值，具体核验交给 Phase 2 `upy-select-hw`
-
-**Q2: 器件清单确认** (multiSelect)
-
-```
-header: "器件清单"
-question: "这些器件对吗？不对的选择去掉，缺的选择补上"
-multiSelect: true
-options:
-  - "{器件1} — {接口}/{型号}"
-  - "{器件2} — {接口}/{型号}"
-  - ...
-  - "缺了器件，需补充"
-```
-
-用户确认后 → **进入 Step 3 驱动搜索。**（MCU 固件核验由 Phase 2 `upy-select-hw` 负责）
-所有 requirements 维度使用默认值。
-`experience = "beginner"`
-
-#### Step 2C: 自定义模式（最多 4 问）
-
-`experience = "experienced"`
-
-##### 第一轮（4 问）
-
-**Q1: 主控确认**（仅当用户未指定时；已指定则跳过此问）
-
-```
-header: "主控"
-question: "用什么开发板？"
-options:
-  - "ESP32 (推荐默认)" (description: "最通用，WiFi/BLE，接口丰富")
-  - "Raspberry Pi Pico" (description: "RP2040，性价比高，无 WiFi")
-  - "ESP32-S3" (description: "AI 加速，USB-OTG")
-  - "Other"
-```
-
-**Q2: 器件清单确认** (multiSelect，含 LLM 建议新增的器件)
-
-```
-header: "器件清单"
-question: "以下识别的器件是否正确？"
-options:
-  - "{器件1} — {接口}/{型号}"
-  - ...
-  - "+ {建议器件}（建议，{原因}）"
-  - "缺了器件，需补充"
-```
-
-**Q3: 场景与供电** (singleSelect)
-
-```
-header: "场景供电"
-question: "使用场景和供电方式？"
-options:
-  - "室内桌面 + USB供电 (默认)" → scene=indoor, power=usb, temp_range=normal_0_40
-  - "室内 + 电池供电" → scene=indoor, power=battery_li
-  - "室外 + 电池/太阳能" → scene=outdoor, power=battery_li, network=wifi, temp_range=extended_-20_70
-  - "Other"
-```
-
-**Q4: 性能 + 输出** (合并第 3、4 维)
-
-```
-header: "性能输出"
-question: "性能和输出要求？"
-options (前 3 个 singleSelect-like 但用 multiSelect 实现单选行为):
-  - "通用级 + 串口打印 (默认)" → sample_rate=normal_1hz, precision=normal, response_time=1s, output=["serial"]
-  - "高性能 + 屏幕显示" → sample_rate=high_100hz_plus, precision=high, response_time=ms_level, output=["display_oled","serial"]
-  - "低功耗 + 串口打印" → sample_rate=low_minute, precision=low_power_first, response_time=minute_level, output=["serial"]
-  - "Other（逐项指定）"
-```
-
-若用户选 "Other" → 第二轮追加性能 + 输出各一问。
-
-##### 第二轮（按需）
-
-仅当 Q2~Q4 有 "Other" 或 "缺器件" 时追加补充。
-
----
-
-#### 默认值汇总（用户不改的维度自动填充）
-
-| 维度 | 小白模式 | 自定义模式 | 说明 |
-|------|---------|-----------|------|
-| scene | "indoor" | 由 Q2 推导 | |
-| power | "usb" | 由 Q2 推导 | |
-| network | "none" | 由 Q2/Q4 推导 | |
-| sample_rate | "normal_1hz" | 由 Q3 推导 | |
-| precision | "normal" | 由 Q3 推导 | |
-| response_time | "1s" | 由 Q3 推导 | |
-| temp_range | "normal_0_40" | 由 Q2 推导 | |
-| size_constraint | "none" | "none" | 默认，不提 |
-| budget_yuan | "medium_50" | "medium_50" | 默认，不提 |
-| experience | "beginner" | "experienced" | 由分流决定 |
-| existing_hardware | [] | [] | 默认，不提 |
-| special_requirements | ["none"] | ["none"] | 默认，不提 |
-| mcu_specified | "ESP32"（或用户选择） | 由 Q1 推导 | 记录型号，固件核验交给 upy-select-hw |
-
-### Step 3: 驱动搜索
-
-确认器件清单后，**对每个器件调用 `upy-pkg-guide` skill**。
-
-> `upy-pkg-guide` 内部已支持：upypi 搜索 → awesome-micropython fallback（GitHub/GitLab/Codeberg）
-
-```
-对每个器件：
-  调用 upy-pkg-guide → 结果分三种：
-
-  A. 有驱动 → 记录 driver 信息（source/package/version/install_cmd/api_ref）
-
-  B. 无驱动 + 器件型号是用户明确指定的
-     → 标记 driver.source = "none"
-     → 后续由 upy-gen-driver 处理
-
-  C. 无驱动 + 器件型号是系统推荐的（用户未指定具体型号）
-     → 触发 Step 3B：同类替代推荐
-```
-
-**并行策略：** 多个器件可同时调 `upy-pkg-guide`（无依赖关系）。
-
-#### Step 3B: 同类替代推荐（仅情况 C 触发）
-
-当系统推荐的器件找不到驱动，但用户并未指定具体型号时，**动态搜 upypi 找同类别有驱动的替代器件**。
-
-upypi 支持模糊搜索，不需要维护静态替代列表。**每次触发 3B 都实时搜**：
-
-```
-对每个"情况 C"器件：
-  1. 确定器件类别 + 接口类型（如 I2C 温湿度传感器）
-  2. 多轮模糊搜 upypi（利用 upypi /api/search?q= 的模糊匹配）：
-     第一轮：搜该类别最常用的芯片型号前缀
-       温湿度 → "sht" "dht" "hdc" "aht" "bme" "si70"
-       气压   → "bmp" "lps" "dps" "ms56" "ms58"
-       屏幕   → "ssd" "sh" "st77" "st7789" "ili" "gc9"
-       IMU    → "mpu" "icm" "bmi" "bno" "lsm" "adxl"
-       距离   → "vl53" "tof" "sr04" "tfmini"
-       光线   → "bh17" "tsl" "veml" "max440" "opt"
-       麦克风 → "inmp" "ics" "sph" "msm" "max98" "max44"
-       LED    → "ws28" "sk68" "apa102" "tm16" "max72"
-       RTC    → "ds32" "ds13" "pcf85" "rv30"
-       ADC    → "ads1" "mcp30" "mcp47" "pcf85" "hx71"
-     第二轮：搜类别英文关键词（兜底，覆盖前缀遗漏的）
-       温湿度 → "temperature" "humidity"
-       气压   → "pressure" "barometer"
-       ...
-  3. 合并去重所有搜索结果
-  4. 对每个结果调 upy-pkg-guide 确认有完整驱动
-  5. 按流行度/驱动完整度排序，取 Top 2
-```
-
-**搜索规则：**
-- 搜的是具体芯片型号前缀（"sht"、"bmp"），不是类别关键词（"temperature sensor"）
-- 每个前缀单独搜，利用 upypi 模糊匹配
-- 找到 2 个有完整驱动的就停，不需要全部搜完
-- **不维护静态替代列表——每次都实时搜，数据永远是最新的**
-
-输出替代推荐给用户确认：
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  SHT30 在 upypi/awesome-micropython/GitHub 均未找到驱动
-
-  同类别（I2C 温湿度传感器）有现成驱动的替代：
-  ┌────────────────────────────────────────────┐
-  │  #  型号      驱动来源    安装命令            │
-  │  1  HDC1080   upypi      mpremote mip ...   │
-  │  2  AHT20     upypi      mpremote mip ...   │
-  └────────────────────────────────────────────┘
-
-  建议用 #1 HDC1080（精度高、价格相近、驱动成熟）
-  是否接受？或者选择其他编号。
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**确认后：** 用替代器件更新 devices 列表，填充 driver 信息，继续 Step 4。
-
-**若替代搜索也无结果：** 该类别的所有器件都没有驱动 → 标记 `driver.source = "none"`，触发 upy-gen-driver。
-
-### Step 4: 输出 manifest
-
-调用 `init_manifest.py` 写入 `project-manifest.json`：
-
-```bash
-python G:/MicroPython_Skills/upy-analyze/scripts/init_manifest.py \
-  --project-dir {project_dir} \
-  --input {llm_output_json}
-```
-
-脚本校验 JSON 结构、补充元数据、写入项目目录。
-
-**manifest 结构要点：**
-- `phase`: "analyze"
-- `requirements`: 所有 13 项用户确认的需求维度（含默认值）
-- `devices`: 每个器件含 `driver` 对象（source/package_name/version/install_cmd/api_ref）
-- `devices[].driver.source = "none"` → 无驱动器件，触发 cold-driver
-
----
-
-## 输出示例
-
-### 交互确认阶段（小白模式）
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  项目：温湿度监测报警器
-  功能：定时采集温湿度 → 屏幕显示 → 超出阈值蜂鸣器报警
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Step 2A: 分流
-  ● 小白模式：帮我自动推荐 (默认)
-  ○ 自定义模式：我要逐项选择
-
-Step 2B: 确认器件
-  ☑ SHT30 — I2C温湿度传感器
-  ☑ SSD1306 OLED — I2C屏幕
-  ☑ 有源蜂鸣器 — GPIO
-  ☐ 缺了器件，需补充
-
-→ 全部默认 → 进入 Step 3 搜驱动
-```
-
-### 交互确认阶段（自定义模式）
-
-```
-Step 2A: 分流
-  ○ 小白模式
-  ● 自定义模式
-
-Q1 [器件清单] (多选)
-  ☑ SHT30 — I2C温湿度传感器
-  ☑ SSD1306 OLED — I2C屏幕
-  ☑ 有源蜂鸣器 — GPIO
-  ☐ + 按键（建议，用于手动触发）
-  ☐ 缺了器件
-
-Q2 [场景供电] (单选)
-  ● 室内桌面 + USB供电 (默认)
-  ○ 室内 + 电池供电
-  ○ 室外 + 电池/太阳能
-  ○ Other
-
-Q3 [性能等级] (单选)
-  ● 通用级：1Hz + 常规精度 + 1秒响应 (默认)
-  ○ 高性能：100Hz+ + 高精度 + 毫秒响应
-  ○ 低功耗优先
-  ○ Other
-
-Q4 [输出方式] (多选)
-  ☑ 串口打印 (默认)
-  ☑ 屏幕显示
-  ☑ 声光反馈
-  ☐ WiFi/蓝牙上报
-```
-
-### manifest 节选
+插件通过 `start_phase` 启动：
 
 ```json
 {
-  "schema_version": "1.0",
+  "protocol_version": "1.0",
+  "msg_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
   "phase": "analyze",
-  "project_name": "温湿度监测报警器",
-  "requirements": {
-    "description": "定时采集温湿度 → 屏幕显示 → 超过阈值蜂鸣器报警",
-    "scene": "indoor",
-    "power": "usb",
-    "output": ["display_oled", "serial", "buzzer"],
-    "experience": "beginner"
-  },
-  "devices": [
-    {
-      "name": "SHT30",
-      "type": "temperature_sensor",
-      "interface": "I2C",
-      "i2c_addr": ["0x44", "0x45"],
-      "driver": {
-        "source": "upypi",
-        "package_name": "sht30-driver",
-        "version": "1.2.0",
-        "install_cmd": "mpremote mip install https://upypi.net/pkgs/sht30-driver/1.2.0/package.json",
-        "api_ref": { "init": "SHT30(i2c, addr=0x44)", "read": "sht30.measure() → (temp, humidity)" }
-      }
-    },
-    {
-      "name": "有源蜂鸣器",
-      "type": "buzzer",
-      "interface": "GPIO",
-      "driver": { "source": "none" }
-    }
-  ]
+  "timestamp": "2026-06-21T00:00:00Z",
+  "type": "start_phase",
+  "payload": {
+    "user_description": "做一个温湿度监测仪，超过阈值蜂鸣器报警",
+    "pre_selected_board": null,
+    "preferences": { "mode": "beginner", "locale": "zh" },
+    "existing_hardware": []
+  }
 }
 ```
 
----
+正式模式中：
 
-## 与其他 skill 的关系
+- `session_id` 必须由插件创建并传入。
+- skill/服务器必须继承同一个 `session_id`，不得另建正式 session。
+- 所有 S->P 消息必须带完整 envelope。
+- 本地文件、脚本、设备动作只能通过协议工具表达。
 
-- ← 用户输入：自然语言项目描述
-- → `upy-select-hw`：传入 manifest（含 devices + requirements），硬件选型 + 引脚分配
-- → `upy-gen-driver`：对 `driver.source = "none"` 的器件，触发冷硬件驱动生成
+`start_phase` 字段速查：
+
+| 字段 | 必填 | 来源 | 含义 |
+|------|------|------|------|
+| `protocol_version` | 是 | 插件 | 固定 `"1.0"` |
+| `msg_id` | 是 | 插件 | 当前消息 UUID |
+| `session_id` | 是 | 插件 | 当前工作流 session UUID，全流程保持不变 |
+| `phase` | 是 | 插件 | 固定 `"analyze"` |
+| `timestamp` | 是 | 插件 | ISO 8601 时间戳 |
+| `type` | 是 | 插件 | 固定 `"start_phase"` |
+| `payload.user_description` | 是 | 用户输入 | 一句话硬件需求 |
+| `payload.pre_selected_board` | 否 | 插件 UI | 预选板卡；analyze 只记录，不核验 |
+| `payload.preferences.mode` | 否 | 插件设置 | `beginner` 或 `custom`，默认 `beginner` |
+| `payload.preferences.locale` | 否 | 插件设置 | 默认 `zh` |
+| `payload.existing_hardware` | 否 | 用户资料 | 已有硬件数组，默认 `[]` |
+
+### Claude Code 直测模式
+
+没有真实插件宿主时，可以写调试产物，但这些文件不替代 `phase_complete.payload.manifest_content`。
+
+如果输入缺少 `session_id`，直测模式必须生成 UUID，并强制使用 session 隔离目录：
+
+```text
+{test_root}/sessions/{session_id}/
+  manifest_draft.json
+  manifest_validated.json
+  phase_complete.analyze.json
+  driver_search_log.md
+  analyze_phase_log.md
+```
+
+直测模式必须在结束前调用校验脚本：
+
+```bash
+python {skill_dir}/scripts/init_manifest.py --input {session_dir}/manifest_draft.json --write-path {session_dir}/manifest_validated.json
+python {skill_dir}/scripts/init_manifest.py --validate-phase-complete --input {session_dir}/phase_complete.analyze.json --compare-manifest {session_dir}/manifest_validated.json
+```
+
+任一校验失败，不得宣称 analyze 成功。
+
+## V0 协议硬规则
+
+### 完整 envelope
+
+所有正式协议消息必须包含：
+
+```json
+{
+  "protocol_version": "1.0",
+  "msg_id": "uuid",
+  "session_id": "uuid",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:00Z",
+  "type": "phase_complete",
+  "payload": {}
+}
+```
+
+要求：
+
+- `protocol_version` 固定为 `"1.0"`。
+- `msg_id` 使用 UUID 字符串。
+- `session_id` 使用 UUID 字符串。
+- 顶层 `phase` 和 `payload.phase` 都保留，且必须一致。
+
+envelope 字段速查：
+
+| 字段 | 必填 | 谁生成 | 规则 |
+|------|------|--------|------|
+| `protocol_version` | 是 | 发送方 | 固定 `"1.0"` |
+| `msg_id` | 是 | 发送方 | 每条消息一个新 UUID |
+| `session_id` | 是 | 插件 | 同一工作流不变 |
+| `phase` | 是 | 发送方 | analyze 阶段固定 `"analyze"` |
+| `timestamp` | 是 | 发送方 | ISO 8601，UTC 优先 |
+| `type` | 是 | 发送方 | 消息类型 |
+| `payload` | 是 | 发送方 | 类型专属对象 |
+
+### result 枚举
+
+`phase_complete.payload.result` 只允许：
+
+| result | 含义 | next_phase | checkpoint |
+|--------|------|------------|------------|
+| `success` | analyze 完整成功，可进入下游 | `select-hw` | 不需要 |
+| `partial` | 用户取消、中断、超时、缺输入或只完成部分搜索 | `null` | 必须有 |
+| `failed` | 无法产生可用 manifest，或协议/格式校验失败 | `null` | 可选 |
+
+`partial` 必须包含：
+
+```json
+{
+  "checkpoint_id": "uuid",
+  "resume_phase": "analyze",
+  "resume_step": "driver_search",
+  "resume_label": "继续 analyze 驱动搜索",
+  "reason": "user_cancelled"
+}
+```
+
+V0 只定义 checkpoint/resume 结构，不实现完整 resume runtime。
+
+### errors 与 structured_errors
+
+保留 `errors: string[]` 给人类阅读，同时输出 `structured_errors: object[]` 给插件 UI 和 orchestration：
+
+```json
+{
+  "code": "manifest_validation_failed",
+  "message": "devices[0].driver.source invalid",
+  "severity": "error",
+  "recoverable": true,
+  "retryable": true,
+  "source": "init_manifest.py"
+}
+```
+
+`severity` 只允许 `info / warning / error / fatal`。
+
+### artifact 统一模型
+
+`artifacts` 必须是数组。调试文件路径使用 `file_list` artifact，不得写成对象映射。
+
+`artifact.files[].status` 只允许：
+
+```text
+created / updated / unchanged / skipped / error
+```
+
+推荐 file item：
+
+```json
+{
+  "path": "manifest_validated.json",
+  "status": "created",
+  "kind": "manifest",
+  "mime_type": "application/json",
+  "description": "校验规范化后的 analyze manifest"
+}
+```
+
+`artifact_id` 不强制。`kind` 和 `description` 推荐填写；缺失时校验脚本可给 warning。
+
+## 权限策略
+
+采用“首次 session 弹一次总权限，后续沿用”的长流程策略。
+
+analyze 阶段授权后允许：
+
+- 写项目分析产物。
+- 运行白名单脚本 `scripts/init_manifest.py`。
+- 访问驱动搜索源，如 upypi、awesome-micropython、GitHub。
+
+仍需单独确认的高风险动作：
+
+- 删除文件。
+- 烧录设备。
+- 执行任意 shell。
+- 上传或发布到 upypi。
+
+## 取消、重试、超时
+
+V0 先写进协议和 skill 说明，不实现完整 runtime：
+
+- 用户取消 approval：输出 `result="partial"`，`next_phase=null`，写 checkpoint。
+- 驱动搜索超时：优先降级为 warning；核心信息不可判断时才 failed。
+- manifest 校验失败：允许修正后重试；重试沿用同一个 `session_id`。
+- 重试行为记录在日志或 payload 元数据中。
+
+## 执行步骤
+
+### Step 1: 读取输入上下文
+
+读取 `start_phase.payload`：
+
+| 字段 | 必填 | 默认 | 说明 |
+|------|------|------|------|
+| `user_description` | 是 | 无 | 用户一句话需求 |
+| `pre_selected_board` | 否 | `null` | 插件预选板卡，analyze 只记录，不核验 |
+| `preferences.mode` | 否 | `beginner` | `beginner` 或 `custom` |
+| `preferences.locale` | 否 | `zh` | 默认中文 |
+| `existing_hardware` | 否 | `[]` | 用户已有硬件 |
+
+如果字段缺失，按默认值补齐；如果 `user_description` 缺失或为空，输出 `phase_complete(result="failed")`，不得继续猜测需求。
+
+发送：
+
+```json
+{
+  "type": "status_update",
+  "payload": {
+    "level": "info",
+    "message": "正在分析需求，先拆实现族和器件清单。",
+    "step_id": "intent_extraction",
+    "step_status": "running"
+  }
+}
+```
+
+### Step 2: 意图拆解和器件确认
+
+从自然语言中提取：
+
+- 项目名。
+- 功能链路。
+- 实现族。
+- 器件清单。
+- 接口类型。
+- 用户指定器件 vs 系统推荐器件。
+
+大类器件必须先拆实现族。例如土壤类必须区分 `ADC / RS485 Modbus / I2C/SPI / 组合方案`。
+
+只保留一个必经确认点：`approval_request(device_confirm)`。
+
+```json
+{
+  "type": "approval_request",
+  "payload": {
+    "approval_id": "device_confirm",
+    "header": "确认项目方案",
+    "question": "请确认器件方案；像土壤类器件，可在这里改成 ADC / RS485 Modbus / I2C 方案。",
+    "summary": {
+      "project_name": "温湿度监测报警器",
+      "description": "定时采集温湿度，超过阈值蜂鸣器报警",
+      "board": { "status": "none" }
+    },
+    "items": [],
+    "allow_add": true,
+    "allow_remove": true,
+    "multi_select": true,
+    "actions": [
+      { "label": "确认，开始搜索驱动", "value": "confirm", "primary": true },
+      { "label": "修改器件清单", "value": "modify" }
+    ]
+  }
+}
+```
+
+`approval_request` 发出后必须等待用户响应，不得继续假装已确认。
+
+### Step 3: 补充需求
+
+`beginner` 默认补齐 requirements。`custom` 或信息明显不足时，最多发一张 `approval_request(requirement_supplement)`。
+
+默认值：
+
+| 字段 | 默认 |
+|------|------|
+| `scene` | `indoor` |
+| `power` | `usb` |
+| `network` | `none` |
+| `sample_rate` | `normal_1hz` |
+| `precision` | `normal` |
+| `response_time` | `1s` |
+| `temp_range` | `normal_0_40` |
+| `size_constraint` | `none` |
+| `budget_yuan` | `medium_50` |
+| `experience` | `beginner` |
+| `output` | `["serial"]` |
+| `existing_hardware` | `[]` |
+| `special_requirements` | `["none"]` |
+| `mcu_specified` | `null` |
+
+语音、云端、音频输出等 schema 不能完整表达的内容，记录在 `description`、`special_requirements`、device notes 和 warnings 中，不因 output 枚举不足直接失败。
+
+### Step 4: 驱动搜索
+
+对每个确认后的器件，分两层判断：
+
+1. 底层运行时能力：
+   - `machine.ADC`
+   - `machine.Pin`
+   - `machine.I2C`
+   - `machine.SPI`
+   - `machine.UART`
+   - `machine.I2S`
+   - `network`
+   - `bluetooth`
+
+2. 具体器件驱动：
+   - `upypi`
+   - `awesome-micropython`
+   - `github`
+   - 其他可信 MicroPython 来源
+
+注意：
+
+- `builtin_runtime` 只表示底层 API 可用，不等于具体 I2C/SPI/UART 器件驱动已找到。
+- I2C/SPI/UART 具体器件仍应优先查 `upypi`。
+- `micropython_lib` 只用于官方生态通用库/中间件，不作为普通传感器驱动默认来源。
+- `driver.source="none"` 只在不是明显内置运行时能力，且所有驱动源都无结果时使用。
+
+每个器件搜索过程发送 `status_update`。
+
+系统推荐器件无驱动时，可推荐最多 2 个同类替代器件，使用 `approval_request(alternative_device)`。用户指定器件无驱动，或用户拒绝替代时，标记 `driver.source="cold-driver"`，由后续 `upy-gen-driver` 处理。
+
+### Step 5: 构建 manifest_draft
+
+生成 manifest 草稿，必须包含：
+
+- `project_name`
+- `requirements`
+- `devices`
+
+每个 device 必须包含：
+
+- `name`
+- `type`
+- `interface`
+- `source`: `user_specified` 或 `system_recommended`
+- `quantity`
+- `driver.source`
+
+有效 `driver.source`：
+
+```text
+builtin_runtime / micropython_lib / upypi / awesome-micropython / github / local / cold-driver / none
+```
+
+### Step 6: 强制校验 manifest
+
+必须调用：
+
+```bash
+python {skill_dir}/scripts/init_manifest.py --input manifest_draft.json --write-path manifest_validated.json
+```
+
+校验失败：
+
+- 修正草稿后可重试。
+- 仍失败则输出 `phase_complete(result="failed")`。
+- 不得继续输出 `success`。
+
+### Step 7: 输出 phase_complete
+
+成功时输出完整 envelope：
+
+```json
+{
+  "protocol_version": "1.0",
+  "msg_id": "550e8400-e29b-41d4-a716-446655440001",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:00Z",
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "success",
+    "summary": "器件分析完成，manifest 已通过校验。",
+    "next_phase": "select-hw",
+    "manifest_content": {},
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "Claude Code 直测产物",
+        "files": [
+          {
+            "path": "manifest_draft.json",
+            "status": "created",
+            "kind": "manifest_draft",
+            "mime_type": "application/json",
+            "description": "校验前 manifest 草稿"
+          },
+          {
+            "path": "manifest_validated.json",
+            "status": "created",
+            "kind": "manifest",
+            "mime_type": "application/json",
+            "description": "校验规范化后的 analyze manifest"
+          },
+          {
+            "path": "phase_complete.analyze.json",
+            "status": "created",
+            "kind": "phase_complete",
+            "mime_type": "application/json",
+            "description": "完整 analyze 阶段完成消息"
+          },
+          {
+            "path": "driver_search_log.md",
+            "status": "created",
+            "kind": "log",
+            "mime_type": "text/markdown",
+            "description": "驱动搜索记录"
+          }
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": []
+  }
+}
+```
+
+`phase_complete.payload` 字段速查：
+
+| 字段 | 必填 | success | partial | failed |
+|------|------|---------|---------|--------|
+| `phase` | 是 | `"analyze"` | `"analyze"` | `"analyze"` |
+| `result` | 是 | `"success"` | `"partial"` | `"failed"` |
+| `summary` | 是 | 成功摘要 | 中断摘要 | 失败摘要 |
+| `next_phase` | 是 | `"select-hw"` | `null` | `null` |
+| `manifest_content` | 是 | 校验后的 manifest | 当前最佳 manifest 快照 | 尽量给出当前快照 |
+| `checkpoint` | 条件 | 不需要 | 必须 | 可选 |
+| `artifacts` | 是 | 数组 | 数组 | 数组 |
+| `warnings` | 是 | 字符串数组 | 字符串数组 | 字符串数组 |
+| `errors` | 是 | 空数组或错误摘要 | 空数组或错误摘要 | 错误摘要 |
+| `structured_errors` | 是 | 空数组 | 可选结构化错误 | 必须描述主要失败 |
+
+直测模式建议额外写 `analyze_phase_log.md`，但它不是正式协议必交产物；可以在 `file_list` 中声明。
+
+写出 `phase_complete.analyze.json` 后必须调用：
+
+```bash
+python {skill_dir}/scripts/init_manifest.py --validate-phase-complete --input phase_complete.analyze.json --compare-manifest manifest_validated.json
+```
+
+校验失败不得宣称完成。
+
+## 交付文件
+
+正式插件模式以消息为准。Claude Code 直测模式在 session 目录下写：
+
+- `manifest_draft.json`
+- `manifest_validated.json`
+- `phase_complete.analyze.json`
+- `driver_search_log.md`
+- `analyze_phase_log.md`（建议）
+
+## 模板和 mock
+
+使用本 skill 自带资源：
+
+- `templates/envelope.phase_complete.json`
+- `templates/checkpoint.json`
+- `templates/structured_error.json`
+- `templates/artifact.file_list.json`
+- `mock-messages/analyze/*.json`
+- `references/v0-protocol.md`
+
+修改模板、枚举或输出格式后，必须更新校验脚本和 smoke 测试。
 
 ## 强约束
 
-- **不得在器件型号不明确时自行假设**——必须追问确认
-- **所有需求维度必须有明确值**——用户未指定 = 默认值，不允许留空
-- **不在此阶段生成代码、分配引脚、选择 MCU**
-- **driver.source = "none" 也要写入 manifest**——让下游 skill 能感知到
-- **manifest 中所有枚举值必须来自 schema**——不得自创枚举值
+- 协议格式、必填字段、枚举非法、manifest 核心结构错误必须作为 error。
+- 业务语义问题优先 warning，例如 TouchPad 板卡兼容性、语音 output schema 不完整。
+- `phase_complete.payload.manifest_content` 是下游唯一主交接物。
+- `manifest_validated.json` 与 `phase_complete.payload.manifest_content` 必须核心字段一致，时间字段不参与严格比较。
+- `phase_complete.artifacts` 必须是数组。
+- `errors` 必须是字符串数组，`structured_errors` 必须是对象数组。
+- `partial` 必须 `next_phase=null` 且有 checkpoint。
+- `success` 必须 `next_phase="select-hw"` 且有合法 `manifest_content`。
+

@@ -1,0 +1,19 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:00Z",
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "success",
+    "summary": "Analyze completed.",
+    "next_phase": "select-hw",
+    "manifest_content": {},
+    "artifacts": [],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": []
+  }
+}

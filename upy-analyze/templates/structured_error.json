@@ -1,0 +1,8 @@
+{
+  "code": "manifest_validation_failed",
+  "message": "devices[0].driver.source invalid",
+  "severity": "error",
+  "recoverable": true,
+  "retryable": true,
+  "source": "init_manifest.py"
+}

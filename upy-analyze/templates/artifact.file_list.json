@@ -1,0 +1,34 @@
+{
+  "type": "file_list",
+  "title": "Claude Code 直测产物",
+  "files": [
+    {
+      "path": "manifest_draft.json",
+      "status": "created",
+      "kind": "manifest_draft",
+      "mime_type": "application/json",
+      "description": "校验前 manifest 草稿"
+    },
+    {
+      "path": "manifest_validated.json",
+      "status": "created",
+      "kind": "manifest",
+      "mime_type": "application/json",
+      "description": "校验规范化后的 analyze manifest"
+    },
+    {
+      "path": "phase_complete.analyze.json",
+      "status": "created",
+      "kind": "phase_complete",
+      "mime_type": "application/json",
+      "description": "完整 analyze 阶段完成消息"
+    },
+    {
+      "path": "driver_search_log.md",
+      "status": "created",
+      "kind": "log",
+      "mime_type": "text/markdown",
+      "description": "驱动搜索记录"
+    }
+  ]
+}

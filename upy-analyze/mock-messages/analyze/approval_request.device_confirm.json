@@ -1,0 +1,52 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "18c2bc1f-c72c-4701-a418-878642bdf15f",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:01Z",
+  "type": "approval_request",
+  "payload": {
+    "approval_id": "device_confirm",
+    "header": "确认项目方案",
+    "question": "请确认以下器件是否正确",
+    "summary": {
+      "project_name": "温湿度监测报警器",
+      "description": "定时采集温湿度，超过阈值蜂鸣器报警",
+      "board": {
+        "status": "none"
+      }
+    },
+    "items": [
+      {
+        "id": "d1",
+        "name": "AHT20",
+        "subtitle": "I2C 温湿度传感器",
+        "meta": "系统推荐",
+        "selectable": true,
+        "selected": true
+      },
+      {
+        "id": "d2",
+        "name": "有源蜂鸣器",
+        "subtitle": "GPIO 执行器",
+        "meta": "系统推荐",
+        "selectable": true,
+        "selected": true
+      }
+    ],
+    "allow_add": true,
+    "allow_remove": true,
+    "multi_select": true,
+    "actions": [
+      {
+        "label": "确认，开始搜索驱动",
+        "value": "confirm",
+        "primary": true
+      },
+      {
+        "label": "修改器件清单",
+        "value": "modify"
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "c56325b2-824a-4e64-b674-d959ba7e2a7b",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:00Z",
+  "type": "start_phase",
+  "payload": {
+    "user_description": "做一个温湿度监测仪，超过阈值蜂鸣器报警",
+    "pre_selected_board": null,
+    "preferences": {
+      "mode": "beginner",
+      "locale": "zh"
+    },
+    "existing_hardware": []
+  }
+}

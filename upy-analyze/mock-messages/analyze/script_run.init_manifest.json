@@ -1,0 +1,21 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "e2d8c8fc-fbd8-4d10-89b9-c397b94858a0",
+  "session_id": "4f6d9d72-9c4a-4f11-90df-3f2ad6e726cc",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T00:00:03Z",
+  "type": "script_run",
+  "payload": {
+    "script_id": "validate_analyze_manifest",
+    "interpreter": "python",
+    "script": "{skill_dir}/scripts/init_manifest.py",
+    "args": [
+      "--input",
+      "manifest_draft.json",
+      "--write-path",
+      "manifest_validated.json"
+    ],
+    "cwd": "{project_dir}",
+    "timeout_ms": 30000
+  }
+}
