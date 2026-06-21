@@ -88,6 +88,34 @@ def check_manifest_samples(samples: list[dict]) -> None:
             raise AssertionError(f"manifest validation failed: {result}")
 
 
+def check_ttp223_active_low_sample(samples: list[dict]) -> None:
+    target = None
+    for sample in samples:
+        manifest = sample.get("payload", {}).get("manifest_content")
+        if not isinstance(manifest, dict):
+            continue
+        for device in manifest.get("devices", []):
+            if isinstance(device, dict) and device.get("name") == "TTP223":
+                target = device
+                break
+        if target is not None:
+            break
+    if target is None:
+        raise AssertionError("missing TTP223 active-low sample device")
+    if target.get("source") != "user_specified":
+        raise AssertionError("TTP223 sample must be user_specified")
+    behavior = target.get("behavior")
+    if not isinstance(behavior, dict):
+        raise AssertionError("TTP223 sample missing behavior object")
+    if behavior.get("active_level") != "low":
+        raise AssertionError("TTP223 behavior.active_level must be low")
+    if target.get("driver", {}).get("module") != "machine.Pin":
+        raise AssertionError("TTP223 sample should use machine.Pin builtin runtime")
+    notes = target.get("notes", "") + " " + target.get("driver", {}).get("notes", "")
+    if "低电平" not in notes:
+        raise AssertionError("TTP223 sample notes should preserve low-level behavior")
+
+
 def check_runner_bridge() -> None:
     proc = run([sys.executable, str(TEST_DIR / "run_local_mock_session.py")])
     combined = proc.stdout + proc.stderr
@@ -191,6 +219,9 @@ def main() -> int:
 
     check_manifest_samples(samples)
     print("[OK] manifest samples")
+
+    check_ttp223_active_low_sample(samples)
+    print("[OK] TTP223 active-low sample")
 
     check_runner_bridge()
     print("[OK] runner bridge")

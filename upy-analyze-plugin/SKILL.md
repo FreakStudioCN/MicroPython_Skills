@@ -132,6 +132,7 @@ description: 插件化工作流版 analyze。读取用户自然语言和插件�
 
 - 不得在器件型号不明确时偷偷替用户锁定具体型号
 - 用户明确指定的型号必须保留为 `user_specified`
+- 用户对指定器件补充的行为/电平/触发语义必须保留在该器件上，不要只写入 `requirements.description`。例如“触摸按键用 TTP223，按下后为低电平”应输出 `devices[].notes`，并尽量结构化为 `devices[].behavior.active_level="low"`。
 - 系统补充的器件必须标记为 `system_recommended`
 
 完成本步骤后，必须输出：
@@ -895,6 +896,13 @@ Analyze 交给下游 `select-hw` 的 `manifest_content` 至少必须包含：
 - `interface`
 - `source`
 - `driver.source`
+
+可选但应保留的器件级字段：
+
+- `notes`：用户对该器件的自然语言补充，例如模块型号、触发方式、电平语义、安装方式
+- `behavior`：可结构化的行为事实，例如 `role`、`event`、`active_level`、`idle_level`
+
+当用户明确描述器件行为时，优先同时写入 `notes` 和 `behavior`。例如 TTP223 触摸按键“按下后为低电平”应保留为器件级事实，供 select-hw 和 generate 决定 GPIO 输入、上拉/下拉和触发条件。
 
 如 `driver.source` 属于现成驱动来源，后续应继续补全：
 

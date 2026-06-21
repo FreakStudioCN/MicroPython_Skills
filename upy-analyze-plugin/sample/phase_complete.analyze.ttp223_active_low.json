@@ -1,0 +1,81 @@
+{
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "success",
+    "summary": "器件分析完成，识别到 2 个器件",
+    "next_phase": "select-hw",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "analyze",
+      "project_name": "触摸控制灯",
+      "requirements": {
+        "description": "做一个触摸控制灯，触摸按键用 TTP223，按下后为低电平",
+        "scene": "indoor",
+        "power": "usb",
+        "network": "none",
+        "sample_rate": "triggered",
+        "precision": "normal",
+        "response_time": "ms_level",
+        "temp_range": "normal_0_40",
+        "size_constraint": "none",
+        "budget_yuan": "low_30",
+        "experience": "beginner",
+        "output": [
+          "led"
+        ],
+        "existing_hardware": [],
+        "special_requirements": [
+          "button_control"
+        ],
+        "mcu_specified": null
+      },
+      "devices": [
+        {
+          "name": "TTP223",
+          "type": "touch_sensor",
+          "interface": "GPIO",
+          "source": "user_specified",
+          "quantity": 1,
+          "notes": "用户指定触摸按键使用 TTP223，按下后为低电平",
+          "behavior": {
+            "role": "touch_button",
+            "event": "pressed",
+            "active_level": "low",
+            "idle_level": "high"
+          },
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.Pin",
+            "notes": "GPIO 输入；按下为低电平，代码生成阶段应按 active-low 处理"
+          }
+        },
+        {
+          "name": "LED",
+          "type": "led",
+          "interface": "GPIO",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.Pin",
+            "notes": "GPIO 输出"
+          }
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "type": "table",
+        "title": "器件驱动状态",
+        "headers": ["器件", "接口", "驱动来源", "状态"],
+        "rows": [
+          ["TTP223", "GPIO", "builtin_runtime", "OK"],
+          ["LED", "GPIO", "builtin_runtime", "OK"]
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": []
+  }
+}
