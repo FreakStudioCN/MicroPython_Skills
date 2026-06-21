@@ -1,0 +1,86 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "74d14303-8f90-4bb0-8d3f-0e9f85fc42b0",
+  "session_id": "022ad742-3269-42e9-ac20-c14f477ecdf2",
+  "phase": "select-hw",
+  "timestamp": "2026-06-21T06:51:20Z",
+  "type": "approval_request",
+  "idempotency_key": "select-hw:022ad742-3269-42e9-ac20-c14f477ecdf2:board-unavailable:v1",
+  "retry_of": null,
+  "payload": {
+    "approval_id": "board_unavailable",
+    "header": "指定板卡不在当前板卡库",
+    "question": "当前板卡库没有找到用户指定板卡，请选择继续方式",
+    "summary": {
+      "project_name": "语音对话助手",
+      "requested_board": "ESP32-C3 SuperMini",
+      "requested_mcu_or_module": "ESP32-C3",
+      "board_library": "upy-analyze-plugin/boards",
+      "reason": "board_not_found"
+    },
+    "recommended_similar_board": {
+      "id": "esp32-c3-devkitm",
+      "name": "ESP32-C3-DevKitM-1",
+      "subtitle": "同为 ESP32-C3，WiFi/BLE，MicroPython ESP32_GENERIC_C3",
+      "meta": "同系列且板卡库含 pin_layout，可继续自动分配引脚",
+      "selected": true
+    },
+    "known_board_options": [
+      {
+        "id": "esp32-c3-devkitm",
+        "name": "ESP32-C3-DevKitM-1",
+        "subtitle": "ESP32-C3 同系列替代",
+        "selected": true
+      },
+      {
+        "id": "esp32-devkit-v1",
+        "name": "ESP32 DevKit V1",
+        "subtitle": "ESP32 通用 WiFi/BLE，GPIO 更多",
+        "selected": false
+      },
+      {
+        "id": "raspberry-pi-pico-w",
+        "name": "Raspberry Pi Pico W",
+        "subtitle": "Pico W，WiFi/BLE，新手友好",
+        "selected": false
+      }
+    ],
+    "manual_wiring_schema": {
+      "description": "手动描述每条连线，格式为 MCU 引脚 -> 器件引脚。",
+      "fields": [
+        {"name": "mcu_pin", "required": true, "example": "GPIO21"},
+        {"name": "device", "required": true, "example": "AHT20"},
+        {"name": "device_pin", "required": true, "example": "SDA"},
+        {"name": "signal", "required": true, "example": "i2c_data"},
+        {"name": "voltage", "required": false, "example": "3.3V"},
+        {"name": "notes", "required": false, "example": "与其他 I2C 器件共享总线"}
+      ],
+      "examples": [
+        {"mcu_pin": "GPIO21", "device": "AHT20", "device_pin": "SDA", "signal": "i2c_data", "voltage": "3.3V"},
+        {"mcu_pin": "GPIO22", "device": "AHT20", "device_pin": "SCL", "signal": "i2c_clock", "voltage": "3.3V"},
+        {"mcu_pin": "3V3", "device": "AHT20", "device_pin": "VCC", "signal": "power_3v3", "voltage": "3.3V"},
+        {"mcu_pin": "GND", "device": "AHT20", "device_pin": "GND", "signal": "gnd", "voltage": "0V"}
+      ]
+    },
+    "multi_select": false,
+    "actions": [
+      {
+        "label": "使用相似板卡",
+        "value": "use_recommended_similar",
+        "primary": true
+      },
+      {
+        "label": "改选已知板卡",
+        "value": "select_known_board"
+      },
+      {
+        "label": "手动描述接线",
+        "value": "manual_wiring_description"
+      },
+      {
+        "label": "稍后继续",
+        "value": "save_partial"
+      }
+    ]
+  }
+}

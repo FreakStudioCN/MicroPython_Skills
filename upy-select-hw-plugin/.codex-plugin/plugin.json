@@ -1,0 +1,31 @@
+{
+  "name": "upy-select-hw-plugin",
+  "version": "0.1.0",
+  "description": "Workflow plugin phase for MicroPython board selection, firmware validation, pin assignment, and BOM generation.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "micropython",
+    "hardware",
+    "workflow",
+    "select-hw"
+  ],
+  "interface": {
+    "displayName": "upy-select-hw-plugin",
+    "shortDescription": "Selects a MicroPython board, pins, firmware, and BOM.",
+    "longDescription": "Consumes upy-analyze-plugin phase_complete manifest_content and emits a validated select-hw phase_complete payload for the downstream MicroPython firmware flashing phase.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run select-hw from an analyze phase_complete.",
+      "Validate a select-hw hardware manifest."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

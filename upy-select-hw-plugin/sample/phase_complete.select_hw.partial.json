@@ -1,0 +1,342 @@
+﻿{
+    "protocol_version":  "1.0",
+    "msg_id":  "40d13cec-c068-42ff-b7a8-a49a40298719",
+    "session_id":  "022ad742-3269-42e9-ac20-c14f477ecdf2",
+    "phase":  "select-hw",
+    "timestamp":  "2026-06-21T06:52:30Z",
+    "type":  "phase_complete",
+    "idempotency_key":  "select-hw:022ad742-3269-42e9-ac20-c14f477ecdf2:partial:v1",
+    "retry_of":  null,
+    "payload":  {
+                    "phase":  "select-hw",
+                    "result":  "partial",
+                    "summary":  "用户暂未确认继续方式，已保存 select-hw checkpoint",
+                    "next_phase":  null,
+                    "manifest_content":  {
+                                             "schema_version":  "1.0",
+                                             "phase":  "select-hw",
+                                             "created_at":  "2026-06-21T08:56:44Z",
+                                             "updated_at":  "2026-06-21T08:56:44Z",
+                                             "project_name":  "语音对话助手",
+                                             "requirements":  {
+                                                                  "description":  "PIR红外感应检测到人时触发对话模式，触摸装置发出语音，通过I2S麦克风和WiFi云端API进行语音对话(ASR+LLM+TTS)，同时可查询环境温湿度。",
+                                                                  "scene":  "indoor",
+                                                                  "power":  "usb",
+                                                                  "network":  "wifi",
+                                                                  "sample_rate":  "triggered",
+                                                                  "precision":  "normal",
+                                                                  "response_time":  "1s",
+                                                                  "temp_range":  "normal_0_40",
+                                                                  "size_constraint":  "none",
+                                                                  "budget_yuan":  "medium_100",
+                                                                  "experience":  "beginner",
+                                                                  "output":  [
+                                                                                 "serial",
+                                                                                 "cloud_http"
+                                                                             ],
+                                                                  "existing_hardware":  [
+
+                                                                                        ],
+                                                                  "special_requirements":  [
+                                                                                               "voice_control"
+                                                                                           ],
+                                                                  "mcu_specified":  "ESP32-C3"
+                                                              },
+                                             "devices":  [
+                                                             {
+                                                                 "name":  "HC-SR501",
+                                                                 "type":  "pir_sensor",
+                                                                 "interface":  "GPIO",
+                                                                 "source":  "user_specified",
+                                                                 "quantity":  1,
+                                                                 "driver":  {
+                                                                                "source":  "builtin_runtime",
+                                                                                "module":  "machine.Pin"
+                                                                            }
+                                                             },
+                                                             {
+                                                                 "name":  "TTP223",
+                                                                 "type":  "touch_sensor",
+                                                                 "interface":  "GPIO",
+                                                                 "source":  "user_specified",
+                                                                 "quantity":  1,
+                                                                 "driver":  {
+                                                                                "source":  "builtin_runtime",
+                                                                                "module":  "machine.Pin"
+                                                                            }
+                                                             },
+                                                             {
+                                                                 "name":  "AHT20",
+                                                                 "type":  "temperature_humidity_sensor",
+                                                                 "interface":  "I2C",
+                                                                 "source":  "user_specified",
+                                                                 "quantity":  1,
+                                                                 "i2c_addr":  [
+                                                                                  "0x38"
+                                                                              ],
+                                                                 "driver":  {
+                                                                                "source":  "upypi",
+                                                                                "package_name":  "micropython-ahtx0",
+                                                                                "install_cmd":  "mpremote mip install ahtx0"
+                                                                            }
+                                                             },
+                                                             {
+                                                                 "name":  "INMP441",
+                                                                 "type":  "i2s_microphone",
+                                                                 "interface":  "I2S",
+                                                                 "source":  "system_recommended",
+                                                                 "quantity":  1,
+                                                                 "driver":  {
+                                                                                "source":  "builtin_runtime",
+                                                                                "module":  "machine.I2S"
+                                                                            }
+                                                             },
+                                                             {
+                                                                 "name":  "MAX98357",
+                                                                 "type":  "i2s_amplifier",
+                                                                 "interface":  "I2S",
+                                                                 "source":  "system_recommended",
+                                                                 "quantity":  1,
+                                                                 "driver":  {
+                                                                                "source":  "builtin_runtime",
+                                                                                "module":  "machine.I2S"
+                                                                            }
+                                                             },
+                                                             {
+                                                                 "name":  "ESP32-C3 WiFi",
+                                                                 "type":  "wifi_module",
+                                                                 "interface":  "WiFi",
+                                                                 "source":  "system_recommended",
+                                                                 "quantity":  1,
+                                                                 "driver":  {
+                                                                                "source":  "builtin_runtime",
+                                                                                "module":  "network"
+                                                                            }
+                                                             }
+                                                         ],
+                                             "mcu":  {
+                                                         "model":  "ESP32-C3",
+                                                         "board_id":  "esp32-c3-devkitm",
+                                                         "display_name":  "ESP32-C3-DevKitM-1",
+                                                         "firmware_url":  "https://micropython.org/download/ESP32_GENERIC_C3/",
+                                                         "firmware_board_name":  "ESP32_GENERIC_C3",
+                                                         "flash_tool":  "esptool.py",
+                                                         "chip_family":  "esp32c3"
+                                                     },
+                                             "hardware_selection":  {
+                                                                        "source_phase":  "analyze",
+                                                                        "selected_board":  {
+                                                                                               "id":  "esp32-c3-devkitm",
+                                                                                               "display_name":  "ESP32-C3-DevKitM-1",
+                                                                                               "mcu":  "ESP32-C3-MINI-1",
+                                                                                               "chip_family":  "esp32c3",
+                                                                                               "firmware":  {
+                                                                                                                "url":  "https://micropython.org/download/ESP32_GENERIC_C3/",
+                                                                                                                "board_name":  "ESP32_GENERIC_C3",
+                                                                                                                "port":  "esp32"
+                                                                                                            },
+                                                                                               "price_yuan":  15
+                                                                                           },
+                                                                        "board_confirmed":  true,
+                                                                        "firmware_checked":  true,
+                                                                        "price_source":  "llm_common_knowledge_v0"
+                                                                    },
+                                             "pinout":  [
+                                                            {
+                                                                "device":  "AHT20",
+                                                                "pin_name":  "SDA",
+                                                                "gpio":  5,
+                                                                "type":  "i2c_data",
+                                                                "bus":  "i2c0",
+                                                                "i2c_addr":  "0x38",
+                                                                "source":  "default_bus",
+                                                                "notes":  "使用板卡定义的 i2c0 默认 SDA"
+                                                            },
+                                                            {
+                                                                "device":  "AHT20",
+                                                                "pin_name":  "SCL",
+                                                                "gpio":  6,
+                                                                "type":  "i2c_clock",
+                                                                "bus":  "i2c0",
+                                                                "i2c_addr":  "0x38",
+                                                                "source":  "default_bus",
+                                                                "notes":  "使用板卡定义的 i2c0 默认 SCL"
+                                                            },
+                                                            {
+                                                                "device":  "HC-SR501",
+                                                                "pin_name":  "OUT",
+                                                                "gpio":  4,
+                                                                "type":  "gpio_in",
+                                                                "source":  "auto_assigned",
+                                                                "notes":  "数字输入，不作为 ADC 使用"
+                                                            },
+                                                            {
+                                                                "device":  "TTP223",
+                                                                "pin_name":  "OUT",
+                                                                "gpio":  7,
+                                                                "type":  "gpio_in",
+                                                                "source":  "auto_assigned",
+                                                                "notes":  "避开 strapping、flash/PSRAM 和 USB 串口脚"
+                                                            },
+                                                            {
+                                                                "device":  "INMP441",
+                                                                "pin_name":  "BCK",
+                                                                "gpio":  10,
+                                                                "type":  "i2s_bck",
+                                                                "bus":  "i2s0",
+                                                                "source":  "auto_assigned",
+                                                                "notes":  "I2S BCK 自动分配到空余 GPIO"
+                                                            },
+                                                            {
+                                                                "device":  "INMP441",
+                                                                "pin_name":  "WS",
+                                                                "gpio":  11,
+                                                                "type":  "i2s_ws",
+                                                                "bus":  "i2s0",
+                                                                "source":  "auto_assigned",
+                                                                "notes":  "I2S WS 自动分配到空余 GPIO"
+                                                            },
+                                                            {
+                                                                "device":  "INMP441",
+                                                                "pin_name":  "SD",
+                                                                "gpio":  20,
+                                                                "type":  "i2s_data_in",
+                                                                "bus":  "i2s0",
+                                                                "source":  "user_wiring",
+                                                                "notes":  "用户接线确认使用 USB 串口 RX 脚，后续调试需避免占用 USB CDC"
+                                                            },
+                                                            {
+                                                                "device":  "MAX98357",
+                                                                "pin_name":  "DIN",
+                                                                "gpio":  21,
+                                                                "type":  "i2s_data_out",
+                                                                "bus":  "i2s0",
+                                                                "source":  "user_wiring",
+                                                                "notes":  "用户接线确认使用 USB 串口 TX 脚，后续调试需避免占用 USB CDC"
+                                                            },
+                                                            {
+                                                                "device":  "power",
+                                                                "pin_name":  "3V3",
+                                                                "gpio":  "3V3",
+                                                                "type":  "power_3v3",
+                                                                "source":  "power"
+                                                            },
+                                                            {
+                                                                "device":  "power",
+                                                                "pin_name":  "GND",
+                                                                "gpio":  "GND",
+                                                                "type":  "gnd",
+                                                                "source":  "power"
+                                                            }
+                                                        ],
+                                             "bom":  [
+                                                         {
+                                                             "name":  "主控板",
+                                                             "model":  "ESP32-C3-DevKitM-1",
+                                                             "quantity":  1,
+                                                             "unit_price_yuan":  15,
+                                                             "notes":  "MicroPython ESP32-C3"
+                                                         },
+                                                         {
+                                                             "name":  "PIR红外人体传感器",
+                                                             "model":  "HC-SR501",
+                                                             "quantity":  1,
+                                                             "unit_price_yuan":  6,
+                                                             "notes":  "GPIO 输入"
+                                                         },
+                                                         {
+                                                             "name":  "触摸传感器",
+                                                             "model":  "TTP223",
+                                                             "quantity":  1,
+                                                             "unit_price_yuan":  3,
+                                                             "notes":  "GPIO 输入"
+                                                         },
+                                                         {
+                                                             "name":  "温湿度传感器",
+                                                             "model":  "AHT20",
+                                                             "quantity":  1,
+                                                             "unit_price_yuan":  12,
+                                                             "notes":  "I2C"
+                                                         },
+                                                         {
+                                                             "name":  "I2S麦克风",
+                                                             "model":  "INMP441",
+                                                             "quantity":  1,
+                                                             "unit_price_yuan":  10,
+                                                             "notes":  "I2S 输入"
+                                                         },
+                                                         {
+                                                             "name":  "I2S功放",
+                                                             "model":  "MAX98357",
+                                                             "quantity":  1,
+                                                             "unit_price_yuan":  12,
+                                                             "notes":  "I2S 输出"
+                                                         }
+                                                     ],
+                                             "estimated_total_yuan":  58,
+                                             "final_status":  "hardware_selected"
+                                         },
+                    "checkpoint":  {
+                                       "checkpoint_id":  "fdabf459-b28c-4582-a05d-d89e1ddfa66d",
+                                       "resume_phase":  "select-hw",
+                                       "resume_step":  "board_select",
+                                       "resume_label":  "继续选择 MicroPython 开发板",
+                                       "reason":  "user_cancelled",
+                                       "state_ref":  {
+                                                         "artifact":  "select_hw_draft.json"
+                                                     }
+                                   },
+                    "artifacts":  [
+                                      {
+                                          "type":  "file_list",
+                                          "title":  "select-hw 直测产物",
+                                          "files":  [
+                                                        {
+                                                            "path":  "select_hw_draft.json",
+                                                            "status":  "created",
+                                                            "kind":  "draft",
+                                                            "mime_type":  "application/json",
+                                                            "description":  "select-hw 草稿"
+                                                        },
+                                                        {
+                                                            "path":  "select_hw_manifest.after.json",
+                                                            "status":  "created",
+                                                            "kind":  "manifest",
+                                                            "mime_type":  "application/json",
+                                                            "description":  "校验规范化后的 select-hw manifest"
+                                                        },
+                                                        {
+                                                            "path":  "phase_complete.select_hw.partial.json",
+                                                            "status":  "created",
+                                                            "kind":  "phase_complete",
+                                                            "mime_type":  "application/json",
+                                                            "description":  "partial select-hw 阶段消息"
+                                                        },
+                                                        {
+                                                            "path":  "pin_assignment_log.md",
+                                                            "status":  "created",
+                                                            "kind":  "log",
+                                                            "mime_type":  "text/markdown",
+                                                            "description":  "引脚分配日志"
+                                                        },
+                                                        {
+                                                            "path":  "select_hw_phase_log.md",
+                                                            "status":  "created",
+                                                            "kind":  "log",
+                                                            "mime_type":  "text/markdown",
+                                                            "description":  "select-hw 阶段日志"
+                                                        }
+                                                    ]
+                                      }
+                                  ],
+                    "warnings":  [
+                                     "用户取消或稍后继续，未进入固件烧录阶段"
+                                 ],
+                    "errors":  [
+
+                               ],
+                    "structured_errors":  [
+
+                                          ]
+                }
+}

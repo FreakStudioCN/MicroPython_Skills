@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-select-hw-plugin",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-select-hw-plugin",
+  "branch": "main",
+  "source": "manual"
+}

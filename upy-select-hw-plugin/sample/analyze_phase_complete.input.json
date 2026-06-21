@@ -1,0 +1,118 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "8a3f2c71-b5d4-4e1a-9f6c-0d8e3a7b2c11",
+  "session_id": "022ad742-3269-42e9-ac20-c14f477ecdf2",
+  "phase": "analyze",
+  "timestamp": "2026-06-21T06:50:00Z",
+  "type": "phase_complete",
+  "payload": {
+    "phase": "analyze",
+    "result": "success",
+    "summary": "器件分析完成：识别到6个器件（PIR/触摸/温湿度/麦克风/功放/WiFi），全部有可用运行时能力或驱动。ESP32-C3已记录为MCU偏好。",
+    "next_phase": "select-hw",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "analyze",
+      "project_name": "语音对话助手",
+      "requirements": {
+        "description": "PIR红外感应检测到人时触发对话模式，触摸装置发出语音，通过I2S麦克风和WiFi云端API进行语音对话(ASR+LLM+TTS)，同时可查询环境温湿度。",
+        "scene": "indoor",
+        "power": "usb",
+        "network": "wifi",
+        "sample_rate": "triggered",
+        "precision": "normal",
+        "response_time": "1s",
+        "temp_range": "normal_0_40",
+        "size_constraint": "none",
+        "budget_yuan": "medium_100",
+        "experience": "beginner",
+        "output": ["serial", "cloud_http"],
+        "existing_hardware": [],
+        "special_requirements": ["voice_control"],
+        "mcu_specified": "ESP32-C3"
+      },
+      "devices": [
+        {
+          "name": "HC-SR501",
+          "type": "pir_sensor",
+          "interface": "GPIO",
+          "source": "user_specified",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.Pin",
+            "notes": "PIR数字输出，通过machine.Pin中断检测人体移动。"
+          }
+        },
+        {
+          "name": "TTP223",
+          "type": "touch_sensor",
+          "interface": "GPIO",
+          "source": "user_specified",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.Pin",
+            "notes": "电容触摸模块，数字输出。"
+          }
+        },
+        {
+          "name": "AHT20",
+          "type": "temperature_humidity_sensor",
+          "interface": "I2C",
+          "source": "user_specified",
+          "quantity": 1,
+          "i2c_addr": ["0x38"],
+          "driver": {
+            "source": "upypi",
+            "package_name": "micropython-ahtx0",
+            "version": "0.1.2",
+            "install_cmd": "mpremote mip install ahtx0",
+            "module": "ahtx0"
+          }
+        },
+        {
+          "name": "INMP441",
+          "type": "i2s_microphone",
+          "interface": "I2S",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.I2S",
+            "notes": "machine.I2S提供I2S底层API进行音频采样。"
+          }
+        },
+        {
+          "name": "MAX98357",
+          "type": "i2s_amplifier",
+          "interface": "I2S",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "machine.I2S",
+            "notes": "machine.I2S提供I2S底层API进行音频播放。"
+          }
+        },
+        {
+          "name": "ESP32-C3 WiFi",
+          "type": "wifi_module",
+          "interface": "WiFi",
+          "source": "system_recommended",
+          "quantity": 1,
+          "driver": {
+            "source": "builtin_runtime",
+            "module": "network",
+            "notes": "ESP32-C3内置WiFi。"
+          }
+        }
+      ],
+      "final_status": "pending"
+    },
+    "artifacts": [],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": []
+  }
+}

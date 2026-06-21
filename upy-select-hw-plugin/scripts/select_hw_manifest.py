@@ -1,0 +1,1032 @@
+#!/usr/bin/env python3
+"""
+Validate and normalize upy-select-hw-plugin draft manifests.
+
+This script is a validator/normalizer. It does not write project files unless
+--write-path is explicitly provided.
+"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import json
+import os
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+PROTOCOL_VERSION = "1.0"
+PHASE = "select-hw"
+NEXT_PHASE = "flash-mpy-firmware"
+SKILL_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = SKILL_DIR.parent
+DEFAULT_BOARD_ROOT = REPO_ROOT / "upy-analyze-plugin" / "boards"
+
+MESSAGE_TYPES = {
+    "start_phase",
+    "status_update",
+    "approval_request",
+    "approval_response",
+    "script_run",
+    "script_result",
+    "file_operation",
+    "file_result",
+    "device_command",
+    "device_result",
+    "phase_complete",
+}
+
+RESULTS = {"success", "failed", "partial"}
+ARTIFACT_TYPES = {"table", "file_tree", "markdown", "html", "code_diff", "file_list"}
+FILE_STATUSES = {"created", "updated", "unchanged", "skipped", "error"}
+STRUCTURED_SEVERITIES = {"info", "warning", "error", "fatal"}
+STRUCTURED_CODES = {
+    "invalid_upstream_manifest",
+    "missing_required_field",
+    "invalid_enum",
+    "board_not_found",
+    "firmware_unknown",
+    "missing_pin_layout",
+    "pin_conflict",
+    "i2c_address_conflict",
+    "permission_denied",
+    "script_failed",
+    "timeout",
+    "phase_complete_invalid",
+    "board_definition_not_found",
+    "board_definition_invalid",
+    "restricted_gpio_used",
+    "default_bus_pin_deviation",
+    "onboard_peripheral_pin_used",
+    "onboard_peripheral_reused",
+    "user_wiring_invalid",
+    "occupied_pin_conflict",
+    "artifact_missing",
+    "absolute_path_in_artifact",
+}
+FLASH_TOOLS = {"esptool.py", "uf2-drag-drop", "dfu-util", "teensy-loader", "unknown"}
+PIN_TYPES = {
+    "power_3v3",
+    "power_5v",
+    "gnd",
+    "i2c_data",
+    "i2c_clock",
+    "spi_mosi",
+    "spi_miso",
+    "spi_sck",
+    "spi_cs",
+    "uart_tx",
+    "uart_rx",
+    "gpio_out",
+    "gpio_in",
+    "gpio_in_pullup",
+    "adc",
+    "pwm",
+    "i2s_bck",
+    "i2s_ws",
+    "i2s_data_in",
+    "i2s_data_out",
+    "wifi_internal",
+    "reserved",
+}
+PIN_SOURCES = {
+    "default_bus",
+    "auto_assigned",
+    "user_wiring",
+    "onboard_peripheral",
+    "power",
+}
+
+VALID_DRIVER_SOURCES = {
+    "builtin_runtime",
+    "micropython_lib",
+    "upypi",
+    "awesome-micropython",
+    "github",
+    "local",
+    "cold-driver",
+    "none",
+}
+VALID_DEVICE_INTERFACES = {
+    "I2C",
+    "SPI",
+    "UART",
+    "GPIO",
+    "PWM",
+    "ADC",
+    "I2S",
+    "1-Wire",
+    "CAN",
+    "USB",
+    "WiFi",
+    "BLE",
+}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def load_input(args: argparse.Namespace) -> dict[str, Any]:
+    if args.stdin:
+        return json.load(sys.stdin)
+    if args.input:
+        with open(args.input, "r", encoding="utf-8-sig") as f:
+            return json.load(f)
+    raise ValueError("must provide --stdin or --input")
+
+
+def emit_json(payload: dict[str, Any], exit_code: int) -> None:
+    json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
+    sys.stdout.write("\n")
+    raise SystemExit(exit_code)
+
+
+def require_object(value: Any, field: str, errors: list[str]) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        errors.append(f"{field} must be an object")
+        return None
+    return value
+
+
+def require_list(value: Any, field: str, errors: list[str]) -> list[Any] | None:
+    if not isinstance(value, list):
+        errors.append(f"{field} must be an array")
+        return None
+    return value
+
+
+def validate_protocol_version(data: dict[str, Any], errors: list[str]) -> None:
+    if data.get("protocol_version") != PROTOCOL_VERSION:
+        errors.append(f"protocol_version must be '{PROTOCOL_VERSION}'")
+
+
+def validate_upstream_manifest(manifest: Any, errors: list[str], warnings: list[str]) -> None:
+    upstream = require_object(manifest, "upstream_manifest", errors)
+    if upstream is None:
+        return
+
+    required = ["schema_version", "phase", "project_name", "requirements", "devices"]
+    for field in required:
+        if field not in upstream:
+            errors.append(f"upstream_manifest.{field} is required")
+
+    if upstream.get("phase") != "analyze":
+        errors.append("upstream_manifest.phase must be 'analyze'")
+
+    requirements = require_object(upstream.get("requirements"), "upstream_manifest.requirements", errors)
+    devices = require_list(upstream.get("devices"), "upstream_manifest.devices", errors)
+    if requirements is not None:
+        for field in ["description", "existing_hardware", "mcu_specified"]:
+            if field not in requirements:
+                errors.append(f"upstream_manifest.requirements.{field} is required")
+        if not isinstance(requirements.get("existing_hardware", []), list):
+            errors.append("upstream_manifest.requirements.existing_hardware must be an array")
+    if devices is not None:
+        if not devices:
+            errors.append("upstream_manifest.devices must not be empty")
+        for index, device in enumerate(devices):
+            prefix = f"upstream_manifest.devices[{index}]"
+            item = require_object(device, prefix, errors)
+            if item is None:
+                continue
+            for field in ["name", "type", "interface", "source", "driver"]:
+                if field not in item:
+                    errors.append(f"{prefix}.{field} is required")
+            interface = item.get("interface")
+            if interface not in VALID_DEVICE_INTERFACES:
+                errors.append(
+                    f"{prefix}.interface invalid value '{interface}', valid values: {sorted(VALID_DEVICE_INTERFACES)}"
+                )
+            driver = require_object(item.get("driver"), f"{prefix}.driver", errors)
+            if driver is not None:
+                source = driver.get("source")
+                if source not in VALID_DRIVER_SOURCES:
+                    errors.append(
+                        f"{prefix}.driver.source invalid value '{source}', valid values: {sorted(VALID_DRIVER_SOURCES)}"
+                    )
+                if source == "cold-driver":
+                    warnings.append(f"{prefix} uses cold-driver; select-hw will continue but downstream gen-driver is required")
+
+
+def validate_mcu(mcu: Any, errors: list[str]) -> None:
+    obj = require_object(mcu, "hardware_plan.mcu", errors)
+    if obj is None:
+        return
+    required = [
+        "model",
+        "board_id",
+        "display_name",
+        "firmware_url",
+        "firmware_board_name",
+        "flash_tool",
+    ]
+    for field in required:
+        if not obj.get(field):
+            errors.append(f"hardware_plan.mcu.{field} is required")
+    if obj.get("flash_tool") not in FLASH_TOOLS:
+        errors.append(
+            f"hardware_plan.mcu.flash_tool invalid value '{obj.get('flash_tool')}', valid values: {sorted(FLASH_TOOLS)}"
+        )
+
+
+def gpio_key(value: Any) -> str:
+    text = str(value).strip().upper()
+    if text.startswith("GPIO"):
+        text = text[4:]
+    return text
+
+
+def load_board_definition(board_root: Path | None, board_id: str | None, errors: list[str]) -> dict[str, Any] | None:
+    if not board_id:
+        errors.append("hardware_plan.mcu.board_id is required for board definition validation")
+        return None
+    root = board_root or DEFAULT_BOARD_ROOT
+    path = root / f"{board_id}.json"
+    if not path.is_file():
+        errors.append(f"board definition not found: {path}")
+        return None
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            board = json.load(f)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"board definition load failed: {path}: {exc}")
+        return None
+    if not isinstance(board, dict):
+        errors.append(f"board definition must be an object: {path}")
+        return None
+    if board.get("id") != board_id:
+        errors.append(f"board definition id '{board.get('id')}' does not match board_id '{board_id}'")
+    if not isinstance(board.get("pin_layout"), dict):
+        errors.append(f"board definition {board_id} must include pin_layout")
+    return board
+
+
+def validate_selected_board_against_definition(
+    selected_board: dict[str, Any] | None,
+    mcu: dict[str, Any] | None,
+    board: dict[str, Any] | None,
+    errors: list[str],
+) -> None:
+    if selected_board is None or mcu is None or board is None:
+        return
+    if selected_board.get("id") and selected_board.get("id") != board.get("id"):
+        errors.append(f"selected_board.id '{selected_board.get('id')}' does not match board definition '{board.get('id')}'")
+    firmware = board.get("firmware", {})
+    selected_firmware = selected_board.get("firmware", {})
+    if firmware.get("board_name") and selected_firmware.get("board_name") != firmware.get("board_name"):
+        errors.append("selected_board.firmware.board_name does not match board definition")
+    if firmware.get("url") and selected_firmware.get("url") != firmware.get("url"):
+        errors.append("selected_board.firmware.url does not match board definition")
+    if firmware.get("board_name") and mcu.get("firmware_board_name") != firmware.get("board_name"):
+        errors.append("hardware_plan.mcu.firmware_board_name does not match board definition")
+    if firmware.get("url") and mcu.get("firmware_url") != firmware.get("url"):
+        errors.append("hardware_plan.mcu.firmware_url does not match board definition")
+
+
+def restricted_pin_sets(board: dict[str, Any]) -> dict[str, set[str]]:
+    restricted = board.get("pin_layout", {}).get("restricted_gpio", {})
+    result: dict[str, set[str]] = {}
+    if not isinstance(restricted, dict):
+        return result
+    for key, values in restricted.items():
+        if isinstance(values, list):
+            result[key] = {gpio_key(value) for value in values}
+    return result
+
+
+def onboard_occupied_pins(board: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    occupied: dict[str, dict[str, Any]] = {}
+    peripherals = board.get("onboard_peripherals", [])
+    if not isinstance(peripherals, list):
+        return occupied
+    for peripheral in peripherals:
+        if not isinstance(peripheral, dict):
+            continue
+        pins = peripheral.get("occupied_pins", {})
+        if not isinstance(pins, dict):
+            continue
+        for signal, gpio in pins.items():
+            occupied[gpio_key(gpio)] = {
+                "name": peripheral.get("name", "onboard_peripheral"),
+                "type": peripheral.get("type"),
+                "signal": signal,
+                "always_used": bool(peripheral.get("always_used")),
+            }
+    return occupied
+
+
+def pin_source(item: dict[str, Any]) -> str:
+    source = item.get("source")
+    if isinstance(source, str) and source:
+        return source
+    pin_type = item.get("type")
+    if pin_type in {"power_3v3", "power_5v", "gnd"}:
+        return "power"
+    return "auto_assigned"
+
+
+def validate_pin_source(item: dict[str, Any], prefix: str, errors: list[str]) -> None:
+    source = item.get("source")
+    if source is not None and source not in PIN_SOURCES:
+        errors.append(f"{prefix}.source invalid value '{source}', valid values: {sorted(PIN_SOURCES)}")
+
+
+def default_bus_expected_pins(board: dict[str, Any]) -> dict[tuple[str, str], str]:
+    defaults = board.get("pin_layout", {}).get("default_bus_pins", {})
+    expected: dict[tuple[str, str], str] = {}
+    if not isinstance(defaults, dict):
+        return expected
+    signal_aliases = {
+        "sda": {"i2c_data"},
+        "scl": {"i2c_clock"},
+        "mosi": {"spi_mosi"},
+        "miso": {"spi_miso"},
+        "clk": {"spi_sck", "i2s_bck"},
+        "sck": {"spi_sck"},
+        "cs": {"spi_cs"},
+        "tx": {"uart_tx"},
+        "rx": {"uart_rx"},
+        "bck": {"i2s_bck"},
+        "ws": {"i2s_ws"},
+        "data_in": {"i2s_data_in"},
+        "data_out": {"i2s_data_out"},
+    }
+    for bus, pins in defaults.items():
+        if not isinstance(pins, dict):
+            continue
+        for signal, gpio in pins.items():
+            for pin_type in signal_aliases.get(signal, set()):
+                expected[(str(bus), pin_type)] = gpio_key(gpio)
+    return expected
+
+
+def has_reason(item: dict[str, Any]) -> bool:
+    notes = item.get("notes")
+    return isinstance(notes, str) and bool(notes.strip())
+
+
+def validate_pinout_against_board(
+    pinout: Any,
+    board: dict[str, Any] | None,
+    requirements: dict[str, Any] | None,
+    errors: list[str],
+    warnings: list[str],
+    *,
+    strict_board_pins: bool,
+) -> None:
+    if board is None:
+        return
+    items = require_list(pinout, "hardware_plan.pinout", errors)
+    if items is None:
+        return
+    restricted = restricted_pin_sets(board)
+    occupied = onboard_occupied_pins(board)
+    defaults = default_bus_expected_pins(board)
+    wifi_enabled = bool(requirements and requirements.get("network") == "wifi")
+    adc2_digital_uses: dict[str, list[str]] = {}
+    hard_forbidden = set()
+    for key in ["flash_psram_occupied", "reserved", "internal_only"]:
+        hard_forbidden.update(restricted.get(key, set()))
+
+    for index, raw in enumerate(items):
+        prefix = f"hardware_plan.pinout[{index}]"
+        if not isinstance(raw, dict):
+            continue
+        validate_pin_source(raw, prefix, errors)
+        pin_type = raw.get("type")
+        gpio = gpio_key(raw.get("gpio", ""))
+        if not gpio or gpio in {"3V3", "5V", "GND"}:
+            continue
+
+        source = pin_source(raw)
+        if gpio in hard_forbidden:
+            errors.append(f"{prefix}.gpio {gpio} is forbidden by board restricted_gpio")
+        if gpio in restricted.get("usb_serial_pins", set()) and source != "user_wiring":
+            errors.append(f"{prefix}.gpio {gpio} is a USB serial pin; require explicit user_wiring to use it")
+        if gpio in restricted.get("strapping", set()) or gpio in restricted.get("boot", set()):
+            message = f"{prefix}.gpio {gpio} is a boot/strapping pin and should be avoided"
+            if strict_board_pins:
+                errors.append(message)
+            else:
+                warnings.append(message)
+            if not has_reason(raw):
+                warnings.append(f"{prefix}.notes should explain boot/strapping pin usage")
+        if gpio in restricted.get("input_only", set()) and pin_type not in {"gpio_in", "gpio_in_pullup", "adc", "i2s_data_in", "uart_rx"}:
+            errors.append(f"{prefix}.gpio {gpio} is input-only but type is {pin_type}")
+        if gpio in restricted.get("adc_only", set()) and pin_type != "adc":
+            errors.append(f"{prefix}.gpio {gpio} is ADC-only but type is {pin_type}")
+        if wifi_enabled and gpio in restricted.get("adc2_wifi_conflict", set()):
+            if pin_type == "adc":
+                errors.append(f"{prefix}.gpio {gpio} is ADC2/WiFi conflict pin while WiFi is enabled")
+            else:
+                adc2_digital_uses.setdefault(gpio, []).append(f"{raw.get('device', '?')}/{raw.get('pin_name', '?')}:{pin_type}")
+
+        occupied_info = occupied.get(gpio)
+        if occupied_info and source != "onboard_peripheral":
+            if occupied_info.get("always_used"):
+                errors.append(f"{prefix}.gpio {gpio} is occupied by onboard peripheral {occupied_info['name']}")
+            elif source != "user_wiring":
+                warnings.append(f"{prefix}.gpio {gpio} is occupied by onboard peripheral {occupied_info['name']}; explain release in notes")
+                if not has_reason(raw):
+                    warnings.append(f"{prefix}.notes should explain onboard peripheral pin reuse")
+        if source == "onboard_peripheral" and not occupied_info:
+            warnings.append(f"{prefix}.source onboard_peripheral but gpio {gpio} is not declared in board onboard_peripherals")
+
+        bus = raw.get("bus")
+        if isinstance(bus, str) and (bus, str(pin_type)) in defaults and source != "user_wiring":
+            expected_gpio = defaults[(bus, str(pin_type))]
+            if gpio != expected_gpio:
+                message = f"{prefix}.gpio {gpio} deviates from board default {bus}/{pin_type}=GPIO{expected_gpio}"
+                if strict_board_pins:
+                    errors.append(message)
+                else:
+                    warnings.append(message)
+                if not has_reason(raw):
+                    warnings.append(f"{prefix}.notes should explain default bus pin deviation")
+
+    if adc2_digital_uses:
+        used = ", ".join(
+            f"GPIO{gpio}({'; '.join(descriptions)})"
+            for gpio, descriptions in sorted(
+                adc2_digital_uses.items(),
+                key=lambda item: int(item[0]) if item[0].isdigit() else item[0],
+            )
+        )
+        warnings.append(
+            "ADC2/WiFi conflict pins are used only as digital signals: "
+            f"{used}; WiFi conflicts with ADC reads, not digital GPIO/I2C/I2S use"
+        )
+
+
+def is_shareable_pin(pin_type: str, pin_name: str) -> bool:
+    if pin_type in {"power_3v3", "power_5v", "gnd", "wifi_internal", "reserved"}:
+        return True
+    if pin_type in {"i2c_data", "i2c_clock", "spi_mosi", "spi_miso", "spi_sck", "i2s_bck", "i2s_ws"}:
+        return True
+    return pin_name.upper() in {"SDA", "SCL", "MOSI", "MISO", "SCK", "BCK", "WS"}
+
+
+def validate_pinout(pinout: Any, errors: list[str], warnings: list[str]) -> None:
+    items = require_list(pinout, "hardware_plan.pinout", errors)
+    if items is None:
+        return
+    if not items:
+        errors.append("hardware_plan.pinout must not be empty")
+        return
+
+    gpio_owners: dict[str, str] = {}
+    i2c_addresses: dict[tuple[str, str], str] = {}
+    has_power = False
+    has_gnd = False
+    i2s_types = set()
+
+    for index, raw in enumerate(items):
+        prefix = f"hardware_plan.pinout[{index}]"
+        item = require_object(raw, prefix, errors)
+        if item is None:
+            continue
+        for field in ["device", "pin_name", "gpio", "type"]:
+            if field not in item or item[field] in (None, ""):
+                errors.append(f"{prefix}.{field} is required")
+
+        pin_type = item.get("type")
+        if pin_type not in PIN_TYPES:
+            errors.append(f"{prefix}.type invalid value '{pin_type}', valid values: {sorted(PIN_TYPES)}")
+            continue
+
+        if pin_type in {"power_3v3", "power_5v"}:
+            has_power = True
+        if pin_type == "gnd":
+            has_gnd = True
+        if pin_type.startswith("i2s_"):
+            i2s_types.add(pin_type)
+
+        gpio = str(item.get("gpio", ""))
+        pin_name = str(item.get("pin_name", ""))
+        if gpio and not is_shareable_pin(pin_type, pin_name):
+            if gpio in gpio_owners:
+                errors.append(f"{prefix}.gpio {gpio} conflicts with {gpio_owners[gpio]}")
+            else:
+                gpio_owners[gpio] = item.get("device", prefix)
+
+        if pin_type in {"i2c_data", "i2c_clock"} and item.get("i2c_addr"):
+            bus = str(item.get("bus", "i2c0"))
+            addr = str(item.get("i2c_addr"))
+            key = (bus, addr)
+            owner = item.get("device", prefix)
+            if key in i2c_addresses and i2c_addresses[key] != owner:
+                errors.append(f"{prefix}.i2c_addr {addr} conflicts on {bus} with {i2c_addresses[key]}")
+            i2c_addresses[key] = owner
+
+    if not has_power:
+        errors.append("hardware_plan.pinout must include at least one power pin")
+    if not has_gnd:
+        errors.append("hardware_plan.pinout must include at least one ground pin")
+    if i2s_types and not {"i2s_bck", "i2s_ws"}.issubset(i2s_types):
+        warnings.append("I2S pinout should include both i2s_bck and i2s_ws")
+
+
+def validate_bom(bom: Any, errors: list[str]) -> float:
+    items = require_list(bom, "hardware_plan.bom", errors)
+    total = 0.0
+    if items is None:
+        return total
+    if not items:
+        errors.append("hardware_plan.bom must not be empty")
+        return total
+    for index, raw in enumerate(items):
+        prefix = f"hardware_plan.bom[{index}]"
+        item = require_object(raw, prefix, errors)
+        if item is None:
+            continue
+        for field in ["name", "model", "quantity", "unit_price_yuan"]:
+            if field not in item or item[field] in (None, ""):
+                errors.append(f"{prefix}.{field} is required")
+        try:
+            quantity = float(item.get("quantity", 0))
+            unit_price = float(item.get("unit_price_yuan", 0))
+        except (TypeError, ValueError):
+            errors.append(f"{prefix}.quantity and unit_price_yuan must be numeric")
+            continue
+        if quantity <= 0:
+            errors.append(f"{prefix}.quantity must be positive")
+        if unit_price < 0:
+            errors.append(f"{prefix}.unit_price_yuan must not be negative")
+        total += quantity * unit_price
+    return total
+
+
+def normalize_manifest(draft: dict[str, Any]) -> dict[str, Any]:
+    upstream = copy.deepcopy(draft["upstream_manifest"])
+    plan = copy.deepcopy(draft["hardware_plan"])
+    mcu = copy.deepcopy(plan["mcu"])
+    estimated_total = plan.get("estimated_total_yuan")
+    if estimated_total is None:
+        estimated_total = sum(
+            float(item.get("quantity", 1)) * float(item.get("unit_price_yuan", 0))
+            for item in plan.get("bom", [])
+        )
+
+    manifest = {
+        "schema_version": upstream.get("schema_version", "1.0"),
+        "phase": PHASE,
+        "created_at": upstream.get("created_at", utc_now()),
+        "updated_at": utc_now(),
+        "project_name": upstream["project_name"],
+        "requirements": upstream["requirements"],
+        "devices": upstream["devices"],
+        "mcu": mcu,
+        "hardware_selection": {
+            "source_phase": draft.get("source_phase", "analyze"),
+            "selected_board": copy.deepcopy(draft.get("selected_board", {})),
+            "board_confirmed": True,
+            "firmware_checked": True,
+            "price_source": "llm_common_knowledge_v0",
+        },
+        "pinout": copy.deepcopy(plan.get("pinout", [])),
+        "bom": copy.deepcopy(plan.get("bom", [])),
+        "estimated_total_yuan": estimated_total,
+        "final_status": "hardware_selected",
+    }
+    return manifest
+
+
+def validate_draft(
+    draft: dict[str, Any],
+    board_root: Path | None = None,
+    *,
+    strict_board_pins: bool = False,
+) -> tuple[list[str], list[str], dict[str, Any] | None]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    validate_protocol_version(draft, errors)
+
+    if not draft.get("session_id"):
+        errors.append("session_id is required")
+    if draft.get("source_phase") != "analyze":
+        errors.append("source_phase must be 'analyze'")
+
+    validate_upstream_manifest(draft.get("upstream_manifest"), errors, warnings)
+    selected_board = require_object(draft.get("selected_board"), "selected_board", errors)
+    if selected_board is not None:
+        for field in ["id", "display_name", "mcu", "firmware"]:
+            if field not in selected_board:
+                errors.append(f"selected_board.{field} is required")
+        firmware = require_object(selected_board.get("firmware"), "selected_board.firmware", errors)
+        if firmware is not None:
+            for field in ["url", "board_name"]:
+                if not firmware.get(field):
+                    errors.append(f"selected_board.firmware.{field} is required")
+
+    plan = require_object(draft.get("hardware_plan"), "hardware_plan", errors)
+    board_definition = None
+    mcu_obj = plan.get("mcu") if isinstance(plan, dict) and isinstance(plan.get("mcu"), dict) else None
+    if mcu_obj is not None:
+        board_definition = load_board_definition(board_root, mcu_obj.get("board_id"), errors)
+        validate_selected_board_against_definition(selected_board, mcu_obj, board_definition, errors)
+    if plan is not None:
+        validate_mcu(plan.get("mcu"), errors)
+        validate_pinout(plan.get("pinout"), errors, warnings)
+        requirements = draft.get("upstream_manifest", {}).get("requirements")
+        if not isinstance(requirements, dict):
+            requirements = {}
+        validate_pinout_against_board(
+            plan.get("pinout"),
+            board_definition,
+            requirements,
+            errors,
+            warnings,
+            strict_board_pins=strict_board_pins,
+        )
+        total = validate_bom(plan.get("bom"), errors)
+        declared_total = plan.get("estimated_total_yuan")
+        if declared_total is None:
+            warnings.append("hardware_plan.estimated_total_yuan missing; computed from BOM")
+        else:
+            try:
+                declared = float(declared_total)
+                if abs(declared - total) > 0.01:
+                    warnings.append(f"estimated_total_yuan {declared:g} differs from computed BOM total {total:g}")
+            except (TypeError, ValueError):
+                errors.append("hardware_plan.estimated_total_yuan must be numeric")
+
+    if errors:
+        return errors, warnings, None
+    return errors, warnings, normalize_manifest(draft)
+
+
+def phase_payload(data: dict[str, Any]) -> dict[str, Any]:
+    payload = data.get("payload")
+    if isinstance(payload, dict):
+        return payload
+    return data
+
+
+def validate_structured_errors(value: Any, errors: list[str]) -> None:
+    items = require_list(value, "phase_complete.structured_errors", errors)
+    if items is None:
+        return
+    for index, raw in enumerate(items):
+        prefix = f"phase_complete.structured_errors[{index}]"
+        item = require_object(raw, prefix, errors)
+        if item is None:
+            continue
+        for field in ["code", "message", "severity", "recoverable", "retryable", "source"]:
+            if field not in item:
+                errors.append(f"{prefix}.{field} is required")
+        if item.get("severity") not in STRUCTURED_SEVERITIES:
+            errors.append(f"{prefix}.severity invalid value '{item.get('severity')}', valid values: {sorted(STRUCTURED_SEVERITIES)}")
+        if item.get("code") not in STRUCTURED_CODES:
+            errors.append(f"{prefix}.code invalid value '{item.get('code')}', valid values: {sorted(STRUCTURED_CODES)}")
+        for field in ["recoverable", "retryable"]:
+            if field in item and not isinstance(item[field], bool):
+                errors.append(f"{prefix}.{field} must be a boolean")
+
+
+def validate_artifacts(value: Any, errors: list[str], artifact_root: Path | None) -> None:
+    artifacts = require_list(value, "phase_complete.artifacts", errors)
+    if artifacts is None:
+        return
+    for index, raw in enumerate(artifacts):
+        prefix = f"phase_complete.artifacts[{index}]"
+        artifact = require_object(raw, prefix, errors)
+        if artifact is None:
+            continue
+        artifact_type = artifact.get("type")
+        if artifact_type not in ARTIFACT_TYPES:
+            errors.append(f"{prefix}.type invalid value '{artifact_type}', valid values: {sorted(ARTIFACT_TYPES)}")
+            continue
+        if artifact_type == "table":
+            if not isinstance(artifact.get("headers"), list):
+                errors.append(f"{prefix}.headers must be an array")
+            if not isinstance(artifact.get("rows"), list):
+                errors.append(f"{prefix}.rows must be an array")
+        if artifact_type == "file_list":
+            files = require_list(artifact.get("files"), f"{prefix}.files", errors)
+            if files is None:
+                continue
+            for file_index, raw_file in enumerate(files):
+                file_prefix = f"{prefix}.files[{file_index}]"
+                file_item = require_object(raw_file, file_prefix, errors)
+                if file_item is None:
+                    continue
+                rel_path = file_item.get("path")
+                if not isinstance(rel_path, str) or not rel_path:
+                    errors.append(f"{file_prefix}.path is required")
+                    continue
+                if Path(rel_path).is_absolute() or ".." in Path(rel_path).parts:
+                    errors.append(f"{file_prefix}.path must be relative and stay inside artifact root")
+                status = file_item.get("status")
+                if status not in FILE_STATUSES:
+                    errors.append(f"{file_prefix}.status invalid value '{status}', valid values: {sorted(FILE_STATUSES)}")
+                if artifact_root is not None and not (artifact_root / rel_path).is_file():
+                    errors.append(f"{file_prefix}.path declares missing artifact file: {rel_path}")
+
+
+def artifact_file_paths(value: Any) -> set[str]:
+    paths: set[str] = set()
+    if not isinstance(value, list):
+        return paths
+    for artifact in value:
+        if not isinstance(artifact, dict) or artifact.get("type") != "file_list":
+            continue
+        files = artifact.get("files", [])
+        if not isinstance(files, list):
+            continue
+        for item in files:
+            if isinstance(item, dict) and isinstance(item.get("path"), str):
+                paths.add(item["path"])
+    return paths
+
+
+def validate_expected_artifacts(value: Any, expected: list[str], errors: list[str]) -> None:
+    declared = artifact_file_paths(value)
+    for path in expected:
+        if path not in declared:
+            errors.append(f"phase_complete.artifacts missing expected file: {path}")
+
+
+def core_manifest(value: dict[str, Any]) -> dict[str, Any]:
+    keys = [
+        "schema_version",
+        "phase",
+        "project_name",
+        "requirements",
+        "devices",
+        "mcu",
+        "pinout",
+        "bom",
+        "estimated_total_yuan",
+        "final_status",
+    ]
+    return {key: value.get(key) for key in keys}
+
+
+def validate_phase_complete(
+    data: dict[str, Any],
+    compare_manifest: dict[str, Any] | None,
+    artifact_root: Path | None,
+    board_root: Path | None = None,
+    expected_artifacts: list[str] | None = None,
+    *,
+    strict_board_pins: bool = False,
+) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if "payload" in data:
+        validate_protocol_version(data, errors)
+        if data.get("type") != "phase_complete":
+            errors.append("message type must be phase_complete")
+        if data.get("phase") != PHASE:
+            errors.append(f"top-level phase must be '{PHASE}'")
+        if not data.get("msg_id"):
+            errors.append("msg_id is required")
+        if not data.get("session_id"):
+            errors.append("session_id is required")
+        if not data.get("timestamp"):
+            errors.append("timestamp is required")
+        if data.get("type") not in MESSAGE_TYPES:
+            errors.append(f"type invalid value '{data.get('type')}', valid values: {sorted(MESSAGE_TYPES)}")
+
+    payload = phase_payload(data)
+    if payload.get("phase") != PHASE:
+        errors.append(f"payload.phase must be '{PHASE}'")
+    result = payload.get("result")
+    if result not in RESULTS:
+        errors.append(f"payload.result invalid value '{result}', valid values: {sorted(RESULTS)}")
+    if not payload.get("summary"):
+        errors.append("payload.summary is required")
+    next_phase = payload.get("next_phase")
+    if result == "success" and next_phase != NEXT_PHASE:
+        errors.append(f"payload.next_phase must be '{NEXT_PHASE}' when result=success")
+    if result == "partial":
+        if next_phase is not None:
+            errors.append("payload.next_phase must be null when result=partial")
+        if not isinstance(payload.get("checkpoint"), dict):
+            errors.append("payload.checkpoint is required when result=partial")
+    if result == "failed" and next_phase is not None:
+        errors.append("payload.next_phase must be null when result=failed")
+
+    manifest = payload.get("manifest_content")
+    if not isinstance(manifest, dict):
+        errors.append("payload.manifest_content must be an object")
+    else:
+        if manifest.get("phase") != PHASE:
+            errors.append(f"payload.manifest_content.phase must be '{PHASE}'")
+        draft_like = {
+            "protocol_version": PROTOCOL_VERSION,
+            "session_id": data.get("session_id", "phase-complete-validation"),
+            "source_phase": "analyze",
+            "upstream_manifest": {
+                "schema_version": manifest.get("schema_version"),
+                "phase": "analyze",
+                "project_name": manifest.get("project_name"),
+                "requirements": manifest.get("requirements"),
+                "devices": manifest.get("devices"),
+            },
+            "selected_board": manifest.get("hardware_selection", {}).get("selected_board", {}),
+            "hardware_plan": {
+                "mcu": manifest.get("mcu"),
+                "pinout": manifest.get("pinout"),
+                "bom": manifest.get("bom"),
+                "estimated_total_yuan": manifest.get("estimated_total_yuan"),
+            },
+        }
+        manifest_errors, manifest_warnings, normalized = validate_draft(
+            draft_like,
+            board_root,
+            strict_board_pins=strict_board_pins,
+        )
+        errors.extend(f"manifest_content: {item}" for item in manifest_errors)
+        warnings.extend(f"manifest_content: {item}" for item in manifest_warnings)
+        if compare_manifest is not None and core_manifest(compare_manifest) != core_manifest(manifest):
+            errors.append("payload.manifest_content core fields differ from compare manifest")
+
+    validate_artifacts(payload.get("artifacts"), errors, artifact_root)
+    if expected_artifacts:
+        validate_expected_artifacts(payload.get("artifacts"), expected_artifacts, errors)
+    if not isinstance(payload.get("warnings"), list):
+        errors.append("payload.warnings must be an array")
+    if not isinstance(payload.get("errors"), list):
+        errors.append("payload.errors must be an array")
+    validate_structured_errors(payload.get("structured_errors"), errors)
+    return errors, warnings
+
+
+def validate_manifest_content(
+    data: dict[str, Any],
+    board_root: Path | None = None,
+    *,
+    strict_board_pins: bool = False,
+) -> tuple[list[str], list[str]]:
+    envelope = {
+        "protocol_version": PROTOCOL_VERSION,
+        "msg_id": "manifest-content-validation",
+        "session_id": "manifest-content-validation",
+        "phase": PHASE,
+        "timestamp": utc_now(),
+        "type": "phase_complete",
+        "payload": {
+            "phase": PHASE,
+            "result": "success",
+            "summary": "manifest_content validation wrapper",
+            "next_phase": NEXT_PHASE,
+            "manifest_content": data,
+            "artifacts": [],
+            "warnings": [],
+            "errors": [],
+            "structured_errors": [],
+        },
+    }
+    return validate_phase_complete(
+        envelope,
+        data,
+        None,
+        board_root,
+        None,
+        strict_board_pins=strict_board_pins,
+    )
+
+
+def maybe_write_manifest(manifest: dict[str, Any], write_path: str | None) -> str | None:
+    if not write_path:
+        return None
+    path = Path(write_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Validate and normalize select-hw manifest draft")
+    parser.add_argument("--input", default=None, help="input JSON file path")
+    parser.add_argument("--stdin", action="store_true", help="read JSON from stdin")
+    parser.add_argument("--write-path", default=None, help="optional output file path")
+    parser.add_argument("--validate-phase-complete", action="store_true", help="validate a phase_complete message")
+    parser.add_argument("--validate-manifest-content", action="store_true", help="validate normalized select-hw manifest_content")
+    parser.add_argument("--compare-manifest", default=None, help="compare phase_complete manifest_content core fields with this manifest")
+    parser.add_argument("--artifact-root", default=None, help="root directory for validating file_list artifact paths")
+    parser.add_argument("--board-root", default=str(DEFAULT_BOARD_ROOT), help="board definition root directory")
+    parser.add_argument("--strict-board-pins", action="store_true", help="treat risky board pin usage and default bus deviations as errors")
+    parser.add_argument("--expected-artifact", action="append", default=[], help="expected file_list artifact path; may be repeated")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    try:
+        data = load_input(args)
+    except Exception as exc:  # noqa: BLE001
+        emit_json(
+            {
+                "status": "fail",
+                "errors": [f"input load failed: {exc}"],
+                "warnings": [],
+                "manifest": None,
+                "written_path": None,
+            },
+            1,
+        )
+
+    if args.validate_phase_complete:
+        compare_manifest = None
+        if args.compare_manifest:
+            try:
+                with open(args.compare_manifest, "r", encoding="utf-8-sig") as f:
+                    compare_manifest = json.load(f)
+            except Exception as exc:  # noqa: BLE001
+                emit_json(
+                    {
+                        "status": "fail",
+                        "errors": [f"compare manifest load failed: {exc}"],
+                        "warnings": [],
+                    },
+                    1,
+                )
+        artifact_root = Path(args.artifact_root) if args.artifact_root else None
+        board_root = Path(args.board_root) if args.board_root else None
+        errors, warnings = validate_phase_complete(
+            data,
+            compare_manifest,
+            artifact_root,
+            board_root,
+            args.expected_artifact,
+            strict_board_pins=args.strict_board_pins,
+        )
+        emit_json(
+            {
+                "status": "fail" if errors else "ok",
+                "errors": errors,
+                "warnings": warnings,
+            },
+            1 if errors else 0,
+        )
+
+    if args.validate_manifest_content:
+        board_root = Path(args.board_root) if args.board_root else None
+        errors, warnings = validate_manifest_content(
+            data,
+            board_root,
+            strict_board_pins=args.strict_board_pins,
+        )
+        emit_json(
+            {
+                "status": "fail" if errors else "ok",
+                "errors": errors,
+                "warnings": warnings,
+            },
+            1 if errors else 0,
+        )
+
+    board_root = Path(args.board_root) if args.board_root else None
+    errors, warnings, manifest = validate_draft(
+        data,
+        board_root,
+        strict_board_pins=args.strict_board_pins,
+    )
+    if errors:
+        emit_json(
+            {
+                "status": "fail",
+                "errors": errors,
+                "warnings": warnings,
+                "manifest": None,
+                "written_path": None,
+            },
+            1,
+        )
+
+    assert manifest is not None
+    try:
+        written_path = maybe_write_manifest(manifest, args.write_path)
+    except Exception as exc:  # noqa: BLE001
+        emit_json(
+            {
+                "status": "fail",
+                "errors": [f"write failed: {exc}"],
+                "warnings": warnings,
+                "manifest": manifest,
+                "written_path": None,
+            },
+            1,
+        )
+
+    emit_json(
+        {
+            "status": "ok",
+            "errors": [],
+            "warnings": warnings,
+            "manifest": manifest,
+            "written_path": written_path,
+        },
+        0,
+    )
+
+
+if __name__ == "__main__":
+    main()

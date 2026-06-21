@@ -1,0 +1,48 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "5ab88998-a2ad-414a-bdde-a90cb24c19a9",
+  "session_id": "022ad742-3269-42e9-ac20-c14f477ecdf2",
+  "phase": "select-hw",
+  "timestamp": "2026-06-21T06:51:10Z",
+  "type": "approval_request",
+  "idempotency_key": "select-hw:022ad742-3269-42e9-ac20-c14f477ecdf2:board-select:v1",
+  "retry_of": null,
+  "payload": {
+    "approval_id": "board_select",
+    "header": "确认主控板卡",
+    "question": "请确认用于该项目的 MicroPython 开发板",
+    "summary": {
+      "project_name": "语音对话助手",
+      "mcu_specified": "ESP32-C3",
+      "source_phase": "analyze"
+    },
+    "items": [
+      {
+        "id": "esp32-c3-devkitm",
+        "name": "ESP32-C3-DevKitM-1",
+        "subtitle": "WiFi/BLE, MicroPython ESP32_GENERIC_C3",
+        "meta": "匹配上游 MCU 偏好",
+        "selected": true
+      },
+      {
+        "id": "esp32-devkit-v1",
+        "name": "ESP32 DevKit V1",
+        "subtitle": "WiFi/BLE, MicroPython ESP32_GENERIC",
+        "meta": "功能类似备选",
+        "selected": false
+      }
+    ],
+    "multi_select": false,
+    "actions": [
+      {
+        "label": "确认板卡",
+        "value": "confirm",
+        "primary": true
+      },
+      {
+        "label": "稍后继续",
+        "value": "save_partial"
+      }
+    ]
+  }
+}

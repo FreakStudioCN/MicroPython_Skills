@@ -1,0 +1,25 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "245a75a1-7bc8-4207-ae49-d5f88c6b0f31",
+  "session_id": "022ad742-3269-42e9-ac20-c14f477ecdf2",
+  "phase": "select-hw",
+  "timestamp": "2026-06-21T06:51:00Z",
+  "type": "start_phase",
+  "idempotency_key": "select-hw:022ad742-3269-42e9-ac20-c14f477ecdf2:start:v1",
+  "retry_of": null,
+  "payload": {
+    "source_phase": "analyze",
+    "phase_complete_path": "sessions/022ad742-3269-42e9-ac20-c14f477ecdf2/phase_complete.analyze.json",
+    "manifest": null,
+    "pre_selected_board": null,
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "script_run": true,
+      "file_operation": true,
+      "device_command": false,
+      "artifact_root": true,
+      "relative_paths": true
+    }
+  }
+}
