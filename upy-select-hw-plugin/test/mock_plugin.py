@@ -25,14 +25,16 @@ def send(msg: dict[str, Any]) -> None:
 
 
 def handle_approval_request(payload: dict[str, Any]) -> None:
+    approval_id = payload.get("approval_id")
     items = payload.get("items", [])
     selected_ids = [item["id"] for item in items if item.get("selected")]
+    action = "confirm_pin_plan" if approval_id == "pin_plan_review" else "confirm"
     send(
         {
             "type": "approval_response",
             "payload": {
-                "approval_id": payload.get("approval_id"),
-                "action": "confirm",
+                "approval_id": approval_id,
+                "action": action,
                 "selected_ids": selected_ids,
                 "notes": "",
             },
@@ -117,6 +119,12 @@ def handle_script_run(payload: dict[str, Any]) -> None:
 
 
 def handle_phase_complete(payload: dict[str, Any]) -> None:
+    runtime_context = payload.get("runtime_context")
+    if not isinstance(runtime_context, dict):
+        raise RuntimeError("phase_complete missing runtime_context")
+    mode = runtime_context.get("artifact_root_mode", "cwd")
+    session_root = runtime_context.get("session_root", "")
+
     file_paths: list[str] = []
     for artifact in payload.get("artifacts", []):
         if not isinstance(artifact, dict) or artifact.get("type") != "file_list":
@@ -124,7 +132,16 @@ def handle_phase_complete(payload: dict[str, Any]) -> None:
         for item in artifact.get("files", []):
             if isinstance(item, dict) and isinstance(item.get("path"), str):
                 file_paths.append(item["path"])
-    missing = {"pin_assignment_log.md", "select_hw_phase_log.md"} - set(file_paths)
+
+    required_basenames = {"pin_assignment_log.md", "select_hw_phase_log.md"}
+    if mode == "cwd":
+        found_basenames = {Path(p).name for p in file_paths}
+        if any(Path(p).parts == (p,) for p in file_paths):
+            raise RuntimeError(f"artifact_root_mode=cwd requires session-relative paths: {file_paths}")
+    else:
+        found_basenames = set(file_paths)
+
+    missing = required_basenames - found_basenames
     if missing:
         raise RuntimeError(f"phase_complete missing file artifacts: {sorted(missing)}")
     print(

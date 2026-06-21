@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "phase": "select-hw",
-  "created_at": "2026-06-21T08:56:44Z",
-  "updated_at": "2026-06-21T08:56:44Z",
+  "created_at": "2026-06-21T13:58:55Z",
+  "updated_at": "2026-06-21T13:58:55Z",
   "project_name": "语音对话助手",
   "requirements": {
     "description": "PIR红外感应检测到人时触发对话模式，触摸装置发出语音，通过I2S麦克风和WiFi云端API进行语音对话(ASR+LLM+TTS)，同时可查询环境温湿度。",
@@ -213,6 +213,147 @@
       "source": "power"
     }
   ],
+  "pin_decisions": [
+    {
+      "device": "AHT20",
+      "pin_name": "SDA",
+      "assigned_gpio": 5,
+      "decision_type": "use_default_bus",
+      "source": "board_default",
+      "evidence": {
+        "path": "pin_layout.default_bus_pins.i2c0.sda",
+        "value": 5
+      },
+      "requires_user_review": false
+    },
+    {
+      "device": "AHT20",
+      "pin_name": "SCL",
+      "assigned_gpio": 6,
+      "decision_type": "use_default_bus",
+      "source": "board_default",
+      "evidence": {
+        "path": "pin_layout.default_bus_pins.i2c0.scl",
+        "value": 6
+      },
+      "requires_user_review": false
+    },
+    {
+      "device": "HC-SR501",
+      "pin_name": "OUT",
+      "assigned_gpio": 4,
+      "decision_type": "auto_assign_free_gpio",
+      "source": "auto_assigned",
+      "evidence": {
+        "path": "pin_layout.restricted_gpio.adc2_wifi_conflict",
+        "value": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "note": "GPIO4 is used only as a digital input, not ADC"
+      },
+      "requires_user_review": true,
+      "review_prompt": "Confirm this conditional GPIO is acceptable for digital input use."
+    },
+    {
+      "device": "TTP223",
+      "pin_name": "OUT",
+      "assigned_gpio": 7,
+      "decision_type": "auto_assign_free_gpio",
+      "source": "auto_assigned",
+      "evidence": {
+        "path": "pin_layout.restricted_gpio",
+        "note": "GPIO7 is not listed as restricted or occupied on this board"
+      },
+      "requires_user_review": false
+    },
+    {
+      "device": "INMP441",
+      "pin_name": "BCK",
+      "assigned_gpio": 10,
+      "decision_type": "auto_assign_free_gpio",
+      "source": "auto_assigned",
+      "evidence": {
+        "path": "pin_layout.restricted_gpio",
+        "note": "GPIO10 is not listed as restricted or occupied"
+      },
+      "requires_user_review": false
+    },
+    {
+      "device": "INMP441",
+      "pin_name": "WS",
+      "assigned_gpio": 11,
+      "decision_type": "auto_assign_free_gpio",
+      "source": "auto_assigned",
+      "evidence": {
+        "path": "pin_layout.restricted_gpio",
+        "note": "GPIO11 is not listed as restricted or occupied"
+      },
+      "requires_user_review": false
+    },
+    {
+      "device": "INMP441",
+      "pin_name": "SD",
+      "assigned_gpio": 20,
+      "decision_type": "user_wiring",
+      "source": "user_wiring",
+      "evidence": {
+        "path": "pin_layout.default_bus_pins.uart0.rx",
+        "value": 20,
+        "note": "User wiring explicitly uses this pin; board validation still applies"
+      },
+      "requires_user_review": true,
+      "review_prompt": "Confirm this pin is not needed for the board default UART/debug workflow."
+    },
+    {
+      "device": "MAX98357",
+      "pin_name": "DIN",
+      "assigned_gpio": 21,
+      "decision_type": "user_wiring",
+      "source": "user_wiring",
+      "evidence": {
+        "path": "pin_layout.default_bus_pins.uart0.tx",
+        "value": 21,
+        "note": "User wiring explicitly uses this pin; board validation still applies"
+      },
+      "requires_user_review": true,
+      "review_prompt": "Confirm this pin is not needed for the board default UART/debug workflow."
+    },
+    {
+      "device": "power",
+      "pin_name": "3V3",
+      "assigned_gpio": "3V3",
+      "decision_type": "fixed_power_tie",
+      "source": "fixed_power",
+      "evidence": {
+        "note": "Power rail connection, not an MCU GPIO"
+      },
+      "requires_user_review": false
+    },
+    {
+      "device": "power",
+      "pin_name": "GND",
+      "assigned_gpio": "GND",
+      "decision_type": "fixed_power_tie",
+      "source": "fixed_power",
+      "evidence": {
+        "note": "Ground connection, not an MCU GPIO"
+      },
+      "requires_user_review": false
+    }
+  ],
+  "pin_review": {
+    "approval_id": "pin_plan_review",
+    "confirmed": true,
+    "confirmed_by": "sample_user",
+    "confirmed_at": "2026-06-21T06:51:30Z",
+    "source": "approval_response",
+    "note": "Sample fixture represents a completed user confirmation."
+  },
   "bom": [
     {
       "name": "主控板",

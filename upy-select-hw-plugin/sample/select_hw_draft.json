@@ -18,9 +18,14 @@
       "size_constraint": "none",
       "budget_yuan": "medium_100",
       "experience": "beginner",
-      "output": ["serial", "cloud_http"],
+      "output": [
+        "serial",
+        "cloud_http"
+      ],
       "existing_hardware": [],
-      "special_requirements": ["voice_control"],
+      "special_requirements": [
+        "voice_control"
+      ],
       "mcu_specified": "ESP32-C3"
     },
     "devices": [
@@ -30,7 +35,10 @@
         "interface": "GPIO",
         "source": "user_specified",
         "quantity": 1,
-        "driver": {"source": "builtin_runtime", "module": "machine.Pin"}
+        "driver": {
+          "source": "builtin_runtime",
+          "module": "machine.Pin"
+        }
       },
       {
         "name": "TTP223",
@@ -38,7 +46,10 @@
         "interface": "GPIO",
         "source": "user_specified",
         "quantity": 1,
-        "driver": {"source": "builtin_runtime", "module": "machine.Pin"}
+        "driver": {
+          "source": "builtin_runtime",
+          "module": "machine.Pin"
+        }
       },
       {
         "name": "AHT20",
@@ -46,8 +57,14 @@
         "interface": "I2C",
         "source": "user_specified",
         "quantity": 1,
-        "i2c_addr": ["0x38"],
-        "driver": {"source": "upypi", "package_name": "micropython-ahtx0", "install_cmd": "mpremote mip install ahtx0"}
+        "i2c_addr": [
+          "0x38"
+        ],
+        "driver": {
+          "source": "upypi",
+          "package_name": "micropython-ahtx0",
+          "install_cmd": "mpremote mip install ahtx0"
+        }
       },
       {
         "name": "INMP441",
@@ -55,7 +72,10 @@
         "interface": "I2S",
         "source": "system_recommended",
         "quantity": 1,
-        "driver": {"source": "builtin_runtime", "module": "machine.I2S"}
+        "driver": {
+          "source": "builtin_runtime",
+          "module": "machine.I2S"
+        }
       },
       {
         "name": "MAX98357",
@@ -63,7 +83,10 @@
         "interface": "I2S",
         "source": "system_recommended",
         "quantity": 1,
-        "driver": {"source": "builtin_runtime", "module": "machine.I2S"}
+        "driver": {
+          "source": "builtin_runtime",
+          "module": "machine.I2S"
+        }
       },
       {
         "name": "ESP32-C3 WiFi",
@@ -71,7 +94,10 @@
         "interface": "WiFi",
         "source": "system_recommended",
         "quantity": 1,
-        "driver": {"source": "builtin_runtime", "module": "network"}
+        "driver": {
+          "source": "builtin_runtime",
+          "module": "network"
+        }
       }
     ],
     "final_status": "pending"
@@ -99,26 +125,279 @@
       "chip_family": "esp32c3"
     },
     "pinout": [
-      {"device": "AHT20", "pin_name": "SDA", "gpio": 5, "type": "i2c_data", "bus": "i2c0", "i2c_addr": "0x38", "source": "default_bus", "notes": "使用板卡定义的 i2c0 默认 SDA"},
-      {"device": "AHT20", "pin_name": "SCL", "gpio": 6, "type": "i2c_clock", "bus": "i2c0", "i2c_addr": "0x38", "source": "default_bus", "notes": "使用板卡定义的 i2c0 默认 SCL"},
-      {"device": "HC-SR501", "pin_name": "OUT", "gpio": 4, "type": "gpio_in", "source": "auto_assigned", "notes": "数字输入，不作为 ADC 使用"},
-      {"device": "TTP223", "pin_name": "OUT", "gpio": 7, "type": "gpio_in", "source": "auto_assigned", "notes": "避开 strapping、flash/PSRAM 和 USB 串口脚"},
-      {"device": "INMP441", "pin_name": "BCK", "gpio": 10, "type": "i2s_bck", "bus": "i2s0", "source": "auto_assigned", "notes": "I2S BCK 自动分配到空余 GPIO"},
-      {"device": "INMP441", "pin_name": "WS", "gpio": 11, "type": "i2s_ws", "bus": "i2s0", "source": "auto_assigned", "notes": "I2S WS 自动分配到空余 GPIO"},
-      {"device": "INMP441", "pin_name": "SD", "gpio": 20, "type": "i2s_data_in", "bus": "i2s0", "source": "user_wiring", "notes": "用户接线确认使用 USB 串口 RX 脚，后续调试需避免占用 USB CDC"},
-      {"device": "MAX98357", "pin_name": "DIN", "gpio": 21, "type": "i2s_data_out", "bus": "i2s0", "source": "user_wiring", "notes": "用户接线确认使用 USB 串口 TX 脚，后续调试需避免占用 USB CDC"},
-      {"device": "power", "pin_name": "3V3", "gpio": "3V3", "type": "power_3v3", "source": "power"},
-      {"device": "power", "pin_name": "GND", "gpio": "GND", "type": "gnd", "source": "power"}
+      {
+        "device": "AHT20",
+        "pin_name": "SDA",
+        "gpio": 5,
+        "type": "i2c_data",
+        "bus": "i2c0",
+        "i2c_addr": "0x38",
+        "source": "default_bus",
+        "notes": "使用板卡定义的 i2c0 默认 SDA"
+      },
+      {
+        "device": "AHT20",
+        "pin_name": "SCL",
+        "gpio": 6,
+        "type": "i2c_clock",
+        "bus": "i2c0",
+        "i2c_addr": "0x38",
+        "source": "default_bus",
+        "notes": "使用板卡定义的 i2c0 默认 SCL"
+      },
+      {
+        "device": "HC-SR501",
+        "pin_name": "OUT",
+        "gpio": 4,
+        "type": "gpio_in",
+        "source": "auto_assigned",
+        "notes": "数字输入，不作为 ADC 使用"
+      },
+      {
+        "device": "TTP223",
+        "pin_name": "OUT",
+        "gpio": 7,
+        "type": "gpio_in",
+        "source": "auto_assigned",
+        "notes": "避开 strapping、flash/PSRAM 和 USB 串口脚"
+      },
+      {
+        "device": "INMP441",
+        "pin_name": "BCK",
+        "gpio": 10,
+        "type": "i2s_bck",
+        "bus": "i2s0",
+        "source": "auto_assigned",
+        "notes": "I2S BCK 自动分配到空余 GPIO"
+      },
+      {
+        "device": "INMP441",
+        "pin_name": "WS",
+        "gpio": 11,
+        "type": "i2s_ws",
+        "bus": "i2s0",
+        "source": "auto_assigned",
+        "notes": "I2S WS 自动分配到空余 GPIO"
+      },
+      {
+        "device": "INMP441",
+        "pin_name": "SD",
+        "gpio": 20,
+        "type": "i2s_data_in",
+        "bus": "i2s0",
+        "source": "user_wiring",
+        "notes": "用户接线确认使用 USB 串口 RX 脚，后续调试需避免占用 USB CDC"
+      },
+      {
+        "device": "MAX98357",
+        "pin_name": "DIN",
+        "gpio": 21,
+        "type": "i2s_data_out",
+        "bus": "i2s0",
+        "source": "user_wiring",
+        "notes": "用户接线确认使用 USB 串口 TX 脚，后续调试需避免占用 USB CDC"
+      },
+      {
+        "device": "power",
+        "pin_name": "3V3",
+        "gpio": "3V3",
+        "type": "power_3v3",
+        "source": "power"
+      },
+      {
+        "device": "power",
+        "pin_name": "GND",
+        "gpio": "GND",
+        "type": "gnd",
+        "source": "power"
+      }
     ],
     "bom": [
-      {"name": "主控板", "model": "ESP32-C3-DevKitM-1", "quantity": 1, "unit_price_yuan": 15, "notes": "MicroPython ESP32-C3"},
-      {"name": "PIR红外人体传感器", "model": "HC-SR501", "quantity": 1, "unit_price_yuan": 6, "notes": "GPIO 输入"},
-      {"name": "触摸传感器", "model": "TTP223", "quantity": 1, "unit_price_yuan": 3, "notes": "GPIO 输入"},
-      {"name": "温湿度传感器", "model": "AHT20", "quantity": 1, "unit_price_yuan": 12, "notes": "I2C"},
-      {"name": "I2S麦克风", "model": "INMP441", "quantity": 1, "unit_price_yuan": 10, "notes": "I2S 输入"},
-      {"name": "I2S功放", "model": "MAX98357", "quantity": 1, "unit_price_yuan": 12, "notes": "I2S 输出"}
+      {
+        "name": "主控板",
+        "model": "ESP32-C3-DevKitM-1",
+        "quantity": 1,
+        "unit_price_yuan": 15,
+        "notes": "MicroPython ESP32-C3"
+      },
+      {
+        "name": "PIR红外人体传感器",
+        "model": "HC-SR501",
+        "quantity": 1,
+        "unit_price_yuan": 6,
+        "notes": "GPIO 输入"
+      },
+      {
+        "name": "触摸传感器",
+        "model": "TTP223",
+        "quantity": 1,
+        "unit_price_yuan": 3,
+        "notes": "GPIO 输入"
+      },
+      {
+        "name": "温湿度传感器",
+        "model": "AHT20",
+        "quantity": 1,
+        "unit_price_yuan": 12,
+        "notes": "I2C"
+      },
+      {
+        "name": "I2S麦克风",
+        "model": "INMP441",
+        "quantity": 1,
+        "unit_price_yuan": 10,
+        "notes": "I2S 输入"
+      },
+      {
+        "name": "I2S功放",
+        "model": "MAX98357",
+        "quantity": 1,
+        "unit_price_yuan": 12,
+        "notes": "I2S 输出"
+      }
     ],
-    "estimated_total_yuan": 58
+    "estimated_total_yuan": 58,
+    "pin_decisions": [
+      {
+        "device": "AHT20",
+        "pin_name": "SDA",
+        "assigned_gpio": 5,
+        "decision_type": "use_default_bus",
+        "source": "board_default",
+        "evidence": {
+          "path": "pin_layout.default_bus_pins.i2c0.sda",
+          "value": 5
+        },
+        "requires_user_review": false
+      },
+      {
+        "device": "AHT20",
+        "pin_name": "SCL",
+        "assigned_gpio": 6,
+        "decision_type": "use_default_bus",
+        "source": "board_default",
+        "evidence": {
+          "path": "pin_layout.default_bus_pins.i2c0.scl",
+          "value": 6
+        },
+        "requires_user_review": false
+      },
+      {
+        "device": "HC-SR501",
+        "pin_name": "OUT",
+        "assigned_gpio": 4,
+        "decision_type": "auto_assign_free_gpio",
+        "source": "auto_assigned",
+        "evidence": {
+          "path": "pin_layout.restricted_gpio.adc2_wifi_conflict",
+          "value": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "note": "GPIO4 is used only as a digital input, not ADC"
+        },
+        "requires_user_review": true,
+        "review_prompt": "Confirm this conditional GPIO is acceptable for digital input use."
+      },
+      {
+        "device": "TTP223",
+        "pin_name": "OUT",
+        "assigned_gpio": 7,
+        "decision_type": "auto_assign_free_gpio",
+        "source": "auto_assigned",
+        "evidence": {
+          "path": "pin_layout.restricted_gpio",
+          "note": "GPIO7 is not listed as restricted or occupied on this board"
+        },
+        "requires_user_review": false
+      },
+      {
+        "device": "INMP441",
+        "pin_name": "BCK",
+        "assigned_gpio": 10,
+        "decision_type": "auto_assign_free_gpio",
+        "source": "auto_assigned",
+        "evidence": {
+          "path": "pin_layout.restricted_gpio",
+          "note": "GPIO10 is not listed as restricted or occupied"
+        },
+        "requires_user_review": false
+      },
+      {
+        "device": "INMP441",
+        "pin_name": "WS",
+        "assigned_gpio": 11,
+        "decision_type": "auto_assign_free_gpio",
+        "source": "auto_assigned",
+        "evidence": {
+          "path": "pin_layout.restricted_gpio",
+          "note": "GPIO11 is not listed as restricted or occupied"
+        },
+        "requires_user_review": false
+      },
+      {
+        "device": "INMP441",
+        "pin_name": "SD",
+        "assigned_gpio": 20,
+        "decision_type": "user_wiring",
+        "source": "user_wiring",
+        "evidence": {
+          "path": "pin_layout.default_bus_pins.uart0.rx",
+          "value": 20,
+          "note": "User wiring explicitly uses this pin; board validation still applies"
+        },
+        "requires_user_review": true,
+        "review_prompt": "Confirm this pin is not needed for the board default UART/debug workflow."
+      },
+      {
+        "device": "MAX98357",
+        "pin_name": "DIN",
+        "assigned_gpio": 21,
+        "decision_type": "user_wiring",
+        "source": "user_wiring",
+        "evidence": {
+          "path": "pin_layout.default_bus_pins.uart0.tx",
+          "value": 21,
+          "note": "User wiring explicitly uses this pin; board validation still applies"
+        },
+        "requires_user_review": true,
+        "review_prompt": "Confirm this pin is not needed for the board default UART/debug workflow."
+      },
+      {
+        "device": "power",
+        "pin_name": "3V3",
+        "assigned_gpio": "3V3",
+        "decision_type": "fixed_power_tie",
+        "source": "fixed_power",
+        "evidence": {
+          "note": "Power rail connection, not an MCU GPIO"
+        },
+        "requires_user_review": false
+      },
+      {
+        "device": "power",
+        "pin_name": "GND",
+        "assigned_gpio": "GND",
+        "decision_type": "fixed_power_tie",
+        "source": "fixed_power",
+        "evidence": {
+          "note": "Ground connection, not an MCU GPIO"
+        },
+        "requires_user_review": false
+      }
+    ],
+    "pin_review": {
+      "approval_id": "pin_plan_review",
+      "confirmed": true,
+      "confirmed_by": "sample_user",
+      "confirmed_at": "2026-06-21T06:51:30Z",
+      "source": "approval_response",
+      "note": "Sample fixture represents a completed user confirmation."
+    }
   },
   "warnings": [
     "BOM 价格为 V0 常识估算",

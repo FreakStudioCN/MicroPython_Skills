@@ -54,9 +54,17 @@ sessions/<session_id>/
 2. 直测 fallback 可读 `manifest_validated.json`
 3. `manifest_draft.json`、`driver_search_log.md`、`analyze_phase_log.md` 只作排查参考
 
-## 相对路径约定
+## 路径与 root 约定
 
-所有文件加载必须以仓库根目录为基准使用相对路径，例如：
+必须区分三个 root：
+
+| root | 含义 | 允许内容 |
+| --- | --- | --- |
+| `resource_root` | skill/resource 所在根，通常是 `G:\MicroPython_Skills` 或已安装的 `.claude/skills` 父级 | `upy-select-hw-plugin`、`upy-analyze-plugin/boards` |
+| `artifact_root` | 当前项目/测试输出根，例如用户传入的 `G:\test\test`；`phase_complete.payload.artifacts.file_list.files[].path` 默认相对它解析 | `sessions/<session_id>` 及 phase 产物 |
+| `session_root` | 当前 session 目录 | `select_hw_*.json`、`phase_complete.select_hw.json`、日志 |
+
+资源加载必须以 `resource_root` 为基准使用相对路径，例如：
 
 ```text
 upy-analyze-plugin/boards
@@ -65,9 +73,67 @@ upy-select-hw-plugin/scripts/select_hw_manifest.py
 upy-select-hw-plugin/sample/phase_complete.select_hw.success.json
 ```
 
-不要在协议、脚本参数或样例里把 `G:\MicroPython_Skills` 写成业务依赖。测试命令可以在文档里展示绝对路径，但实现要用 `repo_root / relative_path`。
+产物写入必须以 `artifact_root` 或 `session_root` 为基准使用相对路径，例如：
+
+```text
+sessions/<session_id>/select_hw_draft.json
+sessions/<session_id>/select_hw_validated.json
+sessions/<session_id>/phase_complete.select_hw.json
+```
+
+`artifact_root` 是“本次运行产物根目录”，不是 skill/resource 根目录。例如 `artifact_root=G:\test\test` 时，artifact path 应写 `sessions/<session_id>/select_hw_draft.json`；如果宿主把 `artifact_root` 设置为当前 `session_root`，artifact path 才应写 `select_hw_draft.json`。校验命令、phase log 和 file manifest 必须使用同一个 root 口径。
+
+用户传入的项目目录（例如 `G:\test\test`）默认是 `artifact_root`，不是 `resource_root`。不得因为 `artifact_root` 下缺少 `upy-select-hw-plugin` 或 `upy-analyze-plugin`，就把 skill 脚本、boards 目录或半截 skill 复制到 `artifact_root`。
+
+不要在协议、脚本参数或样例里把 `G:\MicroPython_Skills` 写成业务依赖。测试命令可以在文档里展示绝对路径，但实现要用 `resource_root / relative_path` 读取资源，用 `artifact_root / relative_path` 写产物。
 
 phase log、命令历史和 artifact 描述也必须使用相对路径。不要把本机插件安装目录（例如用户目录下的 skill/plugin 路径）写成业务事实源。
+
+如果宿主只能在 artifact workspace 内执行脚本，必须显式把 `resource_root` 作为只读资源路径传入，或者由宿主提供 script execution capability；不得通过复制 `upy-select-hw-plugin/scripts` 到 artifact workspace 来伪造相对路径。
+
+### runtime_context 约定
+
+Claude Code / 插件运行时必须通过 `phase_complete.payload.runtime_context` 传递当前工作目录和 session 目录口径，skill 不得自行猜测根目录：
+
+```json
+{
+  "runtime_context": {
+    "artifact_root": ".",
+    "artifact_root_mode": "cwd",
+    "session_root": "sessions/<session_id>",
+    "resource_root": "<runtime-provided>"
+  }
+}
+```
+
+字段约束：
+
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `artifact_root` | 是 | 产物根目录，默认 `.`（当前工作目录） |
+| `artifact_root_mode` | 是 | `cwd` 或 `session_root` |
+| `session_root` | 是 | 当前 session 目录的相对路径 |
+| `resource_root` | 是 | skill/resource 所在根（由运行时提供） |
+
+路径口径规则：
+
+- `artifact_root_mode=cwd` 时，`file_list.files[].path` 必须相对当前工作目录，格式为 `sessions/<session_id>/<filename>`。
+- `artifact_root_mode=session_root` 时，才允许裸文件名（如 `select_hw_draft.json`）。
+- 同一个 `phase_complete` 内不能混用两种路径口径。
+- `runtime_context` 缺失时，校验视为 error。
+
+## 时间规则
+
+所有时间字段必须来自运行时统一时间源，禁止手写占位时间：
+
+- `timestamp` — 由 Claude Code / 插件运行时注入，或通过 `upy-project-gen-toolchain-spec/scripts/workflow_time.py` 获取。
+- `pin_review.confirmed_at` — 必须是用户确认发生的真实 UTC 时间，禁止日期零点或样例占位值。
+- `manifest_content.created_at` / `updated_at` — 由 `select_hw_manifest.py` 规范化时自动生成。
+- 所有时间字段必须是 ISO-8601 格式，带 UTC 时区（`Z` 后缀）。
+
+`confirmed_at` 写入顺序：必须先写回 `select_hw_draft.json`，再以 draft 为单一事实源生成 `select_hw_validated.json` 和 `phase_complete.select_hw.json`。
+
+`phase_complete.timestamp` 必须在脚本校验通过后重新调用 `workflow_time.py --json` 获取，确保 ≥ 所有引用 artifact 的 `updated_at` 和 `created_at`。禁止复用 `pin_review.confirmed_at` 或更早时间作为 `phase_complete.timestamp`。
 
 ## 长期协议要求
 
@@ -79,7 +145,7 @@ phase log、命令历史和 artifact 描述也必须使用相对路径。不要�
   "msg_id": "uuid",
   "session_id": "uuid",
   "phase": "select-hw",
-  "timestamp": "2026-06-21T00:00:00Z",
+  "timestamp": "<runtime-utc-now>",
   "type": "status_update",
   "idempotency_key": "select-hw:<session_id>:step:v1",
   "retry_of": null,
@@ -162,17 +228,34 @@ Step 3 引脚分配
   若候选板卡缺 pin_layout：
     -> 选择功能类似且有 pin_layout 的已知板卡
     -> approval_request(board_select)
-  -> status_update(pin_assignment_done)
+  -> status_update(pin_assignment_draft_ready)
+
+Step 3B 引脚方案确认
+  -> approval_request(pin_plan_review)
+  用户确认后：
+    -> status_update(pin_assignment_done)
+  用户要求调整或不确认：
+    -> phase_complete(result=partial, checkpoint.resume_step=pin_assignment)
 
 Step 4 BOM 生成
   -> status_update(bom_ready)
 
-Step 5 manifest 校验/规范化
-  -> script_run(select_hw_manifest.py --stdin)
+Step 5 manifest 校验/规范化 (第 1 次: draft → validated)
+  -> script_run(select_hw_manifest.py --input <draft> --write-path <validated> --board-root ...)
   <- script_result
 
-Step 6 阶段完成
-  -> phase_complete(result=success, next_phase=flash-mpy-firmware)
+Step 6 manifest 内容二次校验 (第 2 次: validate manifest_content)
+  -> script_run(select_hw_manifest.py --validate-manifest-content --input <validated> --board-root ...)
+  <- script_result
+
+Step 7 获取阶段完成时间戳
+  -> 调用 workflow_time.py --json 获取当前 UTC 时间
+  <- phase_timestamp = <utc-now>
+
+Step 8 phase_complete 最终校验与输出 (第 3 次: validate phase_complete)
+  -> script_run(select_hw_manifest.py --validate-phase-complete --input <phase_complete.json> --compare-manifest <validated> --artifact-root ... --expected-artifact ...)
+  <- script_result
+  -> 校验通过后输出 phase_complete(timestamp=<phase_timestamp>, result=success, next_phase=flash-mpy-firmware)
 ```
 
 ## status_update 枚举
@@ -195,9 +278,12 @@ board_unavailable
 board_definition_loaded
 board_definition_invalid
 board_selected
+board_change_requires_restart
 firmware_check
 firmware_ok
 pin_assignment
+pin_assignment_draft_ready
+pin_plan_review
 pin_risk_detected
 pin_conflict
 pin_assignment_done
@@ -208,6 +294,13 @@ manifest_validation
 ## approval_request: board_select
 
 `requirements.mcu_specified` 表示 MCU/芯片/模组型号，不等于具体开发板，因此默认必须弹 `board_select`。如果 `pre_selected_board` 已经来自插件 UI，可跳过，但必须记录跳过原因并校验该板卡存在固件和 `pin_layout`。
+
+板卡确认边界：
+
+- `select-hw` 只允许在上游 `requirements` 已确定的 MCU/芯片/模组兼容范围内确认具体开发板，或者在未指定 MCU 时从候选池中选择。
+- 如果用户在 `select-hw` 中要求跨 MCU、跨芯片族、跨固件目标或明显改变主控能力边界的板卡更换，不得静默改写上游需求并输出 `success`。
+- 这类变更必须输出 `partial`，`next_phase=null`，`checkpoint.resume_step=load_upstream_manifest` 或 `board_select`，`reason=board_change_requires_analyze`，并提醒用户新建对话或重新运行 analyze/select-hw。
+- 通用判定依据是上游 `requirements.mcu_specified`、已确认的 `pre_selected_board`、候选板卡 `mcu`、`chip_family`、`firmware.board_name` 是否仍兼容；规则不得写成某个 MCU 的特例。
 
 ```json
 {
@@ -269,6 +362,55 @@ checkpoint 必填
 
 手动接线描述要求用数组表达，每条记录说明 `mcu_pin`、`device`、`device_pin`、`signal`、`voltage`、`notes`。示例：`GPIO21 -> AHT20 SDA`、`3V3 -> AHT20 VCC`、`GND -> AHT20 GND`。
 
+## approval_request: pin_plan_review
+
+引脚分配不能只依赖 LLM 的一次性推断。V0 采用“脚本只拦硬错误 + 用户确认方案”的简化策略：生成初步 `pinout` 和 `pin_decisions` 后，必须让用户确认引脚方案，提醒用户查看官方原理图、板卡丝印、模块版本和外设数据手册。用户确认前不得输出 `phase_complete(result=success)`。
+
+必须提醒用户重点核查：
+
+- 默认总线引脚是否真实引出、是否与其他器件冲突
+- `restricted_gpio`、boot/strapping、flash/PSRAM、USB/JTAG/REPL/UART 占用
+- `onboard_peripherals` 是否真实占用该 GPIO，是否可释放
+- 外设模块的 VCC/GND/配置脚是否是 MCU 控制还是硬接电源/地
+- 板卡变体差异、原理图版本、丝印和实际模组是否一致
+
+动作枚举：
+
+| action value | 含义 | 后续行为 |
+| --- | --- | --- |
+| `confirm_pin_plan` | 用户确认引脚方案可按当前草案继续 | 继续 BOM 与最终校验 |
+| `revise_pin_plan` | 用户要求重新分配一个或多个引脚 | 回到 `pin_assignment` |
+| `manual_wiring_description` | 用户手动描述接线 | 产出 partial/checkpoint，等待结构化接线 |
+| `save_partial` | 暂停 | 产出 partial/checkpoint |
+
+payload 必须包含：
+
+```json
+{
+  "approval_id": "pin_plan_review",
+  "header": "确认引脚分配",
+  "summary": {
+    "board_id": "selected-board-id",
+    "board_definition": "upy-analyze-plugin/boards/<board_id>.json",
+    "requires_schematic_review": true
+  },
+  "pinout": [],
+  "pin_decisions": [],
+  "warnings": []
+}
+```
+
+确认后写入 `hardware_plan.pin_review`：
+
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `approval_id` | 是 | 固定 `pin_plan_review` |
+| `confirmed` | 是 | 用户是否确认；`success` 前必须为 `true` |
+| `confirmed_by` | confirmed=true 时必填 | 用户、插件 UI 或审批来源 |
+| `confirmed_at` | confirmed=true 时必填 | 本次确认发生的真实 UTC 时间，ISO-8601 格式；不得使用样例占位时间或日期零点 |
+| `source` | 是 | `approval_response`、`plugin_ui_confirmed`、`user_confirmed` |
+| `note` | 可选 | 用户确认或调整说明 |
+
 ## 板卡数据
 
 V0 复用相对路径：
@@ -277,10 +419,11 @@ V0 复用相对路径：
 upy-analyze-plugin/boards
 ```
 
-不要复制板卡数据，除非后续 select-hw 需要独立扩展 schema。
+不要复制板卡数据到 `artifact_root`，除非后续 select-hw 需要独立扩展 schema。测试 staging 如确需复制，必须复制完整 `boards` 目录（至少包含所有 board json 与 `matching-rules.json`），不得只复制当前选中的单个 board JSON；否则会破坏未指定 MCU、候选排序、相似板卡推荐和 board_unavailable 流程。
 
 处理策略：
 
+- 候选生成阶段必须枚举 `resource_root/upy-analyze-plugin/boards/*.json` 的完整板卡库，跳过 `_template.json` 和说明文档；不能只加载 selected board。
 - `requirements.mcu_specified` 存在时，按 `mcu`、`chip_family`、`firmware.board_name` 匹配候选。
 - `pre_selected_board` 已来自插件 UI 时可跳过确认，但仍需校验。
 - `selected_board.id` 必须对应 `upy-analyze-plugin/boards/<id>.json`。确认板卡后必须加载完整 board JSON，不允许只凭 MCU 名称或 `selected_board` 摘要分配引脚。
@@ -289,8 +432,10 @@ upy-analyze-plugin/boards
 - 未指定 MCU 的默认排序：Pico/Pico W、ESP32 DevKit、ESP32-S3、ESP32-C3；按需求加分后输出 Top 1 和 Top 2 备选。
 - 需要 WiFi/BLE 时加分 ESP32 系列和 Pico W；需要 AI/语音/摄像头时加分 ESP32-S3；低功耗/电池供电加分 ESP32-C3；纯 GPIO 或新手入门加分 Pico/Pico W；极致低价可加分 ESP8266/Pico，但 ESP8266 不应压过 Pico/ESP32，除非预算是唯一主约束。
 - 用户指定板卡不存在于板卡库时，优先推荐同系列或功能相似且有 `pin_layout` 的已知板卡；同时发 `approval_request(board_unavailable)`，允许用户改选已知板卡或手动描述接线。
+- 用户在 `select-hw` 中要求跨 MCU/芯片族/固件目标更换板卡时，不要继续成功产物；输出 partial/checkpoint，要求新建对话或回到 analyze 阶段重新确认需求。
 - 缺少 `pin_layout` 时，默认换功能类似且有 `pin_layout` 的已知板卡。
 - `cold-driver` 不影响 MCU 推荐、引脚分配或 BOM，只增加 warnings。
+- select-hw 不负责确认 MicroPython 固件的实时最新版本。板卡库中的固件版本只能视为缓存信息；正式烧录阶段再访问 `firmware.url` 检查最新 release。select-hw 输出重点保留 `firmware_url`、`firmware_board_name`、`flash_tool`。
 
 ## 引脚分配规则
 
@@ -301,15 +446,15 @@ upy-analyze-plugin/boards
 - UART 避开 REPL/USB 串口。
 - I2S 需要分配 BCK/WS/DIN/DOUT；麦克风和功放可共享 BCK/WS，但数据方向不同。
 - ADC 只能用 ADC-capable pin。
-- GPIO 避开 boot/strapping、flash/PSRAM、USB OTG、只读脚。
+- GPIO 避开 boot/strapping、flash/PSRAM、USB OTG、只读脚；条件可用脚可以进入方案，但必须在 warnings/notes 和 `pin_plan_review` 中提示用户核对。
 - 电源与 GND 必须进入 `pinout`。
-- 如果 board JSON 有 `pin_options`，重映射只能在 `pin_options` 允许范围内进行；如果是 flexible matrix，也必须避开 `restricted_gpio`。
+- 如果 board JSON 有 `pin_options`，重映射只能在 `pin_options` 允许范围内进行；如果是 flexible matrix，也必须避开硬禁用脚。条件可用脚不作为 schema 硬失败，交给 warnings 与用户确认处理。
 - 偏离 `pin_layout.default_bus_pins` 必须在 `pinout[].notes` 和 warnings 中说明原因。
 - 用户传入接线时，优先保留用户接线，但必须通过 board JSON 的 restricted/occupied 校验；非法用户接线不能静默成功。
 - 板载器件与用户指定器件或系统推荐器件一致时，复用 `onboard_peripherals` 声明的板载默认/占用引脚，不重复分配外接 GPIO，也不重复加入 BOM。
 - 板载器件与当前需求不一致时，`onboard_peripherals[].occupied_pins` 视为已占用资源，外接器件只能使用空余引脚。
 - 如果用户要求释放板载器件占用脚，必须确认 `always_used=false`，并在 notes/warnings 中说明释放原因。
-- `pin_assignment_log.md` 和 phase log 中的 GPIO 汇总必须从完整 board JSON 与最终 `pinout` 计算，不允许手写静态列表。至少包含 `used_gpio`、`unused_safe_gpio`、`restricted_or_occupied_gpio` 三组；`unused_safe_gpio` 不能包含已使用 GPIO、`restricted_gpio` 或未释放的 `onboard_peripherals[].occupied_pins`。
+- `pin_assignment_log.md` 和 phase log 中的 GPIO 汇总必须从完整 board JSON 与最终 `pinout` 计算，不允许手写静态列表。V0 至少包含 `used_gpio`、`unused_gpio`、`restricted_or_occupied_gpio` 三组；不要把条件可用脚包装成绝对安全，只需在 warnings 中说明限制和确认点。
 - 如果启用 WiFi 且使用了 `adc2_wifi_conflict` 中的 GPIO，必须完整列出所有相关 GPIO。只有 `pinout[].type=adc` 时是冲突；作为 I2C/I2S/GPIO 等数字信号使用时允许，但必须在 warnings 或 notes 中说明“WiFi 只影响 ADC 读数，不影响数字用途”。
 - 使用板卡默认 UART/REPL/USB 串口相关引脚做普通 GPIO 时，必须确认该串口不用于调试/通信，或者把该占用写入 warning 并给出可重分配建议。
 
@@ -320,10 +465,10 @@ upy-analyze-plugin/boards
 | `flash_psram_occupied` | 禁止使用 | error |
 | `reserved` / `internal_only` | 禁止使用 | error |
 | `usb_serial_pins` | 默认禁止，除非明确不使用 USB 串口或用户显式接线 | error 或 warning |
-| `strapping` / `boot` | 默认避开；必须使用时需要用户确认或强 warning | warning；strict 模式为 error |
+| `strapping` / `boot` | 默认避开；必须使用时写入 warning 并交给 pin_plan_review | warning；strict 模式为 error |
 | `input_only` | 只能用于输入类 pin type | error |
 | `adc_only` | 只能用于 ADC 输入 | error |
-| `adc2_wifi_conflict` | 仅在 `type=adc` 且 WiFi 启用时冲突；数字输入输出可用但应说明 | error 或 warning |
+| `adc2_wifi_conflict` | 仅在 `type=adc` 且 WiFi 启用时冲突；数字输入输出可用但应说明 | ADC 为 error；数字用途为 warning |
 | `onboard_peripherals[].occupied_pins` | `always_used=true` 时禁止；否则默认避开或说明释放原因 | error 或 warning |
 
 `pinout[].type` 枚举：
@@ -369,6 +514,69 @@ reserved
 | `notes` | 可选 | 限制、复用或替代原因 |
 | `source` | 建议 | 引脚来源，只能取 `default_bus`、`auto_assigned`、`user_wiring`、`onboard_peripheral`、`power` |
 
+## pin_decisions 与 deviation
+
+必须生成结构化 `pin_decisions[]` 并在最终 `manifest_content` 中保留。默认总线、自动分配、用户接线、板载器件复用、固定电源/地都要有对应 decision；自然语言 notes 只能补充说明，不能替代结构化证据。
+
+`pin_decisions[]` 字段：
+
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `device` | 是 | 器件名 |
+| `pin_name` | 是 | 器件侧信号名 |
+| `assigned_gpio` | 是 | 最终 MCU GPIO 或电源/地 |
+| `decision_type` | 是 | 决策类型枚举 |
+| `source` | 是 | `board_default`、`auto_assigned`、`user_wiring`、`onboard_peripheral`、`fixed_power` |
+| `evidence` | 是 | 来自 board JSON 或用户接线的结构化证据 |
+| `requires_user_review` | 是 | 是否建议用户在 `pin_plan_review` 中重点确认；V0 不要求逐个风险脚精确覆盖 |
+| `review_prompt` | 可选 | 给用户核对原理图/丝印/模块资料的提示 |
+| `deviation` | 可选 | 偏离默认或占用释放的结构化说明 |
+
+`decision_type` 枚举：
+
+```text
+use_default_bus
+auto_assign_free_gpio
+remap_default_conflict
+avoid_restricted_gpio
+avoid_onboard_occupied
+reuse_onboard_peripheral
+fixed_power_tie
+user_wiring
+manual_review_required
+```
+
+`deviation` 字段：
+
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `from_gpio` | 是 | 原默认/候选 GPIO |
+| `to_gpio` | 是 | 重映射后的 GPIO 或电源/地 |
+| `reason_code` | 是 | 偏离原因枚举 |
+| `evidence_path` | 是 | board JSON 中的证据路径，如 `pin_layout.default_bus_pins.i2s.data_out` |
+| `evidence_value` | 是 | 证据字段的值 |
+| `validator_action` | 是 | `error`、`warning`、`manual_review` |
+
+`reason_code` 枚举：
+
+```text
+restricted_gpio
+default_bus_conflict
+onboard_occupied
+not_exposed
+user_requested
+fixed_power_tie
+insufficient_board_data
+```
+
+如果 `reason_code=onboard_occupied`，`evidence_path` 必须指向 `onboard_peripherals[].occupied_pins`，且 `evidence_value` 必须与 `from_gpio` 一致；否则应视为 `pin_decision_invalid` 或进入 `manual_review_required`，不能靠 LLM notes 自行断言某 GPIO 被板载器件占用。
+
+电源/地连接必须按真实 rail 记录：当 `pinout.gpio` 为 `GND`、`3V3`、`5V` 时，`pinout.type` 必须分别为 `gnd`、`power_3v3`、`power_5v`；不要把 `VDD`、`3V3`、`GND` 伪装成普通 MCU GPIO。
+
+`fixed_power_tie` 只表示器件侧某个脚固定接到电源或地。普通供电脚/地脚（如 `VCC`、`VDD`、`VDDIO`、`VIN`、`VBUS`、`GND`）接 `3V3/GND` 是常规供电连接；配置、模式、使能、地址、增益、启动等控制脚（如 `ADDR`、`BOOT`、`CFG`、`CONFIG`、`EN`、`GAIN`、`MODE`、`SEL`）固定接 `3V3/GND/5V` 时，必须使用 `decision_type=fixed_power_tie`、`source=fixed_power`，并建议提供 `review_prompt` 让用户核对模块资料。
+
+V0 不把 `requires_user_review` 当作复杂策略引擎。脚本只校验字段类型、枚举、pinout 对应关系、硬禁用脚、冲突和电源/地类型；条件可用 GPIO、配置脚硬接、默认总线偏离、板卡资料不足等风险统一放入 warnings/notes，并通过整体验收的 `pin_plan_review` 让用户确认或改引脚。
+
 ## select-hw draft schema
 
 `select_hw_manifest.py` 只支持新 draft schema，不兼容旧 `update_manifest.py` 输入形状。
@@ -383,6 +591,8 @@ reserved
   "hardware_plan": {
     "mcu": {},
     "pinout": [],
+    "pin_decisions": [],
+    "pin_review": {},
     "bom": [],
     "estimated_total_yuan": 0
   },
@@ -404,6 +614,8 @@ draft 字段含义：
 | `selected_board` | 是 | 从板卡库确认后的板卡对象摘要 |
 | `hardware_plan.mcu` | 是 | MCU、固件入口和烧录工具 |
 | `hardware_plan.pinout` | 是 | 引脚分配数组 |
+| `hardware_plan.pin_decisions` | 是 | 每个引脚选择的结构化决策和证据；脚本必须校验并保留到最终 `manifest_content` |
+| `hardware_plan.pin_review` | 是 | 用户 `pin_plan_review` 确认状态；`success` 前必须 `confirmed=true` |
 | `hardware_plan.bom` | 是 | BOM 数组 |
 | `hardware_plan.estimated_total_yuan` | 建议 | BOM 总价；缺省时脚本从 BOM 计算并给 warning |
 | `warnings` | 建议 | 非阻塞风险 |
@@ -447,6 +659,12 @@ payload.next_phase = "flash-mpy-firmware"
 payload.manifest_content.phase = "select-hw"
 ```
 
+success 前置条件：
+
+- 板卡选择未跨越上游 MCU/芯片族/固件目标边界；如果发生跨边界更换，必须回到 analyze 或新建对话。
+- `pin_plan_review` 已确认，或 `pre_selected_board`/插件 UI 明确提供了已确认的结构化接线。
+- `pin_decisions` 中所有 `validator_action=error` 或 `manual_review` 项已经解决。
+
 result 枚举：
 
 | result | 含义 | next_phase | checkpoint |
@@ -488,9 +706,11 @@ phase_complete_validation
 
 ```text
 user_cancelled
+board_change_requires_analyze
 missing_pin_layout
 firmware_unknown
 pin_conflict
+pin_plan_review_rejected
 script_failed
 timeout
 permission_denied
@@ -542,8 +762,12 @@ pin_conflict
 i2c_address_conflict
 board_definition_not_found
 board_definition_invalid
+board_change_requires_analyze
 restricted_gpio_used
 default_bus_pin_deviation
+pin_review_required
+pin_review_rejected
+pin_decision_invalid
 onboard_peripheral_pin_used
 onboard_peripheral_reused
 user_wiring_invalid
@@ -593,18 +817,38 @@ select_hw_phase_log.md
 
 直测时 `phase_complete.payload.artifacts` 的 `file_list` 必须声明以上全部文件，且 `--validate-phase-complete` 必须用 `--expected-artifact` 逐一校验。缺少任意正式产物声明都视为失败。
 
+### 日志模板规则
+
+`pin_assignment_log.md` 必须按以下分组列出 GPIO：
+
+```text
+## GPIO 使用汇总
+
+已用 GPIO: GPIO4, GPIO5, GPIO6, GPIO7, GPIO10, GPIO11, GPIO20, GPIO21
+未用 GPIO: GPIO0, GPIO1, GPIO2, GPIO3, GPIO8, GPIO9, GPIO12, GPIO13, GPIO18, GPIO19
+条件/保留 GPIO: GPIO2, GPIO8, GPIO9 (strapping boot pins)
+禁止 GPIO: (none)
+
+## 引脚分配明细
+...
+```
+
+禁止使用"未用(空闲)"这类含义模糊的名称。`select_hw_phase_log.md` 必须记录完整的 step 时间线、`runtime_context` 参数和路径口径。
+
 ## permission prompts
 
 V0 允许低风险动作：
 
 - 读取上游 phase_complete 文件
-- 读取 `upy-analyze-plugin/boards`
+- 从 `resource_root` 读取 `upy-analyze-plugin/boards`
 - 写 `sessions/<session_id>/select_hw_*.json`
-- 运行白名单脚本 `upy-select-hw-plugin/scripts/select_hw_manifest.py`
+- 从 `resource_root` 运行白名单脚本 `upy-select-hw-plugin/scripts/select_hw_manifest.py`
 
 需要单独 permission prompt 的动作：
 
 - 任意非白名单脚本
+- 将 `upy-select-hw-plugin`、`upy-analyze-plugin` 或半截 skill/resource 副本写入 `artifact_root`
+- 只复制单个 board JSON 作为候选板卡库
 - 删除文件
 - 访问设备串口
 - 烧录固件
@@ -642,8 +886,10 @@ upy-select-hw-plugin/scripts/select_hw_manifest.py
 - MCU、pinout、BOM 必填字段完整
 - 枚举值合法
 - pinout 冲突
+- `pin_decisions` 字段、枚举、证据和 deviation 合法，并能对应最终 `pinout`
+- `pin_review.approval_id=pin_plan_review`；`result=success` 时 `pin_review.confirmed=true`
 - phase_complete envelope 合法
-- `manifest_content` 与 compare manifest 核心字段一致
+- `manifest_content` 与 compare manifest 核心字段一致，且不得丢失 `pin_decisions` / `pin_review`
 - file artifact 声明的相对路径真实存在
 - `selected_board` 与完整 board JSON 一致
 - `pinout` 遵守 board JSON 的 `restricted_gpio`
@@ -666,8 +912,8 @@ python upy-select-hw-plugin/scripts/select_hw_manifest.py --validate-manifest-co
 
 后续测试必须覆盖：
 
-1. 从 `G:\test\test\sessions\022ad742-3269-42e9-ac20-c14f477ecdf2\phase_complete.analyze.json` 的 `payload.manifest_content` 启动。
-2. 使用相对路径 `upy-analyze-plugin/boards` 匹配 `ESP32-C3` 候选板卡。
+1. 从 `G:\test\test\sessions\022ad742-3269-42e9-ac20-c14f477ecdf2\phase_complete.analyze.json` 的 `payload.manifest_content` 启动，并把 `G:\test\test` 视为 `artifact_root`。
+2. 使用 `resource_root/upy-analyze-plugin/boards` 的完整板卡库匹配 `ESP32-C3` 候选板卡，不在 `G:\test\test` 下创建 `upy-analyze-plugin` 或 `upy-select-hw-plugin` 副本。
 3. `mcu_specified` 存在但无 `pre_selected_board` 时触发 `approval_request(board_select)`。
 4. `pre_selected_board` 来自插件 UI 时可跳过 board_select。
 5. 缺 pin_layout 时换功能类似且有 pin_layout 的已知板卡。

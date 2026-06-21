@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,13 +19,15 @@ SAMPLE_DIR = SKILL_DIR / "sample"
 SELECT_HW_MANIFEST = SKILL_DIR / "scripts" / "select_hw_manifest.py"
 BOARD_ROOT = REPO_ROOT / "upy-analyze-plugin" / "boards"
 PLUGIN_VALIDATOR = Path("C:/Users/Administrator/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py")
-EXPECTED_ARTIFACTS = [
+EXPECTED_ARTIFACTS_BARE = [
     "select_hw_draft.json",
-    "select_hw_manifest.after.json",
-    "phase_complete.select_hw.success.json",
+    "select_hw_validated.json",
+    "phase_complete.select_hw.json",
     "pin_assignment_log.md",
     "select_hw_phase_log.md",
 ]
+SESSION_ID = "022ad742-3269-42e9-ac20-c14f477ecdf2"
+EXPECTED_ARTIFACTS_CWD = [f"sessions/{SESSION_ID}/{name}" for name in EXPECTED_ARTIFACTS_BARE]
 
 
 def run(cmd: list[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -57,6 +60,45 @@ def check_sample_json() -> None:
         load_json(path)
 
 
+def check_skill_path_contract() -> None:
+    text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+    required = [
+        "resource_root",
+        "artifact_root",
+        "session_root",
+        "不得因为 `artifact_root` 下缺少 `upy-select-hw-plugin` 或 `upy-analyze-plugin`",
+        "不得通过复制 `upy-select-hw-plugin/scripts` 到 artifact workspace",
+        "必须复制完整 `boards` 目录",
+        "不能只加载 selected board",
+        "板卡确认边界",
+        "跨 MCU、跨芯片族、跨固件目标",
+        "不得静默改写上游需求并输出 `success`",
+        "approval_request: pin_plan_review",
+        "用户确认前不得输出 `phase_complete(result=success)`",
+        "pin_decisions 与 deviation",
+        "如果 `reason_code=onboard_occupied`",
+        "当 `pinout.gpio` 为 `GND`、`3V3`、`5V` 时",
+        "不要把 `VDD`、`3V3`、`GND` 伪装成普通 MCU GPIO",
+        "普通供电脚/地脚",
+        "配置、模式、使能、地址、增益、启动等控制脚",
+        "V0 不把 `requires_user_review` 当作复杂策略引擎",
+        "脚本只校验字段类型、枚举、pinout 对应关系、硬禁用脚、冲突和电源/地类型",
+        "不得使用样例占位时间或日期零点",
+        "workflow_time.py",
+        "runtime_context",
+        "artifact_root_mode",
+        "artifact_root_mode=cwd",
+        "artifact_root_mode=session_root",
+        "已用 GPIO",
+        "未用 GPIO",
+        "条件/保留 GPIO",
+        "禁止 GPIO",
+    ]
+    missing = [item for item in required if item not in text]
+    if missing:
+        raise AssertionError(f"SKILL.md path/root contract missing required text: {missing}")
+
+
 def check_manifest_validation() -> None:
     proc = run(
         [
@@ -78,6 +120,10 @@ def check_manifest_validation() -> None:
         raise AssertionError("normalized manifest phase is not select-hw")
     if manifest.get("final_status") != "hardware_selected":
         raise AssertionError("normalized manifest final_status is not hardware_selected")
+    if not manifest.get("pin_decisions"):
+        raise AssertionError("normalized manifest should preserve pin_decisions")
+    if manifest.get("pin_review", {}).get("approval_id") != "pin_plan_review":
+        raise AssertionError("normalized manifest should preserve pin_review approval_id")
 
 
 def check_formatted_output_validation() -> None:
@@ -103,6 +149,10 @@ def check_formatted_output_validation() -> None:
             manifest = json.load(f)
         if manifest.get("phase") != "select-hw":
             raise AssertionError("formatted output phase is not select-hw")
+        if not manifest.get("pin_decisions"):
+            raise AssertionError("formatted output dropped pin_decisions")
+        if manifest.get("pin_review", {}).get("confirmed") is not True:
+            raise AssertionError("formatted output dropped confirmed pin_review")
         validate_proc = run(
             [
                 sys.executable,
@@ -163,31 +213,49 @@ def check_phase_complete_validation() -> None:
     success_path = SAMPLE_DIR / "phase_complete.select_hw.success.json"
     partial_path = SAMPLE_DIR / "phase_complete.select_hw.partial.json"
     compare_path = SAMPLE_DIR / "select_hw_manifest.after.json"
-    for path in [success_path, partial_path]:
-        expected = [item if item != "phase_complete.select_hw.success.json" else path.name for item in EXPECTED_ARTIFACTS]
-        expected_args = [arg for item in expected for arg in ["--expected-artifact", item]]
-        proc = run(
-            [
-                sys.executable,
-                str(SELECT_HW_MANIFEST),
-                "--validate-phase-complete",
-                "--input",
-                str(path),
-                "--compare-manifest",
-                str(compare_path),
-                "--artifact-root",
-                str(SAMPLE_DIR),
-                "--board-root",
-                str(BOARD_ROOT),
-                "--strict-board-pins",
-                *expected_args,
-            ]
+    with tempfile.TemporaryDirectory(prefix="select-hw-phase-") as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / SESSION_ID
+        session_dir.mkdir(parents=True, exist_ok=True)
+        for sample_file, dest_name in [
+            ("select_hw_draft.json", "select_hw_draft.json"),
+            ("select_hw_manifest.after.json", "select_hw_validated.json"),
+            ("pin_assignment_log.md", "pin_assignment_log.md"),
+            ("select_hw_phase_log.md", "select_hw_phase_log.md"),
+        ]:
+            src = SAMPLE_DIR / sample_file
+            if src.is_file():
+                shutil.copy2(src, session_dir / dest_name)
+        (session_dir / "phase_complete.select_hw.json").write_text(
+            "{}", encoding="utf-8"
         )
-        if proc.returncode != 0:
-            raise AssertionError(f"phase_complete validation failed for {path.name}:\nstdout={proc.stdout}\nstderr={proc.stderr}")
-        result = json.loads(proc.stdout)
-        if result.get("status") != "ok":
-            raise AssertionError(f"phase_complete validation did not return ok for {path.name}: {result}")
+        for path in [success_path, partial_path]:
+            expected = [item if item != "phase_complete.select_hw.success.json" else path.name
+                        for item in EXPECTED_ARTIFACTS_CWD]
+            expected_args = [arg for item in expected for arg in ["--expected-artifact", item]]
+            compare_args = ["--compare-manifest", str(compare_path)] if path == success_path else []
+            proc = run(
+                [
+                    sys.executable,
+                    str(SELECT_HW_MANIFEST),
+                    "--validate-phase-complete",
+                    "--input",
+                    str(path),
+                    *compare_args,
+                    "--artifact-root",
+                    str(temp_dir),
+                    "--board-root",
+                    str(BOARD_ROOT),
+                    "--strict-board-pins",
+                    *expected_args,
+                ]
+            )
+            if proc.returncode != 0:
+                raise AssertionError(
+                    f"phase_complete validation failed for {path.name}:\nstdout={proc.stdout}\nstderr={proc.stderr}"
+                )
+            result = json.loads(proc.stdout)
+            if result.get("status") != "ok":
+                raise AssertionError(f"phase_complete validation did not return ok for {path.name}: {result}")
 
 
 def check_phase_complete_requires_logs() -> None:
@@ -198,9 +266,10 @@ def check_phase_complete_requires_logs() -> None:
         if artifact.get("type") != "file_list":
             continue
         artifact["files"] = [
-            item for item in artifact.get("files", []) if item.get("path") not in {"pin_assignment_log.md", "select_hw_phase_log.md"}
+            item for item in artifact.get("files", [])
+            if Path(item.get("path", "")).name not in {"pin_assignment_log.md", "select_hw_phase_log.md"}
         ]
-    expected_args = [arg for item in EXPECTED_ARTIFACTS for arg in ["--expected-artifact", item]]
+    expected_args = [arg for item in EXPECTED_ARTIFACTS_CWD for arg in ["--expected-artifact", item]]
     proc = run(
         [
             sys.executable,
@@ -210,7 +279,7 @@ def check_phase_complete_requires_logs() -> None:
             "--compare-manifest",
             str(SAMPLE_DIR / "select_hw_manifest.after.json"),
             "--artifact-root",
-            str(SAMPLE_DIR),
+            str(SKILL_DIR),
             "--board-root",
             str(BOARD_ROOT),
             "--strict-board-pins",
@@ -224,6 +293,145 @@ def check_phase_complete_requires_logs() -> None:
     joined = "\n".join(result.get("errors", []))
     if "pin_assignment_log.md" not in joined or "select_hw_phase_log.md" not in joined:
         raise AssertionError(f"missing log artifacts were not reported: {result}")
+
+
+def check_success_requires_pin_review() -> None:
+    phase_complete = load_json(SAMPLE_DIR / "phase_complete.select_hw.success.json")
+    bad = json.loads(json.dumps(phase_complete))
+    bad["payload"]["manifest_content"]["pin_review"]["confirmed"] = False
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--validate-phase-complete",
+            "--stdin",
+            "--compare-manifest",
+            str(SAMPLE_DIR / "select_hw_manifest.after.json"),
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("phase_complete success should fail when pin_review is not confirmed")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "pin_review.confirmed" not in joined:
+        raise AssertionError(f"missing pin_review confirmation error: {result}")
+
+
+def check_pin_review_timing_validation() -> None:
+    phase_complete = load_json(SAMPLE_DIR / "phase_complete.select_hw.success.json")
+    bad = json.loads(json.dumps(phase_complete))
+    bad["payload"]["manifest_content"]["pin_review"]["confirmed_at"] = "2026-06-21T00:00:00Z"
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--validate-phase-complete",
+            "--stdin",
+            "--compare-manifest",
+            str(SAMPLE_DIR / "select_hw_manifest.after.json"),
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("phase_complete success should fail when pin_review.confirmed_at is a stale placeholder")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "confirmed_at" not in joined or ("too old" not in joined and "placeholder" not in joined):
+        raise AssertionError(f"stale pin_review.confirmed_at was not reported: {result}")
+
+
+def check_pin_decision_validation() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    bad = json.loads(json.dumps(draft))
+    bad["hardware_plan"]["pin_decisions"][0]["decision_type"] = "not_a_decision"
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("invalid pin_decision decision_type should fail validation")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "decision_type invalid" not in joined:
+        raise AssertionError(f"invalid pin decision type was not reported: {result}")
+
+
+def check_power_pin_type_validation() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    bad = json.loads(json.dumps(draft))
+    for item in bad["hardware_plan"]["pinout"]:
+        if item.get("gpio") == "GND":
+            item["type"] = "gpio_in"
+            break
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("power/ground rails must not validate as gpio_in/gpio_out")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "type must be gnd" not in joined:
+        raise AssertionError(f"power pin type mismatch was not reported: {result}")
+
+
+def check_config_power_tie_simplified_validation() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    bad = json.loads(json.dumps(draft))
+    bad["hardware_plan"]["pinout"].append(
+        {
+            "device": "CONFIG_DEVICE",
+            "pin_name": "GAIN",
+            "gpio": "3V3",
+            "type": "power_3v3",
+            "source": "power",
+            "notes": "test fixture: fixed mode/config pin tied to power",
+        }
+    )
+    bad["hardware_plan"]["pin_decisions"].append(
+        {
+            "device": "CONFIG_DEVICE",
+            "pin_name": "GAIN",
+            "assigned_gpio": "3V3",
+            "decision_type": "fixed_power_tie",
+            "source": "fixed_power",
+            "evidence": {"note": "test fixture: mode/config pin tied to power"},
+            "requires_user_review": False,
+        }
+    )
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"config power tie review flag should not be fatal:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("warnings", []))
+    if "requires_user_review should be true" in joined:
+        raise AssertionError(f"requires_user_review strategy warning should not be emitted in simplified V0: {result}")
 
 
 def check_adc2_wifi_digital_warning() -> None:
@@ -307,6 +515,85 @@ def check_user_wiring_and_onboard_validation() -> None:
         raise AssertionError(f"onboard occupied pin warning was not reported: {result}")
 
 
+def check_runtime_context_required() -> None:
+    phase_complete = load_json(SAMPLE_DIR / "phase_complete.select_hw.success.json")
+    bad = json.loads(json.dumps(phase_complete))
+    del bad["payload"]["runtime_context"]
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--validate-phase-complete",
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("phase_complete validation should fail when runtime_context is missing")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "runtime_context" not in joined:
+        raise AssertionError(f"missing runtime_context was not reported: {result}")
+
+
+def check_artifact_root_mode_cwd_bare_fails() -> None:
+    phase_complete = load_json(SAMPLE_DIR / "phase_complete.select_hw.success.json")
+    bad = json.loads(json.dumps(phase_complete))
+    bad["payload"]["runtime_context"]["artifact_root_mode"] = "cwd"
+    for artifact in bad["payload"]["artifacts"]:
+        if artifact.get("type") != "file_list":
+            continue
+        for item in artifact.get("files", []):
+            item["path"] = Path(item["path"]).name
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--validate-phase-complete",
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("cwd mode should reject bare filenames")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "must be under" not in joined:
+        raise AssertionError(f"bare filename in cwd mode was not reported: {result}")
+
+
+def check_artifact_root_mode_session_root_ok() -> None:
+    phase_complete = load_json(SAMPLE_DIR / "phase_complete.select_hw.success.json")
+    modified = json.loads(json.dumps(phase_complete))
+    modified["payload"]["runtime_context"]["artifact_root_mode"] = "session_root"
+    modified["payload"]["runtime_context"]["session_root"] = "."
+    for artifact in modified["payload"]["artifacts"]:
+        if artifact.get("type") != "file_list":
+            continue
+        for item in artifact.get("files", []):
+            item["path"] = Path(item["path"]).name
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--validate-phase-complete",
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(modified, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"session_root mode should accept bare filenames:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    if result.get("status") != "ok":
+        raise AssertionError(f"session_root mode validation did not return ok: {result}")
+
+
 def check_runner_bridge() -> None:
     proc = run([sys.executable, str(TEST_DIR / "run_local_mock_session.py")])
     combined = proc.stdout + proc.stderr
@@ -333,15 +620,24 @@ def check_plugin_manifest() -> None:
 def main() -> int:
     checks = [
         ("sample json", check_sample_json),
+        ("skill path contract", check_skill_path_contract),
         ("manifest validation", check_manifest_validation),
         ("formatted output validation", check_formatted_output_validation),
         ("board unavailable sample", check_board_unavailable_sample),
         ("no mcu preferred candidates", check_no_mcu_preferred_candidates),
         ("phase_complete validation", check_phase_complete_validation),
         ("phase_complete requires logs", check_phase_complete_requires_logs),
+        ("success requires pin review", check_success_requires_pin_review),
+        ("pin review timing validation", check_pin_review_timing_validation),
+        ("pin decision validation", check_pin_decision_validation),
+        ("power pin type validation", check_power_pin_type_validation),
+        ("config power tie simplified validation", check_config_power_tie_simplified_validation),
         ("adc2 wifi digital warning", check_adc2_wifi_digital_warning),
         ("strict board pin validation", check_strict_board_pin_validation),
         ("user wiring and onboard validation", check_user_wiring_and_onboard_validation),
+        ("runtime context required", check_runtime_context_required),
+        ("artifact cwd bare fails", check_artifact_root_mode_cwd_bare_fails),
+        ("artifact session_root ok", check_artifact_root_mode_session_root_ok),
         ("runner bridge", check_runner_bridge),
         ("plugin manifest", check_plugin_manifest),
     ]

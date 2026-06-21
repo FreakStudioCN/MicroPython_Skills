@@ -13,7 +13,7 @@ import copy
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +42,7 @@ MESSAGE_TYPES = {
 RESULTS = {"success", "failed", "partial"}
 ARTIFACT_TYPES = {"table", "file_tree", "markdown", "html", "code_diff", "file_list"}
 FILE_STATUSES = {"created", "updated", "unchanged", "skipped", "error"}
+ARTIFACT_ROOT_MODES = {"cwd", "session_root"}
 STRUCTURED_SEVERITIES = {"info", "warning", "error", "fatal"}
 STRUCTURED_CODES = {
     "invalid_upstream_manifest",
@@ -60,6 +61,9 @@ STRUCTURED_CODES = {
     "board_definition_invalid",
     "restricted_gpio_used",
     "default_bus_pin_deviation",
+    "pin_review_required",
+    "pin_review_rejected",
+    "pin_decision_invalid",
     "onboard_peripheral_pin_used",
     "onboard_peripheral_reused",
     "user_wiring_invalid",
@@ -99,6 +103,36 @@ PIN_SOURCES = {
     "onboard_peripheral",
     "power",
 }
+PIN_DECISION_TYPES = {
+    "use_default_bus",
+    "auto_assign_free_gpio",
+    "remap_default_conflict",
+    "avoid_restricted_gpio",
+    "avoid_onboard_occupied",
+    "reuse_onboard_peripheral",
+    "fixed_power_tie",
+    "user_wiring",
+    "manual_review_required",
+}
+PIN_DECISION_SOURCES = {
+    "board_default",
+    "auto_assigned",
+    "user_wiring",
+    "onboard_peripheral",
+    "fixed_power",
+}
+PIN_DEVIATION_REASON_CODES = {
+    "restricted_gpio",
+    "default_bus_conflict",
+    "onboard_occupied",
+    "not_exposed",
+    "user_requested",
+    "fixed_power_tie",
+    "insufficient_board_data",
+}
+PIN_DEVIATION_VALIDATOR_ACTIONS = {"error", "warning", "manual_review"}
+PIN_REVIEW_SOURCES = {"approval_response", "plugin_ui_confirmed", "user_confirmed"}
+PIN_REVIEW_MAX_PHASE_AGE = timedelta(hours=2)
 
 VALID_DRIVER_SOURCES = {
     "builtin_runtime",
@@ -128,6 +162,22 @@ VALID_DEVICE_INTERFACES = {
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def parse_utc_timestamp(value: Any, field: str, errors: list[str]) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        errors.append(f"{field} must be a non-empty ISO-8601 timestamp")
+        return None
+    try:
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        errors.append(f"{field} must be a valid ISO-8601 timestamp")
+        return None
+    if parsed.tzinfo is None:
+        errors.append(f"{field} must include timezone, preferably Z")
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def load_input(args: argparse.Namespace) -> dict[str, Any]:
@@ -369,6 +419,17 @@ def has_reason(item: dict[str, Any]) -> bool:
     return isinstance(notes, str) and bool(notes.strip())
 
 
+def expected_power_pin_type(gpio: Any) -> str | None:
+    value = gpio_key(gpio)
+    if value == "GND":
+        return "gnd"
+    if value == "3V3":
+        return "power_3v3"
+    if value == "5V":
+        return "power_5v"
+    return None
+
+
 def validate_pinout_against_board(
     pinout: Any,
     board: dict[str, Any] | None,
@@ -470,6 +531,37 @@ def is_shareable_pin(pin_type: str, pin_name: str) -> bool:
     return pin_name.upper() in {"SDA", "SCL", "MOSI", "MISO", "SCK", "BCK", "WS"}
 
 
+def is_config_power_tie(pin_name: Any, assigned_gpio: Any) -> bool:
+    name = str(pin_name).strip().upper().replace("-", "_")
+    gpio = gpio_key(assigned_gpio)
+    if gpio == "5V":
+        return True
+    supply_names = {"VCC", "VDD", "VDDIO", "VIN", "VBUS", "3V3", "5V", "GND", "GROUND"}
+    if name in supply_names:
+        return False
+    config_tokens = {
+        "ADDR",
+        "ADDRESS",
+        "BOOT",
+        "CFG",
+        "CONFIG",
+        "CS",
+        "EN",
+        "ENABLE",
+        "GAIN",
+        "LR",
+        "L/R",
+        "MODE",
+        "SEL",
+        "SELECT",
+        "SD",
+        "SHDN",
+        "SLEEP",
+        "WAKE",
+    }
+    return name in config_tokens or any(token in name.split("_") for token in config_tokens)
+
+
 def validate_pinout(pinout: Any, errors: list[str], warnings: list[str]) -> None:
     items = require_list(pinout, "hardware_plan.pinout", errors)
     if items is None:
@@ -497,6 +589,10 @@ def validate_pinout(pinout: Any, errors: list[str], warnings: list[str]) -> None
         if pin_type not in PIN_TYPES:
             errors.append(f"{prefix}.type invalid value '{pin_type}', valid values: {sorted(PIN_TYPES)}")
             continue
+
+        expected_power_type = expected_power_pin_type(item.get("gpio"))
+        if expected_power_type is not None and pin_type != expected_power_type:
+            errors.append(f"{prefix}.type must be {expected_power_type} when gpio is {item.get('gpio')}")
 
         if pin_type in {"power_3v3", "power_5v"}:
             has_power = True
@@ -560,6 +656,155 @@ def validate_bom(bom: Any, errors: list[str]) -> float:
     return total
 
 
+def pinout_decision_keys(pinout: Any) -> set[tuple[str, str, str]]:
+    keys: set[tuple[str, str, str]] = set()
+    if not isinstance(pinout, list):
+        return keys
+    for item in pinout:
+        if not isinstance(item, dict):
+            continue
+        keys.add(
+            (
+                str(item.get("device", "")),
+                str(item.get("pin_name", "")),
+                gpio_key(item.get("gpio", "")),
+            )
+        )
+    return keys
+
+
+def board_occupied_pin_values(board: dict[str, Any] | None) -> set[str]:
+    if board is None:
+        return set()
+    return set(onboard_occupied_pins(board))
+
+
+def validate_pin_decisions(
+    decisions: Any,
+    pinout: Any,
+    board: dict[str, Any] | None,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    items = require_list(decisions, "hardware_plan.pin_decisions", errors)
+    if items is None:
+        return
+
+    pinout_keys = pinout_decision_keys(pinout)
+    occupied_values = board_occupied_pin_values(board)
+    seen: set[tuple[str, str, str]] = set()
+
+    for index, raw in enumerate(items):
+        prefix = f"hardware_plan.pin_decisions[{index}]"
+        item = require_object(raw, prefix, errors)
+        if item is None:
+            continue
+
+        for field in ["device", "pin_name", "assigned_gpio", "decision_type", "source", "evidence", "requires_user_review"]:
+            if field not in item or item[field] in (None, ""):
+                errors.append(f"{prefix}.{field} is required")
+
+        decision_type = item.get("decision_type")
+        source = item.get("source")
+        if decision_type not in PIN_DECISION_TYPES:
+            errors.append(
+                f"{prefix}.decision_type invalid value '{decision_type}', valid values: {sorted(PIN_DECISION_TYPES)}"
+            )
+        if source not in PIN_DECISION_SOURCES:
+            errors.append(f"{prefix}.source invalid value '{source}', valid values: {sorted(PIN_DECISION_SOURCES)}")
+        if "requires_user_review" in item and not isinstance(item["requires_user_review"], bool):
+            errors.append(f"{prefix}.requires_user_review must be a boolean")
+        evidence = require_object(item.get("evidence"), f"{prefix}.evidence", errors)
+        if evidence is not None and not (evidence.get("path") or evidence.get("note")):
+            errors.append(f"{prefix}.evidence must include path or note")
+
+        key = (str(item.get("device", "")), str(item.get("pin_name", "")), gpio_key(item.get("assigned_gpio", "")))
+        if key in seen:
+            errors.append(f"{prefix} duplicates decision for {key}")
+        seen.add(key)
+        if pinout_keys and key not in pinout_keys:
+            errors.append(f"{prefix} does not match any hardware_plan.pinout item")
+
+        if decision_type == "fixed_power_tie" and source != "fixed_power":
+            errors.append(f"{prefix}.source must be fixed_power when decision_type=fixed_power_tie")
+        if source == "fixed_power" and decision_type != "fixed_power_tie":
+            errors.append(f"{prefix}.decision_type must be fixed_power_tie when source=fixed_power")
+
+        deviation = item.get("deviation")
+        if deviation is not None:
+            dev = require_object(deviation, f"{prefix}.deviation", errors)
+            if dev is not None:
+                for field in ["from_gpio", "to_gpio", "reason_code", "evidence_path", "evidence_value", "validator_action"]:
+                    if field not in dev or dev[field] in (None, ""):
+                        errors.append(f"{prefix}.deviation.{field} is required")
+                reason_code = dev.get("reason_code")
+                if reason_code not in PIN_DEVIATION_REASON_CODES:
+                    errors.append(
+                        f"{prefix}.deviation.reason_code invalid value '{reason_code}', "
+                        f"valid values: {sorted(PIN_DEVIATION_REASON_CODES)}"
+                    )
+                validator_action = dev.get("validator_action")
+                if validator_action not in PIN_DEVIATION_VALIDATOR_ACTIONS:
+                    errors.append(
+                        f"{prefix}.deviation.validator_action invalid value '{validator_action}', "
+                        f"valid values: {sorted(PIN_DEVIATION_VALIDATOR_ACTIONS)}"
+                    )
+                if reason_code == "onboard_occupied":
+                    evidence_path = str(dev.get("evidence_path", ""))
+                    evidence_value = gpio_key(dev.get("evidence_value", ""))
+                    from_gpio = gpio_key(dev.get("from_gpio", ""))
+                    if "onboard_peripherals" not in evidence_path or "occupied_pins" not in evidence_path:
+                        errors.append(f"{prefix}.deviation.evidence_path must point to onboard_peripherals[].occupied_pins")
+                    if evidence_value != from_gpio:
+                        errors.append(f"{prefix}.deviation.evidence_value must match from_gpio for onboard_occupied")
+                    if board is not None and from_gpio not in occupied_values:
+                        errors.append(f"{prefix}.deviation.from_gpio is not declared in board onboard_peripherals")
+
+        if decision_type == "fixed_power_tie" and is_config_power_tie(item.get("pin_name"), item.get("assigned_gpio")):
+            prompt = item.get("review_prompt")
+            if item.get("requires_user_review") is True and not isinstance(prompt, str):
+                warnings.append(f"{prefix}.review_prompt is recommended for reviewed fixed_power_tie")
+
+
+def validate_pin_review(
+    value: Any,
+    errors: list[str],
+    *,
+    require_confirmed: bool,
+    phase_timestamp: datetime | None = None,
+) -> None:
+    review = require_object(value, "hardware_plan.pin_review", errors)
+    if review is None:
+        return
+    if review.get("approval_id") != "pin_plan_review":
+        errors.append("hardware_plan.pin_review.approval_id must be 'pin_plan_review'")
+    if "confirmed" not in review or not isinstance(review.get("confirmed"), bool):
+        errors.append("hardware_plan.pin_review.confirmed must be a boolean")
+    if require_confirmed and review.get("confirmed") is not True:
+        errors.append("hardware_plan.pin_review.confirmed must be true when result=success")
+    if review.get("source") not in PIN_REVIEW_SOURCES:
+        errors.append(
+            f"hardware_plan.pin_review.source invalid value '{review.get('source')}', "
+            f"valid values: {sorted(PIN_REVIEW_SOURCES)}"
+        )
+    if review.get("confirmed"):
+        for field in ["confirmed_by", "confirmed_at"]:
+            if not review.get(field):
+                errors.append(f"hardware_plan.pin_review.{field} is required when confirmed=true")
+        confirmed_at = parse_utc_timestamp(
+            review.get("confirmed_at"),
+            "hardware_plan.pin_review.confirmed_at",
+            errors,
+        )
+        if phase_timestamp is not None and confirmed_at is not None:
+            if confirmed_at > phase_timestamp:
+                errors.append("hardware_plan.pin_review.confirmed_at must not be later than phase_complete.timestamp")
+            if phase_timestamp - confirmed_at > PIN_REVIEW_MAX_PHASE_AGE:
+                errors.append("hardware_plan.pin_review.confirmed_at is too old for this phase_complete")
+            if confirmed_at.time() == datetime.min.time():
+                errors.append("hardware_plan.pin_review.confirmed_at must be the actual approval time, not a date-only placeholder")
+
+
 def normalize_manifest(draft: dict[str, Any]) -> dict[str, Any]:
     upstream = copy.deepcopy(draft["upstream_manifest"])
     plan = copy.deepcopy(draft["hardware_plan"])
@@ -588,6 +833,8 @@ def normalize_manifest(draft: dict[str, Any]) -> dict[str, Any]:
             "price_source": "llm_common_knowledge_v0",
         },
         "pinout": copy.deepcopy(plan.get("pinout", [])),
+        "pin_decisions": copy.deepcopy(plan.get("pin_decisions", [])),
+        "pin_review": copy.deepcopy(plan.get("pin_review", {})),
         "bom": copy.deepcopy(plan.get("bom", [])),
         "estimated_total_yuan": estimated_total,
         "final_status": "hardware_selected",
@@ -600,6 +847,8 @@ def validate_draft(
     board_root: Path | None = None,
     *,
     strict_board_pins: bool = False,
+    require_pin_review_confirmed: bool = True,
+    phase_timestamp: datetime | None = None,
 ) -> tuple[list[str], list[str], dict[str, Any] | None]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -641,6 +890,19 @@ def validate_draft(
             errors,
             warnings,
             strict_board_pins=strict_board_pins,
+        )
+        validate_pin_decisions(
+            plan.get("pin_decisions"),
+            plan.get("pinout"),
+            board_definition,
+            errors,
+            warnings,
+        )
+        validate_pin_review(
+            plan.get("pin_review"),
+            errors,
+            require_confirmed=require_pin_review_confirmed,
+            phase_timestamp=phase_timestamp,
         )
         total = validate_bom(plan.get("bom"), errors)
         declared_total = plan.get("estimated_total_yuan")
@@ -687,10 +949,51 @@ def validate_structured_errors(value: Any, errors: list[str]) -> None:
                 errors.append(f"{prefix}.{field} must be a boolean")
 
 
-def validate_artifacts(value: Any, errors: list[str], artifact_root: Path | None) -> None:
+def validate_runtime_context(value: Any, errors: list[str], session_id: str | None) -> dict[str, Any] | None:
+    context = require_object(value, "phase_complete.runtime_context", errors)
+    if context is None:
+        return None
+    mode = context.get("artifact_root_mode")
+    if mode not in ARTIFACT_ROOT_MODES:
+        errors.append(
+            f"phase_complete.runtime_context.artifact_root_mode invalid value '{mode}', "
+            f"valid values: {sorted(ARTIFACT_ROOT_MODES)}"
+        )
+    artifact_root = context.get("artifact_root")
+    if not isinstance(artifact_root, str) or not artifact_root:
+        errors.append("phase_complete.runtime_context.artifact_root is required")
+    session_root = context.get("session_root")
+    if not isinstance(session_root, str) or not session_root:
+        errors.append("phase_complete.runtime_context.session_root is required")
+    elif Path(session_root).is_absolute() or ".." in Path(session_root).parts:
+        errors.append("phase_complete.runtime_context.session_root must be relative")
+    if mode == "cwd":
+        expected = f"sessions/{session_id}" if session_id else None
+        if expected and session_root != expected:
+            errors.append(f"phase_complete.runtime_context.session_root must be '{expected}' when artifact_root_mode=cwd")
+    resource_root = context.get("resource_root")
+    if not isinstance(resource_root, str) or not resource_root:
+        errors.append("phase_complete.runtime_context.resource_root is required")
+    return context
+
+
+def is_session_relative_artifact(rel_path: str, session_root: str) -> bool:
+    parts = Path(rel_path).parts
+    session_parts = Path(session_root).parts
+    return len(parts) > len(session_parts) and tuple(parts[: len(session_parts)]) == tuple(session_parts)
+
+
+def validate_artifacts(
+    value: Any,
+    errors: list[str],
+    artifact_root: Path | None,
+    runtime_context: dict[str, Any] | None,
+) -> None:
     artifacts = require_list(value, "phase_complete.artifacts", errors)
     if artifacts is None:
         return
+    mode = runtime_context.get("artifact_root_mode") if isinstance(runtime_context, dict) else None
+    session_root = runtime_context.get("session_root") if isinstance(runtime_context, dict) else None
     for index, raw in enumerate(artifacts):
         prefix = f"phase_complete.artifacts[{index}]"
         artifact = require_object(raw, prefix, errors)
@@ -720,6 +1023,11 @@ def validate_artifacts(value: Any, errors: list[str], artifact_root: Path | None
                     continue
                 if Path(rel_path).is_absolute() or ".." in Path(rel_path).parts:
                     errors.append(f"{file_prefix}.path must be relative and stay inside artifact root")
+                elif mode == "cwd" and isinstance(session_root, str):
+                    if not is_session_relative_artifact(rel_path, session_root):
+                        errors.append(f"{file_prefix}.path must be under {session_root}/ when artifact_root_mode=cwd")
+                elif mode == "session_root" and len(Path(rel_path).parts) != 1:
+                    errors.append(f"{file_prefix}.path must be a bare filename when artifact_root_mode=session_root")
                 status = file_item.get("status")
                 if status not in FILE_STATUSES:
                     errors.append(f"{file_prefix}.status invalid value '{status}', valid values: {sorted(FILE_STATUSES)}")
@@ -759,6 +1067,8 @@ def core_manifest(value: dict[str, Any]) -> dict[str, Any]:
         "devices",
         "mcu",
         "pinout",
+        "pin_decisions",
+        "pin_review",
         "bom",
         "estimated_total_yuan",
         "final_status",
@@ -774,6 +1084,8 @@ def validate_phase_complete(
     expected_artifacts: list[str] | None = None,
     *,
     strict_board_pins: bool = False,
+    enforce_pin_review_timing: bool = True,
+    require_runtime_context: bool = True,
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -792,6 +1104,8 @@ def validate_phase_complete(
             errors.append("timestamp is required")
         if data.get("type") not in MESSAGE_TYPES:
             errors.append(f"type invalid value '{data.get('type')}', valid values: {sorted(MESSAGE_TYPES)}")
+    phase_timestamp = parse_utc_timestamp(data.get("timestamp"), "timestamp", errors) if "payload" in data else None
+    review_phase_timestamp = phase_timestamp if enforce_pin_review_timing else None
 
     payload = phase_payload(data)
     if payload.get("phase") != PHASE:
@@ -811,6 +1125,14 @@ def validate_phase_complete(
             errors.append("payload.checkpoint is required when result=partial")
     if result == "failed" and next_phase is not None:
         errors.append("payload.next_phase must be null when result=failed")
+
+    runtime_context = None
+    if require_runtime_context:
+        runtime_context = validate_runtime_context(
+            payload.get("runtime_context"),
+            errors,
+            data.get("session_id") if "payload" in data else None,
+        )
 
     manifest = payload.get("manifest_content")
     if not isinstance(manifest, dict):
@@ -833,6 +1155,8 @@ def validate_phase_complete(
             "hardware_plan": {
                 "mcu": manifest.get("mcu"),
                 "pinout": manifest.get("pinout"),
+                "pin_decisions": manifest.get("pin_decisions"),
+                "pin_review": manifest.get("pin_review"),
                 "bom": manifest.get("bom"),
                 "estimated_total_yuan": manifest.get("estimated_total_yuan"),
             },
@@ -841,13 +1165,15 @@ def validate_phase_complete(
             draft_like,
             board_root,
             strict_board_pins=strict_board_pins,
+            require_pin_review_confirmed=result == "success",
+            phase_timestamp=review_phase_timestamp if result == "success" else None,
         )
         errors.extend(f"manifest_content: {item}" for item in manifest_errors)
         warnings.extend(f"manifest_content: {item}" for item in manifest_warnings)
         if compare_manifest is not None and core_manifest(compare_manifest) != core_manifest(manifest):
             errors.append("payload.manifest_content core fields differ from compare manifest")
 
-    validate_artifacts(payload.get("artifacts"), errors, artifact_root)
+    validate_artifacts(payload.get("artifacts"), errors, artifact_root, runtime_context)
     if expected_artifacts:
         validate_expected_artifacts(payload.get("artifacts"), expected_artifacts, errors)
     if not isinstance(payload.get("warnings"), list):
@@ -890,6 +1216,8 @@ def validate_manifest_content(
         board_root,
         None,
         strict_board_pins=strict_board_pins,
+        enforce_pin_review_timing=False,
+        require_runtime_context=False,
     )
 
 

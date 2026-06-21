@@ -20,11 +20,20 @@ BOARD_DIR = REPO_ROOT / "upy-analyze-plugin" / "boards"
 PREFERRED_NO_MCU_FAMILIES = {"rp2", "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6"}
 OFFICIAL_ARTIFACT_FILES = [
     ("select_hw_draft.json", "draft", "select-hw 草稿"),
-    ("select_hw_manifest.after.json", "manifest", "校验规范化后的 select-hw manifest"),
-    ("phase_complete.select_hw.success.json", "phase_complete", "完整 select-hw 阶段完成消息"),
+    ("select_hw_validated.json", "manifest", "校验规范化后的 select-hw manifest"),
+    ("phase_complete.select_hw.json", "phase_complete", "完整 select-hw 阶段完成消息"),
     ("pin_assignment_log.md", "log", "引脚分配日志"),
     ("select_hw_phase_log.md", "log", "select-hw 阶段日志"),
 ]
+
+
+def artifact_paths(session_id: str, *, mode: str = "cwd") -> list[tuple[str, str, str]]:
+    if mode == "session_root":
+        return [(name, kind, desc) for name, kind, desc in OFFICIAL_ARTIFACT_FILES]
+    return [
+        (f"sessions/{session_id}/{name}", kind, desc)
+        for name, kind, desc in OFFICIAL_ARTIFACT_FILES
+    ]
 DEFAULT_NO_MCU_ORDER = {
     "raspberry-pi-pico-w": 50,
     "raspberry-pi-pico": 48,
@@ -39,8 +48,24 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
+WORKFLOW_TIME_SCRIPT = REPO_ROOT / "upy-project-gen-toolchain-spec" / "scripts" / "workflow_time.py"
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def workflow_time() -> str:
+    if WORKFLOW_TIME_SCRIPT.is_file():
+        import subprocess
+        proc = subprocess.run(
+            [sys.executable, str(WORKFLOW_TIME_SCRIPT), "--json"],
+            capture_output=True, text=True, check=False,
+        )
+        if proc.returncode == 0:
+            data = json.loads(proc.stdout)
+            return data["utc"]
+    return utc_now()
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -74,7 +99,7 @@ def envelope(
         "msg_id": str(uuid.uuid4()),
         "session_id": session_id,
         "phase": "select-hw",
-        "timestamp": utc_now(),
+        "timestamp": workflow_time(),
         "type": msg_type,
         "idempotency_key": idempotency_key,
         "retry_of": None,
@@ -305,7 +330,7 @@ def parse_script_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return {"status": "fail", "errors": ["empty script stdout"], "warnings": [], "manifest": None}
 
 
-def file_list_artifact() -> dict[str, Any]:
+def file_list_artifact(session_id: str, *, mode: str = "cwd") -> dict[str, Any]:
     return {
         "type": "file_list",
         "title": "select-hw 直测产物",
@@ -317,7 +342,7 @@ def file_list_artifact() -> dict[str, Any]:
                 "mime_type": "text/markdown" if path.endswith(".md") else "application/json",
                 "description": description,
             }
-            for path, kind, description in OFFICIAL_ARTIFACT_FILES
+            for path, kind, description in artifact_paths(session_id, mode=mode)
         ],
     }
 
@@ -420,6 +445,56 @@ def main() -> int:
     draft = load_sample_draft(upstream_manifest)
     send(
         envelope(
+            "status_update",
+            session_id,
+            {
+                "step_id": "pin_assignment_draft_ready",
+                "level": "info",
+                "message": "引脚方案草稿已生成，等待用户确认",
+            },
+        )
+    )
+    send(
+        envelope(
+            "approval_request",
+            session_id,
+            {
+                "approval_id": "pin_plan_review",
+                "header": "确认引脚分配",
+                "summary": {
+                    "board_id": draft["hardware_plan"]["mcu"]["board_id"],
+                    "board_definition": f"upy-analyze-plugin/boards/{draft['hardware_plan']['mcu']['board_id']}.json",
+                    "requires_schematic_review": True,
+                },
+                "pinout": draft["hardware_plan"].get("pinout", []),
+                "pin_decisions": draft["hardware_plan"].get("pin_decisions", []),
+                "warnings": draft.get("warnings", []),
+                "actions": [
+                    {"label": "确认引脚方案", "value": "confirm_pin_plan", "primary": True},
+                    {"label": "重新分配引脚", "value": "revise_pin_plan"},
+                    {"label": "手动描述接线", "value": "manual_wiring_description"},
+                    {"label": "稍后继续", "value": "save_partial"},
+                ],
+            },
+            idempotency_key=f"select-hw:{session_id}:pin-plan-review:v1",
+        )
+    )
+    pin_review_response = read_response("approval_response")
+    pin_review_action = pin_review_response.get("payload", {}).get("action")
+    if pin_review_action not in {"confirm_pin_plan", "confirm", "accept"}:
+        partial = load_json(SAMPLE_DIR / "phase_complete.select_hw.partial.json")
+        send(partial)
+        return 0
+    draft["hardware_plan"]["pin_review"] = {
+        "approval_id": "pin_plan_review",
+        "confirmed": True,
+        "confirmed_by": "mock_plugin",
+        "confirmed_at": workflow_time(),
+        "source": "approval_response",
+        "action": pin_review_action,
+    }
+    send(
+        envelope(
             "script_run",
             session_id,
             {
@@ -466,12 +541,13 @@ def main() -> int:
         return 0
 
     manifest = result["manifest"]
+    phase_timestamp = workflow_time()
     phase_complete = {
         "protocol_version": "1.0",
         "msg_id": str(uuid.uuid4()),
         "session_id": session_id,
         "phase": "select-hw",
-        "timestamp": utc_now(),
+        "timestamp": phase_timestamp,
         "type": "phase_complete",
         "idempotency_key": f"select-hw:{session_id}:phase-complete:v1",
         "retry_of": None,
@@ -480,6 +556,12 @@ def main() -> int:
             "result": "success",
             "summary": "硬件选型完成：ESP32-C3-DevKitM-1，已生成固件、引脚和 BOM 方案",
             "next_phase": "flash-mpy-firmware",
+            "runtime_context": {
+                "artifact_root": ".",
+                "artifact_root_mode": "cwd",
+                "session_root": f"sessions/{session_id}",
+                "resource_root": str(REPO_ROOT),
+            },
             "manifest_content": manifest,
             "artifacts": [
                 {
@@ -493,7 +575,7 @@ def main() -> int:
                         ["下一阶段", "flash-mpy-firmware"],
                     ],
                 },
-                file_list_artifact(),
+                file_list_artifact(session_id, mode="cwd"),
             ],
             "warnings": result.get("warnings", []) + ["BOM 价格为 V0 常识估算"],
             "errors": [],
