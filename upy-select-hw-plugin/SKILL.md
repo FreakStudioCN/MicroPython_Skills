@@ -54,6 +54,8 @@ sessions/<session_id>/
 2. 直测 fallback 可读 `manifest_validated.json`
 3. `manifest_draft.json`、`driver_search_log.md`、`analyze_phase_log.md` 只作排查参考
 
+`start_phase.payload.user_pin_constraints` 可选。插件或上游 analyze 若已解析到用户指定引脚，必须用结构化数组传入 select-hw。每项至少包含 `device`、`device_pin`、`mcu_pin`、`signal`，可选 `voltage`、`notes`。
+
 ## 路径与 root 约定
 
 必须区分三个 root：
@@ -228,6 +230,8 @@ Step 3 引脚分配
   若候选板卡缺 pin_layout：
     -> 选择功能类似且有 pin_layout 的已知板卡
     -> approval_request(board_select)
+  若存在 start_phase.payload.user_pin_constraints 或 approval_response.payload.user_pin_constraints：
+    -> 优先按用户指定引脚生成 pinout/pin_decisions；`pinout[].source` 必须为 `user_wiring`
   -> status_update(pin_assignment_draft_ready)
 
 Step 3B 引脚方案确认
@@ -383,6 +387,44 @@ checkpoint 必填
 | `manual_wiring_description` | 用户手动描述接线 | 产出 partial/checkpoint，等待结构化接线 |
 | `save_partial` | 暂停 | 产出 partial/checkpoint |
 
+当用户选择 `revise_pin_plan` 或 `manual_wiring_description` 时，插件应在 `approval_response.payload.user_pin_constraints` 返回结构化引脚约束：
+
+```json
+{
+  "approval_id": "pin_plan_review",
+  "action": "revise_pin_plan",
+  "user_pin_constraints": [
+    {
+      "device": "AHT20",
+      "device_pin": "SDA",
+      "mcu_pin": "GPIO21",
+      "signal": "i2c_data",
+      "voltage": "3.3V",
+      "notes": "用户指定 SDA"
+    }
+  ]
+}
+```
+
+`user_pin_constraints[]` 字段含义：
+
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `device` | 是 | 器件名，必须能对应上游 `devices[].name` 或当前 `pinout[].device` |
+| `device_pin` | 是 | 器件侧引脚/信号名，如 `SDA`、`SCL`、`OUT`、`DIN`、`VCC`、`GND` |
+| `mcu_pin` | 是 | 用户指定的 MCU/板卡侧引脚。GPIO 可写 `GPIO21` 或 `21`；电源/地可写 `3V3`、`5V`、`GND` |
+| `signal` | 是 | 引脚功能类型，应映射到 `pinout[].type`，如 `i2c_data`、`i2c_clock`、`gpio_in`、`gpio_out`、`uart_tx`、`uart_rx`、`power_3v3`、`gnd` |
+| `voltage` | 否 | 电压说明，如 `3.3V`、`5V`、`0V`，仅用于校验提示和 notes |
+| `notes` | 否 | 用户说明或插件 UI 备注 |
+
+处理规则：
+
+- 将合法的 `user_pin_constraints[]` 转换为 `pinout[]`，并设置 `pinout[].source="user_wiring"`。
+- 同步生成 `pin_decisions[]`，并设置 `decision_type="user_wiring"`、`source="user_wiring"`。
+- `mcu_pin` 中的 `GPIO21` 和 `21` 视为同一个 GPIO；电源/地必须保持为 `3V3`、`5V`、`GND`。
+- 缺少必填字段时，不要继续 success；输出 `partial`，`checkpoint.resume_step=pin_assignment`。
+- 用户指定引脚仍必须通过 board JSON 校验；非法引脚不得静默改写。
+
 payload 必须包含：
 
 ```json
@@ -451,6 +493,7 @@ upy-analyze-plugin/boards
 - 如果 board JSON 有 `pin_options`，重映射只能在 `pin_options` 允许范围内进行；如果是 flexible matrix，也必须避开硬禁用脚。条件可用脚不作为 schema 硬失败，交给 warnings 与用户确认处理。
 - 偏离 `pin_layout.default_bus_pins` 必须在 `pinout[].notes` 和 warnings 中说明原因。
 - 用户传入接线时，优先保留用户接线，但必须通过 board JSON 的 restricted/occupied 校验；非法用户接线不能静默成功。
+- 用户指定引脚只表示偏好/约束，不表示跳过安全校验。若指定引脚命中 hard forbidden、输入输出方向不匹配、已被 `always_used` 板载外设占用，输出 `partial`，`checkpoint.resume_step=pin_assignment`，并在 `structured_errors` 中说明冲突原因；非法引脚不得静默改写，也不要自动换脚后继续 success。
 - 板载器件与用户指定器件或系统推荐器件一致时，复用 `onboard_peripherals` 声明的板载默认/占用引脚，不重复分配外接 GPIO，也不重复加入 BOM。
 - 板载器件与当前需求不一致时，`onboard_peripherals[].occupied_pins` 视为已占用资源，外接器件只能使用空余引脚。
 - 如果用户要求释放板载器件占用脚，必须确认 `always_used=false`，并在 notes/warnings 中说明释放原因。
@@ -924,6 +967,8 @@ python upy-select-hw-plugin/scripts/select_hw_manifest.py --validate-manifest-co
 10. `phase_complete.select_hw.json` 通过脚本校验，且 `--expected-artifact` 覆盖全部直测正式产物。
 11. validator 覆盖 board-root、restricted pins、默认总线偏离、用户接线、板载器件复用、ADC2/WiFi 数字用途 warning。
 12. `phase_complete.payload.artifacts` 覆盖全部正式产物，日志和 artifact 不出现本机插件安装绝对路径。
+13. `pin_plan_review` 的 `approval_response.payload.user_pin_constraints` 能被转换为 `user_wiring` pinout/pin_decisions。
+14. 用户指定非法 GPIO 时不得静默自动改脚，必须输出 partial/checkpoint 或校验失败。
 
 ## 维护原则
 

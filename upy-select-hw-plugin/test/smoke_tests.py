@@ -93,6 +93,10 @@ def check_skill_path_contract() -> None:
         "未用 GPIO",
         "条件/保留 GPIO",
         "禁止 GPIO",
+        "user_pin_constraints",
+        "approval_response.payload.user_pin_constraints",
+        "`pinout[].source` 必须为 `user_wiring`",
+        "非法引脚不得静默改写",
     ]
     missing = [item for item in required if item not in text]
     if missing:
@@ -186,6 +190,27 @@ def check_board_unavailable_sample() -> None:
     required_fields = {"mcu_pin", "device", "device_pin", "signal"}
     if not required_fields.issubset(manual_fields):
         raise AssertionError(f"manual wiring schema missing fields: {required_fields - manual_fields}")
+
+
+def check_pin_plan_revise_response_sample() -> None:
+    msg = load_json(SAMPLE_DIR / "approval_response.pin_plan_review.revise.json")
+    payload = msg.get("payload", {})
+    if msg.get("type") != "approval_response":
+        raise AssertionError("pin_plan_review revise sample is not an approval_response")
+    if payload.get("approval_id") != "pin_plan_review":
+        raise AssertionError("pin_plan_review revise sample has wrong approval_id")
+    if payload.get("action") != "revise_pin_plan":
+        raise AssertionError("pin_plan_review revise sample has wrong action")
+    constraints = payload.get("user_pin_constraints")
+    if not isinstance(constraints, list) or not constraints:
+        raise AssertionError("pin_plan_review revise sample missing user_pin_constraints")
+    required_fields = {"device", "device_pin", "mcu_pin", "signal"}
+    for index, item in enumerate(constraints):
+        if not isinstance(item, dict):
+            raise AssertionError(f"user_pin_constraints[{index}] must be an object")
+        missing = required_fields - set(item)
+        if missing:
+            raise AssertionError(f"user_pin_constraints[{index}] missing fields: {missing}")
 
 
 def check_no_mcu_preferred_candidates() -> None:
@@ -624,6 +649,7 @@ def main() -> int:
         ("manifest validation", check_manifest_validation),
         ("formatted output validation", check_formatted_output_validation),
         ("board unavailable sample", check_board_unavailable_sample),
+        ("pin plan revise response sample", check_pin_plan_revise_response_sample),
         ("no mcu preferred candidates", check_no_mcu_preferred_candidates),
         ("phase_complete validation", check_phase_complete_validation),
         ("phase_complete requires logs", check_phase_complete_requires_logs),

@@ -1,0 +1,17 @@
+{
+  "type": "approval_response",
+  "payload": {
+    "approval_id": "pin_plan_review",
+    "action": "revise_pin_plan",
+    "user_pin_constraints": [
+      {
+        "device": "AHT20",
+        "device_pin": "SDA",
+        "mcu_pin": "GPIO21",
+        "signal": "i2c_data",
+        "voltage": "3.3V",
+        "notes": "用户指定 SDA"
+      }
+    ]
+  }
+}
