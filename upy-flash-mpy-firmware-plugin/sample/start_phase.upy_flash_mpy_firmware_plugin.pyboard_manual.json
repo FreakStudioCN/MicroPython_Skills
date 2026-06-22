@@ -1,0 +1,95 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-start-pyboard",
+  "session_id": "sample-pyboard",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-pyboard:start:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "source_phase": "select-hw",
+    "source_phase_complete_path": "sessions/sample-pyboard/phase_complete.select_hw.json",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-pyboard",
+      "resource_root": "<runtime-provided>"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "script_run": true,
+      "file_operation": true,
+      "network_access": {
+        "allowed": true,
+        "domains": ["micropython.org", "docs.micropython.org"]
+      },
+      "web_search": true,
+      "serial_port_scan": false,
+      "device_flash": false,
+      "relative_paths": true,
+      "artifact_root": true
+    },
+    "firmware_action": null,
+    "firmware_override": null,
+    "source_phase_complete": {
+      "protocol_version": "1.0",
+      "msg_id": "sample-select-hw-pyboard",
+      "session_id": "sample-pyboard",
+      "phase": "select-hw",
+      "timestamp": "2026-06-22T00:00:00Z",
+      "type": "phase_complete",
+      "idempotency_key": "select-hw:sample-pyboard:phase_complete:v1",
+      "retry_of": null,
+      "payload": {
+        "phase": "select-hw",
+        "result": "success",
+        "summary": "Board selected",
+        "next_phase": "upy-flash-mpy-firmware-plugin",
+        "manifest_content": {
+          "schema_version": "1.0",
+          "phase": "select-hw",
+          "project_name": "pyboard-demo",
+          "requirements": {
+            "mcu_specified": "Pyboard",
+            "network": "none"
+          },
+          "devices": [],
+          "mcu": {
+            "model": "Pyboard v1.1",
+            "board_id": "pyboard-v11",
+            "display_name": "Pyboard v1.1",
+            "firmware_url": "https://micropython.org/download/PYBV11/",
+            "firmware_board_name": "PYBV11",
+            "flash_tool": "dfu-util",
+            "chip_family": "stm32"
+          },
+          "hardware_selection": {
+            "selected_board": {
+              "id": "pyboard-v11",
+              "display_name": "Pyboard v1.1",
+              "chip_family": "stm32",
+              "firmware": {
+                "url": "https://micropython.org/download/PYBV11/",
+                "board_name": "PYBV11",
+                "port": "stm32"
+              }
+            }
+          }
+        },
+        "artifacts": [],
+        "warnings": [],
+        "errors": [],
+        "structured_errors": [],
+        "runtime_context": {
+          "artifact_root": ".",
+          "artifact_root_mode": "cwd",
+          "session_root": "sessions/sample-pyboard",
+          "resource_root": "<runtime-provided>"
+        }
+      }
+    }
+  }
+}

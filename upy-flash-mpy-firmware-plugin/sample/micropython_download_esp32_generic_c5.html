@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>ESP32_GENERIC_C5</h1>
+    <section>
+      <h2>Firmware</h2>
+      <div>
+        <span>Firmware</span>
+        <a href="/resources/firmware/ESP32_GENERIC_C5-20260301-v1.27.0.bin">ESP32_GENERIC_C5-20260301-v1.27.0.bin</a>
+      </div>
+      <div>
+        <span>Firmware (latest)</span>
+        <a href="/resources/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin">ESP32_GENERIC_C5-20260406-v1.28.0.bin</a>
+      </div>
+      <div>
+        <span>Preview build</span>
+        <a href="/resources/firmware/preview/ESP32_GENERIC_C5-preview.bin">preview</a>
+      </div>
+    </section>
+    <section>
+      <h2>Installation instructions</h2>
+      <pre><code>esptool.py erase_flash</code></pre>
+      <pre><code>esptool.py --port PORTNAME erase_flash</code></pre>
+      <pre><code>esptool.py --baud 460800 write_flash 0x2000 ESP32_BOARD_NAME-DATE-VERSION.bin</code></pre>
+      <pre><code>esptool.py --port PORTNAME --baud 460800 write_flash 0x2000 ESP32_BOARD_NAME-DATE-VERSION.bin</code></pre>
+      <p>See <a href="https://docs.espressif.com/projects/esptool/en/latest/esp32c5/">esptool documentation</a>.</p>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+interface:
+  display_name: "UPY Flash MPY Firmware"
+  short_description: "Flash or confirm MPY firmware."
+  default_prompt: "Use $upy-flash-mpy-firmware-plugin after select-hw to resolve MicroPython firmware and complete flashing."
+policy:
+  allow_implicit_invocation: true

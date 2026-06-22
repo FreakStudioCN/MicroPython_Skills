@@ -1,0 +1,41 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-complete-already-flashed",
+  "session_id": "sample-esp32-c5",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:10:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-esp32-c5:phase-complete-already:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "result": "success",
+    "summary": "User confirmed MicroPython firmware is already flashed",
+    "next_phase": "upy-scaffold-plugin",
+    "firmware": {
+      "status": "skipped_user_confirmed",
+      "action": "already_flashed",
+      "board_name": "ESP32_GENERIC_C5",
+      "board_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+      "source": "user_confirmed",
+      "flash_method": "user_existing_firmware"
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "files": [
+          {"path": "sessions/sample-esp32-c5/phase_complete.upy_flash_mpy_firmware_plugin.json", "status": "created"}
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": [],
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-esp32-c5",
+      "resource_root": "<runtime-provided>"
+    }
+  }
+}

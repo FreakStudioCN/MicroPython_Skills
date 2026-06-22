@@ -1,0 +1,14 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-pico-copied",
+  "session_id": "sample-pico-w",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:02:00Z",
+  "type": "approval_response",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-pico-w:pico-copied:v1",
+  "retry_of": null,
+  "payload": {
+    "approval_id": "pico_uf2_drag_drop",
+    "action": "copied_uf2"
+  }
+}

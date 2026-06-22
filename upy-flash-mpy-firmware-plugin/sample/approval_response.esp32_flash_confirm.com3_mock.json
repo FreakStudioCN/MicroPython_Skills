@@ -1,0 +1,17 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-esp32-flash-com3-mock",
+  "session_id": "sample-esp32-c5",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:02:00Z",
+  "type": "approval_response",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-esp32-c5:esp32-flash-confirm:v1",
+  "retry_of": null,
+  "payload": {
+    "approval_id": "esp32_flash_confirm",
+    "action": "flash_now",
+    "serial_port": "COM3",
+    "baud": 460800,
+    "mode": "mock_format_test_only"
+  }
+}

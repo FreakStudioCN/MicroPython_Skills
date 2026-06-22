@@ -1,0 +1,59 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-complete-esp32-c5",
+  "session_id": "sample-esp32-c5",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:10:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-esp32-c5:phase-complete:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "result": "success",
+    "summary": "MicroPython firmware flashed",
+    "next_phase": "upy-scaffold-plugin",
+    "firmware": {
+      "status": "flashed",
+      "action": "download_and_flash",
+      "board_name": "ESP32_GENERIC_C5",
+      "download_slug": "ESP32_GENERIC_C5",
+      "board_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+      "latest_url": "https://micropython.org/resources/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+      "file": "sessions/sample-esp32-c5/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+      "file_type": "bin",
+      "source": "micropython_latest",
+      "flash_method": "esptool.py",
+      "flash_result": {
+        "tool": "esptool",
+        "tool_version": "4.11.0",
+        "port": "COM3",
+        "write_offset": "0x2000",
+        "erased_first": true,
+        "log": "sessions/sample-esp32-c5/flash_esp32_log.json"
+      }
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "files": [
+          {"path": "sessions/sample-esp32-c5/firmware_page_resolved.json", "status": "created"},
+          {"path": "sessions/sample-esp32-c5/firmware_download.json", "status": "created"},
+          {"path": "sessions/sample-esp32-c5/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin", "status": "created"},
+          {"path": "sessions/sample-esp32-c5/serial_ports.json", "status": "created"},
+          {"path": "sessions/sample-esp32-c5/esptool_plan.json", "status": "created"},
+          {"path": "sessions/sample-esp32-c5/flash_esp32_log.json", "status": "created"},
+          {"path": "sessions/sample-esp32-c5/phase_complete.upy_flash_mpy_firmware_plugin.json", "status": "created"}
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": [],
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-esp32-c5",
+      "resource_root": "<runtime-provided>"
+    }
+  }
+}

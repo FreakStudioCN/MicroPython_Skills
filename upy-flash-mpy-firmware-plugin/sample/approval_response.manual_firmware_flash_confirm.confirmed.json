@@ -1,0 +1,14 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-manual-confirmed",
+  "session_id": "sample-pyboard",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:02:00Z",
+  "type": "approval_response",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-pyboard:manual-confirmed:v1",
+  "retry_of": null,
+  "payload": {
+    "approval_id": "manual_firmware_flash_confirm",
+    "action": "confirm_flashed"
+  }
+}

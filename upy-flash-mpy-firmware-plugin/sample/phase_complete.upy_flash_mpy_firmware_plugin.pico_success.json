@@ -1,0 +1,48 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-complete-pico-w",
+  "session_id": "sample-pico-w",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:10:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-pico-w:phase-complete:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "result": "success",
+    "summary": "Pico UF2 firmware copied by user",
+    "next_phase": "upy-scaffold-plugin",
+    "firmware": {
+      "status": "uf2_copied",
+      "action": "download_and_flash",
+      "board_name": "RPI_PICO_W",
+      "download_slug": "RPI_PICO_W",
+      "board_url": "https://micropython.org/download/RPI_PICO_W/",
+      "latest_url": "https://micropython.org/resources/firmware/RPI_PICO_W-20260621-v1.26.0.uf2",
+      "file": "sessions/sample-pico-w/firmware/RPI_PICO_W-20260621-v1.26.0.uf2",
+      "file_type": "uf2",
+      "source": "micropython_latest",
+      "flash_method": "uf2-drag-drop"
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "files": [
+          {"path": "sessions/sample-pico-w/firmware_page_resolved.json", "status": "created"},
+          {"path": "sessions/sample-pico-w/firmware_download.json", "status": "created"},
+          {"path": "sessions/sample-pico-w/firmware/RPI_PICO_W-20260621-v1.26.0.uf2", "status": "created"},
+          {"path": "sessions/sample-pico-w/phase_complete.upy_flash_mpy_firmware_plugin.json", "status": "created"}
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": [],
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-pico-w",
+      "resource_root": "<runtime-provided>"
+    }
+  }
+}

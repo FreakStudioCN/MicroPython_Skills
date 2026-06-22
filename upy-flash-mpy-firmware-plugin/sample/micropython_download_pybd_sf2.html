@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>PYBD_SF2</h1>
+    <section>
+      <h2>Firmware</h2>
+      <ul>
+        <li><a href="/resources/firmware/PYBD_SF2-20260501-v1.27.0.dfu">old dfu</a></li>
+        <li><span>Firmware (latest)</span> <a href="/resources/firmware/PYBD_SF2-20260406-v1.28.0.dfu">PYBD_SF2-20260406-v1.28.0.dfu</a></li>
+      </ul>
+    </section>
+    <section>
+      <h2>Installation instructions</h2>
+      <p>Pyboard-D via mboot. You can enter the mboot DFU bootloader by executing machine.bootloader() at the MicroPython REPL.</p>
+      <p>Alternatively, hold down the USR button, press and release the RST button, and continue holding USR until the LED indicates mboot mode.</p>
+      <p>Use dfu-util to write the DFU firmware file after the board enters DFU mode.</p>
+      <pre><code>dfu-util -a 0 -D PYBD_SF2-DATE-VERSION.dfu</code></pre>
+      <p><a href="https://dfu-util.sourceforge.net/">dfu-util</a></p>
+      <p><a href="https://docs.micropython.org/en/latest/pyboard/tutorial/index.html">Pyboard tutorial</a></p>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-state-esp32-c3-success",
+  "session_id": "sample-esp32-c3",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "status": "success",
+  "timestamp": "2026-06-22T00:50:00Z",
+  "type": "state",
+  "source_phase_complete_path": "sessions/sample-esp32-c3/phase_complete.select_hw.json",
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "firmware_action": "download_and_flash",
+    "board_name": "ESP32_GENERIC_C3",
+    "board_url": "https://micropython.org/download/ESP32_GENERIC_C3/",
+    "download_slug": "ESP32_GENERIC_C3",
+    "chip_family": "esp32c3",
+    "firmware_file": "sessions/sample-esp32-c3/firmware/ESP32_GENERIC_C3-20260406-v1.28.0.bin",
+    "firmware_version": "v1.28.0",
+    "firmware_date": "2026-04-06",
+    "file_type": "bin",
+    "serial_port": "COM88",
+    "flash_result": {
+      "tool": "esptool",
+      "tool_version": "4.11.0",
+      "port": "COM88",
+      "baud": 460800,
+      "write_offset": "0",
+      "erased_first": true,
+      "chip": "esp32c3",
+      "log": "sessions/sample-esp32-c3/flash_esp32_log.json"
+    }
+  }
+}

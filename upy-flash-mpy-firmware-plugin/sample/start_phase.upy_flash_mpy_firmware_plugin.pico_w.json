@@ -1,0 +1,95 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-start-pico-w",
+  "session_id": "sample-pico-w",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-pico-w:start:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "source_phase": "select-hw",
+    "source_phase_complete_path": "sessions/sample-pico-w/phase_complete.select_hw.json",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-pico-w",
+      "resource_root": "<runtime-provided>"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "script_run": true,
+      "file_operation": true,
+      "network_access": {
+        "allowed": true,
+        "domains": ["micropython.org", "docs.micropython.org"]
+      },
+      "web_search": true,
+      "serial_port_scan": false,
+      "device_flash": false,
+      "relative_paths": true,
+      "artifact_root": true
+    },
+    "firmware_action": null,
+    "firmware_override": null,
+    "source_phase_complete": {
+      "protocol_version": "1.0",
+      "msg_id": "sample-select-hw-pico-w",
+      "session_id": "sample-pico-w",
+      "phase": "select-hw",
+      "timestamp": "2026-06-22T00:00:00Z",
+      "type": "phase_complete",
+      "idempotency_key": "select-hw:sample-pico-w:phase_complete:v1",
+      "retry_of": null,
+      "payload": {
+        "phase": "select-hw",
+        "result": "success",
+        "summary": "Board selected",
+        "next_phase": "upy-flash-mpy-firmware-plugin",
+        "manifest_content": {
+          "schema_version": "1.0",
+          "phase": "select-hw",
+          "project_name": "pico-sensor-demo",
+          "requirements": {
+            "mcu_specified": "Pico W",
+            "network": "wifi"
+          },
+          "devices": [],
+          "mcu": {
+            "model": "Pico W",
+            "board_id": "rpi-pico-w",
+            "display_name": "Raspberry Pi Pico W",
+            "firmware_url": "https://micropython.org/download/RPI_PICO_W/",
+            "firmware_board_name": "RPI_PICO_W",
+            "flash_tool": "uf2-drag-drop",
+            "chip_family": "rp2040"
+          },
+          "hardware_selection": {
+            "selected_board": {
+              "id": "rpi-pico-w",
+              "display_name": "Raspberry Pi Pico W",
+              "chip_family": "rp2040",
+              "firmware": {
+                "url": "https://micropython.org/download/RPI_PICO_W/",
+                "board_name": "RPI_PICO_W",
+                "port": "rp2"
+              }
+            }
+          }
+        },
+        "artifacts": [],
+        "warnings": [],
+        "errors": [],
+        "structured_errors": [],
+        "runtime_context": {
+          "artifact_root": ".",
+          "artifact_root_mode": "cwd",
+          "session_root": "sessions/sample-pico-w",
+          "resource_root": "<runtime-provided>"
+        }
+      }
+    }
+  }
+}

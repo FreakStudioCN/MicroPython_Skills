@@ -1,0 +1,35 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-state-esp32-c5",
+  "session_id": "sample-esp32-c5",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "status": "in_progress",
+  "timestamp": "2026-06-22T00:05:00Z",
+  "type": "state",
+  "source_phase_complete_path": "sessions/sample-esp32-c5/phase_complete.select_hw.json",
+  "last_successful_step": "firmware_downloaded",
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "firmware_action": "download_and_flash",
+    "board_name": "ESP32_GENERIC_C5",
+    "board_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+    "download_slug": "ESP32_GENERIC_C5",
+    "chip_family": "esp32c5",
+    "firmware_file": "sessions/sample-esp32-c5/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+    "firmware_version": "v1.28.0",
+    "firmware_date": "2026-04-06",
+    "file_type": "bin"
+  },
+  "checkpoint": {
+    "resume_step": "confirm_esp32_flash",
+    "reason": "waiting_user_approval",
+    "state_file": "sessions/sample-esp32-c5/flash_mpy_firmware_state.json"
+  },
+  "approvals": {
+    "firmware_action_select": "download_and_flash"
+  },
+  "scripts": {
+    "firmware_page_resolve": "sessions/sample-esp32-c5/firmware_page_resolved.json",
+    "firmware_download": "sessions/sample-esp32-c5/firmware_download.json"
+  }
+}

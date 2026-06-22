@@ -1,0 +1,95 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-start-esp32-c5",
+  "session_id": "sample-esp32-c5",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-esp32-c5:start:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "source_phase": "select-hw",
+    "source_phase_complete_path": "sessions/sample-esp32-c5/phase_complete.select_hw.json",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-esp32-c5",
+      "resource_root": "<runtime-provided>"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "script_run": true,
+      "file_operation": true,
+      "network_access": {
+        "allowed": true,
+        "domains": ["micropython.org", "docs.micropython.org"]
+      },
+      "web_search": true,
+      "serial_port_scan": true,
+      "device_flash": true,
+      "relative_paths": true,
+      "artifact_root": true
+    },
+    "firmware_action": null,
+    "firmware_override": null,
+    "source_phase_complete": {
+      "protocol_version": "1.0",
+      "msg_id": "sample-select-hw-esp32-c5",
+      "session_id": "sample-esp32-c5",
+      "phase": "select-hw",
+      "timestamp": "2026-06-22T00:00:00Z",
+      "type": "phase_complete",
+      "idempotency_key": "select-hw:sample-esp32-c5:phase_complete:v1",
+      "retry_of": null,
+      "payload": {
+        "phase": "select-hw",
+        "result": "success",
+        "summary": "Board selected",
+        "next_phase": "upy-flash-mpy-firmware-plugin",
+        "manifest_content": {
+          "schema_version": "1.0",
+          "phase": "select-hw",
+          "project_name": "esp32-c5-demo",
+          "requirements": {
+            "mcu_specified": "ESP32-C5",
+            "network": "wifi"
+          },
+          "devices": [],
+          "mcu": {
+            "model": "ESP32-C5",
+            "board_id": "esp32-c5-devkitc",
+            "display_name": "ESP32-C5 DevKit",
+            "firmware_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+            "firmware_board_name": "ESP32_GENERIC_C5",
+            "flash_tool": "esptool.py",
+            "chip_family": "esp32c5"
+          },
+          "hardware_selection": {
+            "selected_board": {
+              "id": "esp32-c5-devkitc",
+              "display_name": "ESP32-C5 DevKit",
+              "chip_family": "esp32c5",
+              "firmware": {
+                "url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+                "board_name": "ESP32_GENERIC_C5",
+                "port": "esp32"
+              }
+            }
+          }
+        },
+        "artifacts": [],
+        "warnings": [],
+        "errors": [],
+        "structured_errors": [],
+        "runtime_context": {
+          "artifact_root": ".",
+          "artifact_root_mode": "cwd",
+          "session_root": "sessions/sample-esp32-c5",
+          "resource_root": "<runtime-provided>"
+        }
+      }
+    }
+  }
+}

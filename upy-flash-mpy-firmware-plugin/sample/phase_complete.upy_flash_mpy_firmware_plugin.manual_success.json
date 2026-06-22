@@ -1,0 +1,46 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-complete-pyboard",
+  "session_id": "sample-pyboard",
+  "phase": "upy-flash-mpy-firmware-plugin",
+  "timestamp": "2026-06-22T00:10:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-flash-mpy-firmware-plugin:sample-pyboard:phase-complete:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "result": "success",
+    "summary": "Manual firmware flashing confirmed by user",
+    "next_phase": "upy-scaffold-plugin",
+    "firmware": {
+      "status": "manual_confirmed",
+      "action": "download_and_flash",
+      "board_name": "PYBV11",
+      "board_url": "https://micropython.org/download/PYBV11/",
+      "latest_url": "https://micropython.org/resources/firmware/PYBV11-20260621-v1.26.0.dfu",
+      "file": null,
+      "file_type": "dfu",
+      "source": "micropython_latest",
+      "flash_method": "manual"
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "files": [
+          {"path": "sessions/sample-pyboard/firmware_page_resolved.json", "status": "created"},
+          {"path": "sessions/sample-pyboard/manual_flash_instructions.json", "status": "created"},
+          {"path": "sessions/sample-pyboard/phase_complete.upy_flash_mpy_firmware_plugin.json", "status": "created"}
+        ]
+      }
+    ],
+    "warnings": [],
+    "errors": [],
+    "structured_errors": [],
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-pyboard",
+      "resource_root": "<runtime-provided>"
+    }
+  }
+}
