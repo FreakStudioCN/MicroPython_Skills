@@ -626,8 +626,8 @@ def check_runner_bridge() -> None:
         raise AssertionError(f"runner bridge failed:\nstdout={proc.stdout}\nstderr={proc.stderr}")
     if "PHASE COMPLETE" not in combined:
         raise AssertionError(f"runner bridge did not reach phase_complete:\n{combined}")
-    if "flash-mpy-firmware" not in combined:
-        raise AssertionError(f"runner bridge did not emit flash-mpy-firmware next phase:\n{combined}")
+    if "upy-flash-mpy-firmware-plugin" not in combined:
+        raise AssertionError(f"runner bridge did not emit upy-flash-mpy-firmware-plugin next phase:\n{combined}")
     for path in ["pin_assignment_log.md", "select_hw_phase_log.md"]:
         if path not in combined:
             raise AssertionError(f"runner bridge phase_complete did not declare {path}:\n{combined}")

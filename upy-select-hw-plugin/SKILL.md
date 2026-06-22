@@ -17,7 +17,7 @@ description: 插件化工作流版 select-hw。消费 upy-analyze-plugin 的 pha
 - 根据板卡 `pin_layout` 和器件接口分配引脚
 - 生成 BOM 和估算总价
 - 通过 `select_hw_manifest.py` 校验/规范化
-- 输出 `phase_complete(select-hw)`，`next_phase` 固定为 `flash-mpy-firmware`
+- 输出 `phase_complete(select-hw)`，`next_phase` 固定为 `upy-flash-mpy-firmware-plugin`
 
 本 phase 不负责：
 
@@ -259,7 +259,7 @@ Step 7 获取阶段完成时间戳
 Step 8 phase_complete 最终校验与输出 (第 3 次: validate phase_complete)
   -> script_run(select_hw_manifest.py --validate-phase-complete --input <phase_complete.json> --compare-manifest <validated> --artifact-root ... --expected-artifact ...)
   <- script_result
-  -> 校验通过后输出 phase_complete(timestamp=<phase_timestamp>, result=success, next_phase=flash-mpy-firmware)
+  -> 校验通过后输出 phase_complete(timestamp=<phase_timestamp>, result=success, next_phase=upy-flash-mpy-firmware-plugin)
 ```
 
 ## status_update 枚举
@@ -698,7 +698,7 @@ success 时：
 
 ```text
 payload.result = "success"
-payload.next_phase = "flash-mpy-firmware"
+payload.next_phase = "upy-flash-mpy-firmware-plugin"
 payload.manifest_content.phase = "select-hw"
 ```
 
@@ -712,7 +712,7 @@ result 枚举：
 
 | result | 含义 | next_phase | checkpoint |
 | --- | --- | --- | --- |
-| `success` | MCU/固件/pinout/BOM 全部完成 | `flash-mpy-firmware` | 不需要 |
+| `success` | MCU/固件/pinout/BOM 全部完成 | `upy-flash-mpy-firmware-plugin` | 不需要 |
 | `partial` | 可恢复中断 | `null` | 必填 |
 | `failed` | 输入非法或协议输出非法 | `null` | 可选 |
 

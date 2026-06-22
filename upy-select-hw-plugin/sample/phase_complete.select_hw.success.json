@@ -11,7 +11,7 @@
     "phase": "select-hw",
     "result": "success",
     "summary": "硬件选型完成：已根据板卡定义校验固件、引脚和 BOM 方案",
-    "next_phase": "flash-mpy-firmware",
+    "next_phase": "upy-flash-mpy-firmware-plugin",
     "runtime_context": {
       "artifact_root": ".",
       "artifact_root_mode": "cwd",
@@ -444,7 +444,7 @@
           ],
           [
             "下一阶段",
-            "flash-mpy-firmware"
+            "upy-flash-mpy-firmware-plugin"
           ]
         ]
       },

@@ -555,7 +555,7 @@ def main() -> int:
             "phase": "select-hw",
             "result": "success",
             "summary": "硬件选型完成：ESP32-C3-DevKitM-1，已生成固件、引脚和 BOM 方案",
-            "next_phase": "flash-mpy-firmware",
+            "next_phase": "upy-flash-mpy-firmware-plugin",
             "runtime_context": {
                 "artifact_root": ".",
                 "artifact_root_mode": "cwd",
@@ -572,7 +572,7 @@ def main() -> int:
                         ["板卡", manifest["mcu"]["display_name"]],
                         ["固件", manifest["mcu"]["firmware_board_name"]],
                         ["BOM 估算", f"{manifest['estimated_total_yuan']} CNY"],
-                        ["下一阶段", "flash-mpy-firmware"],
+                        ["下一阶段", "upy-flash-mpy-firmware-plugin"],
                     ],
                 },
                 file_list_artifact(session_id, mode="cwd"),

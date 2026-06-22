@@ -20,7 +20,7 @@ from typing import Any
 
 PROTOCOL_VERSION = "1.0"
 PHASE = "select-hw"
-NEXT_PHASE = "flash-mpy-firmware"
+NEXT_PHASE = "upy-flash-mpy-firmware-plugin"
 SKILL_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = SKILL_DIR.parent
 DEFAULT_BOARD_ROOT = REPO_ROOT / "upy-analyze-plugin" / "boards"
