@@ -110,6 +110,15 @@ def write_json(data: dict[str, Any], output: str | None) -> None:
     print(text)
 
 
+def artifact_path(path: str, root: str | None) -> str | None:
+    if not root:
+        return None
+    try:
+        return Path(path).resolve().relative_to(Path(root).resolve()).as_posix()
+    except ValueError:
+        return None
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolved-json", required=True)
@@ -119,6 +128,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--command-style", choices=("auto", "underscore", "hyphen"), default="auto")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
+    parser.add_argument("--artifact-root")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
     return parser.parse_args(argv)
 
@@ -150,6 +160,12 @@ def main(argv: list[str] | None = None) -> int:
             "runs": [],
             "warnings": warnings,
         }
+        rel_firmware = artifact_path(args.firmware, args.artifact_root)
+        if args.artifact_root:
+            if rel_firmware:
+                result["firmware_artifact_path"] = rel_firmware
+            else:
+                result["warnings"].append("firmware path is not under artifact_root")
         if result["execute"]:
             if not Path(args.firmware).is_file():
                 raise FileNotFoundError(f"firmware file not found: {args.firmware}")

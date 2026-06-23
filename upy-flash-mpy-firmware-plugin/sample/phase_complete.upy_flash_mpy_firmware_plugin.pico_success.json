@@ -12,6 +12,8 @@
     "result": "success",
     "summary": "Pico UF2 firmware copied by user",
     "next_phase": "upy-scaffold-plugin",
+    "source_phase": "select-hw",
+    "source_phase_complete_path": "sessions/sample-pico-w/phase_complete.select_hw.json",
     "firmware": {
       "status": "uf2_copied",
       "action": "download_and_flash",
@@ -19,10 +21,59 @@
       "download_slug": "RPI_PICO_W",
       "board_url": "https://micropython.org/download/RPI_PICO_W/",
       "latest_url": "https://micropython.org/resources/firmware/RPI_PICO_W-20260621-v1.26.0.uf2",
+      "latest_version": "v1.26.0",
+      "latest_date": "2026-06-21",
       "file": "sessions/sample-pico-w/firmware/RPI_PICO_W-20260621-v1.26.0.uf2",
       "file_type": "uf2",
       "source": "micropython_latest",
       "flash_method": "uf2-drag-drop"
+    },
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "upy-flash-mpy-firmware-plugin",
+      "project_name": "pico-sensor-demo",
+      "requirements": {
+        "mcu_specified": "Pico W",
+        "network": "wifi"
+      },
+      "devices": [],
+      "mcu": {
+        "model": "Pico W",
+        "board_id": "rpi-pico-w",
+        "display_name": "Raspberry Pi Pico W",
+        "firmware_url": "https://micropython.org/download/RPI_PICO_W/",
+        "firmware_board_name": "RPI_PICO_W",
+        "flash_tool": "uf2-drag-drop",
+        "chip_family": "rp2040"
+      },
+      "hardware_selection": {
+        "selected_board": {
+          "id": "rpi-pico-w",
+          "display_name": "Raspberry Pi Pico W",
+          "chip_family": "rp2040",
+          "firmware": {
+            "url": "https://micropython.org/download/RPI_PICO_W/",
+            "board_name": "RPI_PICO_W",
+            "port": "rp2"
+          }
+        }
+      },
+      "firmware_flash": {
+        "status": "uf2_copied",
+        "action": "download_and_flash",
+        "board_name": "RPI_PICO_W",
+        "download_slug": "RPI_PICO_W",
+        "board_url": "https://micropython.org/download/RPI_PICO_W/",
+        "latest_url": "https://micropython.org/resources/firmware/RPI_PICO_W-20260621-v1.26.0.uf2",
+        "latest_version": "v1.26.0",
+        "latest_date": "2026-06-21",
+        "file": "sessions/sample-pico-w/firmware/RPI_PICO_W-20260621-v1.26.0.uf2",
+        "file_type": "uf2",
+        "source": "micropython_latest",
+        "flash_method": "uf2-drag-drop"
+      },
+      "final_status": "firmware_ready",
+      "updated_at": "2026-06-22T00:10:00Z"
     },
     "artifacts": [
       {

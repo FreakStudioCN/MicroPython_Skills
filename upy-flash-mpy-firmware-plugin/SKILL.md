@@ -209,6 +209,11 @@ Windows 下用临时 Python one-liner 读取 JSON 时，必须显式指定 UTF-8
 
 `phase_complete.payload.artifacts` 必须写成数组，且数组中包含 `type="file_list"` 的对象；不要写成 `{ "file_list": [...] }` 对象，也不要写成扁平文件数组。
 
+辅助脚本如果为了执行保留本机绝对路径，也必须同时输出可移植的相对产物字段，供下游协议消费：
+- `firmware_download.py` 传入 `--artifact-root <artifact_root>` 时，输出 `downloaded_artifact_path`，相对该 artifact root。
+- `esp32_flash.py` 传入 `--artifact-root <artifact_root>` 时，输出 `firmware_artifact_path`；执行日志本身的 artifact 路径由最终 `phase_complete.payload.firmware.flash_result.log` 声明。
+- 下游插件只能消费相对 artifact 字段和最终 `phase_complete`，不要读取 helper JSON 中的本机绝对执行路径作为项目事实。
+
 ## ESP32 流程
 
 必须先解析 MicroPython 页面中的安装说明。不要把硬编码 offset 作为主要来源；例如 `ESP32_GENERIC_C5` 当前使用 `write_flash 0x2000`，所以固定 C 系列 offset 是错误的。
@@ -220,6 +225,8 @@ script_run(firmware_page_resolve.py --board-family esp32 --out-json ...)
 script_run(firmware_download.py --resolved-json ... --out-dir ... --output-json ...)
 script_run(list_serial_ports.py --output-json ...)  # 真实/插件模式
 approval_request(esp32_flash_confirm)
+script_run(bootstrap_esptool.py --output-json ...)  # 检查；status=missing 表示需要安装许可，不是失败
+script_run(bootstrap_esptool.py --install --output-json ...)  # 只在需要安装且获得许可后运行
 script_run(esp32_flash.py --plan-only --output-json ...)
 script_run(esp32_flash.py --execute --output-json ...)  # 只允许在用户明确确认后执行
 ```
@@ -365,10 +372,10 @@ flash_mpy_firmware_manifest.py --validate-phase-complete --input <phase_complete
 | 脚本 | 必填输入 | 输出参数 |
 | --- | --- | --- |
 | `firmware_page_resolve.py` | `--board-name`、`--board-family`，通常还要 `--board-url` | `--out-json`；也兼容 `--output-json`。 |
-| `firmware_download.py` | `--resolved-json`、`--out-dir` | `--output-json`；也兼容 `--out-json`。 |
+| `firmware_download.py` | `--resolved-json`、`--out-dir` | `--output-json`；也兼容 `--out-json`；建议传 `--artifact-root` 以输出相对 `downloaded_artifact_path`。 |
 | `list_serial_ports.py` | 无；mock 测试可加 `--mode mock --mock-port COM3` | `--output-json`；也兼容 `--out-json`。 |
 | `bootstrap_esptool.py` | 无；需要安装时加 `--install` | `--output-json`；也兼容 `--out-json`。 |
-| `esp32_flash.py` | `--resolved-json`、`--firmware`、`--port` | `--output-json`；也兼容 `--out-json`。 |
+| `esp32_flash.py` | `--resolved-json`、`--firmware`、`--port` | `--output-json`；也兼容 `--out-json`；建议传 `--artifact-root` 以输出相对 `firmware_artifact_path`。 |
 
 调用时优先使用上表的 canonical 输出参数；兼容别名只用于容错，不要在文档新示例中混用。
 
@@ -393,6 +400,10 @@ phase_complete.upy_flash_mpy_firmware_plugin.json
 `esptool_bootstrap.json` 是本地辅助调试文件，用于记录技能内 esptool 环境检查或安装结果；它不是正式阶段产物，除非后续协议明确要求，否则不写入 `phase_complete.payload.artifacts`。
 
 `phase_complete.payload.artifacts` 必须包含 `file_list`，并列出当前分支产生的全部正式产物。固件文件、烧录日志、checkpoint state 等被 `firmware.file`、`firmware.flash_result.log` 或 `checkpoint.state_file` 引用的文件必须在 artifacts 中声明。产物路径必须相对 `artifact_root`；不要把本机技能安装路径写入正式 artifact 路径。
+
+`phase_complete.payload.artifacts[].files[].description` 中的阶段名必须使用正式插件名 `upy-flash-mpy-firmware-plugin`。不要写旧名称 `flash-mpy-firmware`，例如 state 文件说明应写 `upy-flash-mpy-firmware-plugin 阶段状态文件`。
+
+`bootstrap_esptool.py` 不带 `--install` 时是检查模式；如果技能内 `.venv-esptool` 不存在，脚本输出 `status="missing"`、`action_required="install"` 并返回 0。这是可恢复状态，不要当作阶段失败。只有用户确认允许安装后，才运行 `bootstrap_esptool.py --install`。ESP32 分支推荐顺序是：确认烧录 -> bootstrap 检查/安装 -> `esp32_flash.py --plan-only` -> `esp32_flash.py --execute`，这样 `esptool_plan.json.tool_version` 能反映真实环境。
 
 ## state 文件
 
@@ -514,7 +525,20 @@ phase_complete_invalid
 
 ## `phase_complete`
 
-成功 payload 必须包含 `firmware`：
+成功 payload 必须同时包含 `firmware` 和完整的 `manifest_content`：
+
+- `firmware` 是本阶段摘要，保留给 UI、日志和轻量校验使用。
+- `manifest_content` 必须从上游 `select-hw` 的完整 `payload.manifest_content` 复制而来，不要丢弃 `project_name`、`requirements`、`devices`、`mcu`、`hardware_selection` 等项目事实。
+- 成功时必须在复制后的 `manifest_content` 上追加/覆盖：
+  - `phase="upy-flash-mpy-firmware-plugin"`
+  - `firmware_flash=<payload.firmware 的同等固件事实>`
+  - `final_status="firmware_ready"`
+  - `updated_at="<runtime-utc-now>"`
+- `manifest_content.firmware_flash` 必须和 `payload.firmware` 的关键字段一致，至少包括 `status`、`action`、`board_name`、`board_url`、`source`、`flash_method`；如果已解析或生成 `latest_url`、`file`、`file_type`、`flash_result`，也要一并保留并保持一致。
+- 成功 payload 必须带来源链路：`source_phase="select-hw"` 和 `source_phase_complete_path="sessions/<session_id>/phase_complete.select_hw.json"`。
+- 已解析 latest 固件时，`payload.firmware` 与 `manifest_content.firmware_flash` 必须带 `latest_version` 和 `latest_date`。
+- ESP32 成功烧录时，`payload.firmware.flash_result` 与 `manifest_content.firmware_flash.flash_result` 必须包含 `baud`、`chip` 和统一的 `write_offset`；`write_offset` 使用 MicroPython 页面解析到的命令参数原值，例如 `"0"`，不要在同一阶段内混用 `"0"` 和 `"0x0"`。
+- `partial` 和 `failed` 可以不输出 `manifest_content`，但如果输出，不得把 `next_phase` 写成 `upy-scaffold-plugin`。
 
 ```json
 {
@@ -540,6 +564,58 @@ phase_complete_invalid
       "erased_first": true,
       "log": "sessions/<session_id>/flash_esp32_log.json"
     }
+  },
+  "manifest_content": {
+    "schema_version": "1.0",
+    "phase": "upy-flash-mpy-firmware-plugin",
+    "project_name": "esp32-c5-demo",
+    "requirements": {
+      "mcu_specified": "ESP32-C5",
+      "network": "wifi"
+    },
+    "devices": [],
+    "mcu": {
+      "model": "ESP32-C5",
+      "board_id": "esp32-c5-devkitc",
+      "display_name": "ESP32-C5 DevKit",
+      "firmware_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+      "firmware_board_name": "ESP32_GENERIC_C5",
+      "flash_tool": "esptool.py",
+      "chip_family": "esp32c5"
+    },
+    "hardware_selection": {
+      "selected_board": {
+        "id": "esp32-c5-devkitc",
+        "display_name": "ESP32-C5 DevKit",
+        "chip_family": "esp32c5",
+        "firmware": {
+          "url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+          "board_name": "ESP32_GENERIC_C5",
+          "port": "esp32"
+        }
+      }
+    },
+    "firmware_flash": {
+      "status": "flashed",
+      "action": "download_and_flash",
+      "board_name": "ESP32_GENERIC_C5",
+      "board_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+      "latest_url": "https://micropython.org/resources/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+      "file": "sessions/<session_id>/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+      "file_type": "bin",
+      "source": "micropython_latest",
+      "flash_method": "esptool.py",
+      "flash_result": {
+        "tool": "esptool",
+        "tool_version": "4.11.0",
+        "port": "COM3",
+        "write_offset": "0x2000",
+        "erased_first": true,
+        "log": "sessions/<session_id>/flash_esp32_log.json"
+      }
+    },
+    "final_status": "firmware_ready",
+    "updated_at": "<runtime-utc-now>"
   }
 }
 ```

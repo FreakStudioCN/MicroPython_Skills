@@ -12,6 +12,8 @@
     "result": "success",
     "summary": "MicroPython firmware flashed",
     "next_phase": "upy-scaffold-plugin",
+    "source_phase": "select-hw",
+    "source_phase_complete_path": "sessions/sample-esp32-c5/phase_complete.select_hw.json",
     "firmware": {
       "status": "flashed",
       "action": "download_and_flash",
@@ -19,6 +21,8 @@
       "download_slug": "ESP32_GENERIC_C5",
       "board_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
       "latest_url": "https://micropython.org/resources/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+      "latest_version": "v1.28.0",
+      "latest_date": "2026-04-06",
       "file": "sessions/sample-esp32-c5/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
       "file_type": "bin",
       "source": "micropython_latest",
@@ -27,10 +31,69 @@
         "tool": "esptool",
         "tool_version": "4.11.0",
         "port": "COM3",
+        "chip": "esp32c5",
+        "baud": 460800,
         "write_offset": "0x2000",
         "erased_first": true,
         "log": "sessions/sample-esp32-c5/flash_esp32_log.json"
       }
+    },
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "upy-flash-mpy-firmware-plugin",
+      "project_name": "esp32-c5-demo",
+      "requirements": {
+        "mcu_specified": "ESP32-C5",
+        "network": "wifi"
+      },
+      "devices": [],
+      "mcu": {
+        "model": "ESP32-C5",
+        "board_id": "esp32-c5-devkitc",
+        "display_name": "ESP32-C5 DevKit",
+        "firmware_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+        "firmware_board_name": "ESP32_GENERIC_C5",
+        "flash_tool": "esptool.py",
+        "chip_family": "esp32c5"
+      },
+      "hardware_selection": {
+        "selected_board": {
+          "id": "esp32-c5-devkitc",
+          "display_name": "ESP32-C5 DevKit",
+          "chip_family": "esp32c5",
+          "firmware": {
+            "url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+            "board_name": "ESP32_GENERIC_C5",
+            "port": "esp32"
+          }
+        }
+      },
+      "firmware_flash": {
+        "status": "flashed",
+        "action": "download_and_flash",
+        "board_name": "ESP32_GENERIC_C5",
+        "download_slug": "ESP32_GENERIC_C5",
+        "board_url": "https://micropython.org/download/ESP32_GENERIC_C5/",
+        "latest_url": "https://micropython.org/resources/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+        "latest_version": "v1.28.0",
+        "latest_date": "2026-04-06",
+        "file": "sessions/sample-esp32-c5/firmware/ESP32_GENERIC_C5-20260406-v1.28.0.bin",
+        "file_type": "bin",
+        "source": "micropython_latest",
+        "flash_method": "esptool.py",
+        "flash_result": {
+          "tool": "esptool",
+          "tool_version": "4.11.0",
+          "port": "COM3",
+          "chip": "esp32c5",
+          "baud": 460800,
+          "write_offset": "0x2000",
+          "erased_first": true,
+          "log": "sessions/sample-esp32-c5/flash_esp32_log.json"
+        }
+      },
+      "final_status": "firmware_ready",
+      "updated_at": "2026-06-22T00:10:00Z"
     },
     "artifacts": [
       {

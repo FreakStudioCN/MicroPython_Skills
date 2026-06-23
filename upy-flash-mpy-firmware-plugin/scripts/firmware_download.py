@@ -24,10 +24,20 @@ def portable_path(path: Path) -> str:
     return path.as_posix()
 
 
+def artifact_path(path: Path, root: str | None) -> str | None:
+    if not root:
+        return None
+    try:
+        return path.resolve().relative_to(Path(root).resolve()).as_posix()
+    except ValueError:
+        return None
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolved-json", required=True)
     parser.add_argument("--out-dir", required=True)
+    parser.add_argument("--artifact-root")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
     parser.add_argument("--no-download", action="store_true")
     parser.add_argument("--timeout", type=int, default=60)
@@ -54,6 +64,18 @@ def main(argv: list[str] | None = None) -> int:
         "downloaded": False,
         "downloaded_path": portable_path(dest),
     }
+    rel_dest = artifact_path(dest, args.artifact_root)
+    if args.artifact_root:
+        if rel_dest:
+            result["downloaded_artifact_path"] = rel_dest
+        else:
+            result["warnings"] = [
+                {
+                    "code": "artifact_path_unresolved",
+                    "message": "download destination is not under artifact_root",
+                    "severity": "warning",
+                }
+            ]
     if not args.no_download:
         out_dir.mkdir(parents=True, exist_ok=True)
         req = urllib.request.Request(url, headers={"User-Agent": "upy-flash-mpy-firmware-plugin/1.0"})

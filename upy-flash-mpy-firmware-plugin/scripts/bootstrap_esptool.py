@@ -49,8 +49,16 @@ def main(argv: list[str] | None = None) -> int:
     py = venv_python()
     if not py.exists():
         if not args.install:
-            write_result({"status": "missing", "python": str(py), "error": {"code": "esptool_env_missing", "message": "run with --install after permission"}}, args.output_json)
-            return 2
+            write_result(
+                {
+                    "status": "missing",
+                    "python": str(py),
+                    "action_required": "install",
+                    "message": "run with --install after permission",
+                },
+                args.output_json,
+            )
+            return 0
         venv.EnvBuilder(with_pip=True).create(VENV_DIR)
     if args.install:
         proc = subprocess.run([str(py), "-m", "pip", "install", "-r", str(REQ_FILE)], text=True, capture_output=True)

@@ -244,6 +244,47 @@ def validate_state(data: dict[str, Any], errors: list[str]) -> None:
             errors.append(f"state {field} must be an object")
 
 
+def validate_success_manifest_content(payload: dict[str, Any], firmware: dict[str, Any], errors: list[str]) -> None:
+    manifest = payload.get("manifest_content")
+    if not isinstance(manifest, dict):
+        errors.append("success payload.manifest_content must be an object")
+        return
+    if manifest.get("phase") != PHASE:
+        errors.append(f"payload.manifest_content.phase must be {PHASE}")
+    if manifest.get("final_status") != "firmware_ready":
+        errors.append('payload.manifest_content.final_status must be "firmware_ready"')
+    if not manifest.get("updated_at"):
+        errors.append("payload.manifest_content.updated_at is required")
+    upstream_fields = ("project_name", "requirements", "devices", "mcu", "hardware_selection")
+    for field in upstream_fields:
+        if field not in manifest:
+            errors.append(f"payload.manifest_content.{field} missing")
+    flash = manifest.get("firmware_flash")
+    if not isinstance(flash, dict):
+        errors.append("payload.manifest_content.firmware_flash must be an object")
+        return
+    for field in ("status", "action", "board_name", "board_url", "latest_url", "file", "file_type", "source", "flash_method"):
+        if field in firmware and firmware.get(field) is not None and flash.get(field) != firmware.get(field):
+            errors.append(f"payload.manifest_content.firmware_flash.{field} must match payload.firmware.{field}")
+    for field in ("latest_version", "latest_date"):
+        if firmware.get("source") == "micropython_latest":
+            if not firmware.get(field):
+                errors.append(f"payload.firmware.{field} is required for micropython_latest success")
+            if flash.get(field) != firmware.get(field):
+                errors.append(f"payload.manifest_content.firmware_flash.{field} must match payload.firmware.{field}")
+    firmware_flash_result = firmware.get("flash_result")
+    if isinstance(firmware_flash_result, dict):
+        manifest_flash_result = flash.get("flash_result")
+        if not isinstance(manifest_flash_result, dict):
+            errors.append("payload.manifest_content.firmware_flash.flash_result must be an object")
+        elif manifest_flash_result != firmware_flash_result:
+            errors.append("payload.manifest_content.firmware_flash.flash_result must match payload.firmware.flash_result")
+        if firmware.get("flash_method") == "esptool.py":
+            for field in ("baud", "chip", "write_offset"):
+                if not firmware_flash_result.get(field):
+                    errors.append(f"payload.firmware.flash_result.{field} is required for ESP32 success")
+
+
 def validate_phase_complete(data: dict[str, Any], errors: list[str], artifact_root: str | None, expected: list[str]) -> None:
     validate_envelope(data, errors)
     if data.get("phase") != PHASE:
@@ -254,6 +295,12 @@ def validate_phase_complete(data: dict[str, Any], errors: list[str], artifact_ro
     result = payload.get("result")
     if payload.get("phase") != PHASE:
         errors.append(f"payload.phase must be {PHASE}")
+    if result == "success":
+        if payload.get("source_phase") != UPSTREAM_PHASE:
+            errors.append(f"success payload.source_phase must be {UPSTREAM_PHASE}")
+        source_path = payload.get("source_phase_complete_path")
+        if not isinstance(source_path, str) or not is_relative(source_path):
+            errors.append("success payload.source_phase_complete_path must be a relative path")
     runtime_context = validate_runtime_context(
         payload.get("runtime_context"),
         errors,
@@ -267,6 +314,7 @@ def validate_phase_complete(data: dict[str, Any], errors: list[str], artifact_ro
         for field in ("status", "action", "board_name", "board_url", "source", "flash_method"):
             if field not in firmware:
                 errors.append(f"firmware.{field} missing")
+        validate_success_manifest_content(payload, firmware, errors)
     elif result in {"partial", "failed"}:
         if payload.get("next_phase") is not None:
             errors.append("partial/failed payload.next_phase must be null")

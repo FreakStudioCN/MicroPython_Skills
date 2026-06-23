@@ -12,16 +12,66 @@
     "result": "success",
     "summary": "Manual firmware flashing confirmed by user",
     "next_phase": "upy-scaffold-plugin",
+    "source_phase": "select-hw",
+    "source_phase_complete_path": "sessions/sample-pyboard/phase_complete.select_hw.json",
     "firmware": {
       "status": "manual_confirmed",
       "action": "download_and_flash",
       "board_name": "PYBV11",
       "board_url": "https://micropython.org/download/PYBV11/",
       "latest_url": "https://micropython.org/resources/firmware/PYBV11-20260621-v1.26.0.dfu",
+      "latest_version": "v1.26.0",
+      "latest_date": "2026-06-21",
       "file": null,
       "file_type": "dfu",
       "source": "micropython_latest",
       "flash_method": "manual"
+    },
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "upy-flash-mpy-firmware-plugin",
+      "project_name": "pyboard-demo",
+      "requirements": {
+        "mcu_specified": "Pyboard",
+        "network": "none"
+      },
+      "devices": [],
+      "mcu": {
+        "model": "Pyboard v1.1",
+        "board_id": "pyboard-v11",
+        "display_name": "Pyboard v1.1",
+        "firmware_url": "https://micropython.org/download/PYBV11/",
+        "firmware_board_name": "PYBV11",
+        "flash_tool": "dfu-util",
+        "chip_family": "stm32"
+      },
+      "hardware_selection": {
+        "selected_board": {
+          "id": "pyboard-v11",
+          "display_name": "Pyboard v1.1",
+          "chip_family": "stm32",
+          "firmware": {
+            "url": "https://micropython.org/download/PYBV11/",
+            "board_name": "PYBV11",
+            "port": "stm32"
+          }
+        }
+      },
+      "firmware_flash": {
+        "status": "manual_confirmed",
+        "action": "download_and_flash",
+        "board_name": "PYBV11",
+        "board_url": "https://micropython.org/download/PYBV11/",
+        "latest_url": "https://micropython.org/resources/firmware/PYBV11-20260621-v1.26.0.dfu",
+        "latest_version": "v1.26.0",
+        "latest_date": "2026-06-21",
+        "file": null,
+        "file_type": "dfu",
+        "source": "micropython_latest",
+        "flash_method": "manual"
+      },
+      "final_status": "firmware_ready",
+      "updated_at": "2026-06-22T00:10:00Z"
     },
     "artifacts": [
       {
