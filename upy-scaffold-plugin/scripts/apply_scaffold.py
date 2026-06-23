@@ -52,8 +52,7 @@ def strip_bom(text: str) -> str:
     return text.lstrip("\ufeff")
 
 
-def load_manifest(path: Path) -> dict[str, Any]:
-    data = load_json(path)
+def extract_manifest(data: dict[str, Any]) -> dict[str, Any]:
     payload = data.get("payload")
     if isinstance(payload, dict):
         manifest_content = payload.get("manifest_content")
@@ -69,6 +68,10 @@ def load_manifest(path: Path) -> dict[str, Any]:
     if isinstance(manifest, dict):
         return manifest
     return data
+
+
+def load_manifest(path: Path) -> dict[str, Any]:
+    return extract_manifest(load_json(path))
 
 
 def run_renderer(
@@ -275,6 +278,50 @@ def protocol_source_path(path: Path, artifact_root: Path | None) -> str:
         return path.name
 
 
+def protocol_artifact_root(artifact_root: Path | None) -> str:
+    return "." if artifact_root else ""
+
+
+def protocol_artifact_root_mode(artifact_root: Path | None) -> str:
+    if artifact_root is None:
+        return "local"
+    try:
+        if Path.cwd().resolve() == artifact_root.resolve():
+            return "cwd"
+    except OSError:
+        pass
+    return "session_parent"
+
+
+def source_manifest_kind(source_data: dict[str, Any]) -> str:
+    payload = source_data.get("payload")
+    if source_data.get("type") == "phase_complete" or isinstance(payload, dict):
+        return "phase_complete"
+    if "manifest_content" in source_data:
+        return "manifest_content_envelope"
+    if "manifest" in source_data:
+        return "manifest_envelope"
+    return "manifest_content"
+
+
+def source_phase(source_data: dict[str, Any], source_path: Path) -> str:
+    payload = source_data.get("payload") if isinstance(source_data.get("payload"), dict) else {}
+    for candidate in (
+        source_data.get("phase"),
+        payload.get("phase"),
+        payload.get("source_phase"),
+        extract_manifest(source_data).get("phase"),
+    ):
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    name = source_path.name
+    if "upy_flash_mpy_firmware_plugin" in name:
+        return "upy-flash-mpy-firmware-plugin"
+    if "select_hw" in name or "select-hw" in name:
+        return "select-hw"
+    return "direct_manifest_input"
+
+
 def build_file_manifest(project_dir: Path, entries: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "type": "file_manifest",
@@ -312,8 +359,24 @@ def build_final_artifacts(draft_artifacts: list[dict[str, Any]], file_manifest: 
     return artifacts
 
 
+def parse_json_or_csv(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if value is None:
+        return []
+    text = str(value).strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return [item.strip() for item in text.split(",") if item.strip()]
+    return parsed if isinstance(parsed, list) else [parsed]
+
+
 def build_phase_complete(
     args: argparse.Namespace,
+    source_data: dict[str, Any],
     output: dict[str, Any],
     project_dir: Path,
     session_dir: Path | None,
@@ -336,9 +399,15 @@ def build_phase_complete(
     lint_payload = deepcopy(lint) if lint else None
     if lint_payload:
         lint_payload["cwd"] = project_artifact_path
+    source_payload = {
+        "source_phase": source_phase(source_data, source_path),
+        "source_phase_complete_path": protocol_source_path(source_path, artifact_root),
+        "source_manifest_kind": source_manifest_kind(source_data),
+        "manifest_merge_strategy": "renderer_unwrap_manifest",
+    }
     runtime_context = {
-        "artifact_root": str(artifact_root) if artifact_root else "",
-        "artifact_root_mode": "cwd" if artifact_root else "local",
+        "artifact_root": protocol_artifact_root(artifact_root),
+        "artifact_root_mode": protocol_artifact_root_mode(artifact_root),
         "session_root": relative_artifact_path(session_dir, artifact_root) if session_dir else "",
         "project_root": project_artifact_path,
         "file_operation_root": project_artifact_path,
@@ -367,36 +436,85 @@ def build_phase_complete(
                 "idempotency_key": f"upy-scaffold-plugin:{session_id}:script:flake8:v1",
             }
         )
+    manifest_content = output["manifest_content"]
+    manifest_scaffold = deepcopy(manifest_content.get("scaffold", {}))
+    modules = manifest_scaffold.get("modules") or manifest_content.get("scaffold_modules") or parse_json_or_csv(args.modules)
+    custom_files = manifest_scaffold.get("custom_files") or manifest_content.get("scaffold_custom_files") or parse_json_or_csv(args.custom_files)
+    phase_next = phase_payload.get("next_phase") if result == "success" else None
+    approval_payload = {
+        "approval_id": "scaffold_config",
+        "confirmed": True,
+        "confirmed_at": timestamp,
+        "mode": args.mode,
+        "modules": modules,
+        "custom_files": custom_files,
+        "selected": {
+            "mode": args.mode,
+            "modules": modules,
+            "custom_files": custom_files,
+        },
+        "raw_input": {
+            "modules": args.modules,
+            "custom_files": args.custom_files,
+        },
+        "source": "apply_scaffold.py",
+    }
+    file_status_counts = {
+        state: sum(1 for entry in file_manifest["files"] if entry.get("status") == state)
+        for state in sorted({entry.get("status") for entry in file_manifest["files"]})
+    }
+    scaffold_summary = {
+        **manifest_scaffold,
+        "result": result,
+        "summary": phase_payload.get("summary"),
+        "next_phase": phase_next,
+        "mode": manifest_scaffold.get("mode") or manifest_content.get("scaffold_mode") or args.mode,
+        "modules": modules,
+        "custom_files": custom_files,
+        "artifact_root": runtime_context["artifact_root"],
+        "session_root": runtime_context["session_root"],
+        "project_root": project_artifact_path,
+        "file_operation_root": project_artifact_path,
+        "file_manifest_path": file_manifest.get("path"),
+        "phase_complete_path": relative_artifact_path(session_dir / "phase_complete.upy_scaffold_plugin.json", artifact_root) if session_dir else "",
+        "file_count": len(file_manifest["files"]),
+        "directory_count": len(output.get("directories", [])),
+        "file_status_counts": file_status_counts,
+        "lint": {
+            "command": lint_payload.get("command"),
+            "cwd": lint_payload.get("cwd"),
+            "config": lint_payload.get("config"),
+            "returncode": lint_payload.get("returncode"),
+        } if lint_payload else None,
+        "source": {
+            "source_phase": source_payload["source_phase"],
+            "source_phase_complete_path": source_payload["source_phase_complete_path"],
+            "source_manifest_kind": source_payload["source_manifest_kind"],
+        },
+        "approval_id": approval_payload["approval_id"],
+        "idempotency_key": f"upy-scaffold-plugin:{session_id}:phase-complete:v1",
+        "incremental": args.mode == "incremental",
+        "generate_scope": "new_devices_only" if args.mode == "incremental" else "full_project",
+        "completed_at": timestamp if result == "success" else None,
+    }
     payload = {
         "phase": "scaffold",
         "domain_phase": "scaffold",
         "result": result,
         "summary": phase_payload.get("summary"),
-        "next_phase": phase_payload.get("next_phase") if result == "success" else None,
-        "source": {
-            "source_phase": "upy-flash-mpy-firmware-plugin" if "upy_flash_mpy_firmware_plugin" in source_path.name else "direct_manifest_input",
-            "source_phase_complete_path": protocol_source_path(source_path, artifact_root),
-            "source_manifest_kind": "phase_complete_or_manifest_input",
-            "manifest_merge_strategy": "renderer_unwrap_manifest",
-        },
+        "next_phase": phase_next,
+        "source": source_payload,
+        "scaffold": scaffold_summary,
         "runtime_context": runtime_context,
         "file_manifest": file_manifest,
         "artifacts": artifacts,
         "lint": lint_payload,
-        "approval": {
-            "approval_id": "scaffold_config",
-            "confirmed": True,
-            "confirmed_at": timestamp,
-            "mode": args.mode,
-            "modules": args.modules,
-            "custom_files": args.custom_files,
-            "source": "apply_scaffold.py",
-        },
+        "approval": approval_payload,
         "permissions": permissions,
         "warnings": phase_payload.get("warnings", []),
         "errors": [item["message"] for item in structured_errors],
         "structured_errors": structured_errors,
-        "manifest_content": output["manifest_content"],
+        "manifest_content": manifest_content,
         "phase_completed_at": timestamp if result == "success" else None,
     }
     return {
@@ -413,7 +531,8 @@ def build_phase_complete(
 
 
 def run_actual_project(args: argparse.Namespace) -> dict[str, Any]:
-    manifest = load_manifest(Path(args.manifest))
+    source_data = load_json(Path(args.manifest))
+    manifest = extract_manifest(source_data)
     project_dir, session_dir, is_temp_project = resolve_project_dir(args)
     render_utc = existing_project_updated_at(project_dir) or utc_now()
     output = run_renderer(args.mode, manifest, args.modules, args.custom_files, args.new_devices, render_utc)
@@ -458,6 +577,7 @@ def run_actual_project(args: argparse.Namespace) -> dict[str, Any]:
     status = "success" if not structured_errors else "partial"
     phase_complete = build_phase_complete(
         args,
+        source_data,
         output,
         project_dir,
         session_dir,

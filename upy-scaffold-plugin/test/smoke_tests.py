@@ -394,15 +394,58 @@ def local_actual_runner_writes_session_project_and_file_manifest() -> None:
         phase_complete = summary["phase_complete"]
         payload = phase_complete["payload"]
         expected_project_root = "sessions/sample-session/project"
+        runtime_context = payload["runtime_context"]
+        if runtime_context.get("artifact_root") != ".":
+            raise AssertionError(f"runtime_context.artifact_root must be protocol-relative: {runtime_context}")
+        if ":" in runtime_context.get("artifact_root", ""):
+            raise AssertionError(f"runtime_context.artifact_root must not be a local absolute path: {runtime_context}")
         if payload["runtime_context"]["project_root"] != expected_project_root:
             raise AssertionError("phase_complete must record artifact-relative runtime_context.project_root")
         if payload["runtime_context"].get("resource_root") != "upy-scaffold-plugin":
             raise AssertionError("runtime_context.resource_root must use stable skill id")
         if payload["lint"]["cwd"] != expected_project_root or payload["lint"]["returncode"] != 0:
             raise AssertionError("flake8 must record artifact-relative project_root cwd and return 0")
+        scaffold = payload.get("scaffold", {})
+        manifest_scaffold = payload.get("manifest_content", {}).get("scaffold", {})
+        if scaffold.get("mode") != manifest_scaffold.get("mode"):
+            raise AssertionError(f"payload.scaffold must mirror final scaffold mode: {scaffold}")
+        if scaffold.get("modules") != manifest_scaffold.get("modules"):
+            raise AssertionError(f"payload.scaffold must mirror final scaffold modules: {scaffold}")
+        if scaffold.get("custom_files") != manifest_scaffold.get("custom_files"):
+            raise AssertionError(f"payload.scaffold must mirror final scaffold custom_files: {scaffold}")
+        if scaffold.get("result") != payload.get("result") or scaffold.get("next_phase") != payload.get("next_phase"):
+            raise AssertionError(f"payload.scaffold must summarize phase result and next_phase: {scaffold}")
+        if scaffold.get("session_root") != "sessions/sample-session":
+            raise AssertionError(f"payload.scaffold must record artifact-relative session_root: {scaffold}")
+        if scaffold.get("project_root") != expected_project_root:
+            raise AssertionError(f"payload.scaffold must record artifact-relative project_root: {scaffold}")
+        if scaffold.get("file_operation_root") != expected_project_root:
+            raise AssertionError(f"payload.scaffold must record file_operation_root: {scaffold}")
+        if scaffold.get("file_manifest_path") != "sessions/sample-session/scaffold_file_manifest.json":
+            raise AssertionError(f"payload.scaffold must record file_manifest_path: {scaffold}")
+        if scaffold.get("phase_complete_path") != "sessions/sample-session/phase_complete.upy_scaffold_plugin.json":
+            raise AssertionError(f"payload.scaffold must record phase_complete_path: {scaffold}")
+        if scaffold.get("file_count") != len(payload["file_manifest"]["files"]):
+            raise AssertionError(f"payload.scaffold file_count mismatch: {scaffold}")
+        if not isinstance(scaffold.get("directory_count"), int) or scaffold["directory_count"] <= 0:
+            raise AssertionError(f"payload.scaffold directory_count invalid: {scaffold}")
+        if scaffold.get("file_status_counts", {}).get("created") is None:
+            raise AssertionError(f"payload.scaffold must record file_status_counts: {scaffold}")
+        if scaffold.get("lint", {}).get("returncode") != 0:
+            raise AssertionError(f"payload.scaffold must record lint summary: {scaffold}")
+        if scaffold.get("source", {}).get("source_phase") != "upy-flash-mpy-firmware-plugin":
+            raise AssertionError(f"payload.scaffold must record source summary: {scaffold}")
+        if scaffold.get("approval_id") != "scaffold_config":
+            raise AssertionError(f"payload.scaffold must record approval_id: {scaffold}")
+        if scaffold.get("idempotency_key") != phase_complete.get("idempotency_key"):
+            raise AssertionError(f"payload.scaffold idempotency_key should match phase_complete: {scaffold}")
+        if scaffold.get("incremental") is not False or scaffold.get("generate_scope") != "full_project":
+            raise AssertionError(f"payload.scaffold must record full-project scope: {scaffold}")
         source = payload.get("source", {})
         if source.get("source_phase") != "upy-flash-mpy-firmware-plugin":
             raise AssertionError(f"phase_complete must record payload.source.source_phase: {source}")
+        if source.get("source_manifest_kind") != "phase_complete":
+            raise AssertionError(f"phase_complete must record source_manifest_kind=phase_complete: {source}")
         expected_source_paths = {
             "sessions/sample-session/phase_complete.upy_flash_mpy_firmware_plugin.esp32_c3_success.json",
             "upy-flash-mpy-firmware-plugin/sample/phase_complete.upy_flash_mpy_firmware_plugin.esp32_c3_success.json",
@@ -414,6 +457,10 @@ def local_actual_runner_writes_session_project_and_file_manifest() -> None:
         approval = payload.get("approval", {})
         if approval.get("approval_id") != "scaffold_config" or approval.get("confirmed") is not True:
             raise AssertionError(f"phase_complete must record scaffold_config approval: {approval}")
+        if approval.get("selected", {}).get("modules") != scaffold.get("modules"):
+            raise AssertionError(f"approval.selected.modules must be structured and normalized: {approval}")
+        if not isinstance(approval.get("selected", {}).get("custom_files"), list):
+            raise AssertionError(f"approval.selected.custom_files must be a list: {approval}")
         permissions = payload.get("permissions", [])
         permission_types = {item.get("type") for item in permissions}
         if not {"file_operation", "script_run"} <= permission_types:
