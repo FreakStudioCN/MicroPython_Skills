@@ -1,0 +1,30 @@
+# Python env   : ${MICROPYTHON_VERSION_LABEL}
+# -*- coding: utf-8 -*-
+# @Generated : upy-scaffold ${GENERATED_AT} (mode: asyncio)
+# @File    : main.py
+# @Description : Hardware assembly and uasyncio scheduler frame
+# @License : MIT
+
+import uasyncio as asyncio
+from machine import I2C, Pin
+
+import conf
+${LOGGER_IMPORTS}
+${MAINTENANCE_IMPORT}
+
+${LOGGER_SETUP_BLOCK}
+
+# Hardware instances generated from manifest.pinout.
+${I2C_INIT_BLOCK}
+${GPIO_INIT_BLOCK}
+
+
+async def main():
+    ${ASYNC_LOG_BOOT_BLOCK}
+    # TODO: upy-generate creates async business tasks here.
+    while True:
+${MAINTENANCE_ASYNC_BLOCK}
+        await asyncio.sleep_ms(100)
+
+
+asyncio.run(main())

@@ -1,0 +1,27 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-start-scaffold-full",
+  "session_id": "sample-scaffold",
+  "phase": "upy-scaffold-plugin",
+  "timestamp": "2026-06-22T00:20:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-scaffold-plugin:sample-scaffold:start:v1",
+  "retry_of": null,
+  "payload": {
+    "mode": "full",
+    "source_phase": "upy-flash-mpy-firmware-plugin",
+    "source_phase_complete_path": "sessions/sample-scaffold/phase_complete.upy_flash_mpy_firmware_plugin.json",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-scaffold",
+      "project_root": "sessions/sample-scaffold/project",
+      "resource_root": "<runtime-provided>"
+    },
+    "capabilities": {
+      "approval_request": true,
+      "script_run": true,
+      "file_operation": true
+    }
+  }
+}

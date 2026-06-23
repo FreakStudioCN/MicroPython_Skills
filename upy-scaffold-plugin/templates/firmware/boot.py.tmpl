@@ -1,0 +1,17 @@
+# Python env   : ${MICROPYTHON_VERSION_LABEL}
+# -*- coding: utf-8 -*-
+# @Generated : upy-scaffold ${GENERATED_AT}
+# @File    : boot.py
+# @Description : Early boot initialization
+# @License : MIT
+
+import micropython
+
+# Keep ISR exception traces readable.
+micropython.alloc_emergency_exception_buf(100)
+
+# Watchdog is project-specific. Enable it in upy-generate output only after
+# long-running boot/network paths are known and feed points are registered.
+# Example:
+# from machine import WDT
+# wdt = WDT(timeout=8000)

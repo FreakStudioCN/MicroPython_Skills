@@ -1,0 +1,24 @@
+# Python env   : ${MICROPYTHON_VERSION_LABEL}
+# -*- coding: utf-8 -*-
+# @Generated : upy-scaffold ${GENERATED_AT} (mode: timer)
+# @File    : main.py
+# @Description : Hardware assembly and Timer scheduler frame
+# @License : MIT
+
+from machine import I2C, Pin
+
+import conf
+${LOGGER_IMPORTS}
+from lib.scheduler.timer_sched import Scheduler
+${MAINTENANCE_IMPORT}
+
+${LOGGER_SETUP_BLOCK}
+${LOG_BOOT_BLOCK}
+
+# Hardware instances generated from manifest.pinout.
+${I2C_INIT_BLOCK}
+${GPIO_INIT_BLOCK}
+
+sc = Scheduler(timer_id=-1, tick_ms=100${MAINTENANCE_TIMER_ARG})
+# TODO: upy-generate registers business tasks here.
+sc.start()

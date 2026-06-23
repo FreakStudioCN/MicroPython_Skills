@@ -1,0 +1,36 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-start-scaffold-incremental",
+  "session_id": "sample-scaffold",
+  "phase": "upy-scaffold-plugin",
+  "timestamp": "2026-06-22T00:25:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-scaffold-plugin:sample-scaffold:start-incremental:v1",
+  "retry_of": null,
+  "payload": {
+    "mode": "incremental",
+    "manifest": {
+      "schema_version": "1.0",
+      "phase": "scaffold",
+      "project_name": "增量器件测试",
+      "devices": []
+    },
+    "new_devices": [
+      {
+        "name": "DHT22",
+        "interface": "GPIO",
+        "driver": {
+          "source": "upypi",
+          "install_cmd": "mpremote mip install dht"
+        }
+      }
+    ],
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-scaffold",
+      "project_root": "sessions/sample-scaffold/project",
+      "resource_root": "<runtime-provided>"
+    }
+  }
+}

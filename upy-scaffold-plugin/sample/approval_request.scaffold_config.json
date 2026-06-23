@@ -1,0 +1,88 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-approval-scaffold-config",
+  "session_id": "sample-scaffold",
+  "phase": "upy-scaffold-plugin",
+  "timestamp": "2026-06-22T00:21:00Z",
+  "type": "approval_request",
+  "payload": {
+    "approval_id": "scaffold_config",
+    "header": "项目骨架配置",
+    "question": "选择调度模式和需要注入的模块",
+    "summary": {
+      "project_name": "语音对话助手",
+      "mcu": "ESP32-C3-DevKitM-1"
+    },
+    "items": [
+      {
+        "id": "mode_timer",
+        "name": "Timer tick",
+        "subtitle": "ISR 计数 + 主循环轮询，适合纯传感器采集",
+        "meta": "",
+        "selected": false,
+        "group": "scheduler_mode"
+      },
+      {
+        "id": "mode_async",
+        "name": "asyncio",
+        "subtitle": "uasyncio 协程，适合 WiFi / LCD / LVGL 项目",
+        "meta": "推荐",
+        "selected": true,
+        "group": "scheduler_mode"
+      },
+      {
+        "id": "mode_thread",
+        "name": "_thread",
+        "subtitle": "多线程，适合阻塞式操作",
+        "meta": "",
+        "selected": false,
+        "group": "scheduler_mode"
+      },
+      {
+        "id": "module_logger",
+        "name": "日志系统",
+        "subtitle": "lib/logger/*",
+        "selected": true,
+        "group": "extra_modules"
+      },
+      {
+        "id": "module_flash",
+        "name": "部署工具",
+        "subtitle": "tools/flash_device.py",
+        "selected": true,
+        "group": "extra_modules"
+      },
+      {
+        "id": "module_log_tools",
+        "name": "PC 日志工具",
+        "subtitle": "tools/read_device_log.py + log_report.py",
+        "selected": true,
+        "group": "extra_modules"
+      }
+    ],
+    "allow_add": true,
+    "allow_remove": false,
+    "multi_select": true,
+    "item_groups": {
+      "scheduler_mode": {
+        "multi_select": false,
+        "label": "调度模式"
+      },
+      "extra_modules": {
+        "multi_select": true,
+        "label": "额外模块"
+      }
+    },
+    "actions": [
+      {
+        "label": "确认，开始生成骨架",
+        "value": "confirm",
+        "primary": true
+      },
+      {
+        "label": "修改配置",
+        "value": "modify"
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+# Python env   : ${MICROPYTHON_VERSION_LABEL}
+# -*- coding: utf-8 -*-
+# @Generated : upy-scaffold ${GENERATED_AT}
+# @File    : board.py
+# @Description : Board-level pin mapping for ${MCU_MODEL}
+# @License : MIT
+
+# Interface type constants
+I2C0 = 0
+I2C1 = 1
+
+BOARDS = {
+    "${BOARD_ID}": {
+        "NAME": "${MCU_MODEL}",
+        "FIXED_PINS": {
+${FIXED_PINS_BLOCK}
+        },
+        "INTERFACES": {
+            "I2C": {
+${I2C_PINS_BLOCK}
+            },
+        },
+        "DEFAULTS": {
+            "I2C_FREQ": ${I2C_FREQ},
+            "UART_BAUD": ${UART_BAUD},
+        },
+        "BOOT_SENSITIVE": ${BOOT_SENSITIVE_LIST},
+        "FLASH_PINS": ${FLASH_PINS_LIST},
+        "INPUT_ONLY": ${INPUT_ONLY_LIST},
+        "PINOUT": ${PINOUT_LIST},
+    },
+}
+
+ACTIVE_BOARD = "${BOARD_ID}"
+_config = BOARDS.get(ACTIVE_BOARD, {})
+
+
+def get_config():
+    return _config
+
+
+def list_boards():
+    return list(BOARDS.keys())
+
+
+def set_active_board(name):
+    global ACTIVE_BOARD, _config
+    if name in BOARDS:
+        ACTIVE_BOARD = name
+        _config = BOARDS[name]
+        return True
+    return False
+
+
+def get_fixed_pin(name):
+    return _config.get("FIXED_PINS", {}).get(name)
+
+
+def get_i2c_pins(i2c_id):
+    i2c = _config.get("INTERFACES", {}).get("I2C", {})
+    if i2c_id in i2c:
+        return i2c[i2c_id].get("SDA"), i2c[i2c_id].get("SCL")
+    return None, None
+
+
+def get_default_config(name):
+    return _config.get("DEFAULTS", {}).get(name)
