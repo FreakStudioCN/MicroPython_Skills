@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import importlib.util
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ SAMPLE = ROOT / "sample"
 SCRIPTS = ROOT / "scripts"
 PHASE = "upy-flash-mpy-firmware-plugin"
 NEXT_PHASE = "upy-scaffold-plugin"
+sys.dont_write_bytecode = True
 
 
 def run(args: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -48,6 +50,15 @@ def run_json(args: list[str], *, cwd: Path = ROOT) -> dict[str, Any]:
 def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8-sig") as fh:
         return json.load(fh)
+
+
+def load_script_module(name: str, path: Path) -> Any:
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load script module: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def assert_manifest_content_matches_firmware(path_name: str, payload: dict[str, Any]) -> None:
@@ -105,6 +116,7 @@ def skill_text_matches_protocol() -> None:
         "scripts/firmware_page_resolve.py",
         "scripts/firmware_download.py",
         "scripts/list_serial_ports.py",
+        "scripts/find_uf2_mount.py",
         "scripts/esp32_flash.py",
         "manifest_content",
         "firmware_flash",
@@ -112,7 +124,11 @@ def skill_text_matches_protocol() -> None:
         "action_required=\"install\"",
         "确认烧录 -> bootstrap 检查/安装 -> `esp32_flash.py --plan-only` -> `esp32_flash.py --execute`",
         "Only mock/sample tests may use a fixed `serial_port=\"COM3\"`",
-        "Claude Code live use and real plugin use must scan real COM ports",
+        "Claude Code live use and real plugin use must scan real serial ports",
+        "/dev/ttyUSB0",
+        "/dev/cu.usbmodem1101",
+        "/Volumes/RPI-RP2",
+        "/media/$USER/RPI-RP2",
     ]
     missing = [item for item in required if item not in text]
     if missing:
@@ -456,6 +472,21 @@ def mock_serial_port_is_mock_mode_only() -> None:
     assert mock["status"] == "success"
     assert mock["mode"] == "mock"
     assert mock["ports"][0]["name"] == "COM3"
+    assert mock["ports"][0]["source"] == "mock"
+    assert "platform" in mock["ports"][0]
+
+    posix_mock = run_json(
+        [
+            sys.executable,
+            str(SCRIPTS / "list_serial_ports.py"),
+            "--mode",
+            "mock",
+            "--mock-port",
+            "/dev/cu.usbmodem1101",
+        ]
+    )
+    assert posix_mock["status"] == "success"
+    assert posix_mock["ports"][0]["name"] == "/dev/cu.usbmodem1101"
 
     proc = run(
         [
@@ -488,6 +519,50 @@ def list_serial_ports_accepts_out_json_alias() -> None:
         )
         assert data["status"] == "success"
         assert data["ports"][0]["name"] == "COM3"
+        assert output.is_file()
+
+
+def list_serial_ports_posix_fallback_deduplicates_candidates() -> None:
+    wrapper = load_script_module("flash_list_serial_ports_wrapper", SCRIPTS / "list_serial_ports.py")
+    script_path = wrapper.find_shared_script() if hasattr(wrapper, "find_shared_script") else SCRIPTS / "list_serial_ports.py"
+    module = load_script_module("flash_shared_list_serial_ports", script_path)
+    with tempfile.TemporaryDirectory(prefix="flash-posix-ports-") as temp_dir:
+        temp_path = Path(temp_dir)
+        port_a = temp_path / "ttyUSB0"
+        port_b = temp_path / "ttyACM0"
+        port_a.write_text("", encoding="utf-8")
+        port_b.write_text("", encoding="utf-8")
+        ports = module.posix_fallback_ports(
+            [
+                str(temp_path / "ttyUSB*"),
+                str(temp_path / "ttyUSB0"),
+                str(temp_path / "ttyACM*"),
+            ]
+        )
+    names = [item["name"] for item in ports]
+    assert names == [str(port_a), str(port_b)]
+    assert ports[0]["source"] == "posix-glob"
+    assert "platform" in ports[0]
+
+
+def find_uf2_mount_reports_candidate_without_copying() -> None:
+    with tempfile.TemporaryDirectory(prefix="flash-uf2-mount-") as temp_dir:
+        mount = Path(temp_dir) / "RPI-RP2"
+        output = Path(temp_dir) / "uf2_mount.json"
+        mount.mkdir()
+        data = run_json(
+            [
+                sys.executable,
+                str(SCRIPTS / "find_uf2_mount.py"),
+                "--candidate",
+                str(mount),
+                "--out-json",
+                str(output),
+            ]
+        )
+        assert data["status"] == "found"
+        assert data["mounts"][0]["path"] == str(mount)
+        assert data["label"] == "RPI-RP2"
         assert output.is_file()
 
 
@@ -567,6 +642,7 @@ def esp32_flash_plan_uses_page_offset_and_skill_local_esptool_path() -> None:
     assert data["commands"][1][-3:] == ["write_flash", "0x2000", str(firmware)]
     assert ".venv-esptool" in data["commands"][0][0]
     assert data["firmware_artifact_path"] == "firmware.bin"
+    assert data["rendered_commands_posix"][0].endswith("--port COM3 erase_flash")
 
 
 def esp32_flash_accepts_out_json_alias() -> None:
@@ -603,7 +679,7 @@ def esp32_flash_accepts_out_json_alias() -> None:
                 "--chip-family",
                 "esp32c3",
                 "--port",
-                "COM3",
+                "/dev/ttyUSB0",
                 "--plan-only",
                 "--artifact-root",
                 str(temp_path),
@@ -612,6 +688,9 @@ def esp32_flash_accepts_out_json_alias() -> None:
             ]
         )
         assert data["status"] == "planned"
+        assert data["port"] == "/dev/ttyUSB0"
+        assert data["commands"][0][6] == "/dev/ttyUSB0"
+        assert "--port /dev/ttyUSB0" in data["rendered_commands_posix"][0]
         assert data["write_offset"] == "0"
         assert data["firmware_artifact_path"] == "firmware.bin"
         assert output.is_file()
@@ -888,6 +967,8 @@ def main() -> int:
         firmware_download_accepts_out_json_alias,
         mock_serial_port_is_mock_mode_only,
         list_serial_ports_accepts_out_json_alias,
+        list_serial_ports_posix_fallback_deduplicates_candidates,
+        find_uf2_mount_reports_candidate_without_copying,
         bootstrap_missing_is_action_required_not_failure,
         esp32_flash_plan_uses_page_offset_and_skill_local_esptool_path,
         esp32_flash_accepts_out_json_alias,

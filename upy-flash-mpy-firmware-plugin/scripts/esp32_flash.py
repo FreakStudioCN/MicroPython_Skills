@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -119,6 +120,10 @@ def artifact_path(path: str, root: str | None) -> str | None:
         return None
 
 
+def render_posix_command(command: list[str]) -> str:
+    return shlex.join(command)
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolved-json", required=True)
@@ -157,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
             "firmware": args.firmware,
             "commands": commands,
             "rendered_commands": [subprocess.list2cmdline(c) for c in commands],
+            "rendered_commands_posix": [render_posix_command(c) for c in commands],
             "runs": [],
             "warnings": warnings,
         }

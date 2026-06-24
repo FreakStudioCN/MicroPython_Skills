@@ -29,7 +29,7 @@ phase_complete(payload.phase="upy-flash-mpy-firmware-plugin", payload.next_phase
 | Pico | `firmware_board_name` 以 `RPI_PICO` 开头 | 解析最新 `.uf2`，提示用户按住 BOOTSEL 并复制 UF2，然后等待用户确认。 |
 | Manual | 其他 MicroPython 板卡 | 解析 MicroPython 下载/安装链接并展示手动烧录说明。不要执行 `dfu-util`、`teensy-loader`、ESP8266 esptool 或其他工具，只等待用户确认。 |
 
-Only mock/sample tests may use a fixed `serial_port="COM3"` to validate JSON and command planning. Claude Code live use and real plugin use must scan real COM ports and require user selection. 上面这两个英文短语是本地测试契约；含义是只有 mock/sample 测试可用固定 `COM3`，真实 Claude Code 或插件运行必须扫描真实串口并由用户选择。
+Only mock/sample tests may use a fixed `serial_port="COM3"` to validate JSON and command planning. Claude Code live use and real plugin use must scan real serial ports and require user selection. 上面这两个英文短语是本地测试契约；含义是只有 mock/sample 测试可用固定串口（例如 Windows `COM3`、Linux `/dev/ttyUSB0` 或 macOS `/dev/cu.usbmodem1101`），真实 Claude Code 或插件运行必须扫描真实串口并由用户选择。
 
 ## 输入契约
 
@@ -253,7 +253,7 @@ script_run(esp32_flash.py --execute --output-json ...)  # 只允许在用户明�
 }
 ```
 
-上面的 `COM3` 只是示例；真实使用必须用扫描到且由用户选择的串口。
+上面的 `COM3` 只是 Windows 示例；Linux 常见值类似 `/dev/ttyUSB0` 或 `/dev/ttyACM0`，macOS 常见值类似 `/dev/cu.usbmodem1101` 或 `/dev/cu.usbserial-0001`。真实使用必须用扫描到且由用户选择的串口，不要按操作系统写死端口名。
 
 ## Pico 流程
 
@@ -286,6 +286,13 @@ script_run(esp32_flash.py --execute --output-json ...)  # 只允许在用户明�
 ```
 
 V0 中，用户确认 `copied_uf2` 即可视为成功。
+
+跨平台挂载路径只作为提示和可选辅助发现，不改变 V0 手动复制契约：
+
+- Windows 通常显示为卷标 `RPI-RP2` 的可移动磁盘。
+- macOS 通常是 `/Volumes/RPI-RP2`。
+- Linux 常见路径是 `/media/$USER/RPI-RP2`、`/run/media/$USER/RPI-RP2` 或 `/mnt/RPI-RP2`。
+- 可选运行 `scripts/find_uf2_mount.py --output-json ...` 帮助定位挂载点；不得因为未找到挂载点就自动判定 Pico 流程失败，除非用户也没有确认 `copied_uf2`。
 
 ## 手动板卡流程
 
@@ -350,7 +357,8 @@ V0 中，用户确认 `copied_uf2` 即可视为成功。
 | --- | --- |
 | `scripts/firmware_page_resolve.py` | 解析 MicroPython 下载页、最新固件 URL 和安装说明；支持 `--html-file` 用于 mock 测试。 |
 | `scripts/firmware_download.py` | 下载已解析的固件产物，或输出不下载的计划。 |
-| `scripts/list_serial_ports.py` | 为 ESP32 真实/插件模式枚举串口。 |
+| `scripts/list_serial_ports.py` | 为 ESP32 真实/插件模式枚举串口；优先使用 pyserial，失败时在 Windows/macOS/Linux 使用平台兜底。 |
+| `scripts/find_uf2_mount.py` | 可选发现 Pico/RP2040 UF2 挂载点；只报告 `RPI-RP2` 等候选路径，不自动复制固件。 |
 | `scripts/bootstrap_esptool.py` | 创建/检查技能内 `.venv-esptool`，并在获得许可后安装固定版本 esptool。 |
 | `scripts/esptool_runner.py` | 运行技能内 `python -m esptool`，不依赖全局 PATH。 |
 | `scripts/esp32_flash.py` | 使用从 MicroPython 页面解析出的命令规划或执行 ESP32 擦除/写入。 |
@@ -373,7 +381,8 @@ flash_mpy_firmware_manifest.py --validate-phase-complete --input <phase_complete
 | --- | --- | --- |
 | `firmware_page_resolve.py` | `--board-name`、`--board-family`，通常还要 `--board-url` | `--out-json`；也兼容 `--output-json`。 |
 | `firmware_download.py` | `--resolved-json`、`--out-dir` | `--output-json`；也兼容 `--out-json`；建议传 `--artifact-root` 以输出相对 `downloaded_artifact_path`。 |
-| `list_serial_ports.py` | 无；mock 测试可加 `--mode mock --mock-port COM3` | `--output-json`；也兼容 `--out-json`。 |
+| `list_serial_ports.py` | 无；mock 测试可加 `--mode mock --mock-port COM3`、`--mock-port /dev/ttyUSB0` 或 `--mock-port /dev/cu.usbmodem1101` | `--output-json`；也兼容 `--out-json`。 |
+| `find_uf2_mount.py` | 可选；默认查找 `RPI-RP2`，测试可加 `--candidate <path>` | `--output-json`；也兼容 `--out-json`。 |
 | `bootstrap_esptool.py` | 无；需要安装时加 `--install` | `--output-json`；也兼容 `--out-json`。 |
 | `esp32_flash.py` | `--resolved-json`、`--firmware`、`--port` | `--output-json`；也兼容 `--out-json`；建议传 `--artifact-root` 以输出相对 `firmware_artifact_path`。 |
 

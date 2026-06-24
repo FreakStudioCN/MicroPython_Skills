@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import argparse
+from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIRMWARE_DIR = os.path.join(ROOT, "firmware")
@@ -26,6 +27,31 @@ ENTRY_FILES = {"main.py", "boot.py"}
 
 _COM_PORT = ""
 _MPY_CROSS_AVAILABLE = None
+_SUMMARY = {
+    "status": "success",
+    "started_at": datetime.now(timezone.utc).isoformat(),
+    "port": "",
+    "steps": [],
+    "errors": [],
+}
+
+
+def _mark_failed(code: str, message: str, **extra):
+    _SUMMARY["status"] = "failed"
+    error = {"code": code, "message": message}
+    error.update(extra)
+    _SUMMARY["errors"].append(error)
+
+
+def _emit_summary(args, exit_code: int):
+    _SUMMARY["exit_code"] = exit_code
+    _SUMMARY["finished_at"] = datetime.now(timezone.utc).isoformat()
+    if args.summary_file:
+        with open(args.summary_file, "w", encoding="utf-8") as f:
+            json.dump(_SUMMARY, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+    if args.json_summary:
+        print(json.dumps(_SUMMARY, ensure_ascii=False, separators=(",", ":")))
 
 
 def load_manifest() -> dict:
@@ -66,7 +92,15 @@ def _mpremote(cmd, timeout=60, check=True) -> subprocess.CompletedProcess:
         full + cmd, capture_output=True, text=True, encoding="utf-8",
         timeout=timeout,
     )
+    _SUMMARY["steps"].append({
+        "type": "mpremote",
+        "command": full + cmd,
+        "returncode": result.returncode,
+        "stdout": result.stdout[-2000:],
+        "stderr": result.stderr[-2000:],
+    })
     if check and result.returncode != 0:
+        _mark_failed("mpremote_failed", "mpremote command failed", command=full + cmd, stderr=result.stderr)
         print("[ERROR] mpremote command failed: {}".format(" ".join(cmd)))
         print(result.stderr)
         sys.exit(1)
@@ -85,13 +119,17 @@ def check_mpy_cross() -> bool:
     return _MPY_CROSS_AVAILABLE
 
 
-def compile_py_files():
+def compile_py_files() -> bool:
     """Compile all .py files under firmware/ to build/mpy/, preserving structure."""
     print("[compile] Compiling .py → .mpy ...")
+    step = {"type": "compile", "status": "running", "files": []}
+    _SUMMARY["steps"].append(step)
     if not check_mpy_cross():
         print("[WARNING] mpy-cross not found. Install: pip install mpy-cross")
         print("          Skipping compilation (use .py directly).")
-        return
+        step["status"] = "skipped"
+        step["reason"] = "mpy-cross not found"
+        return True
 
     py_files = []
     for root, dirs, files in os.walk(FIRMWARE_DIR):
@@ -101,7 +139,9 @@ def compile_py_files():
 
     if not py_files:
         print("[compile] No .py files found under firmware/")
-        return
+        step["status"] = "skipped"
+        step["reason"] = "no python files"
+        return True
 
     os.makedirs(MPY_DIR, exist_ok=True)
     manifest = load_manifest()
@@ -118,12 +158,23 @@ def compile_py_files():
             cmd += ["-march", mpy_version]
 
         result = subprocess.run(cmd, capture_output=True)
+        item = {
+            "source": os.path.relpath(src, FIRMWARE_DIR).replace("\\", "/"),
+            "target": os.path.relpath(dest, ROOT).replace("\\", "/"),
+            "returncode": result.returncode,
+            "stderr": result.stderr.decode(errors="replace")[-1000:],
+        }
+        step["files"].append(item)
         if result.returncode == 0:
             print("  OK  {}".format(rel))
         else:
+            _mark_failed("mpy_cross_failed", "mpy-cross failed", **item)
             print("  FAIL  {}: {}".format(rel, result.stderr.decode().strip()))
 
     print("[compile] Done → build/mpy/")
+    if step["status"] == "running":
+        step["status"] = "success" if _SUMMARY["status"] == "success" else "failed"
+    return step["status"] != "failed"
 
 
 def flash_firmware():
@@ -192,10 +243,10 @@ def _upload_dir(source_dir: str, label: str):
 
             remote_dir = ":{}".format(os.path.dirname(rel).replace("\\", "/"))
             if remote_dir not in (":", ":."):
-                _mpremote(["fs", "mkdir", remote_dir], check=False)
+                _mpremote(["resume", "fs", "mkdir", remote_dir], check=False)
 
             try:
-                _mpremote(["cp", src, remote])
+                _mpremote(["resume", "fs", "cp", src, remote])
                 size_kb = os.path.getsize(src) / 1024
                 print("  OK  {}  ({:.1f} KB)".format(remote, size_kb))
             except SystemExit:
@@ -213,22 +264,25 @@ def upload_files():
 
     if use_mpy:
         print("[upload] Source: build/mpy/ + firmware/{main,boot}.py → device")
+        _SUMMARY["steps"].append({"type": "upload_source", "source": "build/mpy + entry py"})
         _upload_dir(MPY_DIR, "mpy")
         # Always upload entry files as .py from firmware/
         for entry in ENTRY_FILES:
             src = os.path.join(FIRMWARE_DIR, entry)
             if os.path.exists(src):
                 try:
-                    _mpremote(["cp", src, ":{}".format(entry)])
+                    _mpremote(["resume", "fs", "cp", src, ":{}".format(entry)])
                     print("  OK  :{}  ({:.1f} KB)".format(entry, os.path.getsize(src) / 1024))
                 except SystemExit:
                     print("[ERROR] upload failed: {}".format(entry))
                     sys.exit(1)
     else:
         print("[upload] Source: firmware/ → device (no .mpy available)")
+        _SUMMARY["steps"].append({"type": "upload_source", "source": "firmware"})
         _upload_dir(FIRMWARE_DIR, "py")
 
     print("[upload] Done")
+    _SUMMARY["steps"].append({"type": "upload", "status": "success"})
 
 
 def reset_device():
@@ -240,9 +294,7 @@ def reset_device():
         pass
 
 
-def main():
-    global _COM_PORT
-
+def parse_args():
     parser = argparse.ArgumentParser(description="MicroPython project deploy tool")
     parser.add_argument("--port", default="", help="Serial port (auto-detect if empty)")
     parser.add_argument("--compile", action="store_true", help="Compile .py → .mpy")
@@ -250,11 +302,17 @@ def main():
     parser.add_argument("--upload", action="store_true", help="Upload project files to device")
     parser.add_argument("--all", action="store_true", help="Compile + flash + upload")
     parser.add_argument("--no-reset", action="store_true", help="Skip device reset after upload")
-    args = parser.parse_args()
+    parser.add_argument("--json-summary", action="store_true", help="Print structured JSON summary as the final line")
+    parser.add_argument("--summary-file", help="Write structured JSON summary to a file")
+    return parser.parse_args()
+
+
+def run(args) -> int:
+    global _COM_PORT
 
     if not any([args.compile, args.flash, args.upload, args.all]):
-        parser.print_help()
-        sys.exit(1)
+        _mark_failed("no_action", "choose at least one of --compile, --flash, --upload, or --all")
+        return 1
 
     do_all = args.all
     do_compile = args.compile or do_all
@@ -262,13 +320,15 @@ def main():
     do_upload = args.upload or do_all
 
     _COM_PORT = args.port or select_com_port()
+    _SUMMARY["port"] = _COM_PORT
     print("[info] Using port: {}".format(_COM_PORT))
 
     if do_flash:
         flash_firmware()
 
     if do_compile:
-        compile_py_files()
+        if not compile_py_files():
+            return 2
 
     if do_upload:
         upload_files()
@@ -279,7 +339,25 @@ def main():
         print("\n" + "=" * 50)
         print("  Deploy complete!")
         print("=" * 50)
+    return 0 if _SUMMARY["status"] == "success" else 2
+
+
+def main() -> int:
+    args = parse_args()
+    exit_code = 0
+    try:
+        exit_code = run(args)
+    except SystemExit as exc:
+        exit_code = exc.code if isinstance(exc.code, int) else 1
+        if exit_code and _SUMMARY["status"] == "success":
+            _mark_failed("script_exit", "script exited before deploy completed", detail=str(exc))
+    except Exception as exc:
+        exit_code = 1
+        _mark_failed("unhandled_exception", str(exc))
+        print("[ERROR] {}".format(exc))
+    _emit_summary(args, exit_code)
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

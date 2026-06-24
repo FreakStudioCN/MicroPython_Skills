@@ -542,6 +542,39 @@ def local_actual_runner_detects_conflict_without_force() -> None:
             raise AssertionError(f"conflict should emit FILE_CONFLICT: {errors}")
 
 
+def flash_device_template_has_stable_json_summary() -> None:
+    script = ROOT / "templates" / "pc" / "flash_device.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--json-summary"],
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if result.returncode == 0:
+        raise AssertionError("flash_device.py should fail when no action is selected")
+    last_line = result.stdout.strip().splitlines()[-1]
+    summary = json.loads(last_line)
+    if summary.get("status") != "failed" or summary.get("exit_code") != result.returncode:
+        raise AssertionError(f"flash_device summary must reflect failure exit: {summary}")
+    errors = summary.get("errors", [])
+    if not errors or errors[0].get("code") != "no_action":
+        raise AssertionError(f"flash_device summary must report no_action: {summary}")
+
+
+def flash_device_template_upload_uses_resume_fs() -> None:
+    text = (ROOT / "templates" / "pc" / "flash_device.py").read_text(encoding="utf-8")
+    required = [
+        '["resume", "fs", "cp", src, remote]',
+        '["resume", "fs", "cp", src, ":{}".format(entry)]',
+        '["resume", "fs", "mkdir", remote_dir]',
+        'separators=(",", ":")',
+    ]
+    missing = [item for item in required if item not in text]
+    if missing:
+        raise AssertionError(f"flash_device.py missing stable deploy behavior: {missing}")
+
+
 def main() -> int:
     tests = [
         full_timer_generates_json_payload,
@@ -555,6 +588,8 @@ def main() -> int:
         run_on_device_reports_missing_file_as_json,
         local_actual_runner_writes_session_project_and_file_manifest,
         local_actual_runner_detects_conflict_without_force,
+        flash_device_template_has_stable_json_summary,
+        flash_device_template_upload_uses_resume_fs,
     ]
     for test in tests:
         test()
