@@ -5,6 +5,7 @@
     "result": "success",
     "summary": "器件分析完成，识别到 6 个器件",
     "next_phase": "select-hw",
+    "next_skill": "/upy-select-hw-plugin",
     "manifest_content": {
       "schema_version": "1.0",
       "phase": "analyze",

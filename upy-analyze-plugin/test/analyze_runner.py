@@ -477,6 +477,7 @@ def main() -> None:
                     "result": "failed",
                     "summary": "manifest 校验脚本执行失败",
                     "next_phase": None,
+                    "next_skill": None,
                     "manifest_content": None,
                     "artifacts": [],
                     "warnings": [],
@@ -498,6 +499,7 @@ def main() -> None:
                     "result": "failed",
                     "summary": "manifest 校验失败",
                     "next_phase": None,
+                    "next_skill": None,
                     "manifest_content": None,
                     "artifacts": [],
                     "warnings": validation.get("warnings", []),
@@ -526,6 +528,7 @@ def main() -> None:
                 "result": "success",
                 "summary": summary,
                 "next_phase": "select-hw",
+                "next_skill": "/upy-select-hw-plugin",
                 "manifest_content": validation["manifest"],
                 "artifacts": [
                     {

@@ -70,9 +70,34 @@ def check_manifest_samples(samples: list[dict]) -> None:
         raise AssertionError("no phase_complete samples found")
 
     for sample in phase_complete_samples:
+        payload = sample.get("payload", {})
+        if payload.get("result") == "success":
+            if payload.get("next_phase") != "select-hw":
+                raise AssertionError("analyze success must keep next_phase=select-hw")
+            if payload.get("next_skill") != "/upy-select-hw-plugin":
+                raise AssertionError("analyze success must route to next_skill=/upy-select-hw-plugin")
+
         manifest = sample.get("payload", {}).get("manifest_content")
         if not isinstance(manifest, dict):
             raise AssertionError("phase_complete sample missing object manifest_content")
+
+        phase_proc = run(
+            [
+                sys.executable,
+                str(INIT_MANIFEST),
+                "--validate-phase-complete",
+                "--stdin",
+            ],
+            input_text=json.dumps(sample, ensure_ascii=False),
+        )
+        if phase_proc.returncode != 0:
+            raise AssertionError(
+                "init_manifest.py rejected sample phase_complete:\n"
+                f"stdout={phase_proc.stdout}\nstderr={phase_proc.stderr}"
+            )
+        phase_result = json.loads(phase_proc.stdout)
+        if phase_result.get("status") != "ok":
+            raise AssertionError(f"phase_complete validation failed: {phase_result}")
 
         proc = run(
             [sys.executable, str(INIT_MANIFEST), "--stdin"],
@@ -126,6 +151,10 @@ def check_runner_bridge() -> None:
         )
     if "PHASE COMPLETE" not in combined:
         raise AssertionError(f"runner bridge did not reach phase_complete:\n{combined}")
+    if "next_phase=select-hw" not in combined:
+        raise AssertionError(f"runner bridge did not keep next_phase=select-hw:\n{combined}")
+    if "next_skill=/upy-select-hw-plugin" not in combined:
+        raise AssertionError(f"runner bridge did not route to /upy-select-hw-plugin:\n{combined}")
 
 
 def check_external_claude_samples() -> None:
@@ -137,9 +166,16 @@ def check_external_claude_samples() -> None:
         EXTERNAL_SAMPLE_DIR / "manifest_draft.json",
         EXTERNAL_SAMPLE_DIR / "manifest_validated.json",
     ]
+    missing_manifest_candidates = [path for path in manifest_candidates if not path.exists()]
+    phase_complete_path = EXTERNAL_SAMPLE_DIR / "phase_complete.analyze.json"
+    if missing_manifest_candidates or not phase_complete_path.exists():
+        missing = missing_manifest_candidates
+        if not phase_complete_path.exists():
+            missing.append(phase_complete_path)
+        print(f"[SKIP] external claude samples missing files: {missing}")
+        return
+
     for path in manifest_candidates:
-        if not path.exists():
-            raise AssertionError(f"external sample missing: {path}")
         proc = run([sys.executable, str(INIT_MANIFEST), "--input", str(path)])
         if proc.returncode != 0:
             raise AssertionError(
@@ -149,10 +185,6 @@ def check_external_claude_samples() -> None:
         result = json.loads(proc.stdout)
         if result.get("status") != "ok":
             raise AssertionError(f"external manifest validation failed for {path}: {result}")
-
-    phase_complete_path = EXTERNAL_SAMPLE_DIR / "phase_complete.analyze.json"
-    if not phase_complete_path.exists():
-        raise AssertionError(f"external sample missing: {phase_complete_path}")
 
     with open(phase_complete_path, "r", encoding="utf-8") as f:
         phase_complete = json.load(f)
@@ -195,6 +227,7 @@ def check_external_claude_samples() -> None:
     errors = result.get("errors", [])
     known_historical_errors = {
         "phase_complete.artifacts must be an array",
+        "phase_complete.next_skill must be '/upy-select-hw-plugin' when analyze succeeds",
     }
     unexpected_errors = [error for error in errors if error not in known_historical_errors]
     if unexpected_errors:

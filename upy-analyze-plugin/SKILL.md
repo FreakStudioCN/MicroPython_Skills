@@ -18,7 +18,7 @@ description: 插件化工作流版 analyze。读取用户自然语言和插件�
 -> 按工作流搜索驱动
 -> 替代推荐或冷门驱动标记
 -> 输出 manifest_content
--> phase_complete(next_phase=select-hw)
+-> phase_complete(next_phase=select-hw, next_skill=/upy-select-hw-plugin)
 ```
 
 本 skill 不覆盖原版 `G:\MicroPython_Skills\upy-analyze`，用于独立演进插件化工作流。
@@ -35,6 +35,8 @@ description: 插件化工作流版 analyze。读取用户自然语言和插件�
 - analyze 的完成标准是 `phase_complete`，不是本地 manifest 写盘
 - 下游 phase 标准交接物是 `manifest_content`
 - `next_phase` 当前固定为 `select-hw`
+- `next_skill` 当前固定为 `/upy-select-hw-plugin`
+- `next_phase` 表示工作流阶段名，不能改成插件名；调用入口由 `next_skill` 表示
 - 在无真实插件宿主的 Claude Code 直测模式下，允许额外写入调试产物，但这些文件只是直测证据，不替代 `phase_complete.manifest_content`
 - 在任何确认点，未收到用户明确确认前，不得自动继续到下一步
 - 不允许模型替用户默认点击“确认”
@@ -52,7 +54,7 @@ description: 插件化工作流版 analyze。读取用户自然语言和插件�
 -> 驱动搜索
 -> 替代推荐或冷门驱动标记
 -> manifest 校验
--> phase_complete(next_phase=select-hw)
+-> phase_complete(next_phase=select-hw, next_skill=/upy-select-hw-plugin)
 ```
 
 ## 输入契约
@@ -480,6 +482,7 @@ Analyze 不做：
 - 调用校验脚本校验 manifest
 - 输出 `phase_complete`
 - `next_phase` 固定为 `select-hw`
+- `next_skill` 固定为 `/upy-select-hw-plugin`
 - 若运行在 Claude Code 直测模式且用户提供了项目/测试目录，应额外写出调试产物
 
 #### 7A. manifest 草稿要求
@@ -521,6 +524,7 @@ Analyze 最终必须把以下内容交给下游：
 - `warnings`
 - `errors`
 - `next_phase = "select-hw"`
+- `next_skill = "/upy-select-hw-plugin"`
 
 不要把“本地写盘成功”作为本 phase 唯一事实源。
 
@@ -622,7 +626,7 @@ Step 7 manifest 校验
   -> script_result
 
 Step 8 阶段完成
-  -> phase_complete(result=success, next_phase=select-hw)
+  -> phase_complete(result=success, next_phase=select-hw, next_skill=/upy-select-hw-plugin)
 ```
 
 ## 消息定义要求
@@ -853,6 +857,7 @@ Analyze 的 `phase_complete` 至少应包含：
 - `result`
 - `summary`
 - `next_phase = "select-hw"`
+- `next_skill = "/upy-select-hw-plugin"`
 - `manifest_content`
 - `artifacts`：必须是数组。调试文件路径用 `file_list` artifact 表达，不允许用对象映射代替数组。
 - `warnings`
@@ -946,7 +951,7 @@ Analyze 交给下游 `select-hw` 的 `manifest_content` 至少必须包含：
 - 可选补充卡片
 - 替代推荐 / 冷门驱动分流
 - `script_run(init_manifest.py)` 校验链路
-- `phase_complete(next_phase=select-hw)` 交接链路
+- `phase_complete(next_phase=select-hw, next_skill=/upy-select-hw-plugin)` 交接链路
 
 后续增强重点不再是补“有没有工作流”，而是补：
 

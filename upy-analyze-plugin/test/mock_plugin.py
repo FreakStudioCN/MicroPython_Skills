@@ -148,7 +148,12 @@ def handle_phase_complete(payload: dict[str, Any]) -> None:
     result = payload.get("result")
     summary = payload.get("summary", "")
     next_phase = payload.get("next_phase")
-    print(f"[PHASE COMPLETE] result={result} next_phase={next_phase}", file=sys.stderr, flush=True)
+    next_skill = payload.get("next_skill")
+    print(
+        f"[PHASE COMPLETE] result={result} next_phase={next_phase} next_skill={next_skill}",
+        file=sys.stderr,
+        flush=True,
+    )
     print(f"[SUMMARY] {summary}", file=sys.stderr, flush=True)
 
 

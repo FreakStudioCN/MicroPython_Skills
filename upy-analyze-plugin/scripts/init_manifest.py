@@ -48,6 +48,8 @@ VALID_DEVICE_SOURCES = ["user_specified", "system_recommended"]
 REAL_DRIVER_SOURCES = ["micropython_lib", "upypi", "awesome-micropython", "github", "local"]
 PHASE_COMPLETE_RESULTS = ["success", "failed", "partial"]
 ARTIFACT_TYPES = ["table", "file_tree", "markdown", "html", "code_diff", "file_list"]
+NEXT_PHASE_ON_SUCCESS = "select-hw"
+NEXT_SKILL_ON_SUCCESS = "/upy-select-hw-plugin"
 
 BUILTIN_INTERFACE_MODULE_MAP = {
     "ADC": "machine.ADC",
@@ -423,10 +425,16 @@ def validate_phase_complete(data: dict[str, Any]) -> tuple[list[str], list[str]]
         errors.append("phase_complete.summary is required")
 
     next_phase = payload.get("next_phase")
-    if result == "success" and next_phase != "select-hw":
+    if result == "success" and next_phase != NEXT_PHASE_ON_SUCCESS:
         errors.append("phase_complete.next_phase must be 'select-hw' when analyze succeeds")
     if result != "success" and next_phase is not None:
         warnings.append("phase_complete.next_phase is normally null when result is not success")
+
+    next_skill = payload.get("next_skill")
+    if result == "success" and next_skill != NEXT_SKILL_ON_SUCCESS:
+        errors.append("phase_complete.next_skill must be '/upy-select-hw-plugin' when analyze succeeds")
+    if result != "success" and next_skill is not None:
+        warnings.append("phase_complete.next_skill is normally null when result is not success")
 
     manifest_content = payload.get("manifest_content")
     if not isinstance(manifest_content, dict):

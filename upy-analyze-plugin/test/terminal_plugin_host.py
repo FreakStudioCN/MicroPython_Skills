@@ -296,6 +296,7 @@ def render_phase_complete(payload: dict[str, Any]) -> None:
     print(f"result: {payload.get('result')}")
     print(f"summary: {payload.get('summary')}")
     print(f"next_phase: {payload.get('next_phase')}")
+    print(f"next_skill: {payload.get('next_skill')}")
     warnings = payload.get("warnings", [])
     if warnings:
         print("warnings:")
