@@ -1,0 +1,39 @@
+{
+  "field_descriptions": {
+    "id": "Stable lowercase identifier for this pitfall. Use kebab-case and keep it unique.",
+    "title": "Short human-readable title shown in reviews or structured warnings.",
+    "category": "Primary domain: micropython, driver, scheduler, lint, deploy, user-feedback, or another narrow category.",
+    "applies_to": "Scope selectors. Use modes for full/fix, scheduler_modes for timer/async/thread, device_types for hardware classes, and files for glob-like affected paths.",
+    "symptoms": "Observable failures, logs, exceptions, or user feedback that suggest this pitfall.",
+    "wrong_pattern": "Concise description or code shape that should be avoided.",
+    "correct_pattern": "Preferred design or code shape.",
+    "detection": "How to detect the issue. script is a bundled checker, grep is a lightweight search hint, structured_error_code is the stable protocol code.",
+    "fix_guidance": "Ordered repair hints to apply in full or fix mode.",
+    "references": "Docs, reference files, or source paths that justify the rule.",
+    "verified_by": "Scripts, tests, or checklist items that verify the fix.",
+    "confidence": "high, medium, or low depending on how deterministic the rule is.",
+    "last_seen": "Date when this pitfall was added or last confirmed."
+  },
+  "id": "pitfall-template",
+  "title": "Short pitfall title",
+  "category": "micropython | driver | scheduler | lint | deploy | user-feedback",
+  "applies_to": {
+    "modes": ["full", "fix"],
+    "scheduler_modes": ["timer", "async", "thread"],
+    "device_types": [],
+    "files": []
+  },
+  "symptoms": [],
+  "wrong_pattern": "",
+  "correct_pattern": "",
+  "detection": {
+    "script": "",
+    "grep": "",
+    "structured_error_code": ""
+  },
+  "fix_guidance": [],
+  "references": [],
+  "verified_by": [],
+  "confidence": "medium",
+  "last_seen": "2026-06-23"
+}

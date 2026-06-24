@@ -1,0 +1,4 @@
+interface:
+  display_name: "upy-generate-plugin"
+  short_description: "Generate MicroPython firmware business code, dependencies, checks, and cloud/API setup plans."
+  default_prompt: "Run upy-generate-plugin from a scaffold phase_complete, including any cloud/API provider setup prompts."

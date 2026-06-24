@@ -1,0 +1,21 @@
+{
+  "type": "approval_request",
+  "phase": "upy-generate-plugin",
+  "payload": {
+    "approval_id": "generate_behavior_detail",
+    "header": "补充装置行为",
+    "question": "生成业务代码前，可补充采样周期、阈值、报警、显示、网络、日志和模拟场景。",
+    "allow_text": true,
+    "items": [
+      {"id": "next_deploy", "name": "生成后部署", "group": "next_phase", "selected": true},
+      {"id": "next_simulate", "name": "先模拟业务逻辑", "group": "next_phase"},
+      {"id": "next_stop", "name": "只生成代码", "group": "next_phase"},
+      {"id": "doc_diagram", "name": "生成架构图/数据流图", "group": "optional_outputs"},
+      {"id": "doc_wiring", "name": "生成接线图/引脚表", "group": "optional_outputs"}
+    ],
+    "item_groups": {
+      "next_phase": {"multi_select": false, "label": "下一阶段"},
+      "optional_outputs": {"multi_select": true, "label": "附加产物"}
+    }
+  }
+}

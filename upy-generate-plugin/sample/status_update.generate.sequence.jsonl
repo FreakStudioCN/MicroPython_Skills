@@ -1,0 +1,6 @@
+{"type":"status_update","payload":{"step_id":"started","message":"开始生成 MicroPython 业务代码","level":"info"}}
+{"type":"status_update","payload":{"step_id":"behavior_confirmed","message":"已确认装置行为和下一阶段偏好","level":"info"}}
+{"type":"status_update","payload":{"step_id":"dependency_resolved","message":"已解析驱动和中间件依赖","level":"info"}}
+{"type":"status_update","payload":{"step_id":"drivers_written","message":"驱动文件已写入 firmware/lib","level":"info"}}
+{"type":"status_update","payload":{"step_id":"lint_passed","message":"flake8 和 MicroPython-aware 检查通过","level":"info"}}
+{"type":"status_update","payload":{"step_id":"git_committed","message":"生成结果已提交 git commit","level":"info"}}

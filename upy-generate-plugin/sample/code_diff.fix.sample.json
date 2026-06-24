@@ -1,0 +1,14 @@
+{
+  "changed_files": [
+    {
+      "path": "firmware/tasks/display_task.py",
+      "reason": "Handle None display object reported after deploy feedback.",
+      "hunks": [
+        {
+          "old": "display.show(text)",
+          "new": "if display is not None:\n    display.show(text)"
+        }
+      ]
+    }
+  ]
+}

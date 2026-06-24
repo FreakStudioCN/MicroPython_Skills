@@ -1,0 +1,1514 @@
+#!/usr/bin/env python3
+"""Smoke tests for upy-generate-plugin resources."""
+
+from __future__ import annotations
+
+import json
+import hashlib
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_json(path: Path) -> dict:
+    with path.open("r", encoding="utf-8-sig") as handle:
+        return json.load(handle)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def run_cmd(cmd: list[str], input_obj: dict | None = None, cwd: Path | None = None) -> tuple[int, str, str]:
+    result = subprocess.run(
+        cmd,
+        cwd=cwd,
+        input=json.dumps(input_obj, ensure_ascii=False) if input_obj is not None else None,
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+def assert_json_files_parse() -> None:
+    for path in list((ROOT / "sample").glob("*.json")) + list((ROOT / "knowledge").glob("*.json")):
+        load_json(path)
+    sample = load_json(ROOT / "sample" / "phase_complete.upy_generate_plugin.success.json")
+    payload = sample["payload"]
+    if payload["next_phase"] != "upy-deploy-plugin":
+        raise AssertionError("success sample must default to upy-deploy-plugin")
+    optional = {item["phase"] for item in payload.get("optional_next_phases", [])}
+    if {"upy-diagram-plugin", "upy-wiring-plugin"} - optional:
+        raise AssertionError("success sample must include diagram and wiring optional phases")
+    if "pylint" not in payload.get("lint", {}) or "pc_unittest" not in payload.get("tests", {}):
+        raise AssertionError("success sample must expose pylint and PC unittest results")
+    if "generate" not in payload.get("manifest_content", {}):
+        raise AssertionError("success sample manifest_content must include generate section")
+    fix = load_json(ROOT / "sample" / "start_phase.upy_generate_plugin.fix.json")
+    if fix["payload"].get("source") != "user_feedback_after_deploy":
+        raise AssertionError("fix sample must cover manual deploy feedback")
+
+
+def assert_references_and_knowledge_docs() -> None:
+    skill_text = (ROOT / "SKILL.md").read_text(encoding="utf-8-sig")
+    required_refs = [
+        "references/protocol_fields.md",
+        "references/legacy_constraints.md",
+        "references/driver_factory_templates.md",
+        "references/task_generation_rules.md",
+        "references/device_unittest_subset.md",
+        "references/main_conf_rules.md",
+        "references/cloud_integrations.md",
+        "references/validation_gates.md",
+        "references/final_review_checklist.md",
+    ]
+    for rel in required_refs:
+        if rel not in skill_text:
+            raise AssertionError(f"SKILL.md must link {rel}")
+        if not (ROOT / rel).exists():
+            raise AssertionError(f"missing reference file: {rel}")
+    protocol = (ROOT / "references" / "protocol_fields.md").read_text(encoding="utf-8-sig")
+    for field in ("protocol_version", "session_id", "idempotency_key", "file_manifest", "structured_errors", "cloud_integrations"):
+        if field not in protocol:
+            raise AssertionError(f"protocol field not documented: {field}")
+    template = load_json(ROOT / "knowledge" / "_template.pitfall.json")
+    for field in ("field_descriptions", "id", "title", "category", "detection", "fix_guidance", "verified_by"):
+        if field not in template:
+            raise AssertionError(f"pitfall template must document/contain field: {field}")
+    catalog = load_json(ROOT / "knowledge" / "cloud_service_catalog.json")
+    provider_ids = {item["id"] for item in catalog.get("providers", [])}
+    for provider_id in ("volcengine_ark", "aliyun_bailian", "tencent_hunyuan", "baidu_qianfan", "custom_http_proxy"):
+        if provider_id not in provider_ids:
+            raise AssertionError(f"cloud service catalog missing provider: {provider_id}")
+
+
+def assert_plugin_json_shape() -> None:
+    plugin = load_json(ROOT / ".codex-plugin" / "plugin.json")
+    if plugin["name"] != "upy-generate-plugin":
+        raise AssertionError("plugin name mismatch")
+    if "interface" not in plugin or "defaultPrompt" not in plugin["interface"]:
+        raise AssertionError("plugin interface metadata missing")
+
+
+def assert_resolver_offline() -> None:
+    cmd = [
+        sys.executable,
+        str(ROOT / "scripts" / "resolve_upypi_packages.py"),
+        "--queries",
+        '["温湿度 MQTT 上报", "ssd1306 oled display"]',
+        "--offline",
+    ]
+    rc, stdout, stderr = run_cmd(cmd)
+    if rc != 0:
+        raise AssertionError(f"resolver failed: {stderr}")
+    payload = json.loads(stdout)
+    first = payload["queries"][0]["english_keywords"]
+    for expected in ("temperature", "humidity", "mqtt", "publish"):
+        if expected not in first:
+            raise AssertionError(f"resolver did not normalize Chinese query to English: {first}")
+
+
+def assert_download_drivers_offline() -> None:
+    manifest = {
+        "phase": "scaffold",
+        "devices": [
+            {"name": "LED", "driver": {"source": "none"}},
+            {"name": "Cold Sensor", "driver": {"status": "cold_driver_required"}},
+        ],
+    }
+    cmd = [
+        sys.executable,
+        str(ROOT / "scripts" / "download_drivers.py"),
+        "--manifest",
+        "-",
+        "--offline",
+    ]
+    rc, stdout, stderr = run_cmd(cmd, input_obj=manifest)
+    if rc != 0:
+        raise AssertionError(f"offline driver resolution should not fail: {stderr}")
+    payload = json.loads(stdout)
+    if not isinstance(payload.get("drivers"), list) or len(payload["drivers"]) != 2:
+        raise AssertionError(f"driver payload invalid: {payload}")
+
+
+def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> None:
+    files = {
+        ".flake8": "[flake8]\nmax-line-length = 120\nbuiltins = const\n",
+        "firmware/board.py": "I2C0_SCL = 6\nI2C0_SDA = 5\n",
+        "firmware/conf.py": (
+            "PROJECT_NAME = 'demo'\n"
+            "VERSION = '0.1.0'\n"
+            "SAMPLE_INTERVAL_MS = 1000\n"
+            "LOG_DIR = '/log'\n"
+            "LOG_FILES_MAX = 4\n"
+            "LOG_LINES_PER_FILE = 150\n"
+            "LOG_LEVEL = 'INFO'\n"
+            "BUSINESS_ENABLED = True\n"
+        ),
+        "firmware/lib/logger/__init__.py": (
+            "DEBUG = 10\n"
+            "INFO = 20\n"
+            "def install_rotating(log_dir, max_files=4, lines_per_file=150): return None\n"
+            "def setLevel(level): return None\n"
+            "def getLogger(name): return None\n"
+            "def info(msg): print(msg)\n"
+            "def warning(msg): print(msg)\n"
+            "def error(msg): print(msg)\n"
+            "def debug(msg): print(msg)\n"
+        ),
+        "firmware/lib/time_helper.py": "def timed_function(fn):\n    return fn\n\ndef timed_coro(fn):\n    return fn\n",
+        "firmware/lib/scheduler/timer_sched.py": "class Scheduler:\n    def add_task(self, callback, interval_ms, name=None): return name\n",
+        "firmware/drivers/status_driver/__init__.py": (
+            "class StatusOutput:\n"
+            "    def write(self, message):\n"
+            "        return message\n"
+            "\n"
+            "\n"
+            "def create_status_output():\n"
+            "    return StatusOutput()\n"
+        ),
+        "firmware/tasks/business_task.py": (
+            "from conf import BUSINESS_ENABLED, SAMPLE_INTERVAL_MS\n"
+            "from lib.time_helper import timed_function\n\n"
+            "\n"
+            "@timed_function\n"
+            "def business_tick():\n"
+            "    if not BUSINESS_ENABLED:\n"
+            "        return None\n"
+            "    print(SAMPLE_INTERVAL_MS)\n"
+            "    return SAMPLE_INTERVAL_MS\n"
+        ),
+        "firmware/main.py": (
+            "import time\n"
+            "from conf import LOG_DIR, LOG_LEVEL, LOG_FILES_MAX, LOG_LINES_PER_FILE, SAMPLE_INTERVAL_MS\n"
+            "from lib import logger\n"
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "from tasks.business_task import business_tick\n"
+            "\n"
+            "time.sleep(3)\n"
+            "logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
+            "logger.setLevel(logger.DEBUG if LOG_LEVEL == 'DEBUG' else logger.INFO)\n"
+            "business_tick()\n"
+            "logger.info('ok')\n"
+            "Scheduler().add_task(business_tick, SAMPLE_INTERVAL_MS, name='business_tick')\n"
+        ),
+        "test/pc/test_business_task.py": (
+            "import sys\n"
+            "import unittest\n"
+            "from pathlib import Path\n"
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'firmware'))\n"
+            "from tasks.business_task import business_tick  # noqa: E402\n\n"
+            "\n"
+            "class TestBusinessTask(unittest.TestCase):\n"
+            "    def test_business_tick(self):\n"
+            "        self.assertEqual(business_tick(), 1000)\n"
+        ),
+        "test/device/test_business_device.py": (
+            "import sys\n"
+            "import unittest\n\n"
+            "sys.path.insert(0, '../firmware')\n\n"
+            "from conf import BUSINESS_ENABLED, SAMPLE_INTERVAL_MS  # noqa: E402\n"
+            "from drivers.status_driver.mock import MockStatusOutput  # noqa: E402\n"
+            "from tasks.business_task import business_tick  # noqa: E402\n\n"
+            "\n"
+            "class TestBusinessDevice(unittest.TestCase):\n"
+            "    def test_output_adapter_records_message(self):\n"
+            "        output = MockStatusOutput()\n"
+            "        output.write('device-ready')\n"
+            "        self.assertIn('device-ready', output.messages[0])\n"
+            "        self.assertIsNotNone(business_tick)\n\n"
+            "    def test_generated_config_available(self):\n"
+            "        self.assertTrue(BUSINESS_ENABLED)\n"
+            "        self.assertGreaterEqual(SAMPLE_INTERVAL_MS, 1)\n"
+            "\n"
+            "\n"
+            "unittest.main()\n"
+        ),
+        "device/tests/test_business_device.py": (
+            "import sys\n"
+            "import unittest\n\n"
+            "sys.path.insert(0, '../firmware')\n\n"
+            "from conf import BUSINESS_ENABLED, SAMPLE_INTERVAL_MS  # noqa: E402\n"
+            "from drivers.status_driver.mock import MockStatusOutput  # noqa: E402\n"
+            "from tasks.business_task import business_tick  # noqa: E402\n\n"
+            "\n"
+            "class TestDeviceTestsLayout(unittest.TestCase):\n"
+            "    def test_alternate_layout(self):\n"
+            "        output = MockStatusOutput()\n"
+            "        output.write('alternate-layout')\n"
+            "        self.assertEqual(output.messages[0], 'alternate-layout')\n"
+            "        self.assertIsNotNone(business_tick)\n"
+            "\n"
+            "    def test_generated_config_available(self):\n"
+            "        self.assertTrue(BUSINESS_ENABLED)\n"
+            "        self.assertGreaterEqual(SAMPLE_INTERVAL_MS, 1)\n"
+            "\n"
+            "\n"
+            "unittest.main()\n"
+        ),
+        "project-manifest.json": json.dumps({"phase": "scaffold", "scaffold_mode": mode}, ensure_ascii=False),
+    }
+    if include_plan:
+        files["generate_plan.json"] = json.dumps(
+            {
+                "schema_version": "1.0",
+                "scheduler_mode": mode,
+                "tasks": [{"name": "business_task", "path": "firmware/tasks/business_task.py"}],
+                "drivers": [{"name": "status_driver", "path": "firmware/drivers/status_driver/__init__.py"}],
+                "config_constants": [
+                    {"name": "BUSINESS_ENABLED", "value": True},
+                    {"name": "SAMPLE_INTERVAL_MS", "value": 1000},
+                ],
+                "main_assembly": {
+                    "imports": ["conf", "logger", "status_driver", "business_task"],
+                    "drivers": ["status_output"],
+                    "tasks": ["business_tick"],
+                },
+                "tests": [
+                    {"path": "test/pc/test_business_task.py", "scenarios": ["normal"]},
+                    {"path": "device/tests/test_business_device.py", "scenarios": ["interface_contract", "config_contract"]},
+                ],
+                "data_flow_contract": [
+                    {
+                        "name": "status_message",
+                        "producer": "tasks.business_task.business_tick",
+                        "storage": "local_result.message",
+                        "consumer": "drivers.status_driver.write",
+                        "invariant": "status output receives the generated business message",
+                        "covered_by_tests": ["test/pc/test_business_task.py::TestBusinessTask::test_normal"],
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        )
+    for rel, content in files.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+
+def assert_check_scripts() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        checks = [
+            ["ensure_pylintrc.py", "--project-dir", str(project)],
+            ["check_generate_plan.py", "--project-dir", str(project)],
+            ["check_conf_contract.py", "--project-dir", str(project)],
+            ["check_mpy_imports.py", "--project-dir", str(project)],
+            ["check_dead_config.py", "--project-dir", str(project), "--warn-only"],
+            ["check_task_no_machine_import.py", "--project-dir", str(project)],
+            ["check_device_unittest_subset.py", "--project-dir", str(project)],
+            ["check_driver_source_compile.py", "--project-dir", str(project)],
+            ["check_skeleton_compliance.py", "--project-dir", str(project)],
+            ["check_cloud_integrations.py", "--project-dir", str(project)],
+        ]
+        for item in checks:
+            cmd = [sys.executable, str(ROOT / "scripts" / item[0]), *item[1:]]
+            rc, stdout, stderr = run_cmd(cmd)
+            if rc != 0:
+                raise AssertionError(f"{item[0]} failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+            payload = json.loads(stdout)
+            if payload.get("errors"):
+                raise AssertionError(f"{item[0]} emitted errors: {payload}")
+        rc, stdout, stderr = run_cmd([sys.executable, str(ROOT / "scripts" / "run_quality_gates.py"), "--project-dir", str(project)])
+        if rc != 0:
+            raise AssertionError(f"run_quality_gates.py failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        quality = json.loads(stdout)
+        for name in ("flake8", "pylint", "pc_unittest", "task_no_machine_import", "device_unittest_subset", "cloud_integrations"):
+            if not quality["checks"][name]["ok"]:
+                raise AssertionError(f"quality gate {name} not ok: {quality['checks'][name]}")
+
+
+def assert_check_scripts_negative_cases() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        plan = {
+            "schema_version": "1.0",
+            "scheduler_mode": "timer",
+            "tasks": [{"name": "business_task", "path": "firmware/tasks/business_task.py"}],
+            "drivers": [{"name": "status_driver", "path": "firmware/drivers/status_driver/__init__.py"}],
+            "config_constants": [{"name": "SAMPLE_INTERVAL_MS", "value": 1000}],
+            "main_assembly": {"imports": ["conf"], "drivers": ["status"], "tasks": ["business_tick"]},
+            "tests": [{"path": "test/pc/test_business_task.py"}],
+        }
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        task = project / "firmware" / "tasks" / "bad_task.py"
+        task.write_text("from machine import Pin\n\ndef bad():\n    return Pin(1)\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_task_no_machine_import.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "TASK_IMPORTS_MACHINE" not in stdout:
+            raise AssertionError("check_task_no_machine_import.py must reject machine imports in tasks")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        device_test = project / "test" / "device" / "test_bad.py"
+        device_test.write_text(
+            "import unittest\n\n"
+            "class TestBad(unittest.TestCase):\n"
+            "    def test_bad(self):\n"
+            "        self.assertLess(1, 2)\n"
+            "\n"
+            "unittest.main()\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd([sys.executable, str(ROOT / "scripts" / "check_device_unittest_subset.py"), "--project-dir", str(project)])
+        if rc == 0 or "DEVICE_UNITTEST_ASSERT_UNSUPPORTED" not in stdout:
+            raise AssertionError("check_device_unittest_subset.py must reject unsupported MPY unittest asserts")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        device_test = project / "device" / "tests" / "test_bad_import.py"
+        device_test.parent.mkdir(parents=True, exist_ok=True)
+        device_test.write_text(
+            "import unittest\nfrom unittest import mock\n\n"
+            "class TestBadImport(unittest.TestCase):\n"
+            "    def test_bad_import(self):\n"
+            "        self.assertTrue(True)\n"
+            "        self.assertIsNotNone(mock)\n\n"
+            "unittest.main()\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_device_unittest_subset.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "DEVICE_UNITTEST_IMPORT_UNSUPPORTED" not in stdout:
+            raise AssertionError("check_device_unittest_subset.py must reject CPython-only device test imports")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        bad_driver = project / "firmware" / "lib" / "bad_driver.py"
+        bad_driver.write_text("def broken(:\n    pass\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_driver_source_compile.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "DRIVER_SOURCE_COMPILE_FAILED" not in stdout:
+            raise AssertionError("check_driver_source_compile.py must reject invalid driver source")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(main_py.read_text(encoding="utf-8") + "\nprint(conf.MISSING_INTERVAL_MS)\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_conf_contract.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "CONF_REFERENCE_MISSING" not in stdout:
+            raise AssertionError("check_conf_contract.py must reject missing conf.X references")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        conf = project / "firmware" / "conf.py"
+        conf.write_text(conf.read_text(encoding="utf-8") + "\nSAMPLE_INTERVAL_MS = 2000\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_conf_contract.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "CONF_DUPLICATE_CONSTANT" not in stdout:
+            raise AssertionError("check_conf_contract.py must reject duplicate conf constants")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, include_plan=False)
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc == 0 or "GENERATE_PLAN_MISSING" not in stdout:
+            raise AssertionError("check_generate_plan.py must reject missing required plan")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        missing_driver = project / "firmware" / "drivers" / "status_driver" / "__init__.py"
+        missing_driver.unlink()
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_generate_plan.py"),
+                "--project-dir",
+                str(project),
+                "--require-plan",
+                "--check-files",
+            ]
+        )
+        if rc == 0 or "GENERATE_PLAN_FILE_MISSING" not in stdout:
+            raise AssertionError("check_generate_plan.py --check-files must reject planned files that were not generated")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        plan = json.loads((project / "generate_plan.json").read_text(encoding="utf-8"))
+        plan.pop("data_flow_contract", None)
+        plan["tasks"] = [{"name": "voice_dialogue", "path": "firmware/tasks/voice_dialogue.py", "states": ["LISTENING", "PROCESSING"]}]
+        plan["drivers"] = [{"name": "mic", "path": "firmware/drivers/mic_driver/__init__.py", "interface": "audio_record"}]
+        plan["tests"] = [{"path": "test/pc/test_voice_dialogue.py"}]
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc == 0 or "GENERATE_PLAN_DATA_FLOW_CONTRACT_MISSING" not in stdout:
+            raise AssertionError("check_generate_plan.py must require data_flow_contract for complex voice/audio flows")
+
+
+def assert_mpy_import_fallback_policy() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "network_task.py"
+        task.write_text(
+            "try:\n"
+            "    import uasyncio as asyncio\n"
+            "except ImportError:\n"
+            "    import asyncio\n\n"
+            "async def sleep_once():\n"
+            "    await asyncio.sleep_ms(1)\n",
+            encoding="utf-8",
+        )
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_mpy_imports.py"), "--project-dir", str(project)]
+        )
+        if rc != 0:
+            raise AssertionError(f"CPython fallback import should be warning-only:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        payload = json.loads(stdout)
+        if "MPY_IMPORT_CPYTHON_FALLBACK" not in stdout or payload.get("errors"):
+            raise AssertionError(f"fallback warning not recorded correctly: {payload}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "bad_async_task.py"
+        task.write_text("import asyncio\n\nasync def bad():\n    await asyncio.sleep(1)\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_mpy_imports.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "MPY_IMPORT_UNSUPPORTED" not in stdout:
+            raise AssertionError("direct CPython asyncio import must remain a strong failure")
+
+
+def assert_phase_complete_consistency() -> None:
+    sample_path = ROOT / "sample" / "phase_complete.upy_generate_plugin.success.json"
+    rc, stdout, stderr = run_cmd(
+        [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(sample_path)]
+    )
+    if rc != 0:
+        raise AssertionError(f"valid success sample failed consistency check:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "valid-session"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        valid = load_json(sample_path)
+        manifest = valid["payload"]["manifest_content"]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        manifest_hash = sha256_file(project / "project-manifest.json")
+        state = valid["payload"]["checks"]["session_state_checkpoint"]["state"]
+        state.update(
+            {
+                "session_id": session_dir.name,
+                "manifest_hash": manifest_hash,
+                "artifacts": [
+                    {"type": "project_manifest", "path": "project/project-manifest.json"},
+                    {"type": "generate_plan", "path": "project/generate_plan.json"},
+                ],
+                "last_ok_artifact": {"type": "generate_plan", "path": "project/generate_plan.json"},
+            }
+        )
+        valid["payload"]["checks"]["session_state_checkpoint"]["state"] = state
+        phase_path = session_dir / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(valid, ensure_ascii=False), encoding="utf-8")
+        (session_dir / "session_state.upy_generate_plugin.json").write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--project-dir",
+                str(project),
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"valid success with project manifest failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_failed_gate.json"
+        bad = load_json(sample_path)
+        bad["payload"]["checks"]["mpy_imports"] = {"returncode": 2, "ok": False}
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "GATE_NOT_OK" not in stdout:
+            raise AssertionError("success phase_complete with failed mpy_imports must be rejected")
+        payload = json.loads(stdout)
+        if payload.get("result") != "failed" or payload.get("payload_result") != "success":
+            raise AssertionError(f"phase consistency check must separate check result from payload result: {payload}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_thin_manifest.json"
+        bad = load_json(sample_path)
+        bad["payload"]["manifest_content"] = {
+            "phase": "generate",
+            "schema_version": "1.0",
+            "project_name": "demo",
+            "updated_at": "2026-06-23T00:00:00Z",
+            "generate": {"deploy_plan": {}, "behavior_spec": {}, "simulation_hints": {}},
+        }
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "MANIFEST_REQUIRED_FIELD_MISSING" not in stdout:
+            raise AssertionError("success phase_complete with thin manifest_content must be rejected")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_pylint_error.json"
+        bad = load_json(sample_path)
+        bad["payload"]["lint"]["pylint"] = {"returncode": 3, "ok": False}
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "PYLINT_STRONG_FAILURE" not in stdout:
+            raise AssertionError("success phase_complete with pylint fatal/error must be rejected")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_pylint_skipped.json"
+        bad = load_json(sample_path)
+        bad["payload"]["lint"]["pylint"] = {"returncode": None, "ok": True, "policy": "skipped_no_pylintrc"}
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "PYLINT_SKIPPED_ON_SUCCESS" not in stdout:
+            raise AssertionError("success phase_complete with skipped pylint must be rejected")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_optional_phases.json"
+        bad = load_json(sample_path)
+        bad["payload"]["optional_next_phases"] = []
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "OPTIONAL_NEXT_PHASE_MISSING" not in stdout:
+            raise AssertionError("success phase_complete must offer diagram/wiring optional phases")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_git.json"
+        bad = load_json(sample_path)
+        bad["payload"]["generate"]["git"] = {"commit": None, "status": "permission_required_or_dry_run"}
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "GIT_COMMIT_MISSING" not in stdout:
+            raise AssertionError("success phase_complete must record a completed git commit")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_manifest_git_commit_role.json"
+        bad = load_json(sample_path)
+        bad["payload"]["manifest_content"]["generate"]["git"] = {"commit": "a" * 40}
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "MANIFEST_GIT_COMMIT_ROLE_MISSING" not in stdout:
+            raise AssertionError("manifest generate.git.commit must declare commit_role when present")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_file_manifest_plan.json"
+        bad = load_json(sample_path)
+        bad["payload"]["file_manifest"]["files"] = [
+            item for item in bad["payload"]["file_manifest"]["files"] if item.get("role") != "plan"
+        ]
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "FILE_MANIFEST_MISSING_GENERATE_PLAN" not in stdout:
+            raise AssertionError("success phase_complete must include generate_plan.json in file_manifest")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_session_state.json"
+        bad = load_json(sample_path)
+        bad["payload"]["checks"].pop("session_state_checkpoint", None)
+        bad["payload"]["file_manifest"]["files"] = [
+            item for item in bad["payload"]["file_manifest"]["files"] if not item.get("path", "").endswith("session_state.upy_generate_plugin.json")
+        ]
+        bad["payload"]["artifacts"] = [
+            item for item in bad["payload"].get("artifacts", []) if item.get("type") != "session_state"
+        ]
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        for expected in (
+            "SESSION_STATE_CHECKPOINT_MISSING",
+            "FILE_MANIFEST_MISSING_SESSION_STATE",
+            "SESSION_STATE_ARTIFACT_MISSING",
+        ):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"success phase_complete must enforce session state {expected}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_artifacts_missing.json"
+        bad = load_json(sample_path)
+        bad["payload"].pop("artifacts", None)
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "ARTIFACTS_MISSING" not in stdout:
+            raise AssertionError("success phase_complete must require payload.artifacts")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_python_cache_manifest.json"
+        bad = load_json(sample_path)
+        bad["payload"]["file_manifest"]["files"].append(
+            {
+                "path": "firmware/tasks/__pycache__/business_task.cpython-39.pyc",
+                "role": "artifact",
+                "status": "created",
+            }
+        )
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "FILE_MANIFEST_PYTHON_CACHE_PRESENT" not in stdout:
+            raise AssertionError("success phase_complete must reject Python cache files in file_manifest")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_session_state_simplified.json"
+        bad = load_json(sample_path)
+        bad["payload"]["checks"]["session_state_checkpoint"] = {
+            "returncode": 0,
+            "ok": True,
+            "state": {
+                "manifest_hash": "a" * 64,
+                "git_commit": "b" * 40,
+                "usage": {"token_budget_status": "ok", "remaining_budget": None},
+            },
+        }
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "SESSION_STATE_CHECKPOINT_FIELD_MISSING" not in stdout:
+            raise AssertionError("success phase_complete must reject simplified embedded session_state")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_session_hash_is_commit.json"
+        bad = load_json(sample_path)
+        bad["payload"]["checks"]["session_state_checkpoint"]["state"]["manifest_hash"] = "a" * 40
+        bad["payload"]["checks"]["session_state_checkpoint"]["state"]["git_commit"] = "a" * 40
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "SESSION_STATE_CHECKPOINT_MANIFEST_HASH_IS_GIT_COMMIT" not in stdout:
+            raise AssertionError("success phase_complete must reject manifest_hash copied from git_commit")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_domain_phase.json"
+        bad = load_json(sample_path)
+        bad["payload"]["manifest_content"]["domain_phase"] = "scaffold"
+        bad["payload"]["manifest_content"]["final_status"] = "scaffolded"
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        for expected in ("MANIFEST_DOMAIN_PHASE_NOT_GENERATE", "MANIFEST_FINAL_STATUS_NOT_GENERATED"):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"success phase_complete must reject stale manifest phase field {expected}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "disk-state-session"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest.update(
+            {
+                "phase": "generate",
+                "domain_phase": "generate",
+                "final_status": "generated",
+                "requirements": {"description": "demo"},
+                "devices": [{"name": "LED", "driver": {"source": "none"}}],
+                "mcu": {"model": "mock"},
+                "pinout": [{"device": "LED", "pin_name": "status", "gpio": "mock"}],
+                "generate": {"deploy_plan": {}, "behavior_spec": {}, "simulation_hints": {}},
+            }
+        )
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        phase = load_json(sample_path)
+        phase["payload"]["manifest_content"] = manifest
+        phase["payload"]["checks"]["session_state_checkpoint"] = {
+            "returncode": 0,
+            "ok": True,
+            "state": {
+                "manifest_hash": "a" * 64,
+                "git_commit": "b" * 40,
+                "usage": {"token_budget_status": "ok", "remaining_budget": None},
+            },
+        }
+        phase_path = session_dir / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(phase, ensure_ascii=False), encoding="utf-8")
+        (session_dir / "session_state.upy_generate_plugin.json").write_text(
+            json.dumps(
+                {
+                    "session_id": session_dir.name,
+                    "phase": "upy-generate-plugin",
+                    "manifest_hash": "b" * 40,
+                    "git_commit": "b" * 40,
+                    "usage": {"token_budget_status": "ok", "remaining_budget": None},
+                    "last_checkpoint": "phase_completed",
+                    "status": "completed",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--project-dir",
+                str(project),
+            ]
+        )
+        if rc == 0 or "SESSION_STATE_DISK_CHECK_FAILED" not in stdout:
+            raise AssertionError("phase_complete consistency must validate disk session_state when project-dir is supplied")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "git-mismatch-session"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        rc, stdout, stderr = run_cmd(["git", "init"], cwd=project)
+        if rc != 0:
+            raise AssertionError(f"git init failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, stdout, stderr = run_cmd(["git", "add", "."], cwd=project)
+        if rc != 0:
+            raise AssertionError(f"git add failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, stdout, stderr = run_cmd(
+            [
+                "git",
+                "-c",
+                "user.name=upy-generate-plugin-test",
+                "-c",
+                "user.email=upy-generate-plugin-test@example.invalid",
+                "commit",
+                "-m",
+                "test commit",
+            ],
+            cwd=project,
+        )
+        if rc != 0:
+            raise AssertionError(f"git commit failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, head, stderr = run_cmd(["git", "rev-parse", "HEAD"], cwd=project)
+        if rc != 0:
+            raise AssertionError(f"git rev-parse failed:\nSTDOUT={head}\nSTDERR={stderr}")
+        head = head.strip()
+        manifest = load_json(project / "project-manifest.json")
+        manifest.update(
+            {
+                "phase": "generate",
+                "domain_phase": "generate",
+                "final_status": "generated",
+                "requirements": {"description": "demo"},
+                "devices": [{"name": "LED", "driver": {"source": "none"}}],
+                "mcu": {"model": "mock"},
+                "pinout": [{"device": "LED", "pin_name": "status", "gpio": "mock"}],
+                "generate": {"deploy_plan": {}, "behavior_spec": {}, "simulation_hints": {}},
+            }
+        )
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        manifest_hash = sha256_file(project / "project-manifest.json")
+        bad_commit = "f" * 40 if head != "f" * 40 else "e" * 40
+        phase = load_json(sample_path)
+        phase["payload"]["manifest_content"] = manifest
+        phase["payload"]["generate"]["git"]["commit"] = head
+        state = phase["payload"]["checks"]["session_state_checkpoint"]["state"]
+        state.update(
+            {
+                "session_id": session_dir.name,
+                "manifest_hash": manifest_hash,
+                "git_commit": bad_commit,
+                "artifacts": [
+                    {"type": "project_manifest", "path": "project/project-manifest.json"},
+                    {"type": "generate_plan", "path": "project/generate_plan.json"},
+                ],
+                "last_ok_artifact": {"type": "generate_plan", "path": "project/generate_plan.json"},
+            }
+        )
+        phase["payload"]["checks"]["session_state_checkpoint"]["state"] = state
+        phase_path = session_dir / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(phase, ensure_ascii=False), encoding="utf-8")
+        (session_dir / "session_state.upy_generate_plugin.json").write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--project-dir",
+                str(project),
+            ]
+        )
+        if rc == 0 or "SESSION_STATE_GIT_COMMIT_NOT_HEAD" not in stdout:
+            raise AssertionError("phase_complete consistency must reject disk session_state.git_commit != HEAD")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ok_path = Path(temp_dir) / "pylint_warning_only.json"
+        ok = load_json(sample_path)
+        ok["payload"]["lint"]["pylint"] = {"returncode": 12, "ok": True, "warnings": []}
+        ok_path.write_text(json.dumps(ok, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(ok_path)]
+        )
+        if rc != 0:
+            raise AssertionError(f"pylint warning/refactor-only result should pass default policy:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+
+def assert_session_state_stale_detection() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "stale-session"
+        project = session_dir / "project"
+        project.mkdir(parents=True)
+        make_project(project, include_plan=False)
+        sample = load_json(ROOT / "sample" / "phase_complete.upy_generate_plugin.success.json")
+        (session_dir / "phase_complete.upy_generate_plugin.json").write_text(
+            json.dumps(sample, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        (session_dir / "generate_phase_log.md").write_text("# stale generate log\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+            ]
+        )
+        for expected in (
+            "STALE_GENERATE_PHASE_COMPLETE",
+            "STALE_GENERATE_PLAN_MISSING",
+            "STALE_GENERATE_FILE_MANIFEST_MISSING_FILES",
+        ):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"check_session_state.py must reject stale generate state {expected}: {stdout}")
+
+
+def assert_session_state_checkpoint() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "checkpoint-session"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        manifest_hash = sha256_file(project / "project-manifest.json")
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--session-id",
+                "checkpoint-session",
+                "--checkpoint",
+                "tests_generated",
+                "--step",
+                "quality_gates",
+                "--status",
+                "running",
+                "--idempotency-key",
+                "upy-generate-plugin:checkpoint-session:quality-gates:v1",
+                "--manifest-hash",
+                manifest_hash,
+                "--usage-json",
+                '{"token_budget_status":"ok","remaining_budget":12345}',
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"update_session_state.py failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--project-dir",
+                str(project),
+                "--check",
+            ]
+        )
+        if rc != 0 or "session_state_checkpoint" not in stdout:
+            raise AssertionError(f"update_session_state.py --check should pass:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "bad-manifest-hash"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        bad_commit = "a" * 40
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--session-id",
+                "bad-manifest-hash",
+                "--checkpoint",
+                "phase_completed",
+                "--step",
+                "phase_complete",
+                "--status",
+                "completed",
+                "--idempotency-key",
+                "upy-generate-plugin:bad-manifest-hash:phase-complete:v1",
+                "--manifest-hash",
+                bad_commit,
+                "--git-commit",
+                bad_commit,
+                "--artifacts-json",
+                '[{"type":"project_manifest","path":"project/project-manifest.json"},{"type":"generate_plan","path":"project/generate_plan.json"}]',
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"bad manifest hash setup should write state:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--project-dir",
+                str(project),
+                "--check",
+            ]
+        )
+        for expected in ("SESSION_STATE_MANIFEST_HASH_IS_GIT_COMMIT", "SESSION_STATE_MANIFEST_HASH_MISMATCH"):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"update_session_state.py --check must reject bad manifest hash {expected}: {stdout}")
+
+    error_expectations = {
+        "NETWORK_DISCONNECTED": True,
+        "RATE_LIMITED": True,
+        "UPSTREAM_TIMEOUT": True,
+        "TOKEN_BUDGET_EXCEEDED": False,
+        "MODEL_CONTEXT_EXHAUSTED": False,
+        "CANCELLED_BY_USER": False,
+    }
+    for code, retryable in error_expectations.items():
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "sessions" / f"checkpoint-{code.lower()}"
+            session_dir.mkdir(parents=True)
+            rc, stdout, stderr = run_cmd(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "update_session_state.py"),
+                    "--session-dir",
+                    str(session_dir),
+                    "--session-id",
+                    session_dir.name,
+                    "--checkpoint",
+                    "dependency_resolved",
+                    "--step",
+                    "resolve_dependencies",
+                    "--status",
+                    "retrying" if retryable else "failed",
+                    "--idempotency-key",
+                    f"upy-generate-plugin:{session_dir.name}:resolve-dependencies:v1",
+                    "--manifest-hash",
+                    "sha256:checkpoint-manifest",
+                    "--usage-json",
+                    '{"token_budget_status":"exhausted","remaining_budget":0}' if "TOKEN" in code else '{"token_budget_status":"ok","remaining_budget":999}',
+                    "--error-code",
+                    code,
+                    "--error-message",
+                    code.lower(),
+                ]
+            )
+            if rc != 0:
+                raise AssertionError(f"interruption session update failed for {code}:\nSTDOUT={stdout}\nSTDERR={stderr}")
+            state = json.loads(stdout)["state"]
+            if state.get("last_error", {}).get("retryable") is not retryable:
+                raise AssertionError(f"{code} retryable flag mismatch: {state.get('last_error')}")
+            rc, stdout, stderr = run_cmd(
+                [sys.executable, str(ROOT / "scripts" / "update_session_state.py"), "--session-dir", str(session_dir), "--check"]
+            )
+            if rc != 0:
+                raise AssertionError(f"interruption session check failed for {code}:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "completed-without-commit"
+        session_dir.mkdir(parents=True)
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--session-id",
+                "completed-without-commit",
+                "--checkpoint",
+                "phase_completed",
+                "--step",
+                "phase_complete",
+                "--status",
+                "completed",
+                "--idempotency-key",
+                "upy-generate-plugin:completed-without-commit:phase-complete:v1",
+                "--manifest-hash",
+                "sha256:checkpoint-manifest",
+                "--artifacts-json",
+                '[{"type":"project_manifest","path":"project/project-manifest.json"},{"type":"generate_plan","path":"project/generate_plan.json"}]',
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"completed update without commit should write state:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "update_session_state.py"), "--session-dir", str(session_dir), "--check"]
+        )
+        if rc == 0 or "SESSION_STATE_GIT_COMMIT_MISSING" not in stdout:
+            raise AssertionError("completed phase checkpoint must require git_commit")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "completed-without-artifacts"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--project-dir",
+                str(project),
+                "--session-id",
+                "completed-without-artifacts",
+                "--checkpoint",
+                "phase_completed",
+                "--step",
+                "phase_complete",
+                "--status",
+                "completed",
+                "--idempotency-key",
+                "upy-generate-plugin:completed-without-artifacts:phase-complete:v1",
+                "--git-commit",
+                "b" * 40,
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"completed update without artifacts should write state:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "update_session_state.py"),
+                "--session-dir",
+                str(session_dir),
+                "--project-dir",
+                str(project),
+                "--check",
+            ]
+        )
+        if rc == 0 or "SESSION_STATE_ARTIFACTS_MISSING" not in stdout:
+            raise AssertionError("completed phase checkpoint must require resumable artifacts")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "missing-state"
+        session_dir.mkdir(parents=True)
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "update_session_state.py"), "--session-dir", str(session_dir), "--check"]
+        )
+        if rc == 0 or "SESSION_STATE_MISSING" not in stdout:
+            raise AssertionError("update_session_state.py --check must reject missing state")
+
+
+def assert_generated_semantics_negative_cases() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "dialog_task.py"
+        task.write_text(
+            "async def dialog_tick(pir, touch):\n"
+            "    state = 'idle'\n"
+            "    last_trigger = 0\n"
+            "    return {'state': state, 'last_trigger': last_trigger}\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SEMANTIC_STATE_RESETS_EACH_TICK" not in stdout:
+            raise AssertionError("semantic check must reject per-tick state reset")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "voice_task.py"
+        task.write_text(
+            "async def voice_interact(mic, wifi):\n"
+            "    audio_data = mic.read_samples(16000)\n"
+            "    _ = audio_data\n"
+            "    return wifi.http_post('https://example.invalid', json_data={'audio': 'base64_placeholder'})\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        for expected in (
+            "SEMANTIC_PLACEHOLDER_IN_RUNTIME",
+            "SEMANTIC_ASYNC_BLOCKING_IO",
+            "SEMANTIC_ASYNC_SYNC_IO",
+            "SEMANTIC_DATA_READ_UNUSED",
+        ):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"semantic check must reject {expected}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "wifi_task.py"
+        task.write_text(
+            "async def wifi_tick(wifi):\n"
+            "    wifi.connect('ssid', 'password')\n"
+            "    return True\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SEMANTIC_ASYNC_BLOCKING_IO" not in stdout:
+            raise AssertionError("semantic check must reject blocking connect() inside async tasks")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "hidden_blocking_task.py"
+        task.write_text(
+            "async def async_record(mic):\n"
+            "    _record = getattr(mic, 'record')\n"
+            "    return _record(5000)\n"
+            "\n"
+            "async def async_play(speaker, audio):\n"
+            "    return speaker.__getattribute__('play')(audio)\n"
+            "\n"
+            "async def async_lambda_record(mic):\n"
+            "    _record = lambda duration_ms: mic.record(duration_ms)\n"
+            "    return _record(5000)\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        for expected in (
+            "SEMANTIC_ASYNC_DYNAMIC_BLOCKING_LOOKUP",
+            "SEMANTIC_ASYNC_DYNAMIC_BLOCKING_CALL",
+            "SEMANTIC_ASYNC_BLOCKING_LAMBDA",
+        ):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"semantic check must reject dynamically hidden blocking calls {expected}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        task = project / "firmware" / "tasks" / "wrapper_blocking_task.py"
+        task.write_text(
+            "def record_adapter(mic):\n"
+            "    return mic.record(5000)\n"
+            "\n"
+            "async def voice_tick(mic):\n"
+            "    return record_adapter(mic)\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SEMANTIC_ASYNC_BLOCKING_WRAPPER" not in stdout:
+            raise AssertionError(f"semantic check must reject async calls to blocking sync wrappers: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="async")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from drivers.inmp441_driver import create_inmp441\n"
+            "from drivers.max98357_driver import create_max98357\n"
+            "mic = create_inmp441()\n"
+            "amp = create_max98357()\n",
+            encoding="utf-8",
+        )
+        manifest = load_json(project / "project-manifest.json")
+        manifest["phase"] = "generate"
+        manifest["generate"] = {}
+        (project / "project-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SEMANTIC_SHARED_I2S_WITHOUT_RESOURCE_PLAN" not in stdout:
+            raise AssertionError("semantic check must require resource_plan for shared I2S")
+
+
+def assert_cloud_integrations_policy() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["phase"] = "generate"
+        manifest["generate"] = {
+            "cloud_integrations": [
+                {
+                    "provider_id": "aliyun_bailian",
+                    "category": "llm",
+                    "services": ["chat_completions"],
+                    "mode": "direct_https",
+                    "official_links": {
+                        "docs": "https://help.aliyun.com/zh/model-studio/get-api-key",
+                        "console": "https://bailian.console.aliyun.com/",
+                        "pricing": "https://help.aliyun.com/zh/model-studio/",
+                    },
+                    "credential_management": {
+                        "requires_credentials": True,
+                        "status": "deferred_to_deploy",
+                        "secret_names": ["DASHSCOPE_API_KEY"],
+                        "storage": "device_secrets_file",
+                        "forbidden_locations": ["firmware/conf.py", "git", "phase_complete"],
+                    },
+                    "user_action_required": [
+                        "Create API Key in provider console",
+                        "Enable billing or token plan if required",
+                        "Provide secret during deploy permission prompt",
+                    ],
+                    "deploy_ready": False,
+                    "deploy_blocker": "credentials_deferred_to_deploy",
+                }
+            ]
+        }
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_cloud_integrations.py"),
+                "--project-dir",
+                str(project),
+                "--next-phase",
+                "upy-deploy-plugin",
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"deferred-to-deploy cloud credentials should pass:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        conf = project / "firmware" / "conf.py"
+        conf.write_text(conf.read_text(encoding="utf-8") + "\nOPENAI_API_KEY = 'sk-test1234567890abcdef'\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_cloud_integrations.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "CLOUD_SECRET_HARDCODED" not in stdout:
+            raise AssertionError("cloud integration check must reject hard-coded API secrets")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["phase"] = "generate"
+        manifest["requirements"] = {"description": "Voice assistant using cloud ASR LLM TTS APIs"}
+        manifest["generate"] = {"deploy_plan": {"requires_secrets": True}}
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        (project / "firmware" / "conf.py").write_text(
+            (project / "firmware" / "conf.py").read_text(encoding="utf-8")
+            + "\nCLOUD_ASR_URL = 'YOUR_ASR_API_URL'\nCLOUD_LLM_URL = 'YOUR_LLM_API_URL'\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_cloud_integrations.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "CLOUD_INTEGRATIONS_REQUIRED" not in stdout:
+            raise AssertionError("cloud integration check must require a plan when cloud APIs are used")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["phase"] = "generate"
+        manifest["generate"] = {
+            "cloud_integrations": [
+                {
+                    "provider_id": "volcengine_ark",
+                    "category": "llm",
+                    "services": ["chat_completions"],
+                    "credential_management": {"requires_credentials": True, "status": "mock_only", "secret_names": []},
+                    "deploy_ready": False,
+                }
+            ]
+        }
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_cloud_integrations.py"),
+                "--project-dir",
+                str(project),
+                "--next-phase",
+                "upy-deploy-plugin",
+            ]
+        )
+        for expected in ("CLOUD_OFFICIAL_LINKS_MISSING", "CLOUD_CREDENTIALS_REQUIRED"):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"cloud integration check must reject {expected}: {stdout}")
+
+
+def assert_final_review_consistency() -> None:
+    sample_path = ROOT / "sample" / "phase_complete.upy_generate_plugin.success.json"
+    rc, stdout, stderr = run_cmd(
+        [sys.executable, str(ROOT / "scripts" / "check_final_review_consistency.py"), "--phase-complete", str(sample_path)]
+    )
+    if rc != 0:
+        raise AssertionError(f"valid review consistency failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        phase_path = Path(temp_dir) / "phase.json"
+        log_path = Path(temp_dir) / "generate_phase_log.md"
+        phase = load_json(sample_path)
+        log_path.write_text("## 审查结果\n\n### 关键 Bug\n\n| 严重 | firmware/tasks/dialog_task.py |\n", encoding="utf-8")
+        phase_path.write_text(json.dumps(phase, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_final_review_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--log",
+                str(log_path),
+            ]
+        )
+        if rc == 0 or "SUCCESS_WITH_BLOCKING_REVIEW_FINDINGS" not in stdout:
+            raise AssertionError("success with blocking final review findings must be rejected")
+
+
+def assert_local_runner() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "generate-session"
+        cmd = [
+            sys.executable,
+            str(ROOT / "test" / "run_local_mock_session.py"),
+            "--session-dir",
+            str(session_dir),
+            "--mode",
+            "timer",
+            "--next-phase",
+            "simulate",
+            "--force",
+            "--allow-git-commit",
+            "--write-phase-complete",
+        ]
+        rc, stdout, stderr = run_cmd(cmd)
+        if rc != 0:
+            raise AssertionError(f"local runner failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        summary = json.loads(stdout)
+        if summary["status"] != "success":
+            raise AssertionError(f"runner status not success: {summary['status']}")
+        payload = summary["phase_complete"]["payload"]
+        if payload["next_phase"] != "upy-simulate-plugin":
+            raise AssertionError("runner should honor next_phase simulate")
+        if not (session_dir / "phase_complete.upy_generate_plugin.json").exists():
+            raise AssertionError("runner should write phase_complete when requested")
+        if not (session_dir / "project" / "generate_plan.json").exists():
+            raise AssertionError("runner should write generate_plan.json before quality gates")
+        manifest = load_json(session_dir / "project" / "project-manifest.json")
+        if manifest.get("phase") != "generate":
+            raise AssertionError("project manifest must advance to generate")
+        file_roles = {entry.get("role") for entry in payload["file_manifest"]["files"]}
+        if {"plan", "business_task", "entrypoint", "mock", "pc_test", "device_test", "artifact"} - file_roles:
+            raise AssertionError("file_manifest should classify generated files")
+        if not (session_dir / "session_state.upy_generate_plugin.json").exists():
+            raise AssertionError("runner should write resumable session state")
+        if "pylint" not in payload["lint"] or "pc_unittest" not in payload["tests"]:
+            raise AssertionError("phase_complete must expose pylint and PC unittest gate results")
+        for gate in ("flake8", "pylint", "pc_unittest", "task_no_machine_import", "device_unittest_subset", "session_state_checkpoint"):
+            if payload["checks"][gate].get("ok") is False:
+                raise AssertionError(f"runner quality gate failed: {gate}")
+        if "cloud_integrations" not in payload["checks"]:
+            raise AssertionError("runner phase_complete must expose cloud_integrations gate")
+        cloud_plan = manifest.get("generate", {}).get("cloud_integrations", [])
+        if not cloud_plan:
+            raise AssertionError("runner manifest must include a cloud_integrations plan for local coverage")
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(session_dir / "phase_complete.upy_generate_plugin.json"),
+                "--project-dir",
+                str(session_dir / "project"),
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"runner phase_complete consistency failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        project_dir = session_dir / "project"
+        cache_paths = [
+            path.relative_to(project_dir).as_posix()
+            for path in project_dir.rglob("*")
+            if path.name == "__pycache__" or path.suffix == ".pyc"
+        ]
+        if cache_paths:
+            raise AssertionError(f"runner must not leave Python cache files in project: {cache_paths}")
+        rc, stdout, stderr = run_cmd(["git", "ls-tree", "-r", "--name-only", "HEAD"], cwd=project_dir)
+        if rc != 0:
+            raise AssertionError(f"failed to inspect runner git commit:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        tracked_cache = [line for line in stdout.splitlines() if "__pycache__/" in line or line.endswith(".pyc")]
+        if tracked_cache:
+            raise AssertionError(f"runner git commit must not include Python cache files: {tracked_cache}")
+
+
+def main() -> int:
+    tests = [
+        assert_json_files_parse,
+        assert_references_and_knowledge_docs,
+        assert_plugin_json_shape,
+        assert_resolver_offline,
+        assert_download_drivers_offline,
+        assert_check_scripts,
+        assert_check_scripts_negative_cases,
+        assert_mpy_import_fallback_policy,
+        assert_phase_complete_consistency,
+        assert_session_state_stale_detection,
+        assert_session_state_checkpoint,
+        assert_generated_semantics_negative_cases,
+        assert_cloud_integrations_policy,
+        assert_final_review_consistency,
+        assert_local_runner,
+    ]
+    for test in tests:
+        test()
+        print(f"[PASS] {test.__name__}")
+    print(f"[OK] {len(tests)} upy-generate-plugin smoke tests passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

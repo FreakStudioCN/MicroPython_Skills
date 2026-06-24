@@ -1,0 +1,32 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-generate-start-full",
+  "session_id": "sample-session",
+  "phase": "upy-generate-plugin",
+  "timestamp": "2026-06-23T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-generate-plugin:sample-session:full:v1",
+  "retry_of": null,
+  "payload": {
+    "mode": "full",
+    "source_phase": "upy-scaffold-plugin",
+    "source_phase_complete_path": "sessions/sample-session/phase_complete.upy_scaffold_plugin.json",
+    "next_phase_preference": "deploy",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-session",
+      "project_root": "sessions/sample-session/project",
+      "file_operation_root": "sessions/sample-session/project",
+      "resource_root": "upy-generate-plugin"
+    },
+    "capabilities": {
+      "approval_request": true,
+      "file_operation": true,
+      "script_run": true,
+      "git_operation": false,
+      "checkpoint_resume": true,
+      "cancellation": true
+    }
+  }
+}

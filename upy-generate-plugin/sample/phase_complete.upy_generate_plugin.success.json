@@ -1,0 +1,256 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-generate-success",
+  "session_id": "sample-session",
+  "phase": "upy-generate-plugin",
+  "timestamp": "2026-06-23T00:00:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-generate-plugin:sample-session:phase-complete:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "generate",
+    "domain_phase": "generate",
+    "result": "success",
+    "summary": "Generated firmware business code and checks passed.",
+    "next_phase": "upy-deploy-plugin",
+    "optional_next_phases": [
+      {
+        "phase": "upy-diagram-plugin",
+        "reason": "user_requested_architecture_and_dataflow_diagrams"
+      },
+      {
+        "phase": "upy-wiring-plugin",
+        "reason": "user_requested_wiring_diagram_after_code_generation"
+      }
+    ],
+    "checkpoint": "phase_completed",
+    "file_manifest": {
+      "root": "sessions/sample-session/project",
+      "generated_at": "2026-06-23T00:00:00Z",
+      "files": [
+        {"path": "firmware/main.py", "status": "updated", "role": "entrypoint", "sha256": "sample"},
+        {"path": "generate_plan.json", "status": "created", "role": "plan", "sha256": "sample"},
+        {"path": "firmware/lib/ahtx0.py", "status": "created", "role": "driver", "sha256": "sample"},
+        {"path": "project-manifest.json", "status": "updated", "role": "manifest", "sha256": "sample"},
+        {"path": "session_state.upy_generate_plugin.json", "status": "updated", "role": "artifact", "sha256": "sample"}
+      ]
+    },
+    "lint": {
+      "flake8": {
+        "returncode": 0,
+        "ok": true,
+        "warnings": [],
+        "errors": []
+      },
+      "pylint": {
+        "returncode": 0,
+        "ok": true,
+        "warnings": [],
+        "errors": [],
+        "scope": ["firmware/main.py", "firmware/drivers/**/*.py", "firmware/tasks/*.py"]
+      }
+    },
+    "tests": {
+      "pc_unittest": {
+        "returncode": 0,
+        "ok": true,
+        "tests_run": 3,
+        "scenarios": ["normal", "missing_device", "driver_exception"]
+      }
+    },
+    "checks": {
+      "py_compile": {"returncode": 0, "ok": true},
+      "generate_plan": {"returncode": 0, "ok": true},
+      "conf_contract": {"returncode": 0, "ok": true},
+      "driver_source_compile": {"returncode": 0, "ok": true},
+      "mpy_imports": {"returncode": 0, "ok": true},
+      "mpy_imports_lib": {"returncode": 0, "ok": true, "warn_only": true},
+      "dead_config": {"returncode": 0, "ok": true},
+      "task_no_machine_import": {"returncode": 0, "ok": true},
+      "device_unittest_subset": {"returncode": 0, "ok": true},
+      "skeleton_compliance": {"returncode": 0, "ok": true},
+      "generated_semantics": {"returncode": 0, "ok": true},
+      "cloud_integrations": {"returncode": 0, "ok": true},
+      "session_state_checkpoint": {
+        "returncode": 0,
+        "ok": true,
+        "check": "session_state_checkpoint",
+        "exists": true,
+        "state": {
+          "protocol_version": "1.0",
+          "session_id": "sample-session",
+          "phase": "upy-generate-plugin",
+          "checkpoint": "phase_completed",
+          "status": "completed",
+          "attempt": 1,
+          "idempotency_key": "upy-generate-plugin:sample-session:phase_complete:v1",
+          "manifest_hash": "sha256:sample-project-manifest",
+          "git_commit": "abc123",
+          "usage": {
+            "token_budget_status": "ok",
+            "remaining_budget": null
+          },
+          "last_ok_artifact": {"type": "generate_plan", "path": "project/generate_plan.json"},
+          "artifacts": [
+            {"type": "project_manifest", "path": "project/project-manifest.json"},
+            {"type": "generate_plan", "path": "project/generate_plan.json"}
+          ]
+        },
+        "errors": [],
+        "warnings": []
+      }
+    },
+    "permissions": [
+      {
+        "type": "file_operation",
+        "operation": "write",
+        "root": "sessions/sample-session/project",
+        "approved": true,
+        "idempotency_key": "upy-generate-plugin:sample-session:file-write:v1"
+      },
+      {
+        "type": "git_commit",
+        "approved": true,
+        "idempotency_key": "upy-generate-plugin:sample-session:git-commit:v1"
+      }
+    ],
+    "generate": {
+      "mode": "full",
+      "deploy_plan": {
+        "firmware_root": "firmware",
+        "entrypoint": "firmware/main.py",
+        "upload_include": ["firmware/**/*.py"],
+        "upload_exclude": ["test/**", "docs/**", "build/**"],
+        "requires_boot_delay_seconds": 3
+      },
+      "behavior_spec": {
+        "description": "Read temperature and humidity and publish status."
+      },
+      "simulation_hints": {
+        "scenarios": ["normal", "threshold_crossed", "sensor_failure", "network_failure"],
+        "data_generators": [],
+        "expected_outputs": []
+      },
+      "cloud_integrations": [
+        {
+          "provider_id": "aliyun_bailian",
+          "category": "llm",
+          "services": ["chat_completions"],
+          "mode": "direct_https",
+          "official_links": {
+            "docs": "https://help.aliyun.com/zh/model-studio/get-api-key",
+            "console": "https://bailian.console.aliyun.com/",
+            "pricing": "https://help.aliyun.com/zh/model-studio/"
+          },
+          "credential_management": {
+            "requires_credentials": true,
+            "status": "deferred_to_deploy",
+            "secret_names": ["DASHSCOPE_API_KEY"],
+            "storage": "device_secrets_file",
+            "forbidden_locations": ["firmware/conf.py", "git", "phase_complete"]
+          },
+          "user_action_required": [
+            "Create API Key in provider console",
+            "Enable billing or token plan if required",
+            "Provide secret during deploy permission prompt"
+          ],
+          "deploy_ready": false,
+          "deploy_blocker": "credentials_deferred_to_deploy"
+        }
+      ],
+      "git": {
+        "commit": "abc123",
+        "message": "feat(generate): add business firmware code",
+        "status": "committed",
+        "committed": true
+      }
+    },
+    "manifest_content": {
+      "phase": "generate",
+      "domain_phase": "generate",
+      "schema_version": "1.0",
+      "project_name": "sample-project",
+      "requirements": {
+        "description": "Read temperature and humidity and publish status."
+      },
+      "devices": [
+        {
+          "name": "AHT20",
+          "driver": {
+            "source": "firmware/lib/ahtx0.py"
+          }
+        }
+      ],
+      "mcu": {
+        "model": "ESP32-C3-MINI-1"
+      },
+      "pinout": [
+        {
+          "device": "AHT20",
+          "pin_name": "SDA",
+          "gpio": "5"
+        },
+        {
+          "device": "AHT20",
+          "pin_name": "SCL",
+          "gpio": "6"
+        }
+      ],
+      "scaffold_mode": "async",
+      "generate": {
+        "mode": "full",
+        "deploy_plan": {
+          "firmware_root": "firmware",
+          "entrypoint": "firmware/main.py",
+          "upload_include": ["firmware/**/*.py"],
+          "upload_exclude": ["test/**", "docs/**", "build/**"],
+          "requires_boot_delay_seconds": 3
+        },
+        "behavior_spec": {
+          "description": "Read temperature and humidity and publish status."
+        },
+        "simulation_hints": {
+          "scenarios": ["normal", "sensor_failure"],
+          "data_generators": [],
+          "expected_outputs": ["serial"]
+        },
+        "cloud_integrations": [
+          {
+            "provider_id": "aliyun_bailian",
+            "category": "llm",
+            "services": ["chat_completions"],
+            "mode": "direct_https",
+            "official_links": {
+              "docs": "https://help.aliyun.com/zh/model-studio/get-api-key",
+              "console": "https://bailian.console.aliyun.com/",
+              "pricing": "https://help.aliyun.com/zh/model-studio/"
+            },
+            "credential_management": {
+              "requires_credentials": true,
+              "status": "deferred_to_deploy",
+              "secret_names": ["DASHSCOPE_API_KEY"],
+              "storage": "device_secrets_file",
+              "forbidden_locations": ["firmware/conf.py", "git", "phase_complete"]
+            },
+            "user_action_required": [
+              "Create API Key in provider console",
+              "Enable billing or token plan if required",
+              "Provide secret during deploy permission prompt"
+            ],
+            "deploy_ready": false,
+            "deploy_blocker": "credentials_deferred_to_deploy"
+          }
+        ]
+      }
+    },
+    "review_findings": {
+      "blocking": [],
+      "warnings": []
+    },
+    "artifacts": [
+      {"type": "file_manifest", "path": "generate_file_manifest.json"},
+      {"type": "session_state", "path": "session_state.upy_generate_plugin.json"}
+    ],
+    "structured_errors": []
+  }
+}

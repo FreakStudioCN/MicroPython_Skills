@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-generate-plugin",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-generate-plugin",
+  "branch": "main",
+  "source": "manual"
+}

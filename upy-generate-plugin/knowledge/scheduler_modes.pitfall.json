@@ -1,0 +1,32 @@
+{
+  "id": "scheduler-modes",
+  "title": "Generated tasks must respect scaffold scheduler mode",
+  "category": "scheduler",
+  "applies_to": {
+    "modes": ["full", "fix"],
+    "scheduler_modes": ["timer", "async", "thread"],
+    "device_types": [],
+    "files": ["firmware/main.py", "firmware/tasks/*.py"]
+  },
+  "symptoms": [
+    "Async scaffold contains timer-only loop",
+    "Timer scaffold imports uasyncio",
+    "Thread scaffold has no worker or heartbeat"
+  ],
+  "wrong_pattern": "Ignoring manifest.scaffold_mode and generating a generic while loop.",
+  "correct_pattern": "Generate timer tick, uasyncio coroutine, or _thread worker according to scaffold mode.",
+  "detection": {
+    "script": "scripts/check_skeleton_compliance.py",
+    "grep": "uasyncio|Scheduler|_thread",
+    "structured_error_code": "SCHEDULER_MODE_MISMATCH"
+  },
+  "fix_guidance": [
+    "Read manifest_content.scaffold_mode before writing tasks.",
+    "Do not inject timer scheduler in async/thread modes.",
+    "Keep scaffold-provided logger/time_helper/maintenance imports consistent."
+  ],
+  "references": [],
+  "verified_by": ["check_skeleton_compliance.py"],
+  "confidence": "high",
+  "last_seen": "2026-06-23"
+}

@@ -1,0 +1,32 @@
+{
+  "name": "upy-generate-plugin",
+  "version": "0.1.0",
+  "description": "Workflow plugin phase for generating MicroPython business firmware code, dependencies, cloud/API setup plans, tests, checks, git commits, and downstream phase handoff.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "micropython",
+    "firmware",
+    "workflow",
+    "generate"
+  ],
+  "interface": {
+    "displayName": "upy-generate-plugin",
+    "shortDescription": "Generates MicroPython firmware code and cloud/API setup plans after scaffold.",
+    "longDescription": "Consumes upy-scaffold-plugin phase_complete manifest_content and emits generated firmware code artifacts, cloud/API provider setup prompts, MicroPython-aware checks, git commit metadata, and downstream deploy/simulate handoff.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run generate from a scaffold phase_complete.",
+      "Generate firmware that uses a cloud LLM/API and prompt for provider credentials safely.",
+      "Fix generated MicroPython firmware after deploy feedback."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-generate-fix-success",
+  "session_id": "sample-session",
+  "phase": "upy-generate-plugin",
+  "timestamp": "2026-06-23T00:00:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-generate-plugin:sample-session:fix:phase-complete:1",
+  "retry_of": "sample-generate-start-fix",
+  "payload": {
+    "phase": "generate",
+    "result": "success",
+    "summary": "Applied minimal fix from deploy user feedback.",
+    "next_phase": "upy-deploy-plugin",
+    "generate": {
+      "mode": "fix",
+      "source": "user_feedback_after_deploy",
+      "attempts": [
+        {
+          "attempt": 1,
+          "changed_files": ["firmware/tasks/display_task.py"],
+          "checks": ["flake8", "mpy_imports"]
+        }
+      ],
+      "git": {
+        "commit": "def456",
+        "message": "fix(generate): repair display update task"
+      }
+    },
+    "code_diff": {
+      "changed_files": ["firmware/tasks/display_task.py"]
+    },
+    "structured_errors": []
+  }
+}

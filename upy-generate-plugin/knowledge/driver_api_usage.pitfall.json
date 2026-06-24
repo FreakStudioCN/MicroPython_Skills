@@ -1,0 +1,32 @@
+{
+  "id": "driver-api-usage",
+  "title": "Factory and mock APIs must come from downloaded driver source",
+  "category": "driver",
+  "applies_to": {
+    "modes": ["full", "fix"],
+    "scheduler_modes": ["timer", "async", "thread"],
+    "device_types": ["i2c", "spi", "gpio"],
+    "files": ["firmware/lib/*.py", "firmware/drivers/*_driver/*.py"]
+  },
+  "symptoms": [
+    "Factory calls driver constructor with wrong keyword",
+    "Mock lacks a public method used by task",
+    "Device smoke test passes scan but runtime task fails"
+  ],
+  "wrong_pattern": "Guessing driver constructor or method names from package name only.",
+  "correct_pattern": "Read driver .py, README, and example before writing factory/mock.",
+  "detection": {
+    "script": "",
+    "grep": "class .*\\(|def __init__|def [a-zA-Z_]",
+    "structured_error_code": "DRIVER_API_MISMATCH"
+  },
+  "fix_guidance": [
+    "Extract main driver class from source.",
+    "Use README/example for default I2C address and constructor shape.",
+    "Mock every public method used by generated tasks."
+  ],
+  "references": [],
+  "verified_by": [],
+  "confidence": "medium",
+  "last_seen": "2026-06-23"
+}

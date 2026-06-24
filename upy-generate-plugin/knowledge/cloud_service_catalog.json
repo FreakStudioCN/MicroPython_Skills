@@ -1,0 +1,242 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-06-24",
+  "notes": [
+    "Official links can change. Re-check provider docs before presenting them to a user in a live run.",
+    "The firmware should not store real provider secrets. Prefer deploy-time secret injection or a gateway/proxy for complex signing."
+  ],
+  "providers": [
+    {
+      "id": "volcengine_ark",
+      "display_name": "Volcengine Ark / 火山方舟",
+      "categories": ["llm", "vision"],
+      "regions": ["cn"],
+      "api_style": ["openai_compatible", "rest"],
+      "official_links": {
+        "product": "https://www.volcengine.com/product/ark",
+        "docs": "https://www.volcengine.com/docs/82379/1099455",
+        "console": "https://console.volcengine.com/ark"
+      },
+      "credential_requirements": ["API Key", "billing enabled", "model endpoint or model id"],
+      "secret_names": ["VOLCENGINE_ARK_API_KEY"],
+      "firmware_recommendation": "direct_https_or_gateway",
+      "gateway_recommended_when": ["streaming audio", "large prompts", "private account policy"],
+      "search_keywords": ["Volcengine Ark", "ModelArk", "火山方舟", "LLM", "OpenAI compatible API"]
+    },
+    {
+      "id": "aliyun_bailian",
+      "display_name": "Alibaba Cloud Model Studio / Bailian / DashScope",
+      "categories": ["llm", "vision", "speech"],
+      "regions": ["cn", "sg", "jp", "de", "us"],
+      "api_style": ["openai_compatible", "dashscope", "rest"],
+      "official_links": {
+        "docs": "https://help.aliyun.com/zh/model-studio/get-api-key",
+        "console": "https://bailian.console.aliyun.com/",
+        "pricing": "https://help.aliyun.com/zh/model-studio/"
+      },
+      "credential_requirements": ["API Key", "workspace", "billing or token plan", "model access"],
+      "secret_names": ["DASHSCOPE_API_KEY", "ALIYUN_BAILIAN_API_KEY"],
+      "firmware_recommendation": "direct_https_or_gateway",
+      "gateway_recommended_when": ["multi-step agent workflow", "large audio payload", "account-level access control"],
+      "search_keywords": ["Alibaba Cloud Model Studio", "Bailian", "DashScope", "Qwen", "API Key"]
+    },
+    {
+      "id": "tencent_hunyuan",
+      "display_name": "Tencent Cloud Hunyuan",
+      "categories": ["llm", "vision"],
+      "regions": ["cn"],
+      "api_style": ["openai_compatible", "rest"],
+      "official_links": {
+        "docs": "https://cloud.tencent.com/document/product/1729/111008",
+        "console": "https://console.cloud.tencent.com/tokenhub",
+        "pricing": "https://buy.cloud.tencent.com/"
+      },
+      "credential_requirements": ["API Key", "service enabled", "billing enabled"],
+      "secret_names": ["TENCENT_HUNYUAN_API_KEY"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["new model purchase", "legacy platform migration", "complex account policy"],
+      "search_keywords": ["Tencent Hunyuan", "TokenHub", "API Key", "OpenAI compatible API"]
+    },
+    {
+      "id": "baidu_qianfan",
+      "display_name": "Baidu Qianfan",
+      "categories": ["llm", "vision", "speech"],
+      "regions": ["cn"],
+      "api_style": ["rest", "openai_compatible"],
+      "official_links": {
+        "docs": "https://cloud.baidu.com/doc/qianfan/index.html",
+        "console": "https://console.bce.baidu.com/qianfan/",
+        "pricing": "https://cloud.baidu.com/product/wenxinworkshop"
+      },
+      "credential_requirements": ["API Key or access credential", "service enabled", "model access"],
+      "secret_names": ["BAIDU_QIANFAN_API_KEY", "BAIDU_QIANFAN_SECRET_KEY"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["token exchange", "account AK/SK must not live on device", "speech pipeline"],
+      "search_keywords": ["Baidu Qianfan", "Wenxin", "API Key", "千帆"]
+    },
+    {
+      "id": "openai",
+      "display_name": "OpenAI API",
+      "categories": ["llm", "vision", "speech"],
+      "regions": ["global"],
+      "api_style": ["openai"],
+      "official_links": {
+        "docs": "https://platform.openai.com/docs",
+        "console": "https://platform.openai.com/api-keys",
+        "pricing": "https://openai.com/api/pricing/"
+      },
+      "credential_requirements": ["API key", "billing enabled", "model access"],
+      "secret_names": ["OPENAI_API_KEY"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["streaming", "large audio/image payload", "secret policy requires server-side storage"],
+      "search_keywords": ["OpenAI API", "API key", "chat completions", "responses API"]
+    },
+    {
+      "id": "azure_openai",
+      "display_name": "Azure OpenAI Service",
+      "categories": ["llm", "vision", "speech"],
+      "regions": ["global"],
+      "api_style": ["azure_rest"],
+      "official_links": {
+        "docs": "https://learn.microsoft.com/azure/ai-services/openai/",
+        "console": "https://portal.azure.com/",
+        "pricing": "https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/"
+      },
+      "credential_requirements": ["Azure resource", "endpoint", "API key or managed identity", "deployment name"],
+      "secret_names": ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["enterprise identity", "managed identity", "private networking"],
+      "search_keywords": ["Azure OpenAI", "deployment name", "API key", "endpoint"]
+    },
+    {
+      "id": "google_gemini",
+      "display_name": "Google Gemini API",
+      "categories": ["llm", "vision", "speech"],
+      "regions": ["global"],
+      "api_style": ["rest"],
+      "official_links": {
+        "docs": "https://ai.google.dev/gemini-api/docs",
+        "console": "https://aistudio.google.com/apikey",
+        "pricing": "https://ai.google.dev/pricing"
+      },
+      "credential_requirements": ["API key", "billing/quota if required"],
+      "secret_names": ["GEMINI_API_KEY"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["large multimodal payload", "regional compliance"],
+      "search_keywords": ["Google Gemini API", "API key", "AI Studio"]
+    },
+    {
+      "id": "anthropic",
+      "display_name": "Anthropic Claude API",
+      "categories": ["llm", "vision"],
+      "regions": ["global"],
+      "api_style": ["rest"],
+      "official_links": {
+        "docs": "https://docs.anthropic.com/",
+        "console": "https://console.anthropic.com/settings/keys",
+        "pricing": "https://www.anthropic.com/pricing"
+      },
+      "credential_requirements": ["API key", "billing enabled"],
+      "secret_names": ["ANTHROPIC_API_KEY"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["device cannot hold vendor key", "large prompts"],
+      "search_keywords": ["Anthropic API", "Claude", "API key"]
+    },
+    {
+      "id": "aliyun_iot",
+      "display_name": "Alibaba Cloud IoT Platform",
+      "categories": ["iot"],
+      "regions": ["cn", "global"],
+      "api_style": ["mqtt", "rest"],
+      "official_links": {
+        "docs": "https://help.aliyun.com/zh/iot/",
+        "console": "https://iot.console.aliyun.com/",
+        "pricing": "https://www.aliyun.com/price/product?spm=iot"
+      },
+      "credential_requirements": ["ProductKey", "DeviceName", "DeviceSecret or MQTT credentials"],
+      "secret_names": ["ALIYUN_IOT_PRODUCT_KEY", "ALIYUN_IOT_DEVICE_NAME", "ALIYUN_IOT_DEVICE_SECRET"],
+      "firmware_recommendation": "direct_mqtt",
+      "gateway_recommended_when": ["bulk provisioning", "dynamic registration", "private account credentials"],
+      "search_keywords": ["Alibaba Cloud IoT MQTT", "ProductKey", "DeviceSecret"]
+    },
+    {
+      "id": "tencent_iot_explorer",
+      "display_name": "Tencent Cloud IoT Explorer",
+      "categories": ["iot"],
+      "regions": ["cn"],
+      "api_style": ["mqtt", "rest"],
+      "official_links": {
+        "docs": "https://cloud.tencent.com/document/product/1081",
+        "console": "https://console.cloud.tencent.com/iotexplorer",
+        "pricing": "https://buy.cloud.tencent.com/"
+      },
+      "credential_requirements": ["ProductID", "DeviceName", "DeviceSecret"],
+      "secret_names": ["TENCENT_IOT_PRODUCT_ID", "TENCENT_IOT_DEVICE_NAME", "TENCENT_IOT_DEVICE_SECRET"],
+      "firmware_recommendation": "direct_mqtt",
+      "gateway_recommended_when": ["dynamic registration", "device fleet provisioning"],
+      "search_keywords": ["Tencent IoT Explorer", "MQTT", "DeviceSecret"]
+    },
+    {
+      "id": "emqx_cloud",
+      "display_name": "EMQX Cloud",
+      "categories": ["iot"],
+      "regions": ["global"],
+      "api_style": ["mqtt"],
+      "official_links": {
+        "docs": "https://docs.emqx.com/en/cloud/latest/",
+        "console": "https://cloud.emqx.com/",
+        "pricing": "https://www.emqx.com/en/cloud/pricing"
+      },
+      "credential_requirements": ["MQTT host", "username", "password", "TLS settings"],
+      "secret_names": ["MQTT_HOST", "MQTT_USERNAME", "MQTT_PASSWORD"],
+      "firmware_recommendation": "direct_mqtt",
+      "gateway_recommended_when": ["custom auth", "certificate rotation"],
+      "search_keywords": ["EMQX Cloud", "MQTT", "MicroPython umqtt"]
+    },
+    {
+      "id": "dingtalk_robot",
+      "display_name": "DingTalk Custom Robot",
+      "categories": ["notification"],
+      "regions": ["cn"],
+      "api_style": ["webhook"],
+      "official_links": {
+        "docs": "https://open.dingtalk.com/document/orgapp/custom-robot-access",
+        "console": "https://open-dev.dingtalk.com/"
+      },
+      "credential_requirements": ["webhook URL", "signing secret if enabled"],
+      "secret_names": ["DINGTALK_WEBHOOK_URL", "DINGTALK_SIGN_SECRET"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["signed webhook", "anti-abuse policy", "secret cannot be on device"],
+      "search_keywords": ["DingTalk custom robot", "webhook", "sign"]
+    },
+    {
+      "id": "feishu_bot",
+      "display_name": "Feishu/Lark Custom Bot",
+      "categories": ["notification"],
+      "regions": ["cn", "global"],
+      "api_style": ["webhook"],
+      "official_links": {
+        "docs": "https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot",
+        "console": "https://open.feishu.cn/"
+      },
+      "credential_requirements": ["webhook URL", "signing secret if enabled"],
+      "secret_names": ["FEISHU_WEBHOOK_URL", "FEISHU_SIGN_SECRET"],
+      "firmware_recommendation": "gateway_preferred",
+      "gateway_recommended_when": ["signed webhook", "enterprise secret policy"],
+      "search_keywords": ["Feishu custom bot", "Lark bot", "webhook"]
+    },
+    {
+      "id": "custom_http_proxy",
+      "display_name": "User-managed HTTPS gateway/proxy",
+      "categories": ["llm", "speech", "vision", "iot", "notification", "storage", "data_api"],
+      "regions": ["any"],
+      "api_style": ["https"],
+      "official_links": {},
+      "credential_requirements": ["gateway URL", "device token or mTLS policy"],
+      "secret_names": ["GATEWAY_URL", "DEVICE_API_TOKEN"],
+      "firmware_recommendation": "preferred_for_complex_cloud",
+      "gateway_recommended_when": ["vendor signing", "OAuth", "account-level API keys", "large payloads", "firmware must not store vendor credentials"],
+      "search_keywords": ["custom HTTPS gateway", "cloud proxy", "device token"]
+    }
+  ]
+}

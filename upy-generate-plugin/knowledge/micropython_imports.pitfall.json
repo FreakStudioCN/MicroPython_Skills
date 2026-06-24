@@ -1,0 +1,33 @@
+{
+  "id": "micropython-imports",
+  "title": "CPython imports can pass flake8 but fail on MicroPython",
+  "category": "micropython",
+  "applies_to": {
+    "modes": ["full", "fix"],
+    "scheduler_modes": ["timer", "async", "thread"],
+    "device_types": [],
+    "files": ["firmware/**/*.py"]
+  },
+  "symptoms": [
+    "Device raises ImportError for typing, pathlib, dataclasses, logging, or asyncio",
+    "PC tests pass but firmware fails at boot"
+  ],
+  "wrong_pattern": "Importing CPython-only modules inside firmware code.",
+  "correct_pattern": "Use MicroPython modules, project local helpers, or simple built-ins. Use uasyncio for firmware async code.",
+  "detection": {
+    "script": "scripts/check_mpy_imports.py",
+    "grep": "^(import|from) ",
+    "structured_error_code": "MPY_IMPORT_UNSUPPORTED"
+  },
+  "fix_guidance": [
+    "Remove typing/dataclasses/pathlib from firmware code.",
+    "Use lib.logger instead of logging.",
+    "Use uasyncio instead of asyncio in firmware runtime."
+  ],
+  "references": [
+    "https://docs.micropython.org/en/latest/develop/index.html"
+  ],
+  "verified_by": ["check_mpy_imports.py"],
+  "confidence": "high",
+  "last_seen": "2026-06-23"
+}

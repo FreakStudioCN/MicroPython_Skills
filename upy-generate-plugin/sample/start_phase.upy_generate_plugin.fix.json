@@ -1,0 +1,25 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-generate-start-fix",
+  "session_id": "sample-session",
+  "phase": "upy-generate-plugin",
+  "timestamp": "2026-06-23T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-generate-plugin:sample-session:fix:1",
+  "retry_of": null,
+  "payload": {
+    "mode": "fix",
+    "source": "user_feedback_after_deploy",
+    "runtime_context": {
+      "session_root": "sessions/sample-session",
+      "project_root": "sessions/sample-session/project",
+      "resource_root": "upy-generate-plugin"
+    },
+    "error_context": {
+      "user_feedback": "设备上电后 OLED 没显示，串口只打印 boot ok，没有温湿度数据",
+      "deploy_result_path": "sessions/sample-session/phase_complete.upy_deploy_plugin.json",
+      "serial_excerpt": "boot ok",
+      "previous_generate_commit": "abc123"
+    }
+  }
+}

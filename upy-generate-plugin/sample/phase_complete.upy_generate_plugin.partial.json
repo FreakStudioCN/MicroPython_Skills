@@ -1,0 +1,33 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "sample-generate-partial",
+  "session_id": "sample-session",
+  "phase": "upy-generate-plugin",
+  "timestamp": "2026-06-23T00:00:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-generate-plugin:sample-session:phase-complete:partial:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "generate",
+    "result": "partial",
+    "next_phase": null,
+    "checkpoint": "dependency_resolved",
+    "summary": "Cold driver is required before deploy-ready generation.",
+    "structured_errors": [
+      {
+        "code": "COLD_DRIVER_REQUIRED",
+        "severity": "error",
+        "phase_step": "dependency_resolve",
+        "retryable": true,
+        "message": "A required device driver was not available in upypi, awesome-micropython, or GitHub search.",
+        "next_action": "run_upy_gen_driver_plugin_or_simulate_only"
+      }
+    ],
+    "manifest_content": {
+      "phase": "generate",
+      "generate": {
+        "deploy_ready": false
+      }
+    }
+  }
+}
