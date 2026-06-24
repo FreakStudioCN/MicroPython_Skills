@@ -1,0 +1,33 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "approval_id": "deploy_port_select",
+    "header": "选择部署设备",
+    "question": "请选择要上传项目的 MicroPython 设备串口",
+    "items": [
+      {
+        "id": "COM3",
+        "name": "COM3",
+        "subtitle": "USB Serial Port",
+        "selected": true,
+        "meta": "VID:PID=303A:1001"
+      }
+    ],
+    "actions": [
+      {
+        "label": "确认设备",
+        "value": "confirm",
+        "primary": true
+      },
+      {
+        "label": "重新扫描",
+        "value": "rescan"
+      },
+      {
+        "label": "稍后继续",
+        "value": "save_partial"
+      }
+    ]
+  }
+}

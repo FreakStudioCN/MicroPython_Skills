@@ -1,0 +1,40 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "approval_id": "confirm_clean_device_project",
+    "header": "确认清理旧项目文件",
+    "question": "以下设备端项目文件将被删除，然后上传当前生成结果。请确认是否继续。",
+    "summary": {
+      "strategy": "clean_then_upload",
+      "delete_count": 4,
+      "port": "COM3",
+      "dry_run_script": "scripts/clean_device_project.py --mode project_files --dry-run"
+    },
+    "items": [
+      {"id": "main.py", "name": ":main.py"},
+      {"id": "conf.py", "name": ":conf.py"},
+      {"id": "lib/logger/logging.py", "name": ":lib/logger/logging.py"},
+      {"id": "drivers/sht30_driver/__init__.py", "name": ":drivers/sht30_driver/__init__.py"}
+    ],
+    "warnings": [
+      "clean_then_upload 只清理项目文件和业务目录，不删除 data/、secrets/ 等用户数据目录。"
+    ],
+    "actions": [
+      {
+        "label": "确认清理并上传",
+        "value": "confirm_clean",
+        "primary": true
+      },
+      {
+        "label": "仅上传",
+        "value": "use_upload_only"
+      },
+      {
+        "label": "取消",
+        "value": "cancel"
+      }
+    ]
+  }
+}

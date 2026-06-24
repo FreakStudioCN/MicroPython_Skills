@@ -1,0 +1,40 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "approval_id": "confirm_erase_device_fs",
+    "header": "确认全量清理设备文件",
+    "question": "以下文件和目录将从设备端删除，然后重新上传项目。请确认是否继续。",
+    "summary": {
+      "strategy": "erase_then_upload",
+      "delete_count": 5,
+      "port": "COM3"
+    },
+    "items": [
+      {"id": "main.py", "name": ":main.py"},
+      {"id": "lib/logger/logging.py", "name": ":lib/logger/logging.py"},
+      {"id": "drivers/sht30_driver/__init__.py", "name": ":drivers/sht30_driver/__init__.py"},
+      {"id": "data/calibration.json", "name": ":data/calibration.json"},
+      {"id": "secrets/wifi.json", "name": ":secrets/wifi.json"}
+    ],
+    "warnings": [
+      "erase_then_upload 会删除 dry-run 列表中的全部设备文件，包括用户数据。"
+    ],
+    "actions": [
+      {
+        "label": "确认删除并上传",
+        "value": "confirm_erase",
+        "primary": true
+      },
+      {
+        "label": "改用常规清理",
+        "value": "use_clean_then_upload"
+      },
+      {
+        "label": "取消",
+        "value": "cancel"
+      }
+    ]
+  }
+}

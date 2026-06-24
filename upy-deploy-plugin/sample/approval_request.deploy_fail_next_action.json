@@ -1,0 +1,46 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "approval_id": "deploy_fail_next_action",
+    "header": "部署失败",
+    "question": "设备端运行未通过，请选择下一步修复方式。",
+    "summary": {
+      "status": "FAIL",
+      "port": "COM3",
+      "strategy": "clean_then_upload",
+      "primary_error": "python_traceback",
+      "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n"
+    },
+    "actions": [
+      {
+        "label": "自动化调试",
+        "value": "autofix_debug",
+        "next_phase": "upy-autofix-plugin",
+        "primary": true
+      },
+      {
+        "label": "重新生成 fix",
+        "value": "regenerate_fix",
+        "next_phase": "upy-generate-plugin",
+        "next_phase_payload": {
+          "mode": "fix",
+          "source": "deploy_fail"
+        }
+      },
+      {
+        "label": "保存 checkpoint",
+        "value": "save_checkpoint"
+      }
+    ],
+    "fallback": {
+      "when": "upy-autofix-plugin_unavailable",
+      "next_phase": "upy-generate-plugin",
+      "next_phase_payload": {
+        "mode": "fix",
+        "source": "deploy_fail"
+      }
+    }
+  }
+}

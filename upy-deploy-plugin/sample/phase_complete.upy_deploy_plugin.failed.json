@@ -1,0 +1,46 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-deploy-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "result": "failed",
+    "summary": "设备端运行出现 Traceback，进入重新生成 fix。",
+    "next_phase": "upy-generate-plugin",
+    "next_phase_payload": {
+      "mode": "fix",
+      "source": "deploy_fail"
+    },
+    "deploy_result": {
+      "status": "FAIL",
+      "strategy": "clean_then_upload",
+      "port": "COM3",
+      "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n",
+      "errors": [
+        {
+          "code": "python_traceback",
+          "message": "serial output contains Traceback (most recent call last)"
+        }
+      ],
+      "warnings": []
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "失败诊断产物",
+        "files": [
+          {"path": "sessions/demo-session/deploy_result.json", "status": "new"},
+          {"path": "sessions/demo-session/serial_capture.log", "status": "new"}
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "code": "python_traceback",
+        "message": "设备端运行出现 Traceback"
+      }
+    ],
+    "warnings": []
+  }
+}

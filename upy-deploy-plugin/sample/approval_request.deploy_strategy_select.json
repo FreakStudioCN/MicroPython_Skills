@@ -1,0 +1,38 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "approval_id": "deploy_strategy_select",
+    "header": "部署方式",
+    "question": "请选择上传前如何处理设备端旧文件",
+    "items": [
+      {
+        "id": "clean_then_upload",
+        "name": "清理旧项目后上传",
+        "subtitle": "推荐：删除旧 main/lib/drivers/tasks 等项目文件",
+        "selected": true
+      },
+      {
+        "id": "upload_only",
+        "name": "直接上传",
+        "subtitle": "保留设备端现有文件"
+      },
+      {
+        "id": "erase_then_upload",
+        "name": "全量清理后上传",
+        "subtitle": "会展示全部待删除文件，并要求二次确认"
+      }
+    ],
+    "actions": [
+      {
+        "label": "继续",
+        "value": "confirm",
+        "primary": true
+      },
+      {
+        "label": "稍后继续",
+        "value": "save_partial"
+      }
+    ]
+  }
+}

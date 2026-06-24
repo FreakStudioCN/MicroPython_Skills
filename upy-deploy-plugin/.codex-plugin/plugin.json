@@ -1,0 +1,32 @@
+{
+  "name": "upy-deploy-plugin",
+  "version": "0.1.0",
+  "description": "Workflow plugin phase for deploying generated MicroPython firmware projects, capturing device output, and routing user feedback.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "micropython",
+    "deploy",
+    "mpremote",
+    "workflow"
+  ],
+  "interface": {
+    "displayName": "upy-deploy-plugin",
+    "shortDescription": "Deploys generated MicroPython projects and captures run results.",
+    "longDescription": "Consumes upy-generate-plugin phase_complete manifest_content, supports upload-only, clean-then-upload, and erase-then-upload deploy strategies, captures serial output and device logs, then routes user feedback to generate fix, autofix, or project publishing.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run deploy from a generate phase_complete.",
+      "Deploy a generated MicroPython project after cleaning old device files.",
+      "Capture device output and choose the next workflow action."
+    ],
+    "brandColor": "#7C3AED"
+  }
+}

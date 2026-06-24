@@ -1,0 +1,61 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-deploy-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "result": "success",
+    "summary": "项目已上传并在设备端运行，用户选择结束并上传项目库。",
+    "next_phase": "project-library-upload",
+    "deploy_result": {
+      "status": "PASS",
+      "strategy": "clean_then_upload",
+      "port": "COM3",
+      "serial_excerpt": "MPYHW_READY demo\\nstarting scheduler\\n",
+      "errors": [],
+      "warnings": []
+    },
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "upy-deploy-plugin",
+      "project_name": "温湿度报警器",
+      "requirements": {
+        "description": "温湿度超过阈值后蜂鸣器报警"
+      },
+      "devices": [
+        {
+          "name": "SHT30",
+          "type": "temperature_humidity_sensor",
+          "interface": "I2C"
+        }
+      ],
+      "mcu": {
+        "model": "ESP32-C3",
+        "board_id": "esp32-c3-devkitm"
+      },
+      "generate": {
+        "git": {
+          "commit": "0123456789abcdef0123456789abcdef01234567"
+        }
+      },
+      "deploy": {
+        "status": "PASS",
+        "strategy": "clean_then_upload",
+        "port": "COM3"
+      }
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "部署产物",
+        "files": [
+          {"path": "sessions/demo-session/deploy_result.json", "status": "new"},
+          {"path": "sessions/demo-session/serial_capture.log", "status": "new"}
+        ]
+      }
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

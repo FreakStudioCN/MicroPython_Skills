@@ -1,0 +1,32 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "approval_id": "deploy_result_feedback",
+    "header": "部署完成",
+    "question": "设备已运行，请选择下一步",
+    "summary": {
+      "status": "PASS",
+      "port": "COM3",
+      "strategy": "clean_then_upload",
+      "upload_status": "success",
+      "serial_excerpt": "MPYHW_READY demo\\nstarting scheduler\\n"
+    },
+    "actions": [
+      {
+        "label": "重新生成",
+        "value": "regenerate_fix"
+      },
+      {
+        "label": "自动化调试",
+        "value": "autofix_debug"
+      },
+      {
+        "label": "结束并上传项目库",
+        "value": "finish_publish_project",
+        "primary": true
+      }
+    ]
+  }
+}

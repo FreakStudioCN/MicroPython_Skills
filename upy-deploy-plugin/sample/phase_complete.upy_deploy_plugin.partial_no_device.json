@@ -1,0 +1,45 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-deploy-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "result": "partial",
+    "summary": "未检测到可用 MicroPython 设备，已保存部署 checkpoint。",
+    "next_phase": null,
+    "deploy_result": {
+      "status": "PARTIAL",
+      "strategy": "clean_then_upload",
+      "port": null,
+      "errors": [
+        {
+          "code": "serial_port_missing",
+          "message": "未选择可用串口"
+        }
+      ],
+      "warnings": []
+    },
+    "checkpoint": {
+      "resume_phase": "upy-deploy-plugin",
+      "resume_step": "deploy_port_select",
+      "state_file": "sessions/demo-session/deploy_state.json"
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "部署 checkpoint",
+        "files": [
+          {"path": "sessions/demo-session/deploy_state.json", "status": "new"}
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "code": "serial_port_missing",
+        "message": "未检测到可用 MicroPython 设备"
+      }
+    ],
+    "warnings": []
+  }
+}
