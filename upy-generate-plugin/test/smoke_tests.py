@@ -27,6 +27,13 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def set_mcu_model(project: Path, model: str) -> None:
+    manifest_path = project / "project-manifest.json"
+    manifest = load_json(manifest_path)
+    manifest["mcu"] = {"model": model}
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+
+
 def run_cmd(cmd: list[str], input_obj: dict | None = None, cwd: Path | None = None) -> tuple[int, str, str]:
     result = subprocess.run(
         cmd,
@@ -142,6 +149,23 @@ def assert_download_drivers_offline() -> None:
         raise AssertionError(f"driver payload invalid: {payload}")
 
 
+def valid_deploy_plan() -> dict:
+    return {
+        "firmware_root": "firmware",
+        "entrypoint": "firmware/main.py",
+        "source_only": ["firmware/main.py", "firmware/boot.py", "firmware/conf.py"],
+        "upload_include": ["firmware/**/*.py"],
+        "upload_exclude": [
+            "test/**",
+            "docs/**",
+            "build/**",
+            "firmware/drivers/**/mock.py",
+            "firmware/drivers/**/mock.mpy",
+        ],
+        "requires_boot_delay_seconds": 3,
+    }
+
+
 def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> None:
     files = {
         ".flake8": "[flake8]\nmax-line-length = 120\nbuiltins = const\n",
@@ -166,9 +190,19 @@ def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> 
             "def warning(msg): print(msg)\n"
             "def error(msg): print(msg)\n"
             "def debug(msg): print(msg)\n"
+            "def exception(exc, msg): print(msg)\n"
         ),
         "firmware/lib/time_helper.py": "def timed_function(fn):\n    return fn\n\ndef timed_coro(fn):\n    return fn\n",
-        "firmware/lib/scheduler/timer_sched.py": "class Scheduler:\n    def add_task(self, callback, interval_ms, name=None): return name\n",
+        "firmware/lib/scheduler/timer_sched.py": (
+            "from machine import Timer\n\n"
+            "class Scheduler:\n"
+            "    def __init__(self, timer_id=-1, tick_ms=100, idle_cb=None, error_cb=None):\n"
+            "        self._timer = Timer(timer_id)\n"
+            "        self._error_cb = error_cb\n"
+            "    def add_task(self, callback, interval_ms, name=None): return name\n"
+            "    def start(self): pass\n"
+            "    def stop(self): self._timer.deinit()\n"
+        ),
         "firmware/drivers/status_driver/__init__.py": (
             "class StatusOutput:\n"
             "    def write(self, message):\n"
@@ -191,17 +225,34 @@ def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> 
         ),
         "firmware/main.py": (
             "import time\n"
+            "import sys\n"
             "from conf import LOG_DIR, LOG_LEVEL, LOG_FILES_MAX, LOG_LINES_PER_FILE, SAMPLE_INTERVAL_MS\n"
             "from lib import logger\n"
             "from lib.scheduler.timer_sched import Scheduler\n"
             "from tasks.business_task import business_tick\n"
             "\n"
-            "time.sleep(3)\n"
-            "logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
-            "logger.setLevel(logger.DEBUG if LOG_LEVEL == 'DEBUG' else logger.INFO)\n"
-            "business_tick()\n"
-            "logger.info('ok')\n"
-            "Scheduler().add_task(business_tick, SAMPLE_INTERVAL_MS, name='business_tick')\n"
+            "\n"
+            "def _on_scheduler_error(tid, exc):\n"
+            "    sys.print_exception(exc)\n"
+            "    logger.exception(exc, '[t=%dms] task failed %s' % (time.ticks_ms(), tid))\n"
+            "\n"
+            "\n"
+            "def _main():\n"
+            "    time.sleep(3)\n"
+            "    logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
+            "    logger.setLevel(logger.DEBUG if LOG_LEVEL == 'DEBUG' else logger.INFO)\n"
+            "    business_tick()\n"
+            "    logger.info('[t=%dms] ok' % time.ticks_ms())\n"
+            "    scheduler = Scheduler(timer_id=0, error_cb=_on_scheduler_error)\n"
+            "    scheduler.add_task(business_tick, SAMPLE_INTERVAL_MS, name='business_tick')\n"
+            "\n"
+            "\n"
+            "try:\n"
+            "    _main()\n"
+            "except Exception as exc:\n"
+            "    sys.print_exception(exc)\n"
+            "    logger.exception(exc, '[t=%dms] startup failed' % time.ticks_ms())\n"
+            "    raise\n"
         ),
         "test/pc/test_business_task.py": (
             "import sys\n"
@@ -235,6 +286,51 @@ def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> 
             "\n"
             "unittest.main()\n"
         ),
+        "tools/flash_device.py": (
+            "import argparse\n"
+            "import json\n"
+            "\n"
+            "SOURCE_ONLY_FILES = {'main.py', 'boot.py', 'conf.py'}\n"
+            "COMPILE_EXCLUDE_PATTERNS = {'drivers/*/mock.py'}\n"
+            "UPLOAD_EXCLUDE_PATTERNS = {'drivers/*/mock.py', 'drivers/*/mock.mpy'}\n"
+            "_SUMMARY = {'compiled_files': [], 'uploaded_files': [], 'skipped_files': []}\n"
+            "\n"
+            "\n"
+            "def _remote_parent_dirs(rel_path: str) -> list[str]:\n"
+            "    parts = rel_path.split('/')[:-1]\n"
+            "    return [':' + '/'.join(parts[:index]) for index in range(1, len(parts) + 1)]\n"
+            "\n"
+            "\n"
+            "def _ensure_remote_dirs(rel_path: str):\n"
+            "    for remote_dir in _remote_parent_dirs(rel_path):\n"
+            "        _mpremote([\"resume\", \"fs\", \"mkdir\", remote_dir], check=False)\n"
+            "\n"
+            "\n"
+            "def _mpremote(cmd, check=True):\n"
+            "    return cmd, check\n"
+            "\n"
+            "\n"
+            "def upload(src, remote):\n"
+            "    _ensure_remote_dirs(remote.lstrip(':'))\n"
+            "    return _mpremote([\"resume\", \"fs\", \"cp\", src, remote])\n"
+            "\n"
+            "\n"
+            "def main():\n"
+            "    parser = argparse.ArgumentParser()\n"
+            "    parser.add_argument('--json-summary', action='store_true')\n"
+            "    parser.add_argument('--summary-file')\n"
+            "    args = parser.parse_args([])\n"
+            "    return json.dumps({'json_summary': args.json_summary})\n"
+        ),
+        "tools/read_device_log.py": (
+            "import subprocess\n"
+            "\n"
+            "\n"
+            "def _mpremote(cmd, **kwargs):\n"
+            "    kwargs.setdefault('encoding', 'utf-8')\n"
+            "    kwargs.setdefault('errors', 'replace')\n"
+            "    return subprocess.run(['mpremote'] + cmd, text=True, **kwargs)\n"
+        ),
         "device/tests/test_business_device.py": (
             "import sys\n"
             "import unittest\n\n"
@@ -257,7 +353,47 @@ def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> 
             "\n"
             "unittest.main()\n"
         ),
-        "project-manifest.json": json.dumps({"phase": "scaffold", "scaffold_mode": mode}, ensure_ascii=False),
+        "project-manifest.json": json.dumps(
+            {
+                "phase": "scaffold",
+                "scaffold_mode": mode,
+                "mcu": {"model": "ESP32-C3"},
+                "runtime_dependencies": {
+                    "mip": [
+                        {
+                            "package": "unittest",
+                            "reason": "device/tests import unittest",
+                            "required_for": ["device_tests"],
+                            "target": "/lib",
+                            "version": "latest",
+                            "install_phase": "deploy",
+                            "verify_import": "unittest",
+                        }
+                    ],
+                    "builtin_required": ["machine", "time", "gc", "sys"],
+                },
+                "generate": {
+                    "doc_evidence": [
+                        {
+                            "module": "machine",
+                            "url": "https://docs.micropython.org/en/latest/library/machine.html",
+                            "reason": "baseline hardware API evidence",
+                        },
+                        {
+                            "module": "machine.Timer",
+                            "url": "https://docs.micropython.org/en/latest/library/machine.Timer.html",
+                            "reason": "timer scheduler API evidence",
+                        },
+                        {
+                            "module": "machine.Pin",
+                            "url": "https://docs.micropython.org/en/latest/library/machine.Pin.html",
+                            "reason": "GPIO pin API evidence",
+                        }
+                    ]
+                },
+            },
+            ensure_ascii=False,
+        ),
     }
     if include_plan:
         files["generate_plan.json"] = json.dumps(
@@ -310,6 +446,8 @@ def assert_check_scripts() -> None:
             ["check_dead_config.py", "--project-dir", str(project), "--warn-only"],
             ["check_task_no_machine_import.py", "--project-dir", str(project)],
             ["check_device_unittest_subset.py", "--project-dir", str(project)],
+            ["check_runtime_dependencies.py", "--project-dir", str(project)],
+            ["check_doc_evidence.py", "--project-dir", str(project)],
             ["check_driver_source_compile.py", "--project-dir", str(project)],
             ["check_skeleton_compliance.py", "--project-dir", str(project)],
             ["check_cloud_integrations.py", "--project-dir", str(project)],
@@ -326,12 +464,47 @@ def assert_check_scripts() -> None:
         if rc != 0:
             raise AssertionError(f"run_quality_gates.py failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
         quality = json.loads(stdout)
-        for name in ("flake8", "pylint", "pc_unittest", "task_no_machine_import", "device_unittest_subset", "cloud_integrations"):
+        for name in (
+            "flake8",
+            "pylint",
+            "pc_unittest",
+            "task_no_machine_import",
+            "device_unittest_subset",
+            "runtime_dependencies",
+            "doc_evidence",
+            "cloud_integrations",
+        ):
             if not quality["checks"][name]["ok"]:
                 raise AssertionError(f"quality gate {name} not ok: {quality['checks'][name]}")
 
 
 def assert_check_scripts_negative_cases() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest.pop("runtime_dependencies", None)
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "MPY_RUNTIME_DEPENDENCY_UNDECLARED" not in stdout:
+            raise AssertionError("check_runtime_dependencies.py must require unittest mip dependency for device tests")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["generate"]["doc_evidence"] = []
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(main_py.read_text(encoding="utf-8") + "\nimport machine\n_PIN = machine.Pin(1)\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_doc_evidence.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "DOC_EVIDENCE_MISSING" not in stdout:
+            raise AssertionError("check_doc_evidence.py must require official MicroPython docs for hardware APIs")
+
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
         make_project(project)
@@ -548,6 +721,77 @@ def assert_phase_complete_consistency() -> None:
             raise AssertionError(f"valid success with project manifest failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_null_next_phase.json"
+        bad = load_json(sample_path)
+        bad["payload"]["next_phase"] = None
+        bad["payload"].pop("next_phase_decision", None)
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "NEXT_PHASE_NULL_WITHOUT_DECISION" not in stdout:
+            raise AssertionError("success phase_complete with next_phase=null must record an explicit decision")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ok_path = Path(temp_dir) / "ok_null_next_phase.json"
+        ok = load_json(sample_path)
+        ok["payload"]["next_phase"] = None
+        ok["payload"]["next_phase_decision"] = {
+            "value": None,
+            "reason": "user_selected_stop_after_generate",
+        }
+        ok_path.write_text(json.dumps(ok, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(ok_path)]
+        )
+        if rc != 0:
+            raise AssertionError(f"explicit stop-after-generate decision should pass:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "old-deploy-tools"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        (project / "tools" / "flash_device.py").write_text(
+            "import argparse\n"
+            "parser = argparse.ArgumentParser()\n"
+            "parser.add_argument('--json-summary', action='store_true')\n",
+            encoding="utf-8",
+        )
+        phase = load_json(sample_path)
+        phase["payload"]["manifest_content"] = load_json(project / "project-manifest.json")
+        phase["payload"]["manifest_content"].update(
+            {
+                "phase": "generate",
+                "domain_phase": "generate",
+                "final_status": "generated",
+                "requirements": {"description": "demo"},
+                "devices": [{"name": "LED", "driver": {"source": "none"}}],
+                "mcu": {"model": "mock"},
+                "pinout": [{"device": "LED", "pin_name": "status", "gpio": "mock"}],
+                "generate": {"deploy_plan": valid_deploy_plan(), "behavior_spec": {}, "simulation_hints": {}},
+            }
+        )
+        (project / "project-manifest.json").write_text(
+            json.dumps(phase["payload"]["manifest_content"], ensure_ascii=False),
+            encoding="utf-8",
+        )
+        phase_path = session_dir / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(phase, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--project-dir",
+                str(project),
+            ]
+        )
+        if rc == 0 or "DEPLOY_TOOL_INCOMPATIBLE" not in stdout:
+            raise AssertionError("deploy handoff must reject old project/tools deploy helpers")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
         bad_path = Path(temp_dir) / "bad_failed_gate.json"
         bad = load_json(sample_path)
         bad["payload"]["checks"]["mpy_imports"] = {"returncode": 2, "ok": False}
@@ -569,7 +813,7 @@ def assert_phase_complete_consistency() -> None:
             "schema_version": "1.0",
             "project_name": "demo",
             "updated_at": "2026-06-23T00:00:00Z",
-            "generate": {"deploy_plan": {}, "behavior_spec": {}, "simulation_hints": {}},
+            "generate": {"deploy_plan": valid_deploy_plan(), "behavior_spec": {}, "simulation_hints": {}},
         }
         bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
         rc, stdout, _stderr = run_cmd(
@@ -755,7 +999,7 @@ def assert_phase_complete_consistency() -> None:
                 "devices": [{"name": "LED", "driver": {"source": "none"}}],
                 "mcu": {"model": "mock"},
                 "pinout": [{"device": "LED", "pin_name": "status", "gpio": "mock"}],
-                "generate": {"deploy_plan": {}, "behavior_spec": {}, "simulation_hints": {}},
+                "generate": {"deploy_plan": valid_deploy_plan(), "behavior_spec": {}, "simulation_hints": {}},
             }
         )
         (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
@@ -840,7 +1084,7 @@ def assert_phase_complete_consistency() -> None:
                 "devices": [{"name": "LED", "driver": {"source": "none"}}],
                 "mcu": {"model": "mock"},
                 "pinout": [{"device": "LED", "pin_name": "status", "gpio": "mock"}],
-                "generate": {"deploy_plan": {}, "behavior_spec": {}, "simulation_hints": {}},
+                "generate": {"deploy_plan": valid_deploy_plan(), "behavior_spec": {}, "simulation_hints": {}},
             }
         )
         (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
@@ -1271,6 +1515,213 @@ def assert_generated_semantics_negative_cases() -> None:
         if rc == 0 or "SEMANTIC_SHARED_I2S_WITHOUT_RESOURCE_PLAN" not in stdout:
             raise AssertionError("semantic check must require resource_plan for shared I2S")
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from machine import Timer\n"
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "tim = Timer(-1)\n"
+            "sc = Scheduler()\n"
+            "sc.register(lambda: None)\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        for expected in ("SCHEDULER_TIMER_INVALID_FOR_PORT", "SCHEDULER_API_METHOD_MISSING"):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"semantic check must reject scheduler issue {expected}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        (project / "firmware" / "lib" / "scheduler" / "timer_sched.py").write_text(
+            "from machine import Timer\n\n"
+            "class Scheduler:\n"
+            "    def __init__(self, timer_id=-1, tick_ms=100):\n"
+            "        self._timer = Timer(timer_id)\n"
+            "    def add_task(self, callback, interval_ms, name=None): return name\n",
+            encoding="utf-8",
+        )
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "def tick(): pass\n"
+            "sc = Scheduler(timer_id=-1)\n"
+            "sc.add_task(tick, 100, name='tick')\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SCHEDULER_TIMER_INVALID_FOR_PORT" not in stdout:
+            raise AssertionError(f"semantic check must reject Scheduler(timer_id=-1): {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        (project / "firmware" / "lib" / "scheduler" / "timer_sched.py").write_text(
+            "from machine import Timer\n\n"
+            "class Scheduler:\n"
+            "    def __init__(self, timer_id=-1, tick_ms=100):\n"
+            "        self._timer = Timer(timer_id)\n"
+            "    def add_task(self, callback, interval_ms, name=None): return name\n",
+            encoding="utf-8",
+        )
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "def tick(): pass\n"
+            "sc = Scheduler()\n"
+            "sc.add_task(tick, 100, name='tick')\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SCHEDULER_TIMER_INVALID_FOR_PORT" not in stdout:
+            raise AssertionError(f"semantic check must reject Scheduler() when default timer_id=-1: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        (project / "firmware" / "lib" / "scheduler" / "timer_sched.py").write_text(
+            "from machine import Timer\n\n"
+            "class Scheduler:\n"
+            "    def __init__(self, timer_id=-1, tick_ms=100, idle_cb=None, error_cb=None):\n"
+            "        self._timer = Timer(timer_id)\n"
+            "        self._error_cb = error_cb\n"
+            "    def add_task(self, callback, interval_ms, name=None): return name\n",
+            encoding="utf-8",
+        )
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "import sys\n"
+            "import time\n"
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "from lib import logger\n"
+            "def _on_scheduler_error(tid, exc):\n"
+            "    sys.print_exception(exc)\n"
+            "    logger.exception(exc, '[t=%dms] task failed' % time.ticks_ms())\n"
+            "def tick(): pass\n"
+            "sc = Scheduler(timer_id=0, error_cb=_on_scheduler_error)\n"
+            "sc.add_task(tick, 100, name='tick')\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc != 0 or "SCHEDULER_TIMER_INVALID_FOR_PORT" in stdout:
+            raise AssertionError(f"semantic check must allow ESP32 main.py with explicit timer_id=0 while scheduler default is -1: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        set_mcu_model(project, "STM32")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "def tick(): pass\n"
+            "sc = Scheduler(timer_id=-1)\n"
+            "sc.add_task(tick, 100, name='tick')\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SCHEDULER_TIMER_INVALID_FOR_PORT" not in stdout:
+            raise AssertionError(f"semantic check must reject virtual Timer(-1) on general hardware-timer ports: {stdout}")
+
+    for model in ("Raspberry Pi Pico W", "Zephyr"):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            make_project(project, mode="timer")
+            set_mcu_model(project, model)
+            main_py = project / "firmware" / "main.py"
+            main_py.write_text(
+                "import sys\n"
+                "import time\n"
+                "from lib.scheduler.timer_sched import Scheduler\n"
+                "from lib import logger\n"
+                "def _on_scheduler_error(tid, exc):\n"
+                "    sys.print_exception(exc)\n"
+                "    logger.exception(exc, '[t=%dms] task failed' % time.ticks_ms())\n"
+                "def tick(): pass\n"
+                "sc = Scheduler(timer_id=-1, error_cb=_on_scheduler_error)\n"
+                "sc.add_task(tick, 100, name='tick')\n",
+                encoding="utf-8",
+            )
+            rc, stdout, _stderr = run_cmd(
+                [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+            )
+            if rc != 0 or "SCHEDULER_TIMER_INVALID_FOR_PORT" in stdout:
+                raise AssertionError(f"semantic check must allow virtual Timer(-1) on {model}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from conf import LOG_DIR, LOG_FILES_MAX, LOG_LINES_PER_FILE\n"
+            "from lib import logger\n"
+            "logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
+            "logger.info('missing timestamp')\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "LOGGER_ROTATING_TIMESTAMP_MISSING" not in stdout:
+            raise AssertionError(f"semantic check must require timestamped rotating logger calls: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "import time\n"
+            "from conf import LOG_DIR, LOG_FILES_MAX, LOG_LINES_PER_FILE\n"
+            "from lib import logger\n"
+            "logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
+            "logger.info('[t=%dms] boot' % time.ticks_ms())\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "LOGGER_STARTUP_FATAL_GUARD_MISSING" not in stdout:
+            raise AssertionError(f"semantic check must require startup fatal guard: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "import sys\n"
+            "import time\n"
+            "from conf import LOG_DIR, LOG_FILES_MAX, LOG_LINES_PER_FILE\n"
+            "from lib import logger\n"
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "def _main():\n"
+            "    logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
+            "    logger.info('[t=%dms] boot' % time.ticks_ms())\n"
+            "    Scheduler().add_task(lambda: None, 100, name='tick')\n"
+            "try:\n"
+            "    _main()\n"
+            "except Exception as exc:\n"
+            "    sys.print_exception(exc)\n"
+            "    logger.exception(exc, '[t=%dms] startup failed' % time.ticks_ms())\n"
+            "    raise\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SCHEDULER_ERROR_CALLBACK_MISSING" not in stdout:
+            raise AssertionError(f"semantic check must require Scheduler(error_cb=...): {stdout}")
+
 
 def assert_cloud_integrations_policy() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -1449,7 +1900,16 @@ def assert_local_runner() -> None:
             raise AssertionError("runner should write resumable session state")
         if "pylint" not in payload["lint"] or "pc_unittest" not in payload["tests"]:
             raise AssertionError("phase_complete must expose pylint and PC unittest gate results")
-        for gate in ("flake8", "pylint", "pc_unittest", "task_no_machine_import", "device_unittest_subset", "session_state_checkpoint"):
+        for gate in (
+            "flake8",
+            "pylint",
+            "pc_unittest",
+            "task_no_machine_import",
+            "device_unittest_subset",
+            "runtime_dependencies",
+            "doc_evidence",
+            "session_state_checkpoint",
+        ):
             if payload["checks"][gate].get("ok") is False:
                 raise AssertionError(f"runner quality gate failed: {gate}")
         if "cloud_integrations" not in payload["checks"]:

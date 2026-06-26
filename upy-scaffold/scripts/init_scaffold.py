@@ -112,6 +112,16 @@ def parse_gpio(gpio_str: str) -> int:
     return int(m.group(1)) if m else None
 
 
+def scheduler_timer_id_for_model(model) -> int:
+    """Return a port-safe Timer id for the Scheduler entrypoint."""
+    upper = str(model or "").upper().replace("_", "-")
+    if "PICO" in upper or "RP2" in upper or "RP2040" in upper or "RP2350" in upper:
+        return -1
+    if "ZEPHYR" in upper:
+        return -1
+    return 0
+
+
 # Common Chinese-to-English device name mappings for variable naming
 _CN_NAME_MAP = {
     "有源蜂鸣器": "buzzer",
@@ -345,6 +355,8 @@ def generate_main_py_timer(manifest: dict) -> str:
     """Generate main.py for Timer tick scheduler mode."""
     devices = manifest.get("devices", [])
     mcu = manifest.get("mcu", {})
+    model = mcu.get("model") or mcu.get("display_name") or mcu.get("board") or ""
+    timer_id = scheduler_timer_id_for_model(model)
     pinout = manifest.get("pinout", [])
 
     lines = []
@@ -395,7 +407,7 @@ def generate_main_py_timer(manifest: dict) -> str:
 
     lines.append("")
     lines.append("# ── Register tasks ──")
-    lines.append("sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)")
+    lines.append("sc = Scheduler(timer_id={}, tick_ms=100, idle_cb=maintenance_tick)".format(timer_id))
     lines.append("# TODO: upy-generate registers tasks here")
     lines.append("")
     lines.append("# ── Start ──")

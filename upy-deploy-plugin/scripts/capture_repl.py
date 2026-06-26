@@ -17,12 +17,20 @@ from common import configure_stdio, print_json, write_json
 from mpremote_runtime import MpremoteUnavailable, popen_mpremote
 
 
-def capture_mock(duration_ms: int) -> dict[str, Any]:
-    lines = [
-        "MPYHW_READY demo",
-        "[sensor] value=23.5",
-        "starting scheduler",
-    ]
+def capture_mock(duration_ms: int, reset_first: bool = False, mock_traceback: bool = False) -> dict[str, Any]:
+    if mock_traceback:
+        lines = [
+            "MPY: soft reboot",
+            "Traceback (most recent call last):",
+            "  File \"main.py\", line 94, in <module>",
+            "ValueError: invalid Timer number",
+        ]
+    else:
+        lines = [
+            "MPY: soft reboot" if reset_first else "MPYHW_READY demo",
+            "[sensor] value=23.5",
+            "starting scheduler",
+        ]
     time.sleep(min(duration_ms, 50) / 1000)
     return {
         "status": "success",
@@ -31,10 +39,21 @@ def capture_mock(duration_ms: int) -> dict[str, Any]:
         "duration_ms": min(duration_ms, 50),
         "stalled": False,
         "matched_stop": "starting scheduler",
+        "reset_first": reset_first,
     }
 
 
-def capture_windows(port: str, duration_ms: int, stop_patterns: list[str]) -> dict[str, Any]:
+def _trigger_soft_reset(proc: subprocess.Popen[bytes]) -> None:
+    if proc.stdin is None:
+        return
+    try:
+        proc.stdin.write(b"\x04")
+        proc.stdin.flush()
+    except Exception:
+        return
+
+
+def capture_windows(port: str, duration_ms: int, stop_patterns: list[str], reset_first: bool = False) -> dict[str, Any]:
     proc = popen_mpremote(
         port,
         ["resume", "repl"],
@@ -66,6 +85,9 @@ def capture_windows(port: str, duration_ms: int, stop_patterns: list[str]) -> di
 
     thread = threading.Thread(target=reader, daemon=True)
     thread.start()
+    if reset_first:
+        time.sleep(0.2)
+        _trigger_soft_reset(proc)
     deadline = time.monotonic() + duration_ms / 1000
     while time.monotonic() < deadline and not done.is_set():
         time.sleep(0.05)
@@ -84,10 +106,11 @@ def capture_windows(port: str, duration_ms: int, stop_patterns: list[str]) -> di
         "stalled": bool(output) and matched_stop is None and (time.monotonic() - last_output) > max(1, duration_ms / 2000),
         "matched_stop": matched_stop,
         "returncode": proc.returncode,
+        "reset_first": reset_first,
     }
 
 
-def capture_pty(port: str, duration_ms: int, stop_patterns: list[str]) -> dict[str, Any]:
+def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_first: bool = False) -> dict[str, Any]:
     import pty
 
     master_fd, slave_fd = pty.openpty()
@@ -104,6 +127,8 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str]) -> dict[s
     matched_stop = None
     last_output = time.monotonic()
     deadline = time.monotonic() + duration_ms / 1000
+    if reset_first:
+        os.write(master_fd, b"\x04")
     try:
         while time.monotonic() < deadline:
             ready, _, _ = select.select([master_fd], [], [], 0.1)
@@ -128,6 +153,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str]) -> dict[s
                         "duration_ms": int(duration_ms - max(0, deadline - time.monotonic()) * 1000),
                         "stalled": False,
                         "matched_stop": matched_stop,
+                        "reset_first": reset_first,
                     }
     finally:
         try:
@@ -145,6 +171,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str]) -> dict[s
         "stalled": bool(output) and matched_stop is None and (time.monotonic() - last_output) > max(1, duration_ms / 2000),
         "matched_stop": matched_stop,
         "returncode": proc.returncode,
+        "reset_first": reset_first,
     }
 
 
@@ -152,11 +179,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", default="")
     parser.add_argument("--duration-ms", type=int, default=60000)
+    parser.add_argument("--timeout-ms", type=int, default=None, help="Compatibility alias for --duration-ms")
     parser.add_argument("--stop-pattern", action="append", default=["MPYHW_READY", "starting scheduler"])
+    parser.add_argument("--reset-first", action="store_true", help="Enter REPL, send Ctrl-D soft reset, then capture boot output")
+    parser.add_argument("--mock-traceback", action="store_true", help="Mock mode: emit a startup traceback")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
     parser.add_argument("--log-file")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.timeout_ms is not None:
+        args.duration_ms = args.timeout_ms
+    return args
 
 
 def main() -> int:
@@ -165,13 +198,13 @@ def main() -> int:
     started = datetime.now(timezone.utc).isoformat()
     try:
         if args.mock:
-            result = capture_mock(args.duration_ms)
+            result = capture_mock(args.duration_ms, reset_first=args.reset_first, mock_traceback=args.mock_traceback)
         elif not args.port:
             raise ValueError("--port is required unless --mock is used")
         elif os.name == "nt":
-            result = capture_windows(args.port, args.duration_ms, args.stop_pattern)
+            result = capture_windows(args.port, args.duration_ms, args.stop_pattern, reset_first=args.reset_first)
         else:
-            result = capture_pty(args.port, args.duration_ms, args.stop_pattern)
+            result = capture_pty(args.port, args.duration_ms, args.stop_pattern, reset_first=args.reset_first)
     except MpremoteUnavailable as exc:
         result = {
             "status": "action_required",

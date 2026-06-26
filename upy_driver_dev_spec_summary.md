@@ -873,7 +873,7 @@ from machine import Pin, Timer
 # 初始化定时器
 self.wdi   = Pin(wdi_pin, Pin.OUT)
 self.state = 0
-self.timer = Timer(-1)
+self.timer = Timer(0)  # Use Timer(-1) only on RP2/Pico/RP2040/RP2350 or Zephyr.
 self.timer.init(
     period=feed_interval,
     mode=Timer.PERIODIC,
@@ -1133,7 +1133,7 @@ from machine import Timer
 class SHT30:
     def start_periodic_sampling(self, interval: int = None):
         interval = interval or self.DEFAULT_SAMPLING_RATE
-        self._timer = Timer(-1)
+        self._timer = Timer(0)  # Use Timer(-1) only on RP2/Pico/RP2040/RP2350 or Zephyr.
         self._timer.init(period=interval, mode=Timer.PERIODIC, callback=self._sampling_callback)
 
     def stop_periodic_sampling(self):

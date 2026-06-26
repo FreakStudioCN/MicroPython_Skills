@@ -72,6 +72,12 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
     require(isinstance(deploy_result, dict), errors, "payload.deploy_result object is required")
     if isinstance(deploy_result, dict):
         require("status" in deploy_result, errors, "deploy_result.status is required")
+        if "status" in deploy_result:
+            require(
+                deploy_result.get("status") in {"PASS", "PASS_WITH_WARNINGS", "FAIL", "PARTIAL", "NEEDS_USER_CONFIRMATION"},
+                errors,
+                "deploy_result.status is invalid",
+            )
         require("strategy" in deploy_result, errors, "deploy_result.strategy is required")
     return {"status": "ok" if not errors else "failed", "errors": errors}
 

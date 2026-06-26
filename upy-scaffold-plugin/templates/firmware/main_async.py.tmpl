@@ -6,25 +6,34 @@
 # @License : MIT
 
 import uasyncio as asyncio
+import sys
+import time
 from machine import I2C, Pin
 
 import conf
 ${LOGGER_IMPORTS}
 ${MAINTENANCE_IMPORT}
 
-${LOGGER_SETUP_BLOCK}
 
-# Hardware instances generated from manifest.pinout.
-${I2C_INIT_BLOCK}
-${GPIO_INIT_BLOCK}
+${LOGGER_HELPERS_BLOCK}
 
 
-async def main():
+async def _main():
+    ${LOGGER_SETUP_BLOCK}
     ${ASYNC_LOG_BOOT_BLOCK}
+
+    # Hardware instances generated from manifest.pinout.
+${I2C_INIT_BLOCK_IN_MAIN}
+${GPIO_INIT_BLOCK_IN_MAIN}
+
     # TODO: upy-generate creates async business tasks here.
     while True:
 ${MAINTENANCE_ASYNC_BLOCK}
         await asyncio.sleep_ms(100)
 
 
-asyncio.run(main())
+try:
+    asyncio.run(_main())
+except Exception as exc:
+    _log_exception(exc, "[fatal] main.py startup failed")
+    raise

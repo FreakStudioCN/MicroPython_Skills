@@ -56,6 +56,7 @@ upy-deploy-plugin
 | 生成 task 和 PC 测试前 | `references/task_generation_rules.md` |
 | 生成 device MicroPython unittest 测试前 | `references/device_unittest_subset.md` |
 | 修改 `conf.py` 或 `main.py` 前 | `references/main_conf_rules.md` |
+| 使用 MicroPython 硬件/外设/端口 API 前 | `knowledge/micropython_official_library_index.json` |
 | 需要 LLM/ASR/TTS/IoT/MQTT/Webhook/云 API 前 | `references/cloud_integrations.md` |
 | 运行质量门禁前 | `references/validation_gates.md` |
 | 输出 success 和 git commit 前 | `references/final_review_checklist.md` |
@@ -132,14 +133,15 @@ fix 模式：
    - `thread`：使用 `_thread` worker、锁和主循环心跳。
 11. 复用 scaffold 资产：`firmware/lib/logger`、`time_helper`、`maintenance`、`scheduler`。不要重复生成日志系统。
 12. 读取 `references/main_conf_rules.md`，更新 `firmware/conf.py`，所有阈值、周期、重试、日志配置必须在 conf 中，不在 task/main 中硬编码；云 API 只能写非密钥 endpoint、模型名、超时、重试、功能开关和 secret 名称，不写真实密钥。
-13. 继续按 `references/main_conf_rules.md` 更新 `firmware/main.py`，保留启动延时，安装 rotating logger，完成 `machine -> factory -> driver -> task` DI 装配，启动时执行 I2C scan，print 与 logger 双写关键状态。写完 `conf.py/main.py` 立即运行 `scripts/check_conf_contract.py --project-dir <project_root>`。
-14. 生成 PC `unittest` 和 device MicroPython `unittest` 测试。生成设备端测试前必须读取 `references/device_unittest_subset.md`；设备端测试不是 CPython-only 测试，也不应只是 import smoke。
-15. 读取 `references/validation_gates.md`，运行完整质量门禁：`.pylintrc`、generate_plan、py_compile、conf_contract、driver compile、flake8、pylint、PC unittest、MicroPython import、dead config、task no-machine、device unittest subset、skeleton compliance、generated semantics、cloud integrations、session checkpoint。
-16. 读取 `references/final_review_checklist.md`，逐项做最终审查，并输出结构化 `review_findings`。
-17. 生成 `phase_complete` 草案后运行 `scripts/check_final_review_consistency.py` 与 `scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>`；如果失败，必须改为 `partial/failed`、`next_phase=null` 并记录 structured error。
-18. 检查和最终审查通过后发起 git commit 权限请求。full 和 fix 每次通过校验都必须 commit。
-19. 输出 `phase_complete`，默认 `next_phase=upy-deploy-plugin`；用户可选 `upy-simulate-plugin` 或 `null`。如果云服务是 `mock_only` 或 `blocked`，不得进入 deploy。
-20. 成功后询问是否生成附加产物：`upy-diagram-plugin` 和 `upy-wiring-plugin`。它们只能进入 `optional_next_phases`，不得覆盖主 `next_phase`。
+13. 涉及 `machine`、`network`、`neopixel`、`esp32`、`rp2`、`bluetooth` 等硬件/外设/端口 API 时，必须先查 `knowledge/micropython_official_library_index.json` 对应 MicroPython 官方页面，并在 `manifest_content.generate.doc_evidence[]` 记录 `module`、官方 `url`、`reason`。只有 CPython 参考链接或 MicroPython 页面内容不足时，不能当作充分外设实现依据，必须补端口文档证据或输出 partial。
+14. 继续按 `references/main_conf_rules.md` 更新 `firmware/main.py`，保留启动延时，安装 rotating logger，完成 `machine -> factory -> driver -> task` DI 装配，启动时执行 I2C scan，print 与 logger 双写关键状态。写完 `conf.py/main.py` 立即运行 `scripts/check_conf_contract.py --project-dir <project_root>`。
+15. 生成 PC `unittest` 和 device MicroPython `unittest` 测试。生成设备端测试前必须读取 `references/device_unittest_subset.md`；设备端测试不是 CPython-only 测试，也不应只是 import smoke。只要设备端测试 import `unittest`，必须在 `runtime_dependencies.mip` 声明 deploy 阶段安装 `unittest`，不要默认把 micropython-lib 源码复制进项目。
+16. 读取 `references/validation_gates.md`，运行完整质量门禁：`.pylintrc`、generate_plan、py_compile、conf_contract、driver compile、flake8、pylint、PC unittest、MicroPython import、dead config、task no-machine、device unittest subset、runtime dependencies、doc evidence、skeleton compliance、generated semantics、cloud integrations、session checkpoint。
+17. 读取 `references/final_review_checklist.md`，逐项做最终审查，并输出结构化 `review_findings`。
+18. 生成 `phase_complete` 草案后运行 `scripts/check_final_review_consistency.py` 与 `scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>`；如果失败，必须改为 `partial/failed`、`next_phase=null` 并记录 structured error。
+19. 检查和最终审查通过后发起 git commit 权限请求。full 和 fix 每次通过校验都必须 commit。
+20. 输出 `phase_complete`，默认 `next_phase=upy-deploy-plugin`；用户可选 `upy-simulate-plugin` 或 `null`。如果云服务是 `mock_only` 或 `blocked`，不得进入 deploy。
+21. 成功后询问是否生成附加产物：`upy-diagram-plugin` 和 `upy-wiring-plugin`。它们只能进入 `optional_next_phases`，不得覆盖主 `next_phase`。
 
 Additional hard rules:
 
@@ -155,12 +157,19 @@ Additional hard rules:
 - `phase_complete.result=success` requires `optional_next_phases` to offer `upy-diagram-plugin` and `upy-wiring-plugin`.
 - `phase_complete.result=success` requires a completed git commit after clean gates. Commit denied, dry-run, not-a-git-repository, or commit skipped means `partial` with `next_phase=null`.
 - `phase_complete.result=success` must not leave or commit CPython cache files. Run quality gates with bytecode disabled or temporary compile targets, remove project-local `__pycache__/` and `*.pyc` before git commit, and keep them out of `file_manifest` and artifacts.
+- `phase_complete.result=success` must include `manifest_content.generate.runtime_dependencies` when generated firmware/device tests require mip packages; deploy installs them with `mpremote mip install`.
+- `phase_complete.result=success` must include `manifest_content.generate.doc_evidence[]` for hardware/peripheral MicroPython APIs.
+- `phase_complete.result=success` must include a production deploy plan: `manifest_content.generate.deploy_plan.source_only` contains `firmware/main.py`, `firmware/boot.py`, and `firmware/conf.py`; `upload_exclude` contains `firmware/drivers/**/mock.py` and `firmware/drivers/**/mock.mpy`. Driver mocks are test/support artifacts and must not be required by runtime firmware.
 - Generate real device-side MicroPython unittest interface/contract tests under `device/tests/` by default. Keep `test/device/` only for legacy compatibility or existing project layout. Device tests should verify generated protocol/state/task/driver/config contracts, not only imports.
 - Treat `NETWORK_DISCONNECTED`, `RATE_LIMITED`, and `UPSTREAM_TIMEOUT` as retryable interruption states. Treat `TOKEN_BUDGET_EXCEEDED`, `MODEL_CONTEXT_EXHAUSTED`, and `CANCELLED_BY_USER` as non-retryable unless the user changes budget/model/intent. Record them in `session_state.last_error` and structured errors.
 - In async scheduler mode, do not call blocking driver/time operations directly inside `async def`: `time.sleep_ms`, `read_samples`, `play_samples`, `connect`, scan loops, or synchronous HTTP. Use cooperative state machines/adapters, thread mode, or emit `partial`.
 - Do not hide blocking async calls with `getattr`, `__getattribute__`, alias variables, lambdas, reflection helpers, or thin sync wrapper functions. Yielding once before `record()`, `play()`, `connect()`, scan loops, or synchronous HTTP is not a non-blocking adapter. Use a real cooperative state machine, thread/worker handoff, genuinely non-blocking API, or emit `partial`.
 - Use ASCII comments in generated firmware unless the project already requires non-ASCII. Avoid decorative box-drawing or mojibake separator comments in generated `.py` files.
 - When `project-manifest.json` is `phase=scaffold` but a previous `phase_complete.upy_generate_plugin.json` says success, treat that previous generate event as stale/audit-only. If `generate_plan.json` or file_manifest paths are missing, start from scaffold input instead of resuming the stale generate output.
+- If timer/scheduler assembly is generated or modified, read `knowledge/esp32_timer_scheduler_api.pitfall.json` before writing `firmware/main.py`. Do not rewrite scaffold-owned `firmware/lib/scheduler/timer_sched.py` just to solve port compatibility; inspect its API/defaults and keep its `timer_id=-1` default because RP2/Pico and Zephyr require virtual timers. Only RP2/Pico/RP2040/RP2350 and Zephyr should use `Timer(-1)` / `Scheduler(timer_id=-1)`. Other MCU/port targets must pass an explicit valid non-negative hardware timer id such as `Scheduler(timer_id=0, error_cb=...)`; do not generate implicit `Scheduler()` / `Scheduler(tick_ms=...)` when the scheduler default maps to `Timer(-1)`.
+- Peripheral documentation evidence must be exact enough for the used API. `machine.Pin`, `machine.I2S`, `machine.Timer`, `neopixel`, `network.WLAN`, etc. must cite their corresponding MicroPython official page from `knowledge/micropython_official_library_index.json`; a parent `machine` page is not sufficient for a specific `machine.*` class when the index has a specific page.
+- Do not edit scaffold-owned framework files such as `firmware/lib/logger/*`, `firmware/lib/scheduler/*`, `firmware/lib/time_helper.py`, or `firmware/tasks/maintenance.py` unless the user explicitly requests a scaffold library contract change. Fix generator code, entrypoint assembly, validation scripts, or deploy tooling instead.
+- When generated `main.py` installs the scaffold rotating logger, do not modify scaffold logger source to add timestamps. Instead, generated calls must mix timestamp/uptime into message text at the call site, for example with `time.ticks_ms()`, `time.ticks_diff()`, `time.localtime()`, or an explicit helper. This preserves scaffold ownership while making `/log/run_*.log` useful after deploy.
 
 ## 运行前用户补充
 
@@ -240,6 +249,8 @@ check_mpy_imports.py --include-lib
 check_dead_config.py
 check_task_no_machine_import.py
 check_device_unittest_subset.py
+check_runtime_dependencies.py
+check_doc_evidence.py
 check_skeleton_compliance.py
 check_generated_semantics.py
 check_cloud_integrations.py
@@ -261,7 +272,7 @@ except ImportError:
 
 此类 fallback 只能作为 `MPY_IMPORT_CPYTHON_FALLBACK` warning；直接 `import asyncio`、`typing`、`dataclasses`、`pathlib`、CPython `logging` 仍然是强失败。
 
-`check_generated_semantics.py` 是强门禁。它必须拦截 runtime placeholder、每 tick 重置状态机、async 同步网络调用、硬件数据读取后丢弃、共享 I2S/SPI/UART 资源无 `generate.resource_plan` 等问题。命中这些问题时不得输出 deploy-ready success。
+`check_generated_semantics.py` 是强门禁。它必须拦截 runtime placeholder、每 tick 重置状态机、async 同步网络调用、硬件数据读取后丢弃、共享 I2S/SPI/UART 资源无 `generate.resource_plan` 等问题。命中这些问题时不得输出 deploy-ready success。生成的 `main.py` 若安装 rotating logger，必须有顶层启动 fatal guard：异常同时 `sys.print_exception()` 到串口并通过 `logger.exception()` 写入设备日志。生成的 `Scheduler(...)` 必须传入 `error_cb`，task 异常也要 `print + logger.exception` 双写。
 
 ## fix 模式
 

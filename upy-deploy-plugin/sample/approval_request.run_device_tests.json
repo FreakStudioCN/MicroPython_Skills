@@ -1,0 +1,31 @@
+{
+  "type": "approval_request",
+  "phase": "upy-deploy-plugin",
+  "payload": {
+    "phase": "upy-deploy-plugin",
+    "approval_id": "run_device_tests",
+    "header": "Run device tests",
+    "question": "Run MicroPython unittest files under project/device/tests or project/test/device after upload?",
+    "summary": {
+      "project_root": "sessions/demo-session/project",
+      "port": "COM3",
+      "default": "run",
+      "note": "Tests run on the real board through mpremote run."
+    },
+    "actions": [
+      {
+        "label": "Run tests",
+        "value": "run_device_tests",
+        "primary": true
+      },
+      {
+        "label": "Skip",
+        "value": "skip_device_tests"
+      },
+      {
+        "label": "Save checkpoint",
+        "value": "save_checkpoint"
+      }
+    ]
+  }
+}

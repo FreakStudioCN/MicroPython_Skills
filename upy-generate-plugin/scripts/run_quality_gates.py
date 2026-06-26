@@ -275,6 +275,8 @@ def run_quality(
         ("dead_config", "check_dead_config.py"),
         ("task_no_machine_import", "check_task_no_machine_import.py"),
         ("device_unittest_subset", "check_device_unittest_subset.py"),
+        ("runtime_dependencies", "check_runtime_dependencies.py"),
+        ("doc_evidence", "check_doc_evidence.py"),
         ("skeleton_compliance", "check_skeleton_compliance.py"),
         ("generated_semantics", "check_generated_semantics.py"),
         ("cloud_integrations", "check_cloud_integrations.py"),

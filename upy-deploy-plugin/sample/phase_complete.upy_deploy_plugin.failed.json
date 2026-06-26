@@ -6,17 +6,38 @@
   "payload": {
     "phase": "upy-deploy-plugin",
     "result": "failed",
-    "summary": "设备端运行出现 Traceback，进入重新生成 fix。",
+    "summary": "Device run produced a Traceback and routed to generate fix.",
     "next_phase": "upy-generate-plugin",
     "next_phase_payload": {
       "mode": "fix",
-      "source": "deploy_fail"
+      "source": "deploy_fail",
+      "error_context": {
+        "user_feedback": "<user_feedback>",
+        "deploy_result_path": "sessions/demo-session/phase_complete.upy_deploy_plugin.json",
+        "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n",
+        "device_log_excerpt": "",
+        "device_tests_result_path": "sessions/demo-session/device_tests_result.json",
+        "deploy_errors": [
+          {
+            "code": "python_traceback",
+            "message": "serial output contains Traceback (most recent call last)"
+          }
+        ],
+        "previous_generate_commit": "0123456789abcdef0123456789abcdef01234567"
+      }
     },
     "deploy_result": {
       "status": "FAIL",
       "strategy": "clean_then_upload",
       "port": "COM3",
       "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n",
+      "device_tests": {
+        "status": "failed",
+        "test_count": 2,
+        "passed": 1,
+        "failed": 1,
+        "tests": []
+      },
       "errors": [
         {
           "code": "python_traceback",
@@ -28,17 +49,18 @@
     "artifacts": [
       {
         "type": "file_list",
-        "title": "失败诊断产物",
+        "title": "Failure diagnostics",
         "files": [
           {"path": "sessions/demo-session/deploy_result.json", "status": "new"},
-          {"path": "sessions/demo-session/serial_capture.log", "status": "new"}
+          {"path": "sessions/demo-session/serial_capture.log", "status": "new"},
+          {"path": "sessions/demo-session/device_tests_result.json", "status": "new"}
         ]
       }
     ],
     "errors": [
       {
         "code": "python_traceback",
-        "message": "设备端运行出现 Traceback"
+        "message": "Device run produced a Traceback"
       }
     ],
     "warnings": []

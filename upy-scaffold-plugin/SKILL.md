@@ -210,9 +210,12 @@ python -X utf8 <resource_root>/upy-scaffold-plugin/scripts/init_scaffold.py \
 
 - `board.py` 只放引脚常量和查询函数，不实例化硬件。
 - `main.py` 只生成硬件实例化和调度框架；业务 task 注册位置保留 TODO。
-- `timer` 模式使用 `Scheduler`；`async` 模式直接使用 `uasyncio`；`thread` 模式直接使用 `_thread`。
+- `timer` 模式使用 `firmware/lib/scheduler/timer_sched.py` 的 `Scheduler`；不要为端口兼容性改写该内部库，库默认 `timer_id=-1` 必须保留，因为 RP2/Pico 和 Zephyr 只支持虚拟 Timer。端口差异必须在 `main.py` 入口装配层解决：只有 RP2/Pico/RP2040/RP2350 和 Zephyr 可以显式生成 `Scheduler(timer_id=-1, tick_ms=...)`；其他 MCU/port 默认生成 `Scheduler(timer_id=0, tick_ms=...)` 或其他已验证非负硬件 Timer ID，不得生成隐式 `Scheduler(...)`、`Scheduler(tick_ms=...)` 或 `Scheduler(timer_id=-1)`。`async` 模式直接使用 `uasyncio`；`thread` 模式直接使用 `_thread`。
+- GPIO 方向必须来自 `pinout[].type` 和引脚语义：`gpio_out`、`DATA`、`DO`、`OUT`、`GAIN`、`SD` 默认 `Pin.OUT`；`gpio_in` 默认 `Pin.IN`。不要把 WS2812 DATA 这类输出脚生成成 `Pin.IN`。
+- `main.py` 必须有启动期 fatal guard。安装 rotating logger 后，关键启动状态必须 `print + logger` 双写；未捕获的启动/装配异常必须 `sys.print_exception()` 打到串口，并通过 `logger.exception()` 写入 `/log/run_*.log`。不要依赖 MicroPython 自动把顶层 traceback 写入文件日志。
 - 不生成业务 `tasks/sensor_task.py`、`display_task.py`、`network_task.py`。
 - `conf.py` 不得写 Wi-Fi 密码、API Key 或其他敏感数据。
+- `tools/flash_device.py` 必须实现生产部署过滤：`main.py`、`boot.py`、`conf.py` 始终作为 `.py` 上传，不编译为 `.mpy`；`firmware/drivers/**/mock.py` 只属于测试替身，不得编译或上传，且 stale `build/mpy/drivers/**/mock.mpy` 也必须跳过。JSON summary 必须记录 `compiled_files`、`uploaded_files`、`skipped_files`，供 deploy-plugin 判定禁止产物。
 - `.upy/` 只复制当前仓库真实存在的 schema 和工具脚本；不要伪造不存在的后续工具。
 - `project-manifest.json` 必须作为 `file_operation` 写入项目根；`payload.manifest_content` 同时保留对象形式。
 - `docs/.gitkeep` 必须保留，作为项目文档入口。

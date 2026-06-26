@@ -24,6 +24,8 @@ STRONG_CHECKS = {
     "dead_config",
     "task_no_machine_import",
     "device_unittest_subset",
+    "runtime_dependencies",
+    "doc_evidence",
     "skeleton_compliance",
     "generated_semantics",
     "cloud_integrations",
@@ -35,6 +37,37 @@ REQUIRED_MANIFEST_KEYS = {"requirements", "devices", "mcu", "generate"}
 REQUIRED_OPTIONAL_PHASES = {"upy-diagram-plugin", "upy-wiring-plugin"}
 SESSION_STATE_FILE = "session_state.upy_generate_plugin.json"
 GIT_SHA40_LENGTH = 40
+DEPLOY_TOOL_REQUIREMENTS = {
+    "flash_device.py": [
+        ("--json-summary", "missing --json-summary CLI option"),
+        ("--summary-file", "missing --summary-file CLI option"),
+        ("def _ensure_remote_dirs", "missing recursive remote directory helper"),
+        ("def _remote_parent_dirs", "missing parent directory expansion helper"),
+        ("SOURCE_ONLY_FILES", "missing source-only entry/config upload policy"),
+        ("COMPILE_EXCLUDE_PATTERNS", "missing compile exclusion policy"),
+        ("UPLOAD_EXCLUDE_PATTERNS", "missing upload exclusion policy"),
+        ("compiled_files", "summary must record compiled files"),
+        ("uploaded_files", "summary must record uploaded files"),
+        ("skipped_files", "summary must record skipped files"),
+        ('["resume", "fs", "cp"', "upload must use mpremote resume fs cp"),
+        ('["resume", "fs", "mkdir", remote_dir]', "directory creation must use resume fs mkdir"),
+    ],
+    "read_device_log.py": [
+        ("encoding", "missing explicit subprocess encoding"),
+        ("utf-8", "missing UTF-8 subprocess decoding"),
+        ("errors", "missing subprocess decode error policy"),
+        ("replace", "missing errors=replace decode policy"),
+    ],
+}
+DEPLOY_SOURCE_ONLY_REQUIRED = {"firmware/main.py", "firmware/boot.py", "firmware/conf.py"}
+DEPLOY_MOCK_EXCLUDE_PATTERNS = {
+    "firmware/drivers/**/mock.py",
+    "firmware/drivers/*/mock.py",
+}
+DEPLOY_MOCK_MPY_EXCLUDE_PATTERNS = {
+    "firmware/drivers/**/mock.mpy",
+    "firmware/drivers/*/mock.mpy",
+}
 
 
 def is_python_cache_path(path: str) -> bool:
@@ -182,6 +215,40 @@ def collect_gate_errors(payload: dict[str, Any], strict_pylint: bool) -> list[di
     return errors
 
 
+def deploy_plan_errors(deploy_plan: Any) -> list[dict[str, Any]]:
+    if not isinstance(deploy_plan, dict):
+        return [{"code": "MANIFEST_DEPLOY_PLAN_MISSING", "message": "manifest_content.generate.deploy_plan is required"}]
+    errors: list[dict[str, Any]] = []
+    source_only = deploy_plan.get("source_only")
+    source_only_set = {str(item).replace("\\", "/") for item in source_only} if isinstance(source_only, list) else set()
+    missing_source_only = sorted(DEPLOY_SOURCE_ONLY_REQUIRED - source_only_set)
+    if missing_source_only:
+        errors.append(
+            {
+                "code": "DEPLOY_PLAN_SOURCE_ONLY_MISSING",
+                "missing": missing_source_only,
+                "message": "deploy_plan.source_only must keep main.py, boot.py, and conf.py as uploaded .py files, not compiled .mpy",
+            }
+        )
+    upload_exclude = deploy_plan.get("upload_exclude")
+    upload_exclude_set = {str(item).replace("\\", "/") for item in upload_exclude} if isinstance(upload_exclude, list) else set()
+    if not (upload_exclude_set & DEPLOY_MOCK_EXCLUDE_PATTERNS):
+        errors.append(
+            {
+                "code": "DEPLOY_PLAN_MOCK_UPLOAD_EXCLUDE_MISSING",
+                "message": "deploy_plan.upload_exclude must exclude firmware/drivers/**/mock.py from production uploads",
+            }
+        )
+    if not (upload_exclude_set & DEPLOY_MOCK_MPY_EXCLUDE_PATTERNS):
+        errors.append(
+            {
+                "code": "DEPLOY_PLAN_MOCK_MPY_UPLOAD_EXCLUDE_MISSING",
+                "message": "deploy_plan.upload_exclude must exclude firmware/drivers/**/mock.mpy stale build artifacts",
+            }
+        )
+    return errors
+
+
 def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = []
     manifest = payload.get("manifest_content")
@@ -235,8 +302,7 @@ def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[d
     if not isinstance(generate, dict):
         errors.append({"code": "MANIFEST_GENERATE_SECTION_MISSING", "message": "manifest_content.generate is required"})
     else:
-        if not isinstance(generate.get("deploy_plan"), dict):
-            errors.append({"code": "MANIFEST_DEPLOY_PLAN_MISSING", "message": "manifest_content.generate.deploy_plan is required"})
+        errors.extend(deploy_plan_errors(generate.get("deploy_plan")))
         if not isinstance(generate.get("behavior_spec"), dict):
             errors.append({"code": "MANIFEST_BEHAVIOR_SPEC_MISSING", "message": "manifest_content.generate.behavior_spec is required"})
         if not isinstance(generate.get("simulation_hints"), dict):
@@ -376,6 +442,66 @@ def cloud_integration_errors(generate: dict[str, Any], next_phase: Any) -> list[
                 }
             )
     return errors
+
+
+def next_phase_decision_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    if payload.get("next_phase") is not None:
+        return []
+    decision = payload.get("next_phase_decision")
+    if not isinstance(decision, dict):
+        return [
+            {
+                "code": "NEXT_PHASE_NULL_WITHOUT_DECISION",
+                "message": "success with next_phase=null must record next_phase_decision explaining the user stop choice or blocker",
+            }
+        ]
+    errors: list[dict[str, Any]] = []
+    if decision.get("value") is not None:
+        errors.append(
+            {
+                "code": "NEXT_PHASE_DECISION_VALUE_INVALID",
+                "value": decision.get("value"),
+                "message": "next_phase_decision.value must be null when payload.next_phase is null",
+            }
+        )
+    reason = decision.get("reason")
+    if not isinstance(reason, str) or not reason.strip() or reason.strip().lower() == "unknown":
+        errors.append(
+            {
+                "code": "NEXT_PHASE_DECISION_REASON_MISSING",
+                "message": "next_phase_decision.reason must explain why success does not advance to deploy or simulate",
+            }
+        )
+    return errors
+
+
+def deploy_tool_compat_errors(project_dir: Path | None, next_phase: Any) -> list[dict[str, Any]]:
+    if project_dir is None or next_phase != "upy-deploy-plugin":
+        return []
+    tools_dir = project_dir / "tools"
+    missing: list[dict[str, str]] = []
+    for filename, checks in DEPLOY_TOOL_REQUIREMENTS.items():
+        path = tools_dir / filename
+        if not path.exists():
+            missing.append({"path": f"tools/{filename}", "requirement": "file is missing"})
+            continue
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError as exc:
+            missing.append({"path": f"tools/{filename}", "requirement": f"file is not UTF-8 readable: {exc}"})
+            continue
+        for needle, message in checks:
+            if needle not in text:
+                missing.append({"path": f"tools/{filename}", "requirement": message})
+    if not missing:
+        return []
+    return [
+        {
+            "code": "DEPLOY_TOOL_INCOMPATIBLE",
+            "message": "next_phase=upy-deploy-plugin requires project deploy tools with the stable deploy-plugin interface",
+            "missing": missing,
+        }
+    ]
 
 
 def optional_next_phase_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -806,8 +932,10 @@ def validate_phase_complete(
                     "message": "next_phase must be deploy, simulate, or null",
                 }
             )
+        errors.extend(next_phase_decision_errors(payload))
         errors.extend(collect_gate_errors(payload, strict_pylint))
         errors.extend(manifest_errors(payload, project_dir))
+        errors.extend(deploy_tool_compat_errors(project_dir, payload.get("next_phase")))
         errors.extend(file_manifest_errors(payload))
         errors.extend(session_state_check_errors(payload, phase_complete_path, project_dir, session_dir))
         errors.extend(optional_next_phase_errors(payload))

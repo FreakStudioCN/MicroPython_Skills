@@ -232,6 +232,109 @@ def full_accepts_flash_phase_complete_and_uses_firmware_version() -> None:
             raise AssertionError("generated files must use firmware latest_version label")
 
 
+def timer_scaffold_is_esp32_safe_and_logs_fatal_startup() -> None:
+    manifest = {
+        "phase": "select_hw",
+        "project_name": "Timer Guard Test",
+        "requirements": {"sample_rate": "normal_1hz"},
+        "mcu": {"model": "ESP32-C3", "display_name": "ESP32-C3-DevKitM-1"},
+        "devices": [{"name": "WS2812", "type": "led_rgb", "interface": "GPIO"}],
+        "pinout": [
+            {"device": "WS2812", "pin_name": "DATA", "gpio": 21, "type": "gpio_out", "interface": "GPIO"},
+            {"device": "Button", "pin_name": "IN", "gpio": 4, "type": "gpio_in", "interface": "GPIO"},
+        ],
+    }
+    output = run_script("--mode", "timer", "--manifest", "-", stdin_obj=manifest)
+    assert_common_output(output)
+    assert_generated_python_compiles(output)
+    main_py = content(output, "firmware/main.py")
+    scheduler_py = content(output, "firmware/lib/scheduler/timer_sched.py")
+    if "def __init__(self, timer_id=-1" not in scheduler_py:
+        raise AssertionError("scheduler library must preserve its default timer_id=-1 contract for ports that support virtual timers")
+    if "Scheduler(timer_id=0, tick_ms=100" not in main_py:
+        raise AssertionError(f"Hardware-timer ports must pass an explicit non-negative Timer id:\n{main_py}")
+    forbidden_main = ("Timer(-1)", "Timer(id=-1)", "Scheduler(timer_id=-1)", "Scheduler(tick_ms=100")
+    found = [item for item in forbidden_main if item in main_py]
+    if found:
+        raise AssertionError(f"Hardware-timer ports must not rely on invalid or implicit Timer(-1) patterns: {found}")
+    combined = main_py + "\n" + scheduler_py
+    required = [
+        "import sys",
+        "def _log_exception(exc, message):",
+        "sys.print_exception(exc)",
+        "exception(exc, stamped)",
+        "try:\n    _main()\nexcept Exception as exc:",
+        "Scheduler(timer_id=0, tick_ms=100",
+        "from machine import Timer",
+        "self._timer = Timer(timer_id)",
+    ]
+    missing = [item for item in required if item not in combined]
+    if missing:
+        raise AssertionError(f"timer scaffold missing fatal/logging/scheduler safety: {missing}")
+    if "ws2812_data_pin = Pin(21, Pin.OUT)" not in main_py:
+        raise AssertionError(f"gpio_out DATA must render as Pin.OUT:\n{main_py}")
+    if "button_in_pin = Pin(4, Pin.IN)" not in main_py:
+        raise AssertionError(f"gpio_in must render as Pin.IN:\n{main_py}")
+
+
+def timer_scaffold_keeps_rp2_virtual_timer_default() -> None:
+    manifest = {
+        "phase": "select_hw",
+        "project_name": "Pico Timer Test",
+        "requirements": {"sample_rate": "normal_1hz"},
+        "mcu": {"model": "Raspberry Pi Pico W", "display_name": "Pico W"},
+        "devices": [{"name": "LED", "type": "led", "interface": "GPIO"}],
+        "pinout": [
+            {"device": "LED", "pin_name": "DATA", "gpio": 25, "type": "gpio_out", "interface": "GPIO"},
+        ],
+    }
+    output = run_script("--mode", "timer", "--manifest", "-", stdin_obj=manifest)
+    assert_common_output(output)
+    assert_generated_python_compiles(output)
+    main_py = content(output, "firmware/main.py")
+    scheduler_py = content(output, "firmware/lib/scheduler/timer_sched.py")
+    if "def __init__(self, timer_id=-1" not in scheduler_py:
+        raise AssertionError("scheduler library must keep timer_id=-1 as the default")
+    if "Scheduler(timer_id=-1, tick_ms=100" not in main_py:
+        raise AssertionError(f"RP2/Pico timer main.py should explicitly keep virtual Timer(-1):\n{main_py}")
+
+
+def timer_scaffold_keeps_zephyr_virtual_timer_default() -> None:
+    manifest = {
+        "phase": "select_hw",
+        "project_name": "Zephyr Timer Test",
+        "requirements": {"sample_rate": "normal_1hz"},
+        "mcu": {"model": "Zephyr", "display_name": "Zephyr board"},
+        "devices": [],
+        "pinout": [],
+    }
+    output = run_script("--mode", "timer", "--manifest", "-", stdin_obj=manifest)
+    assert_common_output(output)
+    assert_generated_python_compiles(output)
+    main_py = content(output, "firmware/main.py")
+    if "Scheduler(timer_id=-1, tick_ms=100" not in main_py:
+        raise AssertionError(f"Zephyr timer main.py should explicitly keep virtual Timer(-1):\n{main_py}")
+
+
+def timer_scaffold_uses_hardware_timer_for_general_ports() -> None:
+    manifest = {
+        "phase": "select_hw",
+        "project_name": "STM32 Timer Test",
+        "requirements": {"sample_rate": "normal_1hz"},
+        "mcu": {"model": "STM32", "display_name": "Pyboard STM32"},
+        "devices": [],
+        "pinout": [],
+    }
+    output = run_script("--mode", "timer", "--manifest", "-", stdin_obj=manifest)
+    assert_common_output(output)
+    assert_generated_python_compiles(output)
+    main_py = content(output, "firmware/main.py")
+    if "Scheduler(timer_id=0, tick_ms=100" not in main_py:
+        raise AssertionError(f"General hardware-timer ports should default to Timer id 0:\n{main_py}")
+    if "Scheduler(timer_id=-1" in main_py:
+        raise AssertionError(f"Only RP2/Pico and Zephyr should use virtual Timer(-1):\n{main_py}")
+
+
 def async_omits_scheduler_when_not_timer() -> None:
     manifest = load_select_hw_manifest()
     output = run_script(
@@ -566,7 +669,6 @@ def flash_device_template_upload_uses_resume_fs() -> None:
     text = (ROOT / "templates" / "pc" / "flash_device.py").read_text(encoding="utf-8")
     required = [
         '["resume", "fs", "cp", src, remote]',
-        '["resume", "fs", "cp", src, ":{}".format(entry)]',
         '["resume", "fs", "mkdir", remote_dir]',
         'separators=(",", ":")',
     ]
@@ -575,11 +677,37 @@ def flash_device_template_upload_uses_resume_fs() -> None:
         raise AssertionError(f"flash_device.py missing stable deploy behavior: {missing}")
 
 
+def flash_device_template_excludes_source_only_and_mocks() -> None:
+    text = (ROOT / "templates" / "pc" / "flash_device.py").read_text(encoding="utf-8")
+    required = [
+        'SOURCE_ONLY_FILES = {"main.py", "boot.py", "conf.py"}',
+        'COMPILE_EXCLUDE_PATTERNS = {"drivers/*/mock.py"}',
+        'UPLOAD_EXCLUDE_PATTERNS = {"drivers/*/mock.py", "drivers/*/mock.mpy"}',
+        "compile_skip_reason(rel)",
+        "_stale_mpy_for_source(rel)",
+        "upload_skip_reason(rel)",
+        "\"compiled_files\": []",
+        "\"uploaded_files\": []",
+        "\"skipped_files\": []",
+    ]
+    missing = [item for item in required if item not in text]
+    if missing:
+        raise AssertionError(f"flash_device.py missing production deploy filters: {missing}")
+    forbidden = ["ENTRY_FILES", "firmware/{main,boot}.py"]
+    present = [item for item in forbidden if item in text]
+    if present:
+        raise AssertionError(f"flash_device.py still has old entry-only policy: {present}")
+
+
 def main() -> int:
     tests = [
         full_timer_generates_json_payload,
         full_accepts_phase_complete_envelope,
         full_accepts_flash_phase_complete_and_uses_firmware_version,
+        timer_scaffold_is_esp32_safe_and_logs_fatal_startup,
+        timer_scaffold_keeps_rp2_virtual_timer_default,
+        timer_scaffold_keeps_zephyr_virtual_timer_default,
+        timer_scaffold_uses_hardware_timer_for_general_ports,
         async_omits_scheduler_when_not_timer,
         thread_mode_uses_thread_frame_and_custom_files,
         incremental_generates_only_new_driver_stub,
@@ -590,6 +718,7 @@ def main() -> int:
         local_actual_runner_detects_conflict_without_force,
         flash_device_template_has_stable_json_summary,
         flash_device_template_upload_uses_resume_fs,
+        flash_device_template_excludes_source_only_and_mocks,
     ]
     for test in tests:
         test()

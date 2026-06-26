@@ -92,7 +92,11 @@ def assert_skill_text_contract() -> None:
         "python -m pip install mpremote",
         "requirements-runtime.txt",
         "scripts/capture_repl.py",
+        "scripts/run_device_tests.py",
         "mpremote connect <port> resume fs",
+        "mpremote_runtime.py --run --port <port> --",
+        "PASS_WITH_WARNINGS",
+        "error_context",
         "持久会话",
         "upy-generate-plugin(mode=fix",
         "upy-autofix-plugin",
@@ -120,6 +124,7 @@ def assert_approval_request_samples() -> None:
         "approval_request.confirm_erase_device_fs.json": "confirm_erase_device_fs",
         "approval_request.deploy_result_feedback.json": "deploy_result_feedback",
         "approval_request.deploy_fail_next_action.json": "deploy_fail_next_action",
+        "approval_request.run_device_tests.json": "run_device_tests",
     }
     for filename, approval_id in expected.items():
         sample = load_json(SAMPLE / filename)
@@ -141,6 +146,12 @@ def assert_approval_request_samples() -> None:
     fail_text = json.dumps(fail, ensure_ascii=False)
     if "upy-autofix-plugin" not in fail_text or "upy-generate-plugin" not in fail_text:
         raise AssertionError("deploy fail next action must include autofix and generate fallback")
+    if "error_context" not in fail_text or "device_tests_result_path" not in fail_text:
+        raise AssertionError("deploy fail next action must include generate fix error_context")
+    feedback = load_json(SAMPLE / "approval_request.deploy_result_feedback.json")
+    feedback_text = json.dumps(feedback, ensure_ascii=False)
+    if "feedback_schema" not in feedback_text or "user_feedback_after_deploy" not in feedback_text:
+        raise AssertionError("deploy result feedback must collect user feedback for generate fix")
 
 
 def assert_manifest_validator() -> None:
@@ -180,6 +191,9 @@ def assert_clean_device_mock_modes() -> None:
         raise AssertionError(f"clean dry-run failed: {clean}")
     if any(path.startswith("data/") or path.startswith("secrets/") for path in clean["delete_targets"]):
         raise AssertionError("project_files clean must not include mock user data")
+    for stale in ("conf.mpy", "drivers/sht30_driver/mock.mpy"):
+        if stale not in clean["delete_targets"]:
+            raise AssertionError(f"project_files clean must remove stale deploy artifact {stale}: {clean}")
     erase = run_json([
         sys.executable,
         str(SCRIPTS / "clean_device_project.py"),
@@ -213,6 +227,22 @@ def assert_mpremote_runtime_contract() -> None:
     summary = run_json([sys.executable, str(SCRIPTS / "mpremote_runtime.py"), "--check", "--mock"])
     if summary["status"] != "available" or summary["command"] != ["mpremote"]:
         raise AssertionError(f"mpremote runtime mock check mismatch: {summary}")
+    passthrough = run_json([
+        sys.executable,
+        str(SCRIPTS / "mpremote_runtime.py"),
+        "--run",
+        "--mock",
+        "--port",
+        "COM9",
+        "--",
+        "resume",
+        "exec",
+        "print(1)",
+    ])
+    if passthrough["status"] != "success":
+        raise AssertionError(f"mpremote runtime mock passthrough failed: {passthrough}")
+    if passthrough["command"] != ["mpremote", "connect", "COM9", "resume", "exec", "print(1)"]:
+        raise AssertionError(f"mpremote runtime passthrough command mismatch: {passthrough}")
 
 
 def assert_environment_check_mock() -> None:
@@ -246,9 +276,16 @@ def assert_capture_and_result_mock() -> None:
         log_json = temp / "log.json"
         run_json([
             sys.executable,
+            str(SCRIPTS / "wait_for_device.py"),
+            "--mock",
+            "--timeout-sec",
+            "1",
+        ])
+        run_json([
+            sys.executable,
             str(SCRIPTS / "capture_repl.py"),
             "--mock",
-            "--duration-ms",
+            "--timeout-ms",
             "10",
             "--output-json",
             str(serial_json),
@@ -269,8 +306,337 @@ def assert_capture_and_result_mock() -> None:
             "--port",
             "COM3",
         ])
-    if result["status"] != "PASS":
-        raise AssertionError(f"mock deploy result should pass: {result}")
+        if result["status"] != "PASS":
+            raise AssertionError(f"mock deploy result should pass: {result}")
+
+
+def assert_reset_capture_traceback_fails_deploy_result() -> None:
+    with tempfile.TemporaryDirectory(prefix="deploy-traceback-") as temp_dir:
+        temp = Path(temp_dir)
+        serial_json = temp / "serial.json"
+        upload_json = temp / "upload.json"
+        log_json = temp / "log.json"
+        run_json([
+            sys.executable,
+            str(SCRIPTS / "capture_repl.py"),
+            "--mock",
+            "--reset-first",
+            "--mock-traceback",
+            "--timeout-ms",
+            "10",
+            "--output-json",
+            str(serial_json),
+        ])
+        serial = json.loads(serial_json.read_text(encoding="utf-8"))
+        if not serial.get("reset_first") or "ValueError: invalid Timer number" not in serial.get("output", ""):
+            raise AssertionError(f"reset-first mock capture did not include startup traceback: {serial}")
+        upload_json.write_text(json.dumps({"status": "success"}, ensure_ascii=False), encoding="utf-8")
+        log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM88",
+        ])
+        codes = {error.get("code") for error in result.get("errors", [])}
+        if result.get("status") != "FAIL" or not {"python_traceback", "python_value_error"} <= codes:
+            raise AssertionError(f"startup traceback must fail deploy result: {result}")
+
+
+def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
+    with tempfile.TemporaryDirectory(prefix="deploy-forbidden-upload-") as temp_dir:
+        temp = Path(temp_dir)
+        upload_json = temp / "upload.json"
+        log_json = temp / "log.json"
+        serial_json = temp / "serial.json"
+        upload_json.write_text(
+            json.dumps(
+                {
+                    "status": "success",
+                    "uploaded_files": [
+                        {"source": "build/mpy/conf.mpy", "target": ":conf.mpy"},
+                        {
+                            "source": "build/mpy/drivers/status_driver/mock.mpy",
+                            "target": ":drivers/status_driver/mock.mpy",
+                        },
+                    ],
+                    "steps": [],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
+        serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if result["status"] != "FAIL":
+            raise AssertionError(f"forbidden upload artifacts must fail deploy result: {result}")
+        matches = [error for error in result.get("errors", []) if error.get("code") == "forbidden_runtime_upload"]
+        if not matches or ":conf.mpy" not in matches[0].get("targets", []):
+            raise AssertionError(f"forbidden upload error not reported correctly: {result}")
+
+    with tempfile.TemporaryDirectory(prefix="deploy-forbidden-upload-old-") as temp_dir:
+        temp = Path(temp_dir)
+        upload_json = temp / "upload.json"
+        log_json = temp / "log.json"
+        serial_json = temp / "serial.json"
+        upload_json.write_text(
+            json.dumps(
+                {
+                    "status": "success",
+                    "steps": [
+                        {
+                            "type": "mpremote",
+                            "command": ["mpremote", "resume", "fs", "cp", "x", ":drivers/status_driver/mock.py"],
+                            "returncode": 0,
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
+        serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if result["status"] != "FAIL" or "forbidden_runtime_upload" not in json.dumps(result):
+            raise AssertionError(f"legacy upload summary must still expose forbidden artifacts: {result}")
+
+
+def assert_deploy_result_warnings_and_device_tests() -> None:
+    with tempfile.TemporaryDirectory(prefix="deploy-result-edge-") as temp_dir:
+        temp = Path(temp_dir)
+        serial_json = temp / "serial.json"
+        upload_json = temp / "upload.json"
+        log_json = temp / "log.json"
+        tests_json = temp / "device_tests.json"
+        upload_json.write_text(json.dumps({"status": "success"}, ensure_ascii=False), encoding="utf-8")
+        serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
+        log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if result["status"] != "PASS_WITH_WARNINGS":
+            raise AssertionError(f"empty serial output should be warning-only: {result}")
+        if "serial capture produced no output" not in result.get("warnings", []):
+            raise AssertionError(f"warning must mention empty serial output: {result}")
+
+        tests_json.write_text(
+            json.dumps({"status": "failed", "failed": 1, "errors": [{"code": "device_test_failed"}]}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        failed = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--device-tests-json",
+            str(tests_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if failed["status"] != "FAIL":
+            raise AssertionError(f"failed device tests must fail deploy result: {failed}")
+        if not any(error.get("code") == "device_tests_failed" for error in failed.get("errors", [])):
+            raise AssertionError(f"device test failure code missing: {failed}")
+
+        tests_json.write_text(
+            json.dumps(
+                {
+                    "status": "failed",
+                    "failed": 1,
+                    "tests": [{"stderr_excerpt": "ImportError: no module named 'unittest'"}],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        runtime_failed = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--device-tests-json",
+            str(tests_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if not any(error.get("code") == "device_tests_runtime_unavailable" for error in runtime_failed.get("errors", [])):
+            raise AssertionError(f"runtime unavailable device-test code missing: {runtime_failed}")
+
+        missing = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(temp / "missing-upload.json"),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if not any(error.get("code") == "upload_json_missing" for error in missing.get("errors", [])):
+            raise AssertionError(f"missing upload json must be structured, not traceback: {missing}")
+
+
+def assert_install_mip_dependencies_mock() -> None:
+    with tempfile.TemporaryDirectory(prefix="mip-deps-") as temp_dir:
+        project = Path(temp_dir)
+        manifest = {
+            "phase": "generate",
+            "runtime_dependencies": {
+                "mip": [
+                    {
+                        "package": "unittest",
+                        "reason": "device/tests import unittest",
+                        "required_for": ["device_tests"],
+                        "target": "/lib",
+                        "version": "latest",
+                        "install_phase": "deploy",
+                        "verify_import": "unittest",
+                    }
+                ]
+            },
+        }
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "install_mip_dependencies.py"),
+            "--project-root",
+            str(project),
+            "--mock",
+        ])
+        if result["status"] != "success" or result["installed"] != 1:
+            raise AssertionError(f"mock mip install should install one dependency: {result}")
+        record = result["records"][0]
+        if record["package"] != "unittest" or record["install"]["command_args"] != ["mip", "install", "--target=/lib", "unittest"]:
+            raise AssertionError(f"mock mip install command invalid: {result}")
+        fs_verify = record.get("fs_verify") or {}
+        if not fs_verify.get("ok") or fs_verify.get("package_path") != "/lib/unittest":
+            raise AssertionError(f"mock mip install must include filesystem verification: {result}")
+
+        mip_failed_json = project / "mip_failed.json"
+        mip_failed_json.write_text(
+            json.dumps(
+                {
+                    "status": "failed",
+                    "errors": [
+                        {
+                            "code": "runtime_dependency_install_network_unavailable",
+                            "package": "unittest",
+                            "message": "mpremote mip install failed; network/proxy/VPN availability may be required",
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        upload_json = project / "upload.json"
+        serial_json = project / "serial.json"
+        log_json = project / "log.json"
+        upload_json.write_text(json.dumps({"status": "success"}), encoding="utf-8")
+        serial_json.write_text(json.dumps({"status": "success", "output": "boot ok"}), encoding="utf-8")
+        log_json.write_text(json.dumps({"error_count": 0, "errors": []}), encoding="utf-8")
+        deploy_result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--mip-install-json",
+            str(mip_failed_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if not any(error.get("code") == "runtime_dependency_install_network_unavailable" for error in deploy_result.get("errors", [])):
+            raise AssertionError(f"deploy result must classify mip network/proxy failure: {deploy_result}")
+
+
+def assert_run_device_tests_mock() -> None:
+    with tempfile.TemporaryDirectory(prefix="device-tests-") as temp_dir:
+        project = Path(temp_dir)
+        test_path = project / "device" / "tests" / "test_contract.py"
+        test_path.parent.mkdir(parents=True)
+        test_path.write_text("import unittest\n\nunittest.main()\n", encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "run_device_tests.py"),
+            "--project-root",
+            str(project),
+            "--mock",
+        ])
+        if result["status"] != "success":
+            raise AssertionError(f"mock device test run must succeed: {result}")
+        if result["test_count"] != 1 or result["passed"] != 1 or result["failed"] != 0:
+            raise AssertionError(f"mock device test counts invalid: {result}")
+        if result["tests"][0]["status"] != "passed":
+            raise AssertionError(f"mock device test record invalid: {result}")
 
 
 def assert_shared_serial_mock() -> None:
@@ -302,6 +668,11 @@ def main() -> int:
         assert_environment_check_mock,
         assert_mpremote_calls_are_centralized,
         assert_capture_and_result_mock,
+        assert_reset_capture_traceback_fails_deploy_result,
+        assert_forbidden_upload_artifacts_fail_deploy_result,
+        assert_deploy_result_warnings_and_device_tests,
+        assert_install_mip_dependencies_mock,
+        assert_run_device_tests_mock,
         assert_shared_serial_mock,
     ]
     for test in tests:

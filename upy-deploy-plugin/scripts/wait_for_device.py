@@ -20,11 +20,15 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", default="")
     parser.add_argument("--timeout-ms", type=int, default=60000)
+    parser.add_argument("--timeout-sec", type=float, default=None, help="Compatibility alias for --timeout-ms")
     parser.add_argument("--interval-ms", type=int, default=2000)
     parser.add_argument("--probe-timeout-ms", type=int, default=3000)
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.timeout_sec is not None:
+        args.timeout_ms = int(args.timeout_sec * 1000)
+    return args
 
 
 def main() -> int:

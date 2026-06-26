@@ -152,15 +152,67 @@ def write_json(data: dict[str, Any], output_json: str | None) -> None:
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Print mpremote availability as JSON")
+    parser.add_argument("--run", action="store_true", help="Run one mpremote command through this adapter")
+    parser.add_argument("--port", default="", help="Serial port for --run")
+    parser.add_argument("--timeout-ms", type=int, default=60000, help="Timeout for --run")
     parser.add_argument("--mock", action="store_true", help="Use a mock command for contract tests")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
+    parser.add_argument("mpremote_args", nargs=argparse.REMAINDER, help="Arguments after -- are passed to mpremote in --run mode")
     return parser.parse_args(argv)
+
+
+def normalize_remainder(args: list[str]) -> list[str]:
+    if args and args[0] == "--":
+        return args[1:]
+    return args
+
+
+def run_summary(args: argparse.Namespace) -> dict[str, Any]:
+    mpremote_args = normalize_remainder(list(args.mpremote_args))
+    if not mpremote_args:
+        return {
+            "status": "failed",
+            "errors": [{"code": "mpremote_args_missing", "message": "--run requires mpremote arguments after --"}],
+        }
+    base_command = ["mpremote"] if args.mock else command_or_raise()
+    command = build_mpremote_command(base_command, args.port or None, mpremote_args)
+    if args.mock:
+        return {
+            "status": "success",
+            "mode": "mock",
+            "command": command,
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "",
+        }
+    completed = subprocess.run(
+        command,
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=max(args.timeout_ms, 1) / 1000,
+        check=False,
+    )
+    return {
+        "status": "success" if completed.returncode == 0 else "failed",
+        "mode": "live",
+        "command": command,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
-    result = availability_summary(["mpremote"] if args.mock else None)
+    try:
+        result = run_summary(args) if args.run else availability_summary(["mpremote"] if args.mock else None)
+    except MpremoteUnavailable as exc:
+        result = {"status": "action_required", "errors": [exc.to_error()]}
     write_json(result, args.output_json)
+    if args.run:
+        return 0 if result["status"] == "success" else 2
     return 0 if result["status"] == "available" else 2
 
 

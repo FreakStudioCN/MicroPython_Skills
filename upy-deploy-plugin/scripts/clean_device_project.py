@@ -15,9 +15,13 @@ from mpremote_runtime import MpremoteUnavailable, run_mpremote
 
 PROJECT_TARGETS = [
     "main.py",
+    "main.mpy",
     "boot.py",
+    "boot.mpy",
     "conf.py",
+    "conf.mpy",
     "board.py",
+    "board.mpy",
     "lib",
     "drivers",
     "tasks",
@@ -32,7 +36,16 @@ def normalize_path(path: str) -> str:
 
 def mock_inventory(mode: str) -> list[str]:
     if mode == "project_files":
-        return ["main.py", "conf.py", "board.py", "lib/logger/logging.py", "drivers/sht30_driver/__init__.py", "tasks/main_task.py"]
+        return [
+            "main.py",
+            "conf.py",
+            "conf.mpy",
+            "board.py",
+            "drivers/sht30_driver/mock.mpy",
+            "lib/logger/logging.py",
+            "drivers/sht30_driver/__init__.py",
+            "tasks/main_task.py",
+        ]
     return [
         "boot.py",
         "main.py",

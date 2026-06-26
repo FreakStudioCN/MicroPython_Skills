@@ -63,6 +63,11 @@ def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def indent_block(text: str, spaces: int) -> str:
+    prefix = " " * spaces
+    return "\n".join(prefix + line if line else "" for line in text.splitlines(True))
+
+
 def run_session_state(
     session_dir: Path,
     checkpoint: str,
@@ -238,6 +243,7 @@ def create_minimal_scaffold(project_dir: Path, session_dir: Path, mode: str) -> 
             "def warning(msg): print(msg)\n"
             "def error(msg): print(msg)\n"
             "def debug(msg): print(msg)\n"
+            "def exception(exc, msg): print(msg)\n"
         ),
         "firmware/lib/time_helper.py": (
             "def timed_function(fn):\n"
@@ -248,8 +254,9 @@ def create_minimal_scaffold(project_dir: Path, session_dir: Path, mode: str) -> 
         ),
         "firmware/lib/scheduler/timer_sched.py": (
             "class Scheduler:\n"
-            "    def __init__(self):\n"
+            "    def __init__(self, tick_ms=100, idle_cb=None, error_cb=None):\n"
             "        self.tasks = []\n"
+            "        self.error_cb = error_cb\n"
             "\n"
             "    def add_task(self, callback, interval_ms, name=None):\n"
             "        self.tasks.append((callback, interval_ms, name))\n"
@@ -295,6 +302,17 @@ def extract_manifest(phase_complete: dict[str, Any]) -> dict[str, Any]:
     if isinstance(manifest, dict):
         return deepcopy(manifest)
     return {}
+
+
+def target_allows_virtual_timer(manifest: dict[str, Any]) -> bool:
+    text = json.dumps(manifest.get("mcu", {}), ensure_ascii=False).lower()
+    return any(marker in text for marker in ("pico", "rp2", "rp2040", "rp2350", "zephyr"))
+
+
+def scheduler_init_args(manifest: dict[str, Any]) -> str:
+    if target_allows_virtual_timer(manifest):
+        return "timer_id=-1, error_cb=_on_scheduler_error"
+    return "timer_id=0, error_cb=_on_scheduler_error"
 
 
 def generated_files(manifest: dict[str, Any], mode: str) -> dict[str, str]:
@@ -382,7 +400,7 @@ def generated_files(manifest: dict[str, Any], mode: str) -> dict[str, str]:
         main_loop = (
             "\n\n"
             "async def main():\n"
-            "    msg = '[main] async scheduler start interval={}ms'.format(SAMPLE_INTERVAL_MS)\n"
+            "    msg = '[t={}ms] [main] async scheduler start interval={}ms'.format(time.ticks_ms(), SAMPLE_INTERVAL_MS)\n"
             "    print(msg)\n"
             "    logger.info(msg)\n"
             "    await business_tick(status_output)\n"
@@ -400,7 +418,7 @@ def generated_files(manifest: dict[str, Any], mode: str) -> dict[str, str]:
         main_loop = (
             "\n\n"
             "def worker():\n"
-            "    msg = '[main] thread worker start interval={}ms'.format(SAMPLE_INTERVAL_MS)\n"
+            "    msg = '[t={}ms] [main] thread worker start interval={}ms'.format(time.ticks_ms(), SAMPLE_INTERVAL_MS)\n"
             "    print(msg)\n"
             "    logger.info(msg)\n\n"
             "_thread.start_new_thread(worker, ())\n"
@@ -416,9 +434,9 @@ def generated_files(manifest: dict[str, Any], mode: str) -> dict[str, str]:
     else:
         mode_import = "from lib.scheduler.timer_sched import Scheduler\n"
         main_loop = (
-            "scheduler = Scheduler()\n"
+            f"scheduler = Scheduler({scheduler_init_args(manifest)})\n"
             "scheduler.add_task(lambda: business_tick(status_output), SAMPLE_INTERVAL_MS, name='business_tick')\n"
-            "msg = '[main] timer scheduler ready interval={}ms'.format(SAMPLE_INTERVAL_MS)\n"
+            "msg = '[t={}ms] [main] timer scheduler ready interval={}ms'.format(time.ticks_ms(), SAMPLE_INTERVAL_MS)\n"
             "print(msg)\n"
             "logger.info(msg)\n"
         )
@@ -429,24 +447,39 @@ def generated_files(manifest: dict[str, Any], mode: str) -> dict[str, str]:
         pc_import = ""
         pre_loop_call = "business_tick(status_output)\n"
     main_py = (
+        "import sys\n"
         "import time\n"
         f"{mode_import}"
         "from conf import LOG_DIR, LOG_LEVEL, LOG_FILES_MAX, LOG_LINES_PER_FILE, PROJECT_NAME, SAMPLE_INTERVAL_MS\n"
         "from drivers.status_driver import create_status_output\n"
         "from lib import logger\n"
         "from tasks.business_task import business_tick\n\n"
-        "time.sleep(3)  # Boot delay: allow mpremote to reconnect after reset\n"
-        "if hasattr(logger, 'install_rotating'):\n"
-        "    logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
-        "if hasattr(logger, 'setLevel'):\n"
-        "    logger.setLevel(logger.DEBUG if LOG_LEVEL == 'DEBUG' else logger.INFO)\n"
-        "_log = logger.getLogger('main') if hasattr(logger, 'getLogger') else None\n"
-        "status_output = create_status_output()\n"
-        "msg = '[main] {} interval={}ms'.format(PROJECT_NAME, SAMPLE_INTERVAL_MS)\n"
-        "print(msg)\n"
-        "logger.info(msg)\n"
-        f"{pre_loop_call}"
-        f"{main_loop}"
+        "\n"
+        "def _on_scheduler_error(tid, exc):\n"
+        "    sys.print_exception(exc)\n"
+        "    logger.exception(exc, '[t={}ms] [task] {} failed'.format(time.ticks_ms(), tid))\n\n"
+        "\n"
+        "def _main():\n"
+        "    time.sleep(3)  # Boot delay: allow mpremote to reconnect after reset\n"
+        "    if hasattr(logger, 'install_rotating'):\n"
+        "        logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
+        "    if hasattr(logger, 'setLevel'):\n"
+        "        logger.setLevel(logger.DEBUG if LOG_LEVEL == 'DEBUG' else logger.INFO)\n"
+        "    _log = logger.getLogger('main') if hasattr(logger, 'getLogger') else None\n"
+        "    _ = _log\n"
+        "    status_output = create_status_output()\n"
+        "    msg = '[t={}ms] [main] {} interval={}ms'.format(time.ticks_ms(), PROJECT_NAME, SAMPLE_INTERVAL_MS)\n"
+        "    print(msg)\n"
+        "    logger.info(msg)\n"
+        f"{indent_block(pre_loop_call, 4) if pre_loop_call else ''}"
+        f"{indent_block(main_loop, 4)}\n"
+        "\n"
+        "try:\n"
+        "    _main()\n"
+        "except Exception as exc:\n"
+        "    sys.print_exception(exc)\n"
+        "    logger.exception(exc, '[t={}ms] [fatal] main.py startup failed'.format(time.ticks_ms()))\n"
+        "    raise\n"
     )
     conf_append = (
         "\n# Generated business configuration\n"
@@ -570,6 +603,20 @@ def generate_plan(manifest: dict[str, Any], mode: str) -> dict[str, Any]:
         "resource_plan": {
             "gpio": "generated status output only",
         },
+        "runtime_dependencies": {
+            "mip": [
+                {
+                    "package": "unittest",
+                    "reason": "device/tests import unittest",
+                    "required_for": ["device_tests"],
+                    "target": "/lib",
+                    "version": "latest",
+                    "install_phase": "deploy",
+                    "verify_import": "unittest",
+                }
+            ],
+            "builtin_required": ["machine", "time", "gc", "sys"],
+        },
         "cloud_integrations": [
             {
                 "provider_id": "custom_http_proxy",
@@ -692,8 +739,15 @@ def update_manifest(project_dir: Path, manifest: dict[str, Any], mode: str, chec
         "deploy_plan": {
             "firmware_root": "firmware",
             "entrypoint": "firmware/main.py",
+            "source_only": ["firmware/main.py", "firmware/boot.py", "firmware/conf.py"],
             "upload_include": ["firmware/**/*.py"],
-            "upload_exclude": ["test/**", "docs/**", "build/**"],
+            "upload_exclude": [
+                "test/**",
+                "docs/**",
+                "build/**",
+                "firmware/drivers/**/mock.py",
+                "firmware/drivers/**/mock.mpy",
+            ],
             "requires_boot_delay_seconds": 3,
         },
         "simulation_hints": {
@@ -701,6 +755,37 @@ def update_manifest(project_dir: Path, manifest: dict[str, Any], mode: str, chec
             "data_generators": [],
             "expected_outputs": ["serial"],
         },
+        "runtime_dependencies": {
+            "mip": [
+                {
+                    "package": "unittest",
+                    "reason": "device/tests import unittest",
+                    "required_for": ["device_tests"],
+                    "target": "/lib",
+                    "version": "latest",
+                    "install_phase": "deploy",
+                    "verify_import": "unittest",
+                }
+            ],
+            "builtin_required": ["machine", "time", "gc", "sys"],
+        },
+        "doc_evidence": [
+            {
+                "module": "machine",
+                "url": "https://docs.micropython.org/en/latest/library/machine.html",
+                "reason": "baseline hardware API reference for deploy target generation",
+            },
+            {
+                "module": "machine.Pin",
+                "url": "https://docs.micropython.org/en/latest/library/machine.Pin.html",
+                "reason": "GPIO pin API evidence for generated firmware and scaffold compatibility",
+            },
+            {
+                "module": "machine.Timer",
+                "url": "https://docs.micropython.org/en/latest/library/machine.Timer.html",
+                "reason": "timer scheduler evidence for the selected MicroPython port",
+            }
+        ],
         "cloud_integrations": [
             {
                 "provider_id": "custom_http_proxy",
@@ -724,6 +809,7 @@ def update_manifest(project_dir: Path, manifest: dict[str, Any], mode: str, chec
         },
         "checks": {name: data.get("returncode") for name, data in checks.items()},
     }
+    updated["runtime_dependencies"] = updated["generate"]["runtime_dependencies"]
     requirements = updated.get("requirements")
     if not isinstance(requirements, dict) or not requirements.get("description"):
         updated["requirements"] = {"description": updated.get("project_name", "mock project")}

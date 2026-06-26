@@ -4,27 +4,57 @@
   "payload": {
     "phase": "upy-deploy-plugin",
     "approval_id": "deploy_result_feedback",
-    "header": "部署完成",
-    "question": "设备已运行，请选择下一步",
+    "header": "Deploy completed",
+    "question": "Review the board state, add optional feedback, then choose the next step.",
     "summary": {
-      "status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
       "port": "COM3",
       "strategy": "clean_then_upload",
       "upload_status": "success",
-      "serial_excerpt": "MPYHW_READY demo\\nstarting scheduler\\n"
+      "serial_excerpt": "",
+      "warnings": [
+        "serial capture produced no output"
+      ],
+      "device_tests": {
+        "status": "success",
+        "passed": 2,
+        "failed": 0
+      }
+    },
+    "feedback_schema": {
+      "field": "user_feedback",
+      "label": "Board behavior, mpremote output, or error notes",
+      "required": false,
+      "placeholder": "Example: board starts but OLED is blank; mpremote shows ...; serial is empty but device logs are clean."
     },
     "actions": [
       {
-        "label": "重新生成",
-        "value": "regenerate_fix"
+        "label": "Regenerate fix",
+        "value": "regenerate_fix",
+        "next_phase": "upy-generate-plugin",
+        "next_phase_payload": {
+          "mode": "fix",
+          "source": "user_feedback_after_deploy",
+          "error_context": {
+            "user_feedback": "<user_feedback>",
+            "deploy_result_path": "sessions/demo-session/phase_complete.upy_deploy_plugin.json",
+            "serial_excerpt": "",
+            "device_log_excerpt": "log_report.error_count=0",
+            "device_tests_result_path": "sessions/demo-session/device_tests_result.json",
+            "deploy_errors": [],
+            "previous_generate_commit": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
       },
       {
-        "label": "自动化调试",
-        "value": "autofix_debug"
+        "label": "Autofix debug",
+        "value": "autofix_debug",
+        "next_phase": "upy-autofix-plugin"
       },
       {
-        "label": "结束并上传项目库",
+        "label": "Finish and upload project",
         "value": "finish_publish_project",
+        "next_phase": "project-library-upload",
         "primary": true
       }
     ]

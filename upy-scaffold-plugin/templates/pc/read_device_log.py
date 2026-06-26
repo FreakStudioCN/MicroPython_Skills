@@ -21,6 +21,9 @@ def _mpremote(cmd, **kwargs):
     full = ["mpremote"]
     if _PORT:
         full += ["connect", _PORT, "resume"]
+    if kwargs.get("text") or kwargs.get("universal_newlines"):
+        kwargs.setdefault("encoding", "utf-8")
+        kwargs.setdefault("errors", "replace")
     return subprocess.run(full + cmd, **kwargs)
 
 

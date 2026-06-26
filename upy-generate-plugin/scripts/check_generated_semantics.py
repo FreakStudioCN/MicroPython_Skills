@@ -42,6 +42,11 @@ ASYNC_SLEEP_CALLS = {
 STATE_RESET_NAMES = {"state", "last_state", "last_trigger", "trigger_event", "mode"}
 STATE_RESET_VALUES = {"idle", "IDLE", "none", "None", "0"}
 RESOURCE_TASK_MARKERS = ("create_inmp441", "create_max98357", "machine.I2S", "I2S(")
+VIRTUAL_TIMER_ONLY_MARKERS = ("pico", "rp2", "rp2040", "rp2350", "zephyr")
+LOGGER_METHODS = {"debug", "info", "warning", "error", "critical", "exception"}
+TIME_MARKERS = ("ticks_ms", "ticks_diff", "localtime", "asctime", "timestamp", "chrono", "uptime")
+TIME_VALUE_NAMES = {"asctime", "timestamp", "chrono", "uptime", "uptime_ms", "ts", "now_ms"}
+TIME_CALL_NAMES = {"ticks_ms", "ticks_diff", "localtime"}
 
 
 def project_py_files(project_dir: Path) -> list[Path]:
@@ -76,6 +81,15 @@ def call_name(node: ast.AST) -> str:
     if isinstance(node, ast.Attribute):
         return node.attr
     return ""
+
+
+def is_negative_one(node: ast.AST | None) -> bool:
+    return (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, ast.USub)
+        and isinstance(node.operand, ast.Constant)
+        and node.operand.value == 1
+    )
 
 
 def full_call_name(node: ast.AST) -> str:
@@ -380,6 +394,24 @@ def load_manifest(project_dir: Path, manifest_path: str) -> dict[str, Any]:
         return {}
 
 
+def manifest_contains_marker(manifest: dict[str, Any], markers: tuple[str, ...]) -> bool:
+    def contains_marker(value: Any) -> bool:
+        if isinstance(value, str):
+            lowered = value.lower()
+            return any(marker in lowered for marker in markers)
+        if isinstance(value, dict):
+            return any(contains_marker(item) for item in value.values())
+        if isinstance(value, list):
+            return any(contains_marker(item) for item in value)
+        return False
+
+    return contains_marker(manifest.get("mcu")) or contains_marker(manifest.get("board")) or contains_marker(manifest.get("target"))
+
+
+def target_allows_virtual_timer(manifest: dict[str, Any]) -> bool:
+    return manifest_contains_marker(manifest, VIRTUAL_TIMER_ONLY_MARKERS)
+
+
 def check_resource_plan(project_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     main_py = project_dir / "firmware" / "main.py"
     if not main_py.exists():
@@ -401,6 +433,273 @@ def check_resource_plan(project_dir: Path, manifest: dict[str, Any]) -> list[dic
     ]
 
 
+def scheduler_methods(project_dir: Path) -> set[str]:
+    path = project_dir / "firmware" / "lib" / "scheduler" / "timer_sched.py"
+    if not path.exists():
+        return set()
+    tree, _errors = parse_file(path)
+    if tree is None:
+        return set()
+    methods: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != "Scheduler":
+            continue
+        for item in node.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                methods.add(item.name)
+    return methods
+
+
+def scheduler_timer_default_is_negative_one(project_dir: Path) -> bool:
+    path = project_dir / "firmware" / "lib" / "scheduler" / "timer_sched.py"
+    if not path.exists():
+        return False
+    tree, _errors = parse_file(path)
+    if tree is None:
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != "Scheduler":
+            continue
+        for item in node.body:
+            if not isinstance(item, ast.FunctionDef) or item.name != "__init__":
+                continue
+            defaults = list(item.args.defaults)
+            args = list(item.args.args)
+            if not defaults:
+                continue
+            default_by_arg = dict(zip([arg.arg for arg in args[-len(defaults):]], defaults))
+            if is_negative_one(default_by_arg.get("timer_id")):
+                return True
+    return False
+
+
+def collect_scheduler_vars(tree: ast.Module) -> set[str]:
+    vars_: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            value = node.value
+            if isinstance(value, ast.Call) and call_name(value.func) == "Scheduler":
+                for target in targets:
+                    if isinstance(target, ast.Name):
+                        vars_.add(target.id)
+        elif isinstance(node, ast.With):
+            for item in node.items:
+                if isinstance(item.context_expr, ast.Call) and call_name(item.context_expr.func) == "Scheduler":
+                    if isinstance(item.optional_vars, ast.Name):
+                        vars_.add(item.optional_vars.id)
+    return vars_
+
+
+def scheduler_timer_arg(node: ast.Call) -> ast.AST | None:
+    if node.args:
+        return node.args[0]
+    for kw in node.keywords:
+        if kw.arg == "timer_id":
+            return kw.value
+    return None
+
+
+def scheduler_error_arg(node: ast.Call) -> ast.AST | None:
+    for kw in node.keywords:
+        if kw.arg == "error_cb":
+            return kw.value
+    if len(node.args) >= 3:
+        return node.args[2]
+    return None
+
+
+def is_none_literal(node: ast.AST | None) -> bool:
+    return isinstance(node, ast.Constant) and node.value is None
+
+
+def uses_rotating_logger(tree: ast.Module) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func_text = ast.unparse(node.func) if hasattr(ast, "unparse") else call_name(node.func)
+        call_text = ast.unparse(node) if hasattr(ast, "unparse") else func_text
+        if "install_rotating" in func_text or "install_rotating" in call_text:
+            return True
+    return False
+
+
+def try_logs_exception(handler: ast.ExceptHandler) -> bool:
+    has_print_exception = False
+    has_logger_exception = False
+    for node in ast.walk(handler):
+        if not isinstance(node, ast.Call):
+            continue
+        name = call_name(node.func)
+        full = full_call_name(node.func)
+        if name == "print_exception" or full.endswith(".print_exception"):
+            has_print_exception = True
+        if name == "exception" or full.endswith(".exception"):
+            has_logger_exception = True
+    return has_print_exception and has_logger_exception
+
+
+def has_startup_exception_guard(tree: ast.Module) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            if try_logs_exception(handler):
+                return True
+    return False
+
+
+def has_time_expression(node: ast.AST) -> bool:
+    for child in ast.walk(node):
+        if isinstance(child, ast.Constant) and isinstance(child.value, str):
+            continue
+        if isinstance(child, ast.Name) and child.id.lower() in TIME_VALUE_NAMES:
+            return True
+        if isinstance(child, ast.Attribute) and child.attr.lower() in TIME_VALUE_NAMES | TIME_CALL_NAMES:
+            return True
+        if isinstance(child, ast.Call):
+            name = call_name(child.func).lower()
+            if name in TIME_CALL_NAMES:
+                return True
+    return False
+
+
+def check_rotating_logger_timestamp_contract(project_dir: Path, tree: ast.Module) -> list[dict[str, Any]]:
+    rel = "firmware/main.py"
+    timed_names: set[str] = set()
+    errors: list[dict[str, Any]] = []
+    uses_rotating = uses_rotating_logger(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and has_time_expression(node.value):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    timed_names.add(target.id)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None and has_time_expression(node.value):
+            if isinstance(node.target, ast.Name):
+                timed_names.add(node.target.id)
+    if not uses_rotating:
+        return []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr not in LOGGER_METHODS:
+            continue
+        uses_timed_name = any(isinstance(arg, ast.Name) and arg.id in timed_names for arg in node.args)
+        if uses_timed_name or has_time_expression(node):
+            continue
+        errors.append(
+            {
+                "code": "LOGGER_ROTATING_TIMESTAMP_MISSING",
+                "path": rel,
+                "line": node.lineno,
+                "message": "main.py installs rotating logger; generated logger calls must mix timestamp/uptime into message text instead of modifying scaffold logger source",
+            }
+        )
+    return errors
+
+
+def check_startup_exception_logging_contract(tree: ast.Module) -> list[dict[str, Any]]:
+    if not uses_rotating_logger(tree) or has_startup_exception_guard(tree):
+        return []
+    return [
+        {
+            "code": "LOGGER_STARTUP_FATAL_GUARD_MISSING",
+            "path": "firmware/main.py",
+            "line": 1,
+            "message": "main.py installs rotating logger but lacks a top-level startup fatal guard that prints and writes exceptions to the device log",
+        }
+    ]
+
+
+def check_timer_scheduler_contract(project_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    main_path = project_dir / "firmware" / "main.py"
+    if not main_path.exists():
+        return []
+    rel = "firmware/main.py"
+    text = main_path.read_text(encoding="utf-8-sig")
+    tree, parse_errors = parse_file(main_path)
+    if tree is None:
+        return parse_errors
+    errors: list[dict[str, Any]] = []
+    if not target_allows_virtual_timer(manifest):
+        scheduler_default_bad = scheduler_timer_default_is_negative_one(project_dir)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if call_name(node.func) != "Timer":
+                continue
+            first = node.args[0] if node.args else None
+            for kw in node.keywords:
+                if kw.arg == "id":
+                    first = kw.value
+            if is_negative_one(first):
+                errors.append(
+                    {
+                        "code": "SCHEDULER_TIMER_INVALID_FOR_PORT",
+                        "path": rel,
+                        "line": node.lineno,
+                        "message": "Only RP2/Pico and Zephyr targets should use virtual Timer(-1); keep scaffold scheduler internals unchanged and pass an explicit valid hardware timer id at the entrypoint",
+                    }
+                )
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or call_name(node.func) != "Scheduler":
+                continue
+            timer_arg = scheduler_timer_arg(node)
+            if is_negative_one(timer_arg) or (timer_arg is None and scheduler_default_bad):
+                errors.append(
+                    {
+                        "code": "SCHEDULER_TIMER_INVALID_FOR_PORT",
+                        "path": rel,
+                        "line": node.lineno,
+                        "message": "Only RP2/Pico and Zephyr targets should instantiate Scheduler with timer_id=-1 or rely on a Scheduler default that maps to Timer(-1); pass an explicit valid hardware timer id in main.py",
+                    }
+                )
+    errors.extend(check_rotating_logger_timestamp_contract(project_dir, tree))
+    errors.extend(check_startup_exception_logging_contract(tree))
+    methods = scheduler_methods(project_dir)
+    if "Scheduler" not in text or not methods:
+        return errors
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or call_name(node.func) != "Scheduler":
+            continue
+        error_arg = scheduler_error_arg(node)
+        if error_arg is None or is_none_literal(error_arg):
+            errors.append(
+                {
+                    "code": "SCHEDULER_ERROR_CALLBACK_MISSING",
+                    "path": rel,
+                    "line": node.lineno,
+                    "message": "main.py must pass Scheduler(error_cb=...) so task exceptions are printed and written to the rotating device log",
+                }
+            )
+    scheduler_vars = collect_scheduler_vars(tree)
+    inline_scheduler_calls = {"add_task", "register", "start", "run"}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        method = node.func.attr
+        value = node.func.value
+        is_scheduler_call = False
+        if isinstance(value, ast.Name) and value.id in scheduler_vars:
+            is_scheduler_call = True
+        elif isinstance(value, ast.Call) and call_name(value.func) == "Scheduler":
+            is_scheduler_call = True
+        if not is_scheduler_call or method not in inline_scheduler_calls:
+            continue
+        if method not in methods:
+            errors.append(
+                {
+                    "code": "SCHEDULER_API_METHOD_MISSING",
+                    "path": rel,
+                    "line": node.lineno,
+                    "method": method,
+                    "available_methods": sorted(methods),
+                    "message": "main.py must call methods implemented by firmware/lib/scheduler/timer_sched.py Scheduler",
+                }
+            )
+    return errors
+
+
 def check_project(project_dir: Path, manifest_path: str = "") -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -420,6 +719,7 @@ def check_project(project_dir: Path, manifest_path: str = "") -> dict[str, Any]:
         warnings.extend(check_unused_generated_params(project_dir, path, tree))
     manifest = load_manifest(project_dir, manifest_path)
     errors.extend(check_resource_plan(project_dir, manifest))
+    errors.extend(check_timer_scheduler_contract(project_dir, manifest))
     return {
         "check": "generated_semantics",
         "project_dir": str(project_dir),

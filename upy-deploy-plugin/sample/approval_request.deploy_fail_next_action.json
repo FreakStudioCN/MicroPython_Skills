@@ -4,33 +4,58 @@
   "payload": {
     "phase": "upy-deploy-plugin",
     "approval_id": "deploy_fail_next_action",
-    "header": "部署失败",
-    "question": "设备端运行未通过，请选择下一步修复方式。",
+    "header": "Deploy failed",
+    "question": "Add optional board feedback, then choose how to repair this run.",
     "summary": {
       "status": "FAIL",
       "port": "COM3",
       "strategy": "clean_then_upload",
       "primary_error": "python_traceback",
-      "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n"
+      "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n",
+      "device_tests": {
+        "status": "failed",
+        "passed": 1,
+        "failed": 1
+      }
+    },
+    "feedback_schema": {
+      "field": "user_feedback",
+      "label": "Extra board behavior, serial output, or manual diagnosis",
+      "required": false,
+      "placeholder": "Example: same ImportError after reconnect; logs also show ...; hardware wiring is confirmed."
     },
     "actions": [
       {
-        "label": "自动化调试",
+        "label": "Autofix debug",
         "value": "autofix_debug",
         "next_phase": "upy-autofix-plugin",
         "primary": true
       },
       {
-        "label": "重新生成 fix",
+        "label": "Regenerate fix",
         "value": "regenerate_fix",
         "next_phase": "upy-generate-plugin",
         "next_phase_payload": {
           "mode": "fix",
-          "source": "deploy_fail"
+          "source": "deploy_fail",
+          "error_context": {
+            "user_feedback": "<user_feedback>",
+            "deploy_result_path": "sessions/demo-session/phase_complete.upy_deploy_plugin.json",
+            "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n",
+            "device_log_excerpt": "",
+            "device_tests_result_path": "sessions/demo-session/device_tests_result.json",
+            "deploy_errors": [
+              {
+                "code": "python_traceback",
+                "message": "serial output contains Traceback (most recent call last)"
+              }
+            ],
+            "previous_generate_commit": "0123456789abcdef0123456789abcdef01234567"
+          }
         }
       },
       {
-        "label": "保存 checkpoint",
+        "label": "Save checkpoint",
         "value": "save_checkpoint"
       }
     ],
@@ -39,7 +64,21 @@
       "next_phase": "upy-generate-plugin",
       "next_phase_payload": {
         "mode": "fix",
-        "source": "deploy_fail"
+        "source": "deploy_fail",
+        "error_context": {
+          "user_feedback": "<user_feedback>",
+          "deploy_result_path": "sessions/demo-session/phase_complete.upy_deploy_plugin.json",
+          "serial_excerpt": "Traceback (most recent call last):\\nImportError: no module named sht30\\n",
+          "device_log_excerpt": "",
+          "device_tests_result_path": "sessions/demo-session/device_tests_result.json",
+          "deploy_errors": [
+            {
+              "code": "python_traceback",
+              "message": "serial output contains Traceback (most recent call last)"
+            }
+          ],
+          "previous_generate_commit": "0123456789abcdef0123456789abcdef01234567"
+        }
       }
     }
   }

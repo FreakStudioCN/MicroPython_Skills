@@ -26,13 +26,15 @@ If it reports `STALE_GENERATE_PHASE_COMPLETE`, `STALE_GENERATE_PLAN_MISSING`, or
 11. check_dead_config.py --project-dir <project_root>
 12. check_task_no_machine_import.py --project-dir <project_root>
 13. check_device_unittest_subset.py --project-dir <project_root>
-14. check_skeleton_compliance.py --project-dir <project_root>
-15. check_generated_semantics.py --project-dir <project_root>
-16. check_cloud_integrations.py --project-dir <project_root>
-17. update_session_state.py --session-dir <session_root> --project-dir <project_root> --check
-18. final review checklist
-19. check_final_review_consistency.py --phase-complete <phase_complete> --log <generate_phase_log.md>
-20. check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>
+14. check_runtime_dependencies.py --project-dir <project_root>
+15. check_doc_evidence.py --project-dir <project_root>
+16. check_skeleton_compliance.py --project-dir <project_root>
+17. check_generated_semantics.py --project-dir <project_root>
+18. check_cloud_integrations.py --project-dir <project_root>
+19. update_session_state.py --session-dir <session_root> --project-dir <project_root> --check
+20. final review checklist
+21. check_final_review_consistency.py --phase-complete <phase_complete> --log <generate_phase_log.md>
+22. check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>
 ```
 
 ## Plan-First Contract
@@ -75,7 +77,13 @@ The following failures must block deploy-ready success:
 - Dead generated business config.
 - `machine` import inside task code.
 - Unsupported device-side `unittest` assertion, helper, or CPython-only test import inside `test/device` or `device/tests`.
+- Device-side `unittest` tests without `runtime_dependencies.mip` entry for `unittest`.
+- Firmware or tests importing mip-provided packages without deploy-phase `runtime_dependencies.mip` entries.
+- Hardware/peripheral/port MicroPython APIs without `generate.doc_evidence[]` entries pointing to official MicroPython docs.
 - New generated device-side MicroPython unittest files missing from `device/tests` when no legacy project layout requires `test/device`.
+- `generate.deploy_plan.source_only` missing `firmware/main.py`, `firmware/boot.py`, or `firmware/conf.py`, or `generate.deploy_plan.upload_exclude` missing `firmware/drivers/**/mock.py` and `firmware/drivers/**/mock.mpy`.
+- Runtime firmware depending on generated `firmware/drivers/**/mock.py`; mocks are test/support artifacts and must not be uploaded as production device code.
+- Modifying scaffold-owned framework files (`firmware/lib/logger/*`, `firmware/lib/scheduler/*`, `firmware/lib/time_helper.py`, `firmware/tasks/maintenance.py`) to hide generator/checker/deploy issues.
 - Missing boot delay.
 - Scheduler mode mismatch.
 - `board.py` instantiates hardware or pinout changed silently.
@@ -181,6 +189,8 @@ Record quality gates in:
     "dead_config": {"returncode": 0},
     "task_no_machine_import": {"returncode": 0},
     "device_unittest_subset": {"returncode": 0},
+    "runtime_dependencies": {"returncode": 0},
+    "doc_evidence": {"returncode": 0},
     "skeleton_compliance": {"returncode": 0},
     "generated_semantics": {"returncode": 0},
     "cloud_integrations": {"returncode": 0},
@@ -212,5 +222,6 @@ Success also requires:
 - `manifest_hash` is the SHA256 of `project-manifest.json`; it must not be the git commit.
 - `payload.generate.git.commit` and disk `session_state.git_commit` match `git rev-parse HEAD`.
 - `optional_next_phases` offers `upy-diagram-plugin` and `upy-wiring-plugin`.
+- `manifest_content.generate.deploy_plan.source_only` keeps `firmware/main.py`, `firmware/boot.py`, and `firmware/conf.py` as source uploads, and `upload_exclude` excludes `firmware/drivers/**/mock.py` plus stale `firmware/drivers/**/mock.mpy`.
 - A completed git commit is recorded in `payload.generate.git.commit`, with a matching approved git permission record. If commit permission is denied, unavailable, or the project is not a git repository and cannot be initialized, emit `partial` with `next_phase=null`.
 - `next_phase=upy-deploy-plugin` means code generation is clean enough to hand off. If cloud services are `mock_only`, provider setup is blocked, or deploy blockers remain, route to `upy-simulate-plugin` or `null`.

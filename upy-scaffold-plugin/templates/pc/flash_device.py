@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import argparse
+import fnmatch
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,7 +24,9 @@ FIRMWARE_DIR = os.path.join(ROOT, "firmware")
 BUILD_DIR = os.path.join(ROOT, "build")
 MPY_DIR = os.path.join(BUILD_DIR, "mpy")
 MANIFEST_PATH = os.path.join(ROOT, "project-manifest.json")
-ENTRY_FILES = {"main.py", "boot.py"}
+SOURCE_ONLY_FILES = {"main.py", "boot.py", "conf.py"}
+COMPILE_EXCLUDE_PATTERNS = {"drivers/*/mock.py"}
+UPLOAD_EXCLUDE_PATTERNS = {"drivers/*/mock.py", "drivers/*/mock.mpy"}
 
 _COM_PORT = ""
 _MPY_CROSS_AVAILABLE = None
@@ -33,6 +36,9 @@ _SUMMARY = {
     "port": "",
     "steps": [],
     "errors": [],
+    "compiled_files": [],
+    "uploaded_files": [],
+    "skipped_files": [],
 }
 
 
@@ -90,6 +96,7 @@ def _mpremote(cmd, timeout=60, check=True) -> subprocess.CompletedProcess:
         full += ["connect", _COM_PORT]
     result = subprocess.run(
         full + cmd, capture_output=True, text=True, encoding="utf-8",
+        errors="replace",
         timeout=timeout,
     )
     _SUMMARY["steps"].append({
@@ -119,10 +126,44 @@ def check_mpy_cross() -> bool:
     return _MPY_CROSS_AVAILABLE
 
 
+def _posix_rel(path: str) -> str:
+    return path.replace("\\", "/").strip("/")
+
+
+def _matches_any(rel: str, patterns) -> bool:
+    return any(fnmatch.fnmatch(rel, pattern) for pattern in patterns)
+
+
+def compile_skip_reason(rel: str):
+    rel = _posix_rel(rel)
+    if rel in SOURCE_ONLY_FILES:
+        return "source_only"
+    if _matches_any(rel, COMPILE_EXCLUDE_PATTERNS):
+        return "test_mock_not_runtime"
+    return None
+
+
+def upload_skip_reason(rel: str):
+    rel = _posix_rel(rel)
+    if _matches_any(rel, UPLOAD_EXCLUDE_PATTERNS):
+        return "test_mock_not_runtime"
+    return None
+
+
+def _record_skip(path: str, reason: str, stage: str):
+    item = {"path": _posix_rel(path), "reason": reason, "stage": stage}
+    _SUMMARY["skipped_files"].append(item)
+    return item
+
+
+def _stale_mpy_for_source(rel: str) -> str:
+    return os.path.join(MPY_DIR, rel).replace(".py", ".mpy")
+
+
 def compile_py_files() -> bool:
     """Compile all .py files under firmware/ to build/mpy/, preserving structure."""
     print("[compile] Compiling .py → .mpy ...")
-    step = {"type": "compile", "status": "running", "files": []}
+    step = {"type": "compile", "status": "running", "files": [], "skipped": []}
     _SUMMARY["steps"].append(step)
     if not check_mpy_cross():
         print("[WARNING] mpy-cross not found. Install: pip install mpy-cross")
@@ -134,8 +175,18 @@ def compile_py_files() -> bool:
     py_files = []
     for root, dirs, files in os.walk(FIRMWARE_DIR):
         for f in files:
-            if f.endswith(".py") and f not in ENTRY_FILES:
-                py_files.append(os.path.join(root, f))
+            if not f.endswith(".py"):
+                continue
+            src = os.path.join(root, f)
+            rel = os.path.relpath(src, FIRMWARE_DIR).replace("\\", "/")
+            reason = compile_skip_reason(rel)
+            if reason:
+                stale = _stale_mpy_for_source(rel)
+                if os.path.exists(stale):
+                    os.remove(stale)
+                step["skipped"].append(_record_skip(rel, reason, "compile"))
+                continue
+            py_files.append(src)
 
     if not py_files:
         print("[compile] No .py files found under firmware/")
@@ -166,6 +217,7 @@ def compile_py_files() -> bool:
         }
         step["files"].append(item)
         if result.returncode == 0:
+            _SUMMARY["compiled_files"].append(item["target"])
             print("  OK  {}".format(rel))
         else:
             _mark_failed("mpy_cross_failed", "mpy-cross failed", **item)
@@ -231,6 +283,30 @@ def flash_firmware():
             print("        Firmware: {}".format(fw_url))
 
 
+def _remote_parent_dirs(rel_path: str) -> list[str]:
+    rel_dir = os.path.dirname(rel_path.replace("\\", "/")).strip("/")
+    if not rel_dir:
+        return []
+    parts = [part for part in rel_dir.split("/") if part]
+    return [":{}".format("/".join(parts[:index])) for index in range(1, len(parts) + 1)]
+
+
+def _ensure_remote_dirs(rel_path: str):
+    for remote_dir in _remote_parent_dirs(rel_path):
+        _mpremote(["resume", "fs", "mkdir", remote_dir], check=False)
+
+
+def _upload_file(src: str, rel: str):
+    remote = ":{}".format(_posix_rel(rel))
+    _ensure_remote_dirs(rel)
+    _mpremote(["resume", "fs", "cp", src, remote])
+    size_kb = os.path.getsize(src) / 1024
+    _SUMMARY["uploaded_files"].append(
+        {"source": os.path.relpath(src, ROOT).replace("\\", "/"), "target": remote}
+    )
+    print("  OK  {}  ({:.1f} KB)".format(remote, size_kb))
+
+
 def _upload_dir(source_dir: str, label: str):
     """Upload all files from source_dir to device."""
     for root, dirs, files in os.walk(source_dir):
@@ -239,40 +315,36 @@ def _upload_dir(source_dir: str, label: str):
                 continue
             src = os.path.join(root, f)
             rel = os.path.relpath(src, source_dir).replace("\\", "/")
-            remote = ":{}".format(rel)
-
-            remote_dir = ":{}".format(os.path.dirname(rel).replace("\\", "/"))
-            if remote_dir not in (":", ":."):
-                _mpremote(["resume", "fs", "mkdir", remote_dir], check=False)
+            reason = upload_skip_reason(rel)
+            if reason:
+                _record_skip(rel, reason, "upload")
+                continue
 
             try:
-                _mpremote(["resume", "fs", "cp", src, remote])
-                size_kb = os.path.getsize(src) / 1024
-                print("  OK  {}  ({:.1f} KB)".format(remote, size_kb))
+                _upload_file(src, rel)
             except SystemExit:
                 print("[ERROR] upload failed: {}".format(f))
                 sys.exit(1)
 
 
 def upload_files():
-    """Upload .mpy (or .py) files to device, with main.py/boot.py always from firmware/.
+    """Upload .mpy (or .py) files to device, with source-only files always from firmware/.
 
-    When build/mpy/ exists, uploads .mpy from there plus main.py/boot.py from firmware/.
+    When build/mpy/ exists, uploads .mpy from there plus source-only files from firmware/.
     Otherwise falls back to uploading all .py from firmware/.
     """
     use_mpy = os.path.exists(MPY_DIR) and os.listdir(MPY_DIR)
 
     if use_mpy:
-        print("[upload] Source: build/mpy/ + firmware/{main,boot}.py → device")
-        _SUMMARY["steps"].append({"type": "upload_source", "source": "build/mpy + entry py"})
+        print("[upload] Source: build/mpy/ + firmware/{main,boot,conf}.py → device")
+        _SUMMARY["steps"].append({"type": "upload_source", "source": "build/mpy + source-only py"})
         _upload_dir(MPY_DIR, "mpy")
-        # Always upload entry files as .py from firmware/
-        for entry in ENTRY_FILES:
+        # Always upload source-only files as .py from firmware.
+        for entry in sorted(SOURCE_ONLY_FILES):
             src = os.path.join(FIRMWARE_DIR, entry)
             if os.path.exists(src):
                 try:
-                    _mpremote(["resume", "fs", "cp", src, ":{}".format(entry)])
-                    print("  OK  :{}  ({:.1f} KB)".format(entry, os.path.getsize(src) / 1024))
+                    _upload_file(src, entry)
                 except SystemExit:
                     print("[ERROR] upload failed: {}".format(entry))
                     sys.exit(1)

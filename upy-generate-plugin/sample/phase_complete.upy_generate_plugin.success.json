@@ -68,6 +68,8 @@
       "dead_config": {"returncode": 0, "ok": true},
       "task_no_machine_import": {"returncode": 0, "ok": true},
       "device_unittest_subset": {"returncode": 0, "ok": true},
+      "runtime_dependencies": {"returncode": 0, "ok": true},
+      "doc_evidence": {"returncode": 0, "ok": true},
       "skeleton_compliance": {"returncode": 0, "ok": true},
       "generated_semantics": {"returncode": 0, "ok": true},
       "cloud_integrations": {"returncode": 0, "ok": true},
@@ -119,8 +121,9 @@
       "deploy_plan": {
         "firmware_root": "firmware",
         "entrypoint": "firmware/main.py",
+        "source_only": ["firmware/main.py", "firmware/boot.py", "firmware/conf.py"],
         "upload_include": ["firmware/**/*.py"],
-        "upload_exclude": ["test/**", "docs/**", "build/**"],
+        "upload_exclude": ["test/**", "docs/**", "build/**", "firmware/drivers/**/mock.py", "firmware/drivers/**/mock.mpy"],
         "requires_boot_delay_seconds": 3
       },
       "behavior_spec": {
@@ -131,6 +134,27 @@
         "data_generators": [],
         "expected_outputs": []
       },
+      "runtime_dependencies": {
+        "mip": [
+          {
+            "package": "unittest",
+            "reason": "device/tests import unittest",
+            "required_for": ["device_tests"],
+            "target": "/lib",
+            "version": "latest",
+            "install_phase": "deploy",
+            "verify_import": "unittest"
+          }
+        ],
+        "builtin_required": ["machine", "time", "gc", "sys"]
+      },
+      "doc_evidence": [
+        {
+          "module": "machine",
+          "url": "https://docs.micropython.org/en/latest/library/machine.html",
+          "reason": "AHT20 I2C assembly uses machine I2C/Pin APIs"
+        }
+      ],
       "cloud_integrations": [
         {
           "provider_id": "aliyun_bailian",
@@ -202,8 +226,9 @@
         "deploy_plan": {
           "firmware_root": "firmware",
           "entrypoint": "firmware/main.py",
+          "source_only": ["firmware/main.py", "firmware/boot.py", "firmware/conf.py"],
           "upload_include": ["firmware/**/*.py"],
-          "upload_exclude": ["test/**", "docs/**", "build/**"],
+          "upload_exclude": ["test/**", "docs/**", "build/**", "firmware/drivers/**/mock.py", "firmware/drivers/**/mock.mpy"],
           "requires_boot_delay_seconds": 3
         },
         "behavior_spec": {
@@ -214,6 +239,27 @@
           "data_generators": [],
           "expected_outputs": ["serial"]
         },
+        "runtime_dependencies": {
+          "mip": [
+            {
+              "package": "unittest",
+              "reason": "device/tests import unittest",
+              "required_for": ["device_tests"],
+              "target": "/lib",
+              "version": "latest",
+              "install_phase": "deploy",
+              "verify_import": "unittest"
+            }
+          ],
+          "builtin_required": ["machine", "time", "gc", "sys"]
+        },
+        "doc_evidence": [
+          {
+            "module": "machine",
+            "url": "https://docs.micropython.org/en/latest/library/machine.html",
+            "reason": "AHT20 I2C assembly uses machine I2C/Pin APIs"
+          }
+        ],
         "cloud_integrations": [
           {
             "provider_id": "aliyun_bailian",

@@ -160,10 +160,12 @@ from tasks.maintenance import maintenance_tick
 i2c = I2C(<bus_id>, scl=Pin(<scl>), sda=Pin(<sda>), freq=400000)
 # ...
 
-sc = Scheduler(timer_id=-1, tick_ms=100, idle_cb=maintenance_tick)
+sc = Scheduler(timer_id=<port_timer_id>, tick_ms=100, idle_cb=maintenance_tick)
 # TODO: upy-generate registers tasks here
 sc.start()
 ```
+
+`<port_timer_id>` 必须按 MicroPython port 选择：只有 RP2/Pico/RP2040/RP2350 和 Zephyr 使用 `-1` virtual Timer；其他 MCU/port 默认使用 `0` 或其他已验证非负硬件 Timer ID。
 
 **asyncio：**
 ```python

@@ -79,7 +79,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 16 | 显式依赖注入 | 不在类内创建硬件总线对象（I2C/SPI/UART），硬件实例必须作为参数传入 `__init__` |
 | 16a | 引脚参数改为总线实例 | 若原驱动 `__init__` 传入 I2C/UART 引脚号（如 `scl_pin`/`sda_pin`/`tx_pin`/`rx_pin`），在能改为传入总线实例的情况下，必须改写为接受 `I2C`/`UART` 实例参数 |
 | 16b | INT 引脚改为回调注入 | 若原驱动 `__init__` 传入中断引脚（如 `int_pin`），必须改写为同时接受：中断回调函数（`callback: callable`）和中断触发条件（`trigger: int`，默认 `Pin.IRQ_FALLING`），在 `__init__` 内部完成 `pin.irq()` 注册 |
-| 16c | 定时器改为实例注入 | 若原驱动内部创建 `machine.Timer`，必须改写为接受外部传入的定时器实例（`timer`），不在类内创建 Timer 对象 |
+| 16c | 定时器改为实例注入 | 若原驱动内部创建 `machine.Timer`，必须改写为接受外部传入的定时器实例（`timer`），不在类内创建 Timer 对象；不得默认创建 `Timer(-1)`，只有 RP2/Pico/RP2040/RP2350 和 Zephyr 可使用 virtual Timer(-1)，其他端口使用非负硬件 Timer ID |
 
 #### docstring 类
 
@@ -152,6 +152,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 ## 关键规范摘要
 
 ### 文件头格式
+
 ```python
 # Python env   : MicroPython v1.23.0
 # -*- coding: utf-8 -*-
@@ -329,6 +330,7 @@ class MPU6050:
 # 错误：类内创建 Timer（禁止）
 class SensorDriver:
     def __init__(self, i2c: I2C) -> None:
+        # Timer ID belongs to caller/board assembly. Timer(-1) is only for RP2/Pico/RP2040/RP2350 and Zephyr.
         self._timer = machine.Timer(0)
         self._timer.init(period=100, callback=self._on_timer)
 

@@ -483,10 +483,16 @@ def extract_gpio_inits(manifest: Dict[str, Any]) -> str:
         pin_name = str(item.get("pin_name", "")).lower()
         if not (pin_type.startswith("gpio") or interface == "gpio"):
             continue
-        direction = "Pin.IN" if "in" in pin_type or pin_name in {"out", "do", "data"} else "Pin.OUT"
+        if "out" in pin_type or pin_name in {"out", "do", "data", "din", "gain", "sd"}:
+            direction = "Pin.OUT"
+        elif "in" in pin_type:
+            direction = "Pin.IN"
+        else:
+            direction = "Pin.OUT"
         base = safe_var_name(f"{item.get('device', 'device')}_{item.get('pin_name', 'pin')}_pin")
         var_name = unique_name(base, used)
         lines.append(f"{var_name} = Pin({gpio}, {direction})")
+        lines.append(f"_ = {var_name}")
     return "\n".join(lines) if lines else "# No standalone GPIO pins declared"
 
 
@@ -500,7 +506,13 @@ def extract_i2c_inits(i2c_pins: Dict[int, Dict[str, int]], defaults: Dict[str, A
             lines.append(f"# I2C{idx} incomplete: {pins}")
             continue
         lines.append(f"i2c{idx} = I2C({idx}, scl=Pin({scl}), sda=Pin({sda}), freq={freq})")
+        lines.append(f"_ = i2c{idx}.scan()")
     return "\n".join(lines) if lines else "# No I2C bus declared"
+
+
+def indent_block(text: str, spaces: int) -> str:
+    prefix = " " * spaces
+    return "\n".join(prefix + line if line else "" for line in text.splitlines())
 
 
 def sample_interval_ms(manifest: Dict[str, Any]) -> int:
@@ -562,17 +574,43 @@ def logger_blocks(modules: Set[str]) -> Dict[str, str]:
     if "logger" not in modules:
         return {
             "LOGGER_IMPORTS": "",
+            "LOGGER_HELPERS_BLOCK": (
+                "def _log_info(message):\n"
+                "    print(message)\n"
+                "\n"
+                "\n"
+                "def _log_exception(exc, message):\n"
+                "    print(message)\n"
+                "    sys.print_exception(exc)"
+            ),
             "LOGGER_SETUP_BLOCK": "# Logger module not selected",
-            "LOG_BOOT_BLOCK": 'print("[OK] {} booting".format(conf.PROJECT_NAME))',
-            "ASYNC_LOG_BOOT_BLOCK": 'print("[OK] {} booting (asyncio)".format(conf.PROJECT_NAME))',
-            "THREAD_LOG_BOOT_BLOCK": 'print("[OK] {} booting (thread)".format(conf.PROJECT_NAME))',
+            "LOG_BOOT_BLOCK": '_log_info("[OK] {} booting".format(conf.PROJECT_NAME))',
+            "ASYNC_LOG_BOOT_BLOCK": '_log_info("[OK] {} booting (asyncio)".format(conf.PROJECT_NAME))',
+            "THREAD_LOG_BOOT_BLOCK": '_log_info("[OK] {} booting (thread)".format(conf.PROJECT_NAME))',
         }
     return {
-        "LOGGER_IMPORTS": "from lib.logger import info\nfrom lib.logger import install_rotating",
+        "LOGGER_IMPORTS": "from lib.logger import exception, info\nfrom lib.logger import install_rotating",
+        "LOGGER_HELPERS_BLOCK": (
+            "def _uptime_ms():\n"
+            "    return time.ticks_ms()\n"
+            "\n"
+            "\n"
+            "def _log_info(message):\n"
+            "    stamped = \"[t={}ms] {}\".format(_uptime_ms(), message)\n"
+            "    print(stamped)\n"
+            "    info(stamped)\n"
+            "\n"
+            "\n"
+            "def _log_exception(exc, message):\n"
+            "    stamped = \"[t={}ms] {}\".format(_uptime_ms(), message)\n"
+            "    print(stamped)\n"
+            "    sys.print_exception(exc)\n"
+            "    exception(exc, stamped)"
+        ),
         "LOGGER_SETUP_BLOCK": "install_rotating(conf.LOG_DIR, max_files=conf.LOG_FILES_MAX, lines_per_file=conf.LOG_LINES_PER_FILE)",
-        "LOG_BOOT_BLOCK": 'info("{} booting".format(conf.PROJECT_NAME))',
-        "ASYNC_LOG_BOOT_BLOCK": 'info("{} booting (asyncio)".format(conf.PROJECT_NAME))',
-        "THREAD_LOG_BOOT_BLOCK": 'info("{} booting (thread)".format(conf.PROJECT_NAME))',
+        "LOG_BOOT_BLOCK": '_log_info("{} booting".format(conf.PROJECT_NAME))',
+        "ASYNC_LOG_BOOT_BLOCK": '_log_info("{} booting (asyncio)".format(conf.PROJECT_NAME))',
+        "THREAD_LOG_BOOT_BLOCK": '_log_info("{} booting (thread)".format(conf.PROJECT_NAME))',
     }
 
 
@@ -582,14 +620,24 @@ def maintenance_blocks(modules: Set[str]) -> Dict[str, str]:
             "MAINTENANCE_IMPORT": "",
             "MAINTENANCE_TIMER_ARG": "",
             "MAINTENANCE_ASYNC_BLOCK": "        # Maintenance module not selected",
-            "MAINTENANCE_THREAD_BLOCK": "    # Maintenance module not selected",
+            "MAINTENANCE_THREAD_BLOCK": "        # Maintenance module not selected",
         }
     return {
         "MAINTENANCE_IMPORT": "from tasks.maintenance import maintenance_tick",
         "MAINTENANCE_TIMER_ARG": ", idle_cb=maintenance_tick",
         "MAINTENANCE_ASYNC_BLOCK": "        maintenance_tick()",
-        "MAINTENANCE_THREAD_BLOCK": "    maintenance_tick()",
+        "MAINTENANCE_THREAD_BLOCK": "        maintenance_tick()",
     }
+
+
+def scheduler_timer_id_for_model(model: Any) -> int:
+    """Return a port-safe Timer id for the scaffold Scheduler entrypoint."""
+    upper = str(model or "").upper().replace("_", "-")
+    if "PICO" in upper or "RP2" in upper or "RP2040" in upper or "RP2350" in upper:
+        return -1
+    if "ZEPHYR" in upper:
+        return -1
+    return 0
 
 
 def micropython_version_label(manifest: Dict[str, Any]) -> str:
@@ -618,6 +666,9 @@ def template_variables(manifest: Dict[str, Any], mode: str, modules: Set[str]) -
     board_id = mcu.get("board_id") or str(model).lower().replace(" ", "_").replace("-", "_")
     defaults = get_mcu_defaults(model)
     i2c_pins = extract_i2c_pins(manifest, defaults)
+    scheduler_init_args = f"timer_id={scheduler_timer_id_for_model(model)}, tick_ms=100"
+    if "maintenance" in modules:
+        scheduler_init_args += ", idle_cb=maintenance_tick"
     variables = {
         "GENERATED_AT": utc_now(),
         "MICROPYTHON_VERSION_LABEL": micropython_version_label(manifest),
@@ -642,6 +693,9 @@ def template_variables(manifest: Dict[str, Any], mode: str, modules: Set[str]) -
         "PINOUT_LIST": py_literal(manifest.get("pinout", []) or [], indent=18),
         "I2C_INIT_BLOCK": extract_i2c_inits(i2c_pins, defaults),
         "GPIO_INIT_BLOCK": extract_gpio_inits(manifest),
+        "I2C_INIT_BLOCK_IN_MAIN": indent_block(extract_i2c_inits(i2c_pins, defaults), 4),
+        "GPIO_INIT_BLOCK_IN_MAIN": indent_block(extract_gpio_inits(manifest), 4),
+        "SCHEDULER_INIT_ARGS": scheduler_init_args,
         "BOM_TABLE_ROWS": bom_table_rows(manifest),
         "PINOUT_TABLE_ROWS": pinout_table_rows(manifest),
         "TOTAL_PRICE": str(total_price(manifest)),

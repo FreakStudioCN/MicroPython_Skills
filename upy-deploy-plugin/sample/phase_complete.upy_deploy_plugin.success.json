@@ -6,22 +6,32 @@
   "payload": {
     "phase": "upy-deploy-plugin",
     "result": "success",
-    "summary": "项目已上传并在设备端运行，用户选择结束并上传项目库。",
+    "summary": "Project was uploaded and the user chose to finish and upload it to the project library.",
     "next_phase": "project-library-upload",
     "deploy_result": {
-      "status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
       "strategy": "clean_then_upload",
       "port": "COM3",
-      "serial_excerpt": "MPYHW_READY demo\\nstarting scheduler\\n",
+      "serial_excerpt": "",
+      "serial_output_bytes": 0,
+      "device_tests": {
+        "status": "success",
+        "test_count": 2,
+        "passed": 2,
+        "failed": 0,
+        "tests": []
+      },
       "errors": [],
-      "warnings": []
+      "warnings": [
+        "serial capture produced no output"
+      ]
     },
     "manifest_content": {
       "schema_version": "1.0",
       "phase": "upy-deploy-plugin",
-      "project_name": "温湿度报警器",
+      "project_name": "temperature_alarm",
       "requirements": {
-        "description": "温湿度超过阈值后蜂鸣器报警"
+        "description": "Alarm when temperature or humidity exceeds configured thresholds."
       },
       "devices": [
         {
@@ -40,7 +50,7 @@
         }
       },
       "deploy": {
-        "status": "PASS",
+        "status": "PASS_WITH_WARNINGS",
         "strategy": "clean_then_upload",
         "port": "COM3"
       }
@@ -48,14 +58,17 @@
     "artifacts": [
       {
         "type": "file_list",
-        "title": "部署产物",
+        "title": "Deploy artifacts",
         "files": [
           {"path": "sessions/demo-session/deploy_result.json", "status": "new"},
-          {"path": "sessions/demo-session/serial_capture.log", "status": "new"}
+          {"path": "sessions/demo-session/serial_capture.log", "status": "new"},
+          {"path": "sessions/demo-session/device_tests_result.json", "status": "new"}
         ]
       }
     ],
     "errors": [],
-    "warnings": []
+    "warnings": [
+      "serial capture produced no output"
+    ]
   }
 }

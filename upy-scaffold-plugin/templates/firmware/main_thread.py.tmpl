@@ -6,6 +6,7 @@
 # @License : MIT
 
 import _thread
+import sys
 import time
 from machine import I2C, Pin
 
@@ -13,15 +14,26 @@ import conf
 ${LOGGER_IMPORTS}
 ${MAINTENANCE_IMPORT}
 
-${LOGGER_SETUP_BLOCK}
-${THREAD_LOG_BOOT_BLOCK}
 
-# Hardware instances generated from manifest.pinout.
-${I2C_INIT_BLOCK}
-${GPIO_INIT_BLOCK}
+${LOGGER_HELPERS_BLOCK}
 
-# TODO: upy-generate starts business threads here with _thread.start_new_thread().
 
-while True:
+def _main():
+    ${LOGGER_SETUP_BLOCK}
+    ${THREAD_LOG_BOOT_BLOCK}
+
+    # Hardware instances generated from manifest.pinout.
+${I2C_INIT_BLOCK_IN_MAIN}
+${GPIO_INIT_BLOCK_IN_MAIN}
+
+    # TODO: upy-generate starts business threads here with _thread.start_new_thread().
+    while True:
 ${MAINTENANCE_THREAD_BLOCK}
-    time.sleep_ms(100)
+        time.sleep_ms(100)
+
+
+try:
+    _main()
+except Exception as exc:
+    _log_exception(exc, "[fatal] main.py startup failed")
+    raise

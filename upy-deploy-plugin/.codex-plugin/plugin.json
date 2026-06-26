@@ -1,6 +1,6 @@
 {
   "name": "upy-deploy-plugin",
-  "version": "0.1.0",
+  "version": "0.1.0+codex.20260626101036",
   "description": "Workflow plugin phase for deploying generated MicroPython firmware projects, capturing device output, and routing user feedback.",
   "author": {
     "name": "MicroPython Skills"
