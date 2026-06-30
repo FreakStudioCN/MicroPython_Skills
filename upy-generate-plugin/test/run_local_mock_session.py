@@ -182,10 +182,11 @@ def ensure_scaffold_project(session_dir: Path, manifest_path: Path, mode: str) -
     project_dir = session_dir / "project"
     if (project_dir / "project-manifest.json").exists():
         phase_path = session_dir / "phase_complete.upy_scaffold_plugin.json"
-        return load_json(phase_path) if phase_path.exists() else {"payload": {"manifest_content": load_json(project_dir / "project-manifest.json")}}
+        phase = load_json(phase_path) if phase_path.exists() else {"payload": {"manifest_content": load_json(project_dir / "project-manifest.json")}}
+        return normalize_scaffold_hardware_baseline(project_dir, session_dir, phase, mode)
     if not SCAFFOLD_RUNNER.exists():
         project_dir.mkdir(parents=True, exist_ok=True)
-        return create_minimal_scaffold(project_dir, session_dir, mode)
+        return normalize_scaffold_hardware_baseline(project_dir, session_dir, create_minimal_scaffold(project_dir, session_dir, mode), mode)
     cmd = [
         sys.executable,
         str(SCAFFOLD_RUNNER),
@@ -201,8 +202,37 @@ def ensure_scaffold_project(session_dir: Path, manifest_path: Path, mode: str) -
     ]
     result = run_cmd(cmd)
     if result["returncode"] != 0:
-        return create_minimal_scaffold(project_dir, session_dir, mode)
-    return load_json(session_dir / "phase_complete.upy_scaffold_plugin.json")
+        return normalize_scaffold_hardware_baseline(project_dir, session_dir, create_minimal_scaffold(project_dir, session_dir, mode), mode)
+    return normalize_scaffold_hardware_baseline(project_dir, session_dir, load_json(session_dir / "phase_complete.upy_scaffold_plugin.json"), mode)
+
+
+def normalize_scaffold_hardware_baseline(
+    project_dir: Path,
+    session_dir: Path,
+    phase_complete: dict[str, Any],
+    mode: str,
+) -> dict[str, Any]:
+    payload = phase_complete.setdefault("payload", {})
+    manifest = payload.get("manifest_content")
+    if not isinstance(manifest, dict):
+        manifest = load_json(project_dir / "project-manifest.json") if (project_dir / "project-manifest.json").exists() else {}
+    normalized = deepcopy(manifest)
+    normalized["phase"] = "scaffold"
+    normalized.setdefault("project_name", "mock_project")
+    normalized.setdefault("scaffold_mode", mode)
+    requirements = normalized.get("requirements")
+    if not isinstance(requirements, dict) or not requirements.get("description"):
+        normalized["requirements"] = {"description": normalized.get("project_name", "mock project")}
+    if not isinstance(normalized.get("devices"), list) or not normalized.get("devices"):
+        normalized["devices"] = [{"name": "LED", "driver": {"source": "none"}}]
+    if not isinstance(normalized.get("mcu"), dict):
+        normalized["mcu"] = {"model": "mock"}
+    if not isinstance(normalized.get("pinout"), list) or not normalized.get("pinout"):
+        normalized["pinout"] = [{"device": "LED", "pin_name": "status", "gpio": "mock"}]
+    payload["manifest_content"] = normalized
+    write_json(project_dir / "project-manifest.json", normalized)
+    write_json(session_dir / "phase_complete.upy_scaffold_plugin.json", phase_complete)
+    return phase_complete
 
 
 def create_minimal_scaffold(project_dir: Path, session_dir: Path, mode: str) -> dict[str, Any]:

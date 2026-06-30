@@ -204,6 +204,25 @@ def valid_deploy_plan() -> dict:
     }
 
 
+def write_scaffold_phase_complete(path: Path, manifest: dict) -> None:
+    payload = {
+        "type": "phase_complete",
+        "phase": "upy-scaffold-plugin",
+        "session_id": path.parent.name,
+        "payload": {
+            "phase": "scaffold",
+            "result": "success",
+            "next_phase": "upy-generate-plugin",
+            "manifest_content": manifest,
+            "file_manifest": {"files": [{"path": "project-manifest.json", "role": "manifest"}]},
+            "artifacts": [{"type": "file_manifest", "path": "scaffold_file_manifest.json"}],
+            "lint": {"returncode": 0, "stdout": "", "stderr": ""},
+            "structured_errors": [],
+        },
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
 def make_project(root: Path, mode: str = "timer", include_plan: bool = True) -> None:
     files = {
         ".flake8": "[flake8]\nmax-line-length = 120\nbuiltins = const\n",
@@ -766,6 +785,11 @@ def assert_phase_complete_consistency() -> None:
         make_project(project)
         valid = load_json(sample_path)
         manifest = valid["payload"]["manifest_content"]
+        scaffold_manifest = dict(manifest)
+        scaffold_manifest.update({"phase": "scaffold", "domain_phase": "scaffold", "final_status": "scaffolded"})
+        scaffold_manifest.pop("generate", None)
+        upstream_path = session_dir / "phase_complete.upy_scaffold_plugin.json"
+        write_scaffold_phase_complete(upstream_path, scaffold_manifest)
         (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
         manifest_hash = sha256_file(project / "project-manifest.json")
         state = valid["payload"]["checks"]["session_state_checkpoint"]["state"]
@@ -792,10 +816,88 @@ def assert_phase_complete_consistency() -> None:
                 str(phase_path),
                 "--project-dir",
                 str(project),
+                "--upstream-phase-complete",
+                str(upstream_path),
             ]
         )
         if rc != 0:
             raise AssertionError(f"valid success with project manifest failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "new-hardware-session"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        phase = load_json(sample_path)
+        manifest = phase["payload"]["manifest_content"]
+        scaffold_manifest = dict(manifest)
+        scaffold_manifest.update({"phase": "scaffold", "domain_phase": "scaffold", "final_status": "scaffolded"})
+        scaffold_manifest.pop("generate", None)
+        upstream_path = session_dir / "phase_complete.upy_scaffold_plugin.json"
+        write_scaffold_phase_complete(upstream_path, scaffold_manifest)
+        changed = json.loads(json.dumps(manifest))
+        changed["devices"].append({"name": "DHT22", "driver": {"source": "upypi", "package": "dht"}})
+        changed["pinout"].append({"device": "DHT22", "pin_name": "DATA", "gpio": "7"})
+        phase["payload"]["manifest_content"] = changed
+        (project / "project-manifest.json").write_text(json.dumps(changed, ensure_ascii=False), encoding="utf-8")
+        phase_path = session_dir / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(phase, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--project-dir",
+                str(project),
+                "--upstream-phase-complete",
+                str(upstream_path),
+            ]
+        )
+        for expected in ("NEW_HARDWARE_REQUIRES_UPSTREAM_SELECTION", "PINOUT_CHANGE_REQUIRES_SELECT_HW_OR_SCAFFOLD"):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"generate must reject hardware changes not present in upstream scaffold: {expected}\n{stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "incremental-hardware-session"
+        project = session_dir / "project"
+        session_dir.mkdir(parents=True)
+        make_project(project)
+        phase = load_json(sample_path)
+        manifest = json.loads(json.dumps(phase["payload"]["manifest_content"]))
+        manifest["devices"].append({"name": "DHT22", "driver": {"source": "upypi", "package": "dht"}})
+        manifest["pinout"].append({"device": "DHT22", "pin_name": "DATA", "gpio": "7"})
+        scaffold_manifest = dict(manifest)
+        scaffold_manifest.update(
+            {
+                "phase": "scaffold",
+                "domain_phase": "scaffold",
+                "final_status": "scaffolded",
+                "incremental": True,
+                "generate_scope": "new_devices_only",
+            }
+        )
+        scaffold_manifest.pop("generate", None)
+        upstream_path = session_dir / "phase_complete.upy_scaffold_plugin.json"
+        write_scaffold_phase_complete(upstream_path, scaffold_manifest)
+        phase["payload"]["manifest_content"] = manifest
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        phase_path = session_dir / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(phase, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_phase_complete_consistency.py"),
+                "--phase-complete",
+                str(phase_path),
+                "--project-dir",
+                str(project),
+                "--upstream-phase-complete",
+                str(upstream_path),
+            ]
+        )
+        if "NEW_HARDWARE_REQUIRES_UPSTREAM_SELECTION" in stdout or "PINOUT_CHANGE_REQUIRES_SELECT_HW_OR_SCAFFOLD" in stdout:
+            raise AssertionError(f"incremental scaffold baseline should authorize new hardware facts:\nSTDOUT={stdout}\nSTDERR={stderr}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         bad_path = Path(temp_dir) / "bad_null_next_phase.json"

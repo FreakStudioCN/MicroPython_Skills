@@ -81,6 +81,7 @@ The following failures must block deploy-ready success:
 - Device-side `unittest` tests without `runtime_dependencies.mip` entry for `unittest`.
 - Firmware or tests importing mip-provided packages without deploy-phase `runtime_dependencies.mip` entries.
 - Hardware/peripheral/port MicroPython APIs without `generate.doc_evidence[]` entries pointing to official MicroPython docs.
+- `payload.manifest_content` changes upstream hardware facts (`mcu`, `board`, `devices`, or `pinout`) compared with scaffold/select-hw/flash `phase_complete`; new devices or wiring changes must go back through analyze/select-hw/scaffold first.
 - New generated device-side MicroPython unittest files missing from `device/tests` when no legacy project layout requires `test/device`.
 - `generate.deploy_plan.source_only` missing `firmware/main.py`, `firmware/boot.py`, or `firmware/conf.py`, or `generate.deploy_plan.upload_exclude` missing `firmware/drivers/**/mock.py` and `firmware/drivers/**/mock.mpy`.
 - Runtime firmware depending on generated `firmware/drivers/**/mock.py`; mocks are test/support artifacts and must not be uploaded as production device code.
@@ -220,6 +221,14 @@ Before emitting `phase_complete.result=success`, validate the complete event wit
 ```bash
 python scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>
 ```
+
+When the upstream scaffold/select-hw/flash phase_complete is known, pass it explicitly:
+
+```bash
+python scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root> --upstream-phase-complete <session_root>/phase_complete.upy_scaffold_plugin.json
+```
+
+The checker treats upstream `mcu`, `board`, `devices`, and `pinout` as immutable hardware facts for generate. If the user adds or replaces hardware during generate, emit `partial` with `next_phase=null` and route back to analyze/select-hw/scaffold. If scaffold incremental has already produced the updated manifest with `incremental=true` and `generate_scope=new_devices_only`, use that incremental scaffold phase_complete as the upstream baseline.
 
 For end-to-end plugin runs, validate the whole session before treating the workflow as formally complete:
 

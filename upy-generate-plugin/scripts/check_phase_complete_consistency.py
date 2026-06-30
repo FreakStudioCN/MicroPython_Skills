@@ -68,6 +68,12 @@ DEPLOY_MOCK_MPY_EXCLUDE_PATTERNS = {
     "firmware/drivers/**/mock.mpy",
     "firmware/drivers/*/mock.mpy",
 }
+UPSTREAM_HARDWARE_FIELDS = ("mcu", "board", "devices", "pinout")
+UPSTREAM_PHASE_FILENAMES = (
+    "phase_complete.upy_scaffold_plugin.json",
+    "phase_complete.select_hw.json",
+    "phase_complete.upy_flash_mpy_firmware_plugin.json",
+)
 
 
 def is_python_cache_path(path: str) -> bool:
@@ -78,6 +84,35 @@ def is_python_cache_path(path: str) -> bool:
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
+
+
+def unwrap_manifest(data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    payload = data.get("payload")
+    if isinstance(payload, dict):
+        for key in ("manifest_content", "manifest"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                return value
+    for key in ("manifest_content", "manifest"):
+        value = data.get(key)
+        if isinstance(value, dict):
+            return value
+    return data
+
+
+def normalized_json(value: Any) -> str:
+    return json.dumps(normalize_hardware_value(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def normalize_hardware_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: normalize_hardware_value(value[key]) for key in sorted(value)}
+    if isinstance(value, list):
+        normalized = [normalize_hardware_value(item) for item in value]
+        return sorted(normalized, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    return value
 
 
 def sha256_file(path: Path) -> str:
@@ -124,6 +159,152 @@ def infer_session_dir(project_dir: Path | None) -> Path | None:
     if project_dir is not None:
         return project_dir.parent
     return None
+
+
+def hardware_error_code(field: str) -> str:
+    if field == "devices":
+        return "NEW_HARDWARE_REQUIRES_UPSTREAM_SELECTION"
+    if field == "pinout":
+        return "PINOUT_CHANGE_REQUIRES_SELECT_HW_OR_SCAFFOLD"
+    if field in {"mcu", "board"}:
+        return "HARDWARE_SELECTION_CHANGED_IN_GENERATE"
+    return "HARDWARE_FACT_CHANGED_IN_GENERATE"
+
+
+def resolve_relative_path(raw_path: str, anchors: list[Path]) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    for anchor in anchors:
+        candidate = anchor / path
+        if candidate.exists():
+            return candidate
+    return anchors[0] / path if anchors else path
+
+
+def source_phase_complete_values(payload: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    source = payload.get("source")
+    if isinstance(source, dict):
+        for key in ("source_phase_complete_path", "upstream_phase_complete_path", "phase_complete_path", "path"):
+            value = source.get(key)
+            if isinstance(value, str) and value:
+                values.append(value)
+        nested = source.get("source_phase_complete")
+        if isinstance(nested, dict):
+            value = nested.get("path")
+            if isinstance(value, str) and value:
+                values.append(value)
+    for key in ("source_phase_complete_path", "upstream_phase_complete_path"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            values.append(value)
+    return values
+
+
+def infer_upstream_phase_complete_path(
+    payload: dict[str, Any],
+    phase_complete_path: Path | None,
+    project_dir: Path | None,
+    session_dir: Path | None,
+    explicit_path: Path | None,
+) -> tuple[Path | None, bool]:
+    if explicit_path is not None:
+        return explicit_path, True
+    anchors: list[Path] = []
+    if phase_complete_path is not None:
+        anchors.append(phase_complete_path.parent)
+    if session_dir is not None:
+        anchors.append(session_dir)
+        anchors.append(session_dir.parent)
+        anchors.append(session_dir.parent.parent)
+    if project_dir is not None:
+        anchors.append(project_dir.parent)
+        anchors.append(project_dir.parent.parent)
+    source_values = source_phase_complete_values(payload)
+    for value in source_values:
+        candidate = resolve_relative_path(value, anchors)
+        if candidate.exists():
+            return candidate, False
+    search_dirs: list[Path] = []
+    for directory in [session_dir, phase_complete_path.parent if phase_complete_path else None, project_dir.parent if project_dir else None]:
+        if directory is not None and directory not in search_dirs:
+            search_dirs.append(directory)
+    for directory in search_dirs:
+        for filename in UPSTREAM_PHASE_FILENAMES:
+            candidate = directory / filename
+            if candidate.exists():
+                return candidate, False
+    return None, bool(source_values)
+
+
+def upstream_hardware_boundary_errors(
+    payload: dict[str, Any],
+    phase_complete_path: Path | None,
+    project_dir: Path | None,
+    session_dir: Path | None,
+    upstream_phase_complete_path: Path | None,
+) -> list[dict[str, Any]]:
+    manifest = payload.get("manifest_content")
+    if not isinstance(manifest, dict):
+        return []
+    upstream_path, explicit_or_declared = infer_upstream_phase_complete_path(
+        payload,
+        phase_complete_path,
+        project_dir,
+        session_dir,
+        upstream_phase_complete_path,
+    )
+    if upstream_path is None:
+        return []
+    if not upstream_path.exists():
+        if not explicit_or_declared:
+            return []
+        return [
+            {
+                "code": "UPSTREAM_HARDWARE_BASELINE_MISSING",
+                "path": str(upstream_path),
+                "message": "declared upstream phase_complete is missing; cannot verify generate did not change hardware facts",
+            }
+        ]
+    try:
+        upstream_data = load_json(upstream_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        return [
+            {
+                "code": "UPSTREAM_HARDWARE_BASELINE_UNREADABLE",
+                "path": str(upstream_path),
+                "message": str(exc),
+            }
+        ]
+    upstream_manifest = unwrap_manifest(upstream_data)
+    if not upstream_manifest:
+        return [
+            {
+                "code": "UPSTREAM_HARDWARE_BASELINE_INVALID",
+                "path": str(upstream_path),
+                "message": "upstream phase_complete does not contain manifest_content",
+            }
+        ]
+    errors: list[dict[str, Any]] = []
+    for field in UPSTREAM_HARDWARE_FIELDS:
+        if field not in upstream_manifest and field not in manifest:
+            continue
+        if normalized_json(upstream_manifest.get(field)) == normalized_json(manifest.get(field)):
+            continue
+        errors.append(
+            {
+                "code": hardware_error_code(field),
+                "field": field,
+                "upstream_phase_complete": str(upstream_path),
+                "message": (
+                    "generate success must preserve upstream hardware facts. "
+                    "New/replaced devices, MCU/board changes, and pinout changes must go back through "
+                    "analyze/select-hw/scaffold; scaffold incremental output is valid only when it is the upstream baseline."
+                ),
+            }
+        )
+    return errors
 
 
 def gate_ok(name: str, result: Any, strict_pylint: bool) -> tuple[bool, dict[str, Any] | None]:
@@ -909,6 +1090,7 @@ def validate_phase_complete(
     strict_pylint: bool,
     phase_complete_path: Path | None = None,
     session_dir: Path | None = None,
+    upstream_phase_complete_path: Path | None = None,
 ) -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -935,6 +1117,7 @@ def validate_phase_complete(
         errors.extend(next_phase_decision_errors(payload))
         errors.extend(collect_gate_errors(payload, strict_pylint))
         errors.extend(manifest_errors(payload, project_dir))
+        errors.extend(upstream_hardware_boundary_errors(payload, phase_complete_path, project_dir, session_dir, upstream_phase_complete_path))
         errors.extend(deploy_tool_compat_errors(project_dir, payload.get("next_phase")))
         errors.extend(file_manifest_errors(payload))
         errors.extend(session_state_check_errors(payload, phase_complete_path, project_dir, session_dir))
@@ -967,6 +1150,11 @@ def main() -> int:
     parser.add_argument("--phase-complete", required=True)
     parser.add_argument("--project-dir", default="")
     parser.add_argument("--session-dir", default="")
+    parser.add_argument(
+        "--upstream-phase-complete",
+        default="",
+        help="Optional scaffold/select-hw/flash phase_complete used as the immutable hardware baseline.",
+    )
     parser.add_argument("--strict-pylint", action="store_true", help="Fail on any nonzero pylint exit code")
     args = parser.parse_args()
     phase_complete_path = Path(args.phase_complete)
@@ -978,6 +1166,7 @@ def main() -> int:
         strict_pylint=args.strict_pylint,
         phase_complete_path=phase_complete_path,
         session_dir=Path(args.session_dir) if args.session_dir else None,
+        upstream_phase_complete_path=Path(args.upstream_phase_complete) if args.upstream_phase_complete else None,
     )
     json_dump(result)
     return 0 if result["ok"] else 2

@@ -137,12 +137,14 @@ For `payload.result="success"`:
 
 - `payload.structured_errors` must be empty.
 - Strong gates in `lint`, `tests`, and `checks` must be acceptable under `references/validation_gates.md`.
+- `payload.source.source_phase_complete_path` or `payload.source.upstream_phase_complete_path` should point to the scaffold/select-hw/flash phase_complete used as the hardware baseline. When present, `check_phase_complete_consistency.py` compares upstream `mcu`, `board`, `devices`, and `pinout` against final `manifest_content`.
 - `checks.generate_plan` and `checks.conf_contract` must pass; `file_manifest.files` should include `generate_plan.json` with role `plan`.
 - Final generate plan validation must use `check_generate_plan.py --require-plan --check-files`; planned tasks, drivers, middleware, and tests must exist before success.
 - Pylint return code `12` is acceptable only when represented as `ok=true` under the default `fail_on_fatal_error_usage` policy; fatal/error/usage bits are never acceptable. Skipped pylint is never acceptable on success.
 - CPython fallback imports such as `asyncio` after `uasyncio` are warning-only only when detected by `check_mpy_imports.py` as `MPY_IMPORT_CPYTHON_FALLBACK`.
 - `payload.manifest_content.phase` and `project/project-manifest.json.phase` must both be `generate`.
 - `payload.manifest_content` must preserve upstream `requirements`, non-empty `devices`, `mcu`, `pinout`, and scaffold context; `generate` must not replace the full manifest.
+- Generate must not introduce new hardware, replace devices, change MCU/board, or modify wiring/pinout. Those changes require a new analyze/select-hw/scaffold pass, or a scaffold incremental phase_complete that already contains the updated hardware facts and records `incremental=true` plus `generate_scope=new_devices_only`.
 - If the project uses cloud services, `payload.manifest_content.generate.cloud_integrations` must record provider id, category, services, official setup links, credential status, user actions, and deploy readiness. Real secrets must not appear in generated code or protocol artifacts.
 - `payload.file_manifest.files` must include the updated `project-manifest.json` with role `manifest`.
 - `payload.file_manifest.files` must include `generate_plan.json` with role `plan`.
