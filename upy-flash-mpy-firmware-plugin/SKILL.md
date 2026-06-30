@@ -642,3 +642,10 @@ failed
 ```
 
 对于 `partial` 和 `failed`，`next_phase` 必须为 null。
+## Session Boundary Addendum
+
+- Treat `runtime_context.session_root` and `source_phase_complete_path` as the `workflow_session_root` for firmware-download, flash logs, and final phase_complete files.
+- A reopened chat or a separate session containing deployment logs is a `diagnostic_log_session` only. It must not change where firmware artifacts are written.
+- Do not infer the active session from the latest `sessions/*` directory. Use the explicit start payload or user command argument.
+- Preserve upstream `manifest_content` from the workflow session. Reference diagnostic sessions only in `artifacts`, `warnings`, or notes.
+- Final `phase_complete.payload.runtime_context.session_root` must match the workflow session that will feed scaffold.

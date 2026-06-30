@@ -367,3 +367,11 @@ python -X utf8 upy-generate-plugin/test/run_local_mock_session.py --session-dir 
 ```
 
 本地 runner 只用于 mock/验证插件协议，不代表真实 LLM 已完成所有业务代码生成。
+## Final Boundary Addendum
+
+- Session ownership and deploy feedback boundaries live in `references/protocol_fields.md`; always distinguish `workflow_session_root` from `diagnostic_log_session`, and route deploy evidence through `error_context` to autofix/generate fix.
+- Timer and scheduler port rules live in `knowledge/esp32_timer_scheduler_api.pitfall.json`; read it plus official MicroPython Timer docs before editing `main.py` scheduler assembly.
+- Scaffold framework ownership, `main.py` assembly, and logger timestamp call-site rules live in `references/main_conf_rules.md`; do not patch scaffold-owned libraries to hide generated-app bugs.
+- MicroPython import policy lives in `references/validation_gates.md` and `knowledge/micropython_imports.pitfall.json`; guarded CPython-only branches are warnings, direct runtime CPython imports remain hard failures.
+- Runtime mip dependency policy lives in `knowledge/mip_runtime_dependencies.pitfall.json`; generate declares `runtime_dependencies.mip`, deploy installs/verifies with `mpremote mip install`, and generate does not vendor micropython-lib source by default.
+- Official hardware/peripheral documentation evidence rules live in `references/validation_gates.md` and `knowledge/micropython_official_library_index.json`; exact class/module pages are required when available.

@@ -35,6 +35,7 @@ If it reports `STALE_GENERATE_PHASE_COMPLETE`, `STALE_GENERATE_PLAN_MISSING`, or
 20. final review checklist
 21. check_final_review_consistency.py --phase-complete <phase_complete> --log <generate_phase_log.md>
 22. check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>
+23. shared session chain validation when a full plugin session exists
 ```
 
 ## Plan-First Contract
@@ -95,6 +96,8 @@ The following failures must block deploy-ready success:
 - Async wrappers that only `await asyncio.sleep_ms(...)` before calling blocking `record`, `play`, `connect`, scan, or synchronous HTTP APIs. A real strategy must be cooperative state-machine steps, thread/worker handoff, a genuinely non-blocking driver API, or `partial`.
 - Captured device data discarded before payload/output use.
 - Shared I2S/SPI/UART resources without a `generate.resource_plan`.
+- `main.py` creates or scans I2C when manifest has no I2C device.
+- `main.py` assigns I2C SCL/SDA to GPIO already assigned to non-I2C peripherals in `pinout[]`.
 - Cloud provider choice, official setup links, credential status, or deploy readiness missing when firmware uses external APIs.
 - Hard-coded API keys, tokens, access keys, passwords, authorization headers, or provider secrets in generated files.
 - Blocking final review findings.
@@ -166,6 +169,17 @@ except ImportError:
 
 The fallback import is warning-only when it is inside an `except ImportError` or `except ModuleNotFoundError` handler and the corresponding MicroPython module was imported in the `try` body. Direct `import asyncio` outside that pattern remains a strong failure.
 
+CPython-only branches guarded by `_IS_MICROPYTHON` are warning-only as `MPY_IMPORT_CPYTHON_ONLY_GUARD` when the import is unreachable on MicroPython, for example scaffold `rotating_logger.py` importing CPython `logging` only in the non-MicroPython branch. Direct runtime `import logging` remains a strong failure.
+
+## Official Documentation Evidence
+
+Hardware/peripheral API evidence must be exact enough for the generated API surface.
+
+- For specific MicroPython classes such as `machine.Timer`, `machine.Pin`, `machine.I2S`, `network.WLAN`, and `neopixel`, cite the corresponding specific MicroPython official page when `knowledge/micropython_official_library_index.json` has one.
+- A parent page such as `machine` is not sufficient for a specific class when the index has a dedicated page.
+- If the index entry only points to CPython docs or the MicroPython page has no substantive content, treat it as insufficient evidence and add a port-specific MicroPython source or emit `partial`.
+- Record evidence in `manifest_content.generate.doc_evidence[]` with `module`, official `url`, and `reason`.
+
 ## phase_complete Recording
 
 Record quality gates in:
@@ -206,6 +220,14 @@ Before emitting `phase_complete.result=success`, validate the complete event wit
 ```bash
 python scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>
 ```
+
+For end-to-end plugin runs, validate the whole session before treating the workflow as formally complete:
+
+```bash
+python shared-plugin-scripts/workflow/session_chain_validate.py --session-dir <session_root> --require-deploy
+```
+
+This catches cross-skill failures that individual gates cannot see: mixed workflow/diagnostic sessions, stale generate git commits, invalid deploy phase_complete schema, and transient project-root artifacts such as a file named `-`.
 
 Success is invalid when any strong gate is failed, `structured_errors` is non-empty, final review has blocking findings, `manifest_content` is a thin summary, or `project/project-manifest.json` still has `phase=scaffold`. The plugin must update `project-manifest.json` to `phase=generate`, include the full updated manifest in `payload.manifest_content`, and include `project-manifest.json` in `file_manifest.files`.
 

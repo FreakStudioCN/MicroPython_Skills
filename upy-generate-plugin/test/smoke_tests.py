@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO = ROOT.parent
 
 
 def load_json(path: Path) -> dict:
@@ -85,10 +86,47 @@ def assert_references_and_knowledge_docs() -> None:
             raise AssertionError(f"SKILL.md must link {rel}")
         if not (ROOT / rel).exists():
             raise AssertionError(f"missing reference file: {rel}")
+    required_knowledge_links = [
+        "knowledge/esp32_timer_scheduler_api.pitfall.json",
+        "knowledge/micropython_imports.pitfall.json",
+        "knowledge/mip_runtime_dependencies.pitfall.json",
+        "knowledge/micropython_official_library_index.json",
+    ]
+    for rel in required_knowledge_links:
+        if rel not in skill_text:
+            raise AssertionError(f"SKILL.md must route detailed rules to {rel}")
+        if not (ROOT / rel).exists():
+            raise AssertionError(f"missing knowledge file: {rel}")
     protocol = (ROOT / "references" / "protocol_fields.md").read_text(encoding="utf-8-sig")
     for field in ("protocol_version", "session_id", "idempotency_key", "file_manifest", "structured_errors", "cloud_integrations"):
         if field not in protocol:
             raise AssertionError(f"protocol field not documented: {field}")
+    for field in ("workflow_session_root", "diagnostic_log_session", "error_context", "Deploy Feedback And Fix Boundary"):
+        if field not in protocol:
+            raise AssertionError(f"protocol boundary not documented: {field}")
+    main_conf = (ROOT / "references" / "main_conf_rules.md").read_text(encoding="utf-8-sig")
+    for phrase in ("Framework Ownership", "firmware/lib/scheduler/*", "time.ticks_ms()", "Do not edit"):
+        if phrase not in main_conf:
+            raise AssertionError(f"main/conf ownership rule missing: {phrase}")
+    validation = (ROOT / "references" / "validation_gates.md").read_text(encoding="utf-8-sig")
+    for phrase in ("_IS_MICROPYTHON", "MPY_IMPORT_CPYTHON_ONLY_GUARD", "Official Documentation Evidence", "machine.Timer"):
+        if phrase not in validation:
+            raise AssertionError(f"validation reference missing generated rule: {phrase}")
+    timer_pitfall = load_json(ROOT / "knowledge" / "esp32_timer_scheduler_api.pitfall.json")
+    timer_text = json.dumps(timer_pitfall, ensure_ascii=False)
+    for phrase in ("RP2040", "RP2350", "Scheduler()", "non-negative hardware timer id"):
+        if phrase not in timer_text:
+            raise AssertionError(f"timer pitfall missing rule: {phrase}")
+    imports_pitfall = load_json(ROOT / "knowledge" / "micropython_imports.pitfall.json")
+    imports_text = json.dumps(imports_pitfall, ensure_ascii=False)
+    for phrase in ("_IS_MICROPYTHON", "MPY_IMPORT_CPYTHON_ONLY_GUARD", "direct runtime import logging"):
+        if phrase not in imports_text:
+            raise AssertionError(f"imports pitfall missing rule: {phrase}")
+    mip_pitfall = load_json(ROOT / "knowledge" / "mip_runtime_dependencies.pitfall.json")
+    mip_text = json.dumps(mip_pitfall, ensure_ascii=False)
+    for phrase in ("mpremote fs ls", "runtime_dependency_install_network_unavailable", "Do not copy micropython-lib source"):
+        if phrase not in mip_text:
+            raise AssertionError(f"mip pitfall missing rule: {phrase}")
     template = load_json(ROOT / "knowledge" / "_template.pitfall.json")
     for field in ("field_descriptions", "id", "title", "category", "detection", "fix_guidance", "verified_by"):
         if field not in template:
@@ -672,6 +710,45 @@ def assert_mpy_import_fallback_policy() -> None:
         )
         if rc == 0 or "MPY_IMPORT_UNSUPPORTED" not in stdout:
             raise AssertionError("direct CPython asyncio import must remain a strong failure")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        logger_dir = project / "firmware" / "lib" / "logger"
+        logger_dir.mkdir(parents=True, exist_ok=True)
+        (logger_dir / "rotating_logger.py").write_text(
+            "try:\n"
+            "    from time import ticks_ms\n"
+            "    _IS_MICROPYTHON = True\n"
+            "except ImportError:\n"
+            "    _IS_MICROPYTHON = False\n\n"
+            "if _IS_MICROPYTHON:\n"
+            "    from . import logging as _logging\n"
+            "else:\n"
+            "    import logging as _cp_logging\n\n"
+            "def install():\n"
+            "    return _logging if _IS_MICROPYTHON else _cp_logging\n",
+            encoding="utf-8",
+        )
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_mpy_imports.py"), "--project-dir", str(project), "--include-lib"]
+        )
+        if rc != 0:
+            raise AssertionError(f"_IS_MICROPYTHON guarded CPython import should be warning-only:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        payload = json.loads(stdout)
+        if "MPY_IMPORT_CPYTHON_ONLY_GUARD" not in stdout or payload.get("errors"):
+            raise AssertionError(f"CPython-only guard warning not recorded correctly: {payload}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        bad = project / "firmware" / "lib" / "bad_logging.py"
+        bad.write_text("import logging\n\nLOGGER = logging.getLogger(__name__)\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_mpy_imports.py"), "--project-dir", str(project), "--include-lib"]
+        )
+        if rc == 0 or "MPY_IMPORT_UNSUPPORTED" not in stdout:
+            raise AssertionError("direct CPython logging import must remain a strong failure")
 
 
 def assert_phase_complete_consistency() -> None:
@@ -1518,6 +1595,34 @@ def assert_generated_semantics_negative_cases() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
         make_project(project, mode="timer")
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [
+            {"name": "WS2812", "interface": "GPIO"},
+            {"name": "MAX98357", "interface": "I2S"},
+        ]
+        manifest["pinout"] = [
+            {"device": "MAX98357", "pin_name": "BCLK", "gpio": "8", "type": "i2s_bck", "bus": "i2s0"},
+            {"device": "MAX98357", "pin_name": "LRC", "gpio": "9", "type": "i2s_ws", "bus": "i2s0"},
+            {"device": "WS2812", "pin_name": "DIN", "gpio": "21", "type": "gpio_out"},
+        ]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "from machine import I2C, Pin\n"
+            "i2c0 = I2C(0, scl=Pin(9), sda=Pin(8), freq=400000)\n"
+            "_ = i2c0.scan()\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        for expected in ("SEMANTIC_UNDECLARED_I2C_SCAN", "SEMANTIC_I2C_PIN_CONFLICT"):
+            if rc == 0 or expected not in stdout:
+                raise AssertionError(f"semantic check must reject generated I2C misuse {expected}: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
         main_py = project / "firmware" / "main.py"
         main_py.write_text(
             "from machine import Timer\n"
@@ -1945,6 +2050,105 @@ def assert_local_runner() -> None:
             raise AssertionError(f"runner git commit must not include Python cache files: {tracked_cache}")
 
 
+def assert_session_chain_validator_negative_case() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "chain-session"
+        session_dir.mkdir(parents=True)
+        project = session_dir / "project"
+        make_project(project)
+        subprocess.run(["git", "init"], cwd=project, text=True, capture_output=True, check=False)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=project, text=True, capture_output=True, check=False)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=project, text=True, capture_output=True, check=False)
+        subprocess.run(["git", "add", "."], cwd=project, text=True, capture_output=True, check=False)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=project, text=True, capture_output=True, check=False)
+        first = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project, text=True, capture_output=True, check=False).stdout.strip()
+        (project / "project-manifest.json").write_text(
+            json.dumps({**load_json(project / "project-manifest.json"), "phase": "generate", "final_status": "generated"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "."], cwd=project, text=True, capture_output=True, check=False)
+        subprocess.run(["git", "commit", "-m", "final"], cwd=project, text=True, capture_output=True, check=False)
+        (project / "-").write_text('{"status":"success"}\n', encoding="utf-8")
+
+        for name, phase, result in (
+            ("phase_complete.analyze.json", "analyze", "success"),
+            ("phase_complete.select_hw.json", "select-hw", "success"),
+            ("phase_complete.upy_flash_mpy_firmware_plugin.json", "upy-flash-mpy-firmware-plugin", "success"),
+        ):
+            (session_dir / name).write_text(
+                json.dumps(
+                    {
+                        "type": "phase_complete",
+                        "phase": phase,
+                        "session_id": session_dir.name,
+                        "payload": {"phase": phase, "result": result, "next_phase": None},
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+        scaffold = {
+            "type": "phase_complete",
+            "phase": "upy-scaffold-plugin",
+            "session_id": session_dir.name,
+            "payload": {
+                "phase": "scaffold",
+                "result": "success",
+                "next_phase": "upy-generate-plugin",
+                "runtime_context": {"session_root": f"sessions/{session_dir.name}", "project_root": f"sessions/{session_dir.name}/project"},
+                "file_manifest": {"files": []},
+                "artifacts": [{"type": "file_manifest", "path": f"sessions/{session_dir.name}/scaffold_file_manifest.json"}],
+                "lint": {"returncode": 0, "stdout": "", "stderr": ""},
+                "structured_errors": [],
+            },
+        }
+        (session_dir / "phase_complete.upy_scaffold_plugin.json").write_text(json.dumps(scaffold, ensure_ascii=False), encoding="utf-8")
+        (session_dir / "scaffold_file_manifest.json").write_text('{"files":[]}\n', encoding="utf-8")
+
+        generate = load_json(ROOT / "sample" / "phase_complete.upy_generate_plugin.success.json")
+        generate["session_id"] = session_dir.name
+        generate["payload"]["runtime_context"] = {
+            "session_root": f"sessions/{session_dir.name}",
+            "project_root": f"sessions/{session_dir.name}/project",
+        }
+        generate["payload"]["generate"]["git"]["commit"] = first
+        generate["payload"]["manifest_content"].setdefault("generate", {}).setdefault("git", {})
+        generate["payload"]["manifest_content"]["generate"]["git"]["commit"] = first
+        (session_dir / "phase_complete.upy_generate_plugin.json").write_text(json.dumps(generate, ensure_ascii=False), encoding="utf-8")
+        (session_dir / "session_state.upy_generate_plugin.json").write_text(
+            json.dumps({"git_commit": first, "checkpoint": "phase_completed", "status": "success"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        deploy = {
+            "type": "phase_complete",
+            "phase": "upy-deploy-plugin",
+            "session_id": session_dir.name,
+            "payload": {
+                "phase": "upy-deploy-plugin",
+                "result": "success",
+                "runtime_context": {"session_root": f"sessions/{session_dir.name}", "project_root": f"sessions/{session_dir.name}/project"},
+                "deploy_result": {"result": "PASS"},
+                "manifest_content": {"phase": "upy-deploy-plugin", "deploy_result": {"result": "PASS"}},
+                "artifacts": [{"type": "deploy_log", "path": f"sessions/{session_dir.name}/phase_complete.upy_deploy_plugin.json"}],
+            },
+        }
+        (session_dir / "phase_complete.upy_deploy_plugin.json").write_text(json.dumps(deploy, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd([
+            sys.executable,
+            str(REPO / "shared-plugin-scripts" / "workflow" / "session_chain_validate.py"),
+            "--session-dir",
+            str(session_dir),
+            "--require-deploy",
+        ])
+        if rc == 0:
+            raise AssertionError(f"bad session chain must fail:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        for expected in ("PHASE_VALIDATOR_FAILED", "PROJECT_TEMP_ARTIFACT_PRESENT"):
+            if expected not in stdout:
+                raise AssertionError(f"session chain validator missing {expected}:\n{stdout}")
+
+
 def main() -> int:
     tests = [
         assert_json_files_parse,
@@ -1962,6 +2166,7 @@ def main() -> int:
         assert_cloud_integrations_policy,
         assert_final_review_consistency,
         assert_local_runner,
+        assert_session_chain_validator_negative_case,
     ]
     for test in tests:
         test()

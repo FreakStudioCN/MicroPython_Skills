@@ -115,7 +115,7 @@ payload.manifest_content.phase == "generate"
    - 读取 `project-manifest.json` 或上游 `phase_complete.payload.manifest_content.runtime_dependencies.mip`。
    - 调用 `scripts/install_mip_dependencies.py --project-root <project_root> --manifest <phase_complete_or_manifest> --port <port> --output-json ...`。
    - 只使用 `mpremote mip install` 安装 MicroPython/micropython-lib 包；不要在 deploy 阶段把库源码 vendor 到项目。
-   - 安装后必须用 `mpremote fs ls` 校验目标目录和包目录确实存在，例如 `:lib`、`:lib/unittest`，并把 `fs_verify` 写入结果。
+   - 安装后必须用 `mpremote fs ls` 校验目标目录和包目录确实存在，例如 `:lib`、`:lib/unittest`，并把 `fs_verify` 写入结果。mip 可能安装预编译 `__init__.mpy` 而不是 `__init__.py`，这是合法落盘形式；校验脚本应接受 `.py` 或 `.mpy`，但必须保留 `matched_files` 证据。
    - 如果 `mip install` 因网络、代理或翻墙环境不可用失败，标记 `runtime_dependency_install_network_unavailable`，提示用户修复网络后重试，不要把它误判为 generate 代码错误。
    - 安装失败、导入验证失败或设备空间不足必须作为独立错误写入 `mip_install_result.json`，并交给 `deploy_result.py --mip-install-json ...` 汇总。
 9. 运行项目工具：
@@ -136,11 +136,12 @@ payload.manifest_content.phase == "generate"
    - 先发 `approval_request(run_device_tests)`。
    - 用户选择运行时调用 `scripts/run_device_tests.py --project-root <project_root> --port <port> --output-json ... --log-file ...`。
    - 测试文件来源为 `project/device/tests/test_*.py` 和 `project/test/device/test_*.py`。
+   - 如果设备测试需要 `firmware/drivers/**/mock.py`，只能由 `run_device_tests.py` 作为临时测试 artifact 上传到设备、运行后删除，并用 `mpremote fs ls` 校验删除；不要把 mock 纳入生产 upload summary。
 14. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定。
 15. 展示结果选项卡：
    - PASS 或 PASS_WITH_WARNINGS: `approval_request(deploy_result_feedback)`
    - FAIL 或 NEEDS_USER_CONFIRMATION: `approval_request(deploy_fail_next_action)`
-16. 输出 `phase_complete`。
+16. 输出 `phase_complete` 前必须运行 `scripts/deploy_manifest.py --input <phase_complete> --validate-phase-complete`；失败时不得把 deploy 判为 success。
 
 ## approval_request
 
@@ -284,7 +285,7 @@ REPL 空输出不应直接判 FAIL。如果 serial 捕获为空，但上传/清�
 - MicroPython 运行时包必须使用 `mpremote mip install`，来源通常是 `micropython-lib` 或官方 mip 索引；deploy 不默认抓取源码到本地项目。
 - `scripts/install_mip_dependencies.py` 先 probe `verify_import`，缺失时安装，安装后再次 probe。结果必须进入 `deploy_result.py --mip-install-json`。
 - `mpremote mip install` 可能因为网络、代理或翻墙环境不可用而失败。此类失败必须分类为 `runtime_dependency_install_network_unavailable`，保留 stdout/stderr 摘要，并让 `deploy_result.py` 明确提示网络/代理/VPN 问题，而不是把它混同为普通 device test 失败。
-- mip 安装不能只靠 import probe 判断完成。安装后必须使用 `mpremote fs ls` 校验目标目录和包目录，例如 `fs ls :lib`、`fs ls :lib/unittest`，确认 `__init__.py` 等关键文件落盘；递归子目录需要逐层列出。文件系统校验结果必须写入 `mip_install_result.json.records[].fs_verify`。
+- mip 安装不能只靠 import probe 判断完成。安装后必须使用 `mpremote fs ls` 校验目标目录和包目录，例如 `fs ls :lib`、`fs ls :lib/unittest`，确认 `__init__.py` 或 `__init__.mpy` 等关键文件落盘；递归子目录需要逐层列出。文件系统校验结果必须写入 `mip_install_result.json.records[].fs_verify`。
 - 串口枚举统一调用 `scripts/list_serial_ports.py`；该脚本薄包装到 `shared-plugin-scripts/mpremote/list_serial_ports.py`，不再复制实现。
 - 上传与文件系统操作必须优先使用 `mpremote connect <port> resume fs ...`，避免文件传输前隐式 soft reset。
 - `scripts/mpremote_runtime.py` 支持人工调试 passthrough，例如 `mpremote_runtime.py --run --port <port> -- resume exec "print('hello')"`。
@@ -306,6 +307,10 @@ REPL 空输出不应直接判 FAIL。如果 serial 捕获为空，但上传/清�
 
 `manifest_content` 必须保留完整上游 manifest，再追加 deploy 事实，不得只写摘要。
 
+`phase_complete.payload.deploy_result` 必须来自 `scripts/deploy_result.py` 的结构化结果或与其逐字段一致。LLM 可以总结结果，但不得把底层 `mip_install_result.json`、upload summary、device tests、log report 或 REPL capture 的 blocking failure 手工改写成 PASS。
+
+success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_result.json`、`upload_summary.json`、`clean_result.json`、`mip_install_result.json`、`device_tests_result.json`，以及串口/REPL capture 和设备日志报告。只把叙述性摘要或 `phase_complete` 自身列为 artifact 不合格。
+
 ## 强约束
 
 - 不覆盖旧 `upy-deploy`。
@@ -315,3 +320,16 @@ REPL 空输出不应直接判 FAIL。如果 serial 捕获为空，但上传/清�
 - 所有本地动作走 `script_run`、`device_command`、`file_operation` 或 `approval_request`。
 - `erase_then_upload` 必须 dry-run 和二次确认。
 - 长时间串口输出采集必须用持久会话思路，避免反复 `resume exec`。
+## Final Boundary Addendum
+
+- Treat `runtime_context.session_root`, `runtime_context.project_root`, and explicit `source_phase_complete_path` as the `workflow_session_root`. A separate session containing logs is a `diagnostic_log_session` and must not receive deploy artifacts unless the user explicitly makes it the workflow target.
+- Deploy success means deployment-observation success, not code-generation correctness. A PASS requires upload/clean/mip/device probes/log report/device tests to have no blocking errors. A PASS does not authorize manual source edits during deploy.
+- Deploy must not fix generated source code or mark success after ad-hoc debugging changes. Runtime code fixes go through `upy-autofix-plugin` or `upy-generate-plugin(mode=fix)` with a structured `error_context`.
+- Deploy must not add broad Timer or peripheral semantic preflight. Timer and peripheral API correctness are generate gates. Deploy records evidence from upload summary, REPL capture, device logs, device tests, and user observation.
+- Empty REPL output, COM re-enumeration, or missing logs after the user unplugged/replugged a device is observation-incomplete, not proof of firmware failure. If upload succeeded and there is no traceback/log error/test failure, return `PASS_WITH_WARNINGS` and record the observation limitation.
+- Forbidden runtime uploads are blocking even if the project upload tool says success: `:main.mpy`, `:boot.mpy`, `:conf.mpy`, `:firmware/**`, `__pycache__`, `*.pyc`, and `drivers/**/mock.py|mock.mpy`.
+- Before upload, project_files clean must remove old deploy artifacts such as `main.mpy`, `boot.mpy`, `conf.mpy`, `board.mpy`, stale `drivers/**/mock.py|mock.mpy`, and old wrong-root `firmware/**` paths when present on device.
+- MicroPython runtime packages from micropython-lib must be installed with `mpremote mip install`, then verified with import probes and `mpremote fs ls` on the relevant target folders such as `:lib` and `:lib/unittest`. Network/proxy/VPN failure is `runtime_dependency_install_network_unavailable`, not a generate code bug.
+- Device-side unittest mocks are temporary test artifacts only. `scripts/run_device_tests.py` must record upload, cleanup, and cleanup verification for `firmware/drivers/**/mock.py`; production upload must still reject mocks.
+- REPL capture should prefer reset-first capture when safe so startup tracebacks are visible. Device file logs supplement REPL output; they do not replace startup traceback capture.
+- `deploy_fail_next_action` and `deploy_result_feedback` must carry `error_context` with deploy result path, serial excerpt, device log excerpt/report, device tests result path, mip install result, forbidden upload list, user observation, and previous generate commit when available.

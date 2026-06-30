@@ -56,6 +56,7 @@ CPYTHON_FALLBACKS = {
 }
 
 IMPORT_ERROR_NAMES = {"ImportError", "ModuleNotFoundError"}
+MICROPYTHON_GUARD_NAMES = {"_IS_MICROPYTHON", "IS_MICROPYTHON"}
 
 
 def iter_firmware_files(project_dir: Path, include_lib: bool) -> list[Path]:
@@ -140,12 +141,40 @@ def fallback_imports(tree: ast.AST) -> dict[tuple[str, int, str], dict[str, Any]
     return fallbacks
 
 
+def _micropython_guard_state(test: ast.AST) -> bool | None:
+    """Return True for `if _IS_MICROPYTHON`, False for `if not _IS_MICROPYTHON`."""
+    if isinstance(test, ast.Name) and test.id in MICROPYTHON_GUARD_NAMES:
+        return True
+    if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+        operand = test.operand
+        if isinstance(operand, ast.Name) and operand.id in MICROPYTHON_GUARD_NAMES:
+            return False
+    return None
+
+
+def cpython_only_guarded_imports(tree: ast.AST) -> dict[tuple[str, int, str], dict[str, Any]]:
+    guarded: dict[tuple[str, int, str], dict[str, Any]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        state = _micropython_guard_state(node.test)
+        if state is None:
+            continue
+        cpython_nodes = node.orelse if state else node.body
+        for item in import_records_from_nodes(cpython_nodes):
+            guarded[(item["module"], item["line"], item["kind"])] = {
+                "cpython_only_guard": "_IS_MICROPYTHON",
+            }
+    return guarded
+
+
 def imports_from_file(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     try:
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
     except SyntaxError as exc:
         return [], [{"code": "PY_SYNTAX_ERROR", "path": str(path), "line": exc.lineno, "message": str(exc)}]
     fallback_by_key = fallback_imports(tree)
+    cpython_only_by_key = cpython_only_guarded_imports(tree)
     imports = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -153,6 +182,7 @@ def imports_from_file(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, 
                 module = alias.name.split(".")[0]
                 item = {"module": module, "line": node.lineno, "kind": "import"}
                 item.update(fallback_by_key.get((module, node.lineno, "import"), {}))
+                item.update(cpython_only_by_key.get((module, node.lineno, "import"), {}))
                 imports.append(item)
         elif isinstance(node, ast.ImportFrom):
             if node.level:
@@ -161,6 +191,7 @@ def imports_from_file(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, 
                 module = node.module.split(".")[0]
                 item = {"module": module, "line": node.lineno, "kind": "from"}
                 item.update(fallback_by_key.get((module, node.lineno, "from"), {}))
+                item.update(cpython_only_by_key.get((module, node.lineno, "from"), {}))
                 imports.append(item)
     return imports, []
 
@@ -188,6 +219,21 @@ def check_project(project_dir: Path, include_lib: bool) -> dict[str, Any]:
                         "message": (
                             f"module '{module}' is used only as a CPython test fallback after "
                             f"MicroPython import(s): {', '.join(item['fallback_for'])}"
+                        ),
+                    }
+                )
+                continue
+            if item.get("cpython_only_guard"):
+                warnings.append(
+                    {
+                        "code": "MPY_IMPORT_CPYTHON_ONLY_GUARD",
+                        "path": rel,
+                        "line": item["line"],
+                        "module": module,
+                        "guard": item["cpython_only_guard"],
+                        "message": (
+                            f"module '{module}' is imported only in a CPython branch guarded by "
+                            f"{item['cpython_only_guard']}"
                         ),
                     }
                 )

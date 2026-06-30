@@ -14,11 +14,12 @@
   "symptoms": [
     "Device raises ValueError: invalid Timer number on ports that do not support virtual timers",
     "main.py calls Scheduler(timer_id=-1) on a non-RP2/non-Zephyr board",
+    "main.py calls Scheduler() and inherits timer_id=-1 from scaffold scheduler defaults on ESP32/STM32-style hardware-timer ports",
     "main.py calls sc.register(...) but timer_sched.py only defines add_task(...)",
     "Fixing Timer(-1) is followed by AttributeError for a missing Scheduler.register method"
   ],
-  "wrong_pattern": "Using virtual Timer(-1) from main.py on ports other than RP2/Pico and Zephyr, relying on Scheduler() when the scaffold scheduler default is timer_id=-1, or composing main.py against a scheduler API that is not implemented by the scaffold scheduler module.",
-  "correct_pattern": "Keep scaffold-owned firmware/lib/scheduler/timer_sched.py unchanged unless the user explicitly approves a library contract change. The library default timer_id=-1 is valid for RP2/Pico and Zephyr virtual timers. For other MCU/port targets, fix the entrypoint assembly instead: instantiate Scheduler with an explicit valid non-negative hardware timer id, for example Scheduler(timer_id=0, error_cb=..., tick_ms=...). Ensure main.py task registration calls match the actual scheduler module API, for example add_task(callback, interval_ms, name=...).",
+  "wrong_pattern": "Using virtual Timer(-1) from main.py on ports other than RP2/Pico/RP2040/RP2350 and Zephyr, relying on Scheduler() when the scaffold scheduler default is timer_id=-1, or composing main.py against a scheduler API that is not implemented by the scaffold scheduler module.",
+  "correct_pattern": "Keep scaffold-owned firmware/lib/scheduler/timer_sched.py unchanged unless the user explicitly approves a library contract change. The library default timer_id=-1 is valid for RP2/Pico/RP2040/RP2350 and Zephyr virtual timers. For other MCU/port targets, fix the entrypoint assembly instead: instantiate Scheduler with an explicit valid non-negative hardware timer id, for example Scheduler(timer_id=0, error_cb=..., tick_ms=...). Ensure main.py task registration calls match the actual scheduler module API, for example add_task(callback, interval_ms, name=...).",
   "root_cause_analysis": [
     "This is not just an LLM model hallucination. The skill allowed two independently generated surfaces, main assembly and scheduler implementation, to drift without a contract.",
     "The generation workflow lacked a port-specific hardware API evidence gate for machine.Timer and confused library defaults with target-specific entrypoint assembly.",
@@ -32,7 +33,8 @@
   },
   "fix_guidance": [
     "Read the official machine and ESP32 timer docs before generating timer scheduler code.",
-    "If target port is not RP2/Pico/RP2040/RP2350 or Zephyr, do not generate Timer(-1) or Scheduler(timer_id=-1) in main.py.",
+    "Only RP2/Pico/RP2040/RP2350 and Zephyr should use Timer(-1) or Scheduler(timer_id=-1).",
+    "If target port is not RP2/Pico/RP2040/RP2350 or Zephyr, do not generate Timer(-1), Scheduler(timer_id=-1), or implicit Scheduler() when the scheduler default maps to Timer(-1).",
     "If main.py calls Scheduler(...), inspect Scheduler.__init__ defaults; Scheduler() is invalid on hardware-timer ports when the default timer_id maps to Timer(-1).",
     "Do not rewrite scaffold scheduler internals to ticks_ms as a default fix; that breaks the RP2/Pico software-timer contract.",
     "For hardware Timer scheduler mode, pass an explicit valid non-negative timer id from main.py and document why it is safe for the selected MCU.",

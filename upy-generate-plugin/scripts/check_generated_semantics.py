@@ -412,6 +412,118 @@ def target_allows_virtual_timer(manifest: dict[str, Any]) -> bool:
     return manifest_contains_marker(manifest, VIRTUAL_TIMER_ONLY_MARKERS)
 
 
+def manifest_devices(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    devices = manifest.get("devices") if isinstance(manifest, dict) else []
+    return [item for item in devices if isinstance(item, dict)] if isinstance(devices, list) else []
+
+
+def manifest_has_i2c_device(manifest: dict[str, Any]) -> bool:
+    for device in manifest_devices(manifest):
+        text = json.dumps(device, ensure_ascii=False).lower()
+        if "i2c" in text:
+            return True
+    for item in manifest.get("pinout") or []:
+        if not isinstance(item, dict):
+            continue
+        type_text = str(item.get("type") or "").lower()
+        bus_text = str(item.get("bus") or "").lower()
+        if type_text.startswith("i2c") or bus_text.startswith("i2c"):
+            return True
+    return False
+
+
+def parse_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.isdigit():
+            return int(stripped)
+    return None
+
+
+def pin_call_gpio(node: ast.AST | None) -> int | None:
+    if not isinstance(node, ast.Call) or call_name(node.func) != "Pin" or not node.args:
+        return None
+    if isinstance(node.args[0], ast.Constant):
+        return parse_int(node.args[0].value)
+    return None
+
+
+def i2c_call_pins(node: ast.Call) -> dict[str, int]:
+    pins: dict[str, int] = {}
+    for kw in node.keywords:
+        if kw.arg not in {"scl", "sda"}:
+            continue
+        gpio = pin_call_gpio(kw.value)
+        if gpio is not None:
+            pins[kw.arg] = gpio
+    return pins
+
+
+def manifest_non_i2c_gpio_owners(manifest: dict[str, Any]) -> dict[int, list[str]]:
+    owners: dict[int, list[str]] = {}
+    for item in manifest.get("pinout") or []:
+        if not isinstance(item, dict):
+            continue
+        gpio = parse_int(item.get("gpio"))
+        if gpio is None:
+            continue
+        type_text = str(item.get("type") or "").lower()
+        bus_text = str(item.get("bus") or "").lower()
+        if type_text.startswith("i2c") or bus_text.startswith("i2c"):
+            continue
+        if type_text.startswith(("power", "gnd")) or type_text in {"nc", "none"}:
+            continue
+        owner = "{}.{}".format(item.get("device") or "device", item.get("pin_name") or item.get("type") or "pin")
+        owners.setdefault(gpio, []).append(owner)
+    return owners
+
+
+def check_i2c_assembly_contract(project_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    main_py = project_dir / "firmware" / "main.py"
+    if not main_py.exists():
+        return []
+    tree, parse_errors = parse_file(main_py)
+    if tree is None:
+        return parse_errors
+    errors: list[dict[str, Any]] = []
+    has_i2c_device = manifest_has_i2c_device(manifest)
+    non_i2c_owners = manifest_non_i2c_gpio_owners(manifest)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or call_name(node.func) != "I2C":
+            continue
+        pins = i2c_call_pins(node)
+        if not has_i2c_device:
+            errors.append(
+                {
+                    "code": "SEMANTIC_UNDECLARED_I2C_SCAN",
+                    "path": "firmware/main.py",
+                    "line": node.lineno,
+                    "pins": pins,
+                    "message": "main.py creates/scans I2C even though manifest has no I2C device; do not generate default I2C scan unless hardware facts require it",
+                }
+            )
+        conflicts = {
+            role: {"gpio": gpio, "owners": non_i2c_owners[gpio]}
+            for role, gpio in pins.items()
+            if gpio in non_i2c_owners
+        }
+        if conflicts:
+            errors.append(
+                {
+                    "code": "SEMANTIC_I2C_PIN_CONFLICT",
+                    "path": "firmware/main.py",
+                    "line": node.lineno,
+                    "conflicts": conflicts,
+                    "message": "main.py I2C pins overlap non-I2C peripheral pins from manifest pinout; resource_plan/main assembly must not reuse GPIO across incompatible buses",
+                }
+            )
+    return errors
+
+
 def check_resource_plan(project_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     main_py = project_dir / "firmware" / "main.py"
     if not main_py.exists():
@@ -719,6 +831,7 @@ def check_project(project_dir: Path, manifest_path: str = "") -> dict[str, Any]:
         warnings.extend(check_unused_generated_params(project_dir, path, tree))
     manifest = load_manifest(project_dir, manifest_path)
     errors.extend(check_resource_plan(project_dir, manifest))
+    errors.extend(check_i2c_assembly_contract(project_dir, manifest))
     errors.extend(check_timer_scheduler_contract(project_dir, manifest))
     return {
         "check": "generated_semantics",

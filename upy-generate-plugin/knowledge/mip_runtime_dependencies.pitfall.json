@@ -34,6 +34,7 @@
       "Probe the selected device for required imports.",
       "Run mpremote mip install for missing runtime_dependencies.mip packages.",
       "Verify import after installation.",
+      "Verify target filesystem folders with mpremote fs ls, for example :lib and :lib/unittest.",
       "Persist mip_install_result.json and feed it into deploy_result.",
       "Classify dependency install failures separately from application runtime failures."
     ],
@@ -69,6 +70,8 @@
     "Do not copy micropython-lib source into firmware/lib unless the user chooses offline vendoring.",
     "Ensure phase_complete exposes runtime_dependencies so upy-deploy-plugin can run mpremote mip install.",
     "Add a deploy-time import probe result to error_context when dependency installation fails.",
+    "When mpremote mip install fails because network/proxy/VPN is unavailable, classify it as runtime_dependency_install_network_unavailable instead of a generated-code failure.",
+    "After mip install, require fs_verify records from mpremote fs ls for target package folders.",
     "Document package source as micropython-lib or explicit GitHub package URL."
   ],
   "references": [

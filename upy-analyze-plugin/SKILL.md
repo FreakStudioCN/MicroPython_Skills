@@ -959,3 +959,10 @@ Analyze 交给下游 `select-hw` 的 `manifest_content` 至少必须包含：
 - 更完整的板卡资产
 - 更强的 manifest 校验
 - 更真实的 analyze 引擎
+## Session Boundary Addendum
+
+- Treat an explicit user-supplied session path as the `workflow_session_root` unless the user explicitly says it is only a diagnostic/log source.
+- A `diagnostic_log_session` is evidence only. Do not move `manifest_content`, project files, phase_complete files, or follow-up artifacts into it.
+- If a user provides both a target workflow session and another session containing logs, write outputs under `workflow_session_root` and reference the other path only in `artifacts`, `warnings`, or downstream `error_context`.
+- Do not infer the active workflow session from the newest log file, reopened chat, or prior conversation memory. Use `start_phase.payload.runtime_context.session_root`, `source_phase_complete_path`, or the explicit command argument.
+- Final `phase_complete.payload.runtime_context.session_root` must point to the workflow session that owns the artifact chain.

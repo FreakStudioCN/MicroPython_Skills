@@ -36,6 +36,13 @@ def run(args: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str
     )
 
 
+def run_json_allow_failure(args: list[str], *, cwd: Path = ROOT) -> tuple[int, dict[str, Any]]:
+    proc = run(args, cwd=cwd)
+    if not proc.stdout.strip():
+        raise AssertionError(f"command produced no JSON: {' '.join(args)}\nstderr:\n{proc.stderr}")
+    return proc.returncode, json.loads(proc.stdout)
+
+
 def run_json(args: list[str], *, cwd: Path = ROOT) -> dict[str, Any]:
     proc = run(args, cwd=cwd)
     if proc.returncode != 0:
@@ -176,6 +183,30 @@ def assert_manifest_validator() -> None:
         ])
         if result["status"] != "ok":
             raise AssertionError(f"{name} validation failed: {result}")
+    with tempfile.TemporaryDirectory(prefix="deploy-bad-phase-") as temp_dir:
+        bad_path = Path(temp_dir) / "bad_phase.json"
+        bad = load_json(SAMPLE / "phase_complete.upy_deploy_plugin.success.json")
+        bad["payload"]["deploy_result"] = {"result": "PASS"}
+        bad["payload"]["artifacts"] = [
+            {
+                "type": "file_list",
+                "files": [{"path": "sessions/demo-session/phase_complete.upy_deploy_plugin.json", "status": "new"}],
+            }
+        ]
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, payload = run_json_allow_failure([
+            sys.executable,
+            str(SCRIPTS / "deploy_manifest.py"),
+            "--validate-phase-complete",
+            "--input",
+            str(bad_path),
+        ])
+        if rc == 0 or payload.get("status") != "failed":
+            raise AssertionError(f"bad deploy phase_complete must fail validation: {payload}")
+        text = json.dumps(payload, ensure_ascii=False)
+        for expected in ("deploy_result.status is required", "deploy_result.strategy is required", "deploy_result.json"):
+            if expected not in text:
+                raise AssertionError(f"bad deploy validation missing {expected}: {payload}")
 
 
 def assert_clean_device_mock_modes() -> None:
@@ -362,7 +393,16 @@ def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
                 {
                     "status": "success",
                     "uploaded_files": [
+                        {"source": "build/mpy/main.mpy", "target": ":main.mpy"},
                         {"source": "build/mpy/conf.mpy", "target": ":conf.mpy"},
+                        {
+                            "source": "build/mpy/firmware/tasks/business_task.mpy",
+                            "target": ":firmware/tasks/business_task.mpy",
+                        },
+                        {
+                            "source": "build/mpy/tasks/__pycache__/business_task.cpython-39.pyc",
+                            "target": ":tasks/__pycache__/business_task.cpython-39.pyc",
+                        },
                         {
                             "source": "build/mpy/drivers/status_driver/mock.mpy",
                             "target": ":drivers/status_driver/mock.mpy",
@@ -393,7 +433,11 @@ def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
         if result["status"] != "FAIL":
             raise AssertionError(f"forbidden upload artifacts must fail deploy result: {result}")
         matches = [error for error in result.get("errors", []) if error.get("code") == "forbidden_runtime_upload"]
-        if not matches or ":conf.mpy" not in matches[0].get("targets", []):
+        targets = matches[0].get("targets", []) if matches else []
+        for expected in (":main.mpy", ":conf.mpy", ":firmware/tasks/business_task.mpy", ":tasks/__pycache__/business_task.cpython-39.pyc"):
+            if expected not in targets:
+                raise AssertionError(f"forbidden upload target {expected} not reported correctly: {result}")
+        if not matches:
             raise AssertionError(f"forbidden upload error not reported correctly: {result}")
 
     with tempfile.TemporaryDirectory(prefix="deploy-forbidden-upload-old-") as temp_dir:
@@ -574,6 +618,8 @@ def assert_install_mip_dependencies_mock() -> None:
         fs_verify = record.get("fs_verify") or {}
         if not fs_verify.get("ok") or fs_verify.get("package_path") != "/lib/unittest":
             raise AssertionError(f"mock mip install must include filesystem verification: {result}")
+        if "__init__.mpy" not in fs_verify.get("expected_files", []) or "__init__.mpy" not in fs_verify.get("matched_files", []):
+            raise AssertionError(f"mip fs verification must accept precompiled .mpy package files: {result}")
 
         mip_failed_json = project / "mip_failed.json"
         mip_failed_json.write_text(
@@ -624,6 +670,9 @@ def assert_run_device_tests_mock() -> None:
         test_path = project / "device" / "tests" / "test_contract.py"
         test_path.parent.mkdir(parents=True)
         test_path.write_text("import unittest\n\nunittest.main()\n", encoding="utf-8")
+        mock_path = project / "firmware" / "drivers" / "status_driver" / "mock.py"
+        mock_path.parent.mkdir(parents=True)
+        mock_path.write_text("class MockStatus: pass\n", encoding="utf-8")
         result = run_json([
             sys.executable,
             str(SCRIPTS / "run_device_tests.py"),
@@ -637,6 +686,28 @@ def assert_run_device_tests_mock() -> None:
             raise AssertionError(f"mock device test counts invalid: {result}")
         if result["tests"][0]["status"] != "passed":
             raise AssertionError(f"mock device test record invalid: {result}")
+        temp_artifacts = result.get("temp_artifacts") or {}
+        if temp_artifacts.get("uploaded") != 1 or temp_artifacts.get("cleaned") != 1:
+            raise AssertionError(f"device test runner must record temporary mock upload and cleanup: {result}")
+        uploaded = temp_artifacts["uploads"][0]
+        if uploaded.get("target") != ":drivers/status_driver/mock.py":
+            raise AssertionError(f"temporary mock target must be runtime-relative and explicit: {result}")
+        dash = project / "-"
+        proc = run([
+            sys.executable,
+            str(SCRIPTS / "run_device_tests.py"),
+            "--project-root",
+            str(project),
+            "--mock",
+            "--output-json",
+            "-",
+        ], cwd=project)
+        if proc.returncode != 0:
+            raise AssertionError(f"mock device tests with stdout output failed: {proc.stdout}\n{proc.stderr}")
+        if dash.exists():
+            raise AssertionError("run_device_tests.py must not create a project-root '-' file when --output-json - is used")
+        if json.loads(proc.stdout).get("status") != "success":
+            raise AssertionError(f"stdout JSON result invalid: {proc.stdout}")
 
 
 def assert_shared_serial_mock() -> None:

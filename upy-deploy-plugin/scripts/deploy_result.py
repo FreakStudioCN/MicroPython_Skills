@@ -23,12 +23,14 @@ FAIL_PATTERNS = [
     ("AttributeError:", "python_attribute_error"),
 ]
 FORBIDDEN_UPLOAD_TARGETS = {
+    ":main.mpy",
     ":conf.mpy",
     ":boot.mpy",
 }
 FORBIDDEN_UPLOAD_SUFFIXES = (
     "/mock.py",
     "/mock.mpy",
+    ".pyc",
 )
 
 
@@ -103,6 +105,14 @@ def _target_for_uploaded_item(item: Any) -> str | None:
     return None
 
 
+def _source_for_uploaded_item(item: Any) -> str | None:
+    if isinstance(item, dict):
+        source = item.get("source") or item.get("src") or item.get("local")
+        if isinstance(source, str):
+            return source
+    return None
+
+
 def upload_targets(upload: dict[str, Any]) -> list[str]:
     targets: list[str] = []
     for item in upload.get("uploaded_files") or []:
@@ -122,12 +132,50 @@ def upload_targets(upload: dict[str, Any]) -> list[str]:
     return targets
 
 
+def upload_source_target_pairs(upload: dict[str, Any]) -> list[tuple[str | None, str]]:
+    pairs: list[tuple[str | None, str]] = []
+    for item in upload.get("uploaded_files") or []:
+        target = _target_for_uploaded_item(item)
+        if target:
+            pairs.append((_source_for_uploaded_item(item), target))
+    for step in upload.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        command = step.get("command")
+        if not isinstance(command, list) or "cp" not in command:
+            continue
+        target = None
+        source = None
+        for arg in reversed(command):
+            if isinstance(arg, str) and arg.startswith(":"):
+                target = arg
+                break
+        try:
+            cp_index = command.index("cp")
+        except ValueError:
+            cp_index = -1
+        if cp_index >= 0 and cp_index + 1 < len(command):
+            candidate = command[cp_index + 1]
+            if isinstance(candidate, str):
+                source = candidate
+        if target:
+            pairs.append((source, target))
+    return pairs
+
+
 def forbidden_uploads(upload: dict[str, Any]) -> list[str]:
     bad: list[str] = []
-    for target in upload_targets(upload):
+    for source, target in upload_source_target_pairs(upload):
         normalized = target.replace("\\", "/")
         path = normalized[1:] if normalized.startswith(":") else normalized
+        normalized_source = (source or "").replace("\\", "/")
         if normalized in FORBIDDEN_UPLOAD_TARGETS:
+            bad.append(normalized)
+            continue
+        if path.startswith("firmware/") or normalized_source.startswith("build/mpy/firmware/") or "/build/mpy/firmware/" in normalized_source:
+            bad.append(normalized)
+            continue
+        if "__pycache__/" in path or path.endswith(".pyc") or "__pycache__/" in normalized_source or normalized_source.endswith(".pyc"):
             bad.append(normalized)
             continue
         if path.startswith("drivers/") and path.endswith(FORBIDDEN_UPLOAD_SUFFIXES):

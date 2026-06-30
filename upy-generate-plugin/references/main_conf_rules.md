@@ -2,6 +2,15 @@
 
 Read this reference before updating `firmware/conf.py` or `firmware/main.py`.
 
+## Framework Ownership
+
+Scaffold-owned framework libraries are contracts, not generated business code.
+
+- Do not edit `firmware/lib/scheduler/*`, `firmware/lib/logger/*`, `firmware/lib/time_helper.py`, or `firmware/tasks/maintenance.py` to fix generated app bugs unless the user explicitly requests a scaffold library contract change.
+- Fix generator output, `firmware/main.py` assembly, generated tasks/drivers, validation scripts, or deploy tooling instead.
+- For timer compatibility, keep the scaffold scheduler library default intact and pass the correct target-specific timer id from `main.py`.
+- For logging behavior, do not modify scaffold logger source solely to add timestamps or formatting.
+
 ## conf.py Rules
 
 All behavior constants must live in `conf.py`.
@@ -54,6 +63,8 @@ print(msg)
 info(msg)
 ```
 
+Generated logger messages should include enough timing context at the call site. Use `time.ticks_ms()`, `time.ticks_diff()`, `time.localtime()`, or an explicit helper to mix uptime/timestamp into message text before calling scaffold logger APIs. This keeps `/log/run_*.log` useful after deploy without changing scaffold logger ownership.
+
 ## DI Assembly
 
 `main.py` must connect the full dependency chain:
@@ -65,6 +76,10 @@ machine.I2C/Pin/SPI/UART -> create_<device>() -> driver object -> task function
 Do not let task functions instantiate hardware.
 
 ## I2C Startup Scan
+
+Only generate I2C startup scan code when manifest hardware facts include at least one I2C device or an I2C pinout/bus entry. Do not add a generic I2C scan just because the scaffold has I2C constants.
+
+Before creating `I2C(...)`, verify SCL/SDA pins do not overlap with non-I2C assignments in `pinout[]` such as I2S BCLK/LRC/DIN, WS2812 DIN, UART, SPI, PWM, or GPIO-only control pins. If they overlap, emit a structured generate error instead of reusing the pins.
 
 For each I2C device with `scan_<name>_i2c`, call it during startup:
 

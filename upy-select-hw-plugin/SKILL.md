@@ -973,3 +973,10 @@ python upy-select-hw-plugin/scripts/select_hw_manifest.py --validate-manifest-co
 ## 维护原则
 
 后续以 `upy-select-hw-plugin` 目录内容为准，再反向更新课程文档。
+## Session Boundary Addendum
+
+- Treat `runtime_context.session_root` and explicit upstream `source_phase_complete_path` as the `workflow_session_root`.
+- A log-only or diagnostic session may be referenced for evidence, but it must not relocate select-hw artifacts or change the workflow session.
+- Write `select_hw_draft.json`, `select_hw_validated.json`, `phase_complete.select_hw.json`, logs, and artifact paths under the active `workflow_session_root`.
+- Keep `resource_root`, `artifact_root`, and `workflow_session_root` separate. Do not copy skill resources into the artifact workspace to make paths appear valid.
+- If session evidence is mixed, record the secondary session as `diagnostic_log_session` in warnings/artifacts and continue writing to the workflow session.

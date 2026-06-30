@@ -32,6 +32,34 @@ Use this reference when creating or validating `start_phase`, `phase_complete`, 
 | `timeouts` | Step-level timeout budget in milliseconds. |
 | `error_context` | Required in `fix` mode. Contains traceback, deploy logs, user feedback, triage JSON, previous attempts. |
 
+## Session Boundary
+
+Use these terms consistently when a user reopens chats, passes one session as the target, and references another session only for logs.
+
+| Term | Meaning |
+|---|---|
+| `workflow_session_root` | The active session that owns generated project files, checkpoints, phase_complete files, and the artifact chain. |
+| `diagnostic_log_session` | A secondary session used only as evidence, such as deploy logs, REPL output, or prior failure analysis. |
+
+Rules:
+
+- Treat `runtime_context.session_root`, `runtime_context.project_root`, and explicit `source_phase_complete_path` as the workflow session source of truth.
+- Treat a user-supplied path in the generate command as `workflow_session_root` unless the user explicitly says it is only diagnostic evidence.
+- Do not infer the active workflow session from the newest `sessions/*` directory, a reopened chat, or stale phase logs.
+- Do not write generated code, `generate_plan.json`, `phase_complete.upy_generate_plugin.json`, or checkpoint files into a `diagnostic_log_session`.
+- If deploy/user feedback references another session, include that path only in `artifacts`, `warnings`, or `error_context`.
+- Final `phase_complete.payload.runtime_context.session_root` and `project_root` must point to the workflow session that owns the current generated project.
+
+## Deploy Feedback And Fix Boundary
+
+Deploy collects evidence; generate fixes code semantics.
+
+- `upy-deploy-plugin` must not be treated as a broad semantic preflight engine for Timer, task assembly, or peripheral API correctness.
+- Deploy returns `error_context` evidence to `upy-autofix-plugin` or `upy-generate-plugin(mode=fix)`.
+- Fix mode must consume the full `error_context`, including deploy result path, serial excerpt, device log excerpt/report, device test result path, mip install result, forbidden upload list, user observation, and previous generate commit when available.
+- Fix mode should make the smallest code change, rerun quality gates, and produce a new commit when success is claimed.
+- A deploy `PASS` or `PASS_WITH_WARNINGS` means deployment-observation success. It does not authorize ad-hoc source edits inside deploy.
+
 ## Checkpoint Names
 
 Use these stable checkpoint names:

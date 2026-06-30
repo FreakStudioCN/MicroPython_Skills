@@ -1013,6 +1013,16 @@ def add_placeholder_files(files: List[Dict[str, str]]) -> None:
         files.append(file_payload(path, ""))
 
 
+def generate_gitignore() -> str:
+    return (
+        "__pycache__/\n"
+        "*.pyc\n"
+        "*.pyo\n"
+        "build/mpy/\n"
+        "build/mpy/**\n"
+    )
+
+
 def updated_manifest(manifest: Dict[str, Any], mode: str, modules: Set[str], custom_files: Sequence[str]) -> Dict[str, Any]:
     result = deepcopy(manifest)
     result["phase"] = "scaffold"
@@ -1066,6 +1076,7 @@ def generate_full(manifest: Dict[str, Any], mode: str, modules: Set[str], custom
     files.extend(generate_driver_files(manifest.get("devices", []) or []))
     add_placeholder_files(files)
     add_upy_resources(files, warnings)
+    files.append(file_payload(".gitignore", generate_gitignore()))
     files.append(file_payload(".flake8", generate_flake8()))
     files.append(file_payload("LICENSE", generate_license()))
     for path in custom_files:

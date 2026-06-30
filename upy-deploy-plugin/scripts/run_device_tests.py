@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,9 @@ from mpremote_runtime import MpremoteUnavailable, run_mpremote
 TEST_PATTERNS = (
     "device/tests/test_*.py",
     "test/device/test_*.py",
+)
+DEFAULT_TEMP_UPLOAD_PATTERNS = (
+    "firmware/drivers/*/mock.py",
 )
 
 
@@ -39,7 +43,56 @@ def rel_path(project_root: Path, path: Path) -> str:
         return path.as_posix()
 
 
-def mock_result(project_root: Path, output_json: str | None) -> dict[str, Any]:
+def posix_rel(project_root: Path, path: Path) -> str:
+    return rel_path(project_root, path).replace("\\", "/")
+
+
+def find_temp_uploads(project_root: Path, patterns: list[str]) -> list[tuple[Path, str]]:
+    uploads: list[tuple[Path, str]] = []
+    for path in sorted(project_root.rglob("mock.py")):
+        rel = posix_rel(project_root, path)
+        if not any(fnmatch.fnmatch(rel, pattern) for pattern in patterns):
+            continue
+        if rel.startswith("firmware/"):
+            remote = ":" + rel[len("firmware/"):]
+        else:
+            remote = ":" + rel
+        uploads.append((path.resolve(), remote.replace("\\", "/")))
+    return uploads
+
+
+def remote_parent_dirs(remote: str) -> list[str]:
+    rel = remote[1:] if remote.startswith(":") else remote
+    parent = str(Path(rel).parent).replace("\\", "/")
+    if not parent or parent == ".":
+        return []
+    parts = [part for part in parent.split("/") if part]
+    return [":" + "/".join(parts[:index]) for index in range(1, len(parts) + 1)]
+
+
+def mock_temp_artifacts(project_root: Path, patterns: list[str]) -> dict[str, Any]:
+    uploads = [
+        {
+            "source": posix_rel(project_root, source),
+            "target": target,
+            "upload": {"ok": True, "returncode": 0},
+            "cleanup": {"ok": True, "returncode": 0},
+            "cleanup_verify": {"ok": True, "returncode": 1, "status": "absent"},
+        }
+        for source, target in find_temp_uploads(project_root, patterns)
+    ]
+    return {
+        "status": "success",
+        "enabled": bool(patterns),
+        "patterns": patterns,
+        "uploads": uploads,
+        "uploaded": len(uploads),
+        "cleaned": len(uploads),
+        "errors": [],
+    }
+
+
+def mock_result(project_root: Path, output_json: str | None, temp_upload_patterns: list[str]) -> dict[str, Any]:
     tests = find_tests(project_root)
     records = [
         {
@@ -61,6 +114,7 @@ def mock_result(project_root: Path, output_json: str | None) -> dict[str, Any]:
         "passed": len(tests),
         "failed": 0,
         "tests": records,
+        "temp_artifacts": mock_temp_artifacts(project_root, temp_upload_patterns),
         "output_json": output_json,
     }
 
@@ -100,7 +154,99 @@ def render_log(result: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def run_tests(project_root: Path, port: str, timeout_ms: int) -> dict[str, Any]:
+def temp_upload_setup(project_root: Path, port: str, timeout_ms: int, patterns: list[str]) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    for source, target in find_temp_uploads(project_root, patterns):
+        record: dict[str, Any] = {
+            "source": posix_rel(project_root, source),
+            "target": target,
+        }
+        for remote_dir in remote_parent_dirs(target):
+            mkdir = run_mpremote(port, ["resume", "fs", "mkdir", remote_dir], timeout_ms, check=False)
+            record.setdefault("mkdir", []).append(
+                {
+                    "target": remote_dir,
+                    "returncode": mkdir.returncode,
+                    "stdout_excerpt": excerpt(mkdir.stdout, 1000),
+                    "stderr_excerpt": excerpt(mkdir.stderr, 1000),
+                }
+            )
+        uploaded = run_mpremote(port, ["resume", "fs", "cp", str(source), target], timeout_ms, check=False)
+        upload_ok = uploaded.returncode == 0
+        record["upload"] = {
+            "ok": upload_ok,
+            "returncode": uploaded.returncode,
+            "stdout_excerpt": excerpt(uploaded.stdout),
+            "stderr_excerpt": excerpt(uploaded.stderr),
+        }
+        if not upload_ok:
+            errors.append(
+                {
+                    "code": "device_test_temp_upload_failed",
+                    "source": record["source"],
+                    "target": target,
+                    "message": "failed to upload temporary device-test mock artifact",
+                }
+            )
+        records.append(record)
+    return {
+        "status": "failed" if errors else "success",
+        "enabled": bool(patterns),
+        "patterns": patterns,
+        "uploads": records,
+        "uploaded": sum(1 for item in records if (item.get("upload") or {}).get("ok")),
+        "errors": errors,
+    }
+
+
+def temp_upload_cleanup(port: str, timeout_ms: int, setup: dict[str, Any]) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    for item in setup.get("uploads") or []:
+        if not isinstance(item, dict) or not (item.get("upload") or {}).get("ok"):
+            continue
+        target = item.get("target")
+        if not isinstance(target, str):
+            continue
+        cleanup = run_mpremote(port, ["resume", "fs", "rm", target], timeout_ms, check=False)
+        verify = run_mpremote(port, ["resume", "fs", "ls", target], timeout_ms, check=False)
+        cleanup_ok = cleanup.returncode == 0
+        absent = verify.returncode != 0
+        record = {
+            "target": target,
+            "cleanup": {
+                "ok": cleanup_ok,
+                "returncode": cleanup.returncode,
+                "stdout_excerpt": excerpt(cleanup.stdout),
+                "stderr_excerpt": excerpt(cleanup.stderr),
+            },
+            "cleanup_verify": {
+                "ok": absent,
+                "returncode": verify.returncode,
+                "stdout_excerpt": excerpt(verify.stdout),
+                "stderr_excerpt": excerpt(verify.stderr),
+                "status": "absent" if absent else "still_present",
+            },
+        }
+        if not cleanup_ok or not absent:
+            errors.append(
+                {
+                    "code": "device_test_temp_cleanup_failed",
+                    "target": target,
+                    "message": "temporary device-test mock artifact was not removed cleanly",
+                }
+            )
+        records.append(record)
+    return {
+        "status": "failed" if errors else "success",
+        "cleanups": records,
+        "cleaned": sum(1 for item in records if (item.get("cleanup") or {}).get("ok")),
+        "errors": errors,
+    }
+
+
+def run_tests(project_root: Path, port: str, timeout_ms: int, temp_upload_patterns: list[str]) -> dict[str, Any]:
     tests = find_tests(project_root)
     records: list[dict[str, Any]] = []
     started = datetime.now(timezone.utc).isoformat()
@@ -117,24 +263,37 @@ def run_tests(project_root: Path, port: str, timeout_ms: int) -> dict[str, Any]:
             "tests": [],
             "warnings": [{"code": "device_tests_not_found", "message": "no device-side unittest files were found"}],
         }
-    for path in tests:
-        begin = time.monotonic()
-        completed = run_mpremote(port, ["run", str(path)], timeout_ms, check=False)
-        duration_ms = int((time.monotonic() - begin) * 1000)
-        passed = completed.returncode == 0
-        records.append(
+    temp_setup = temp_upload_setup(project_root, port, timeout_ms, temp_upload_patterns)
+    test_runner_errors: list[dict[str, Any]] = []
+    try:
+        for path in tests:
+            begin = time.monotonic()
+            completed = run_mpremote(port, ["run", str(path)], timeout_ms, check=False)
+            duration_ms = int((time.monotonic() - begin) * 1000)
+            passed = completed.returncode == 0
+            records.append(
+                {
+                    "path": rel_path(project_root, path),
+                    "status": "passed" if passed else "failed",
+                    "returncode": completed.returncode,
+                    "stdout_excerpt": excerpt(completed.stdout),
+                    "stderr_excerpt": excerpt(completed.stderr),
+                    "duration_ms": duration_ms,
+                }
+            )
+    except Exception as exc:
+        test_runner_errors.append(
             {
-                "path": rel_path(project_root, path),
-                "status": "passed" if passed else "failed",
-                "returncode": completed.returncode,
-                "stdout_excerpt": excerpt(completed.stdout),
-                "stderr_excerpt": excerpt(completed.stderr),
-                "duration_ms": duration_ms,
+                "code": "device_tests_runner_failed",
+                "message": str(exc),
             }
         )
+    finally:
+        temp_cleanup = temp_upload_cleanup(port, timeout_ms, temp_setup)
     failed = [record for record in records if record["status"] != "passed"]
+    temp_errors = list(temp_setup.get("errors") or []) + list(temp_cleanup.get("errors") or [])
     return {
-        "status": "failed" if failed else "success",
+        "status": "failed" if failed or temp_errors or test_runner_errors else "success",
         "mode": "live",
         "generated_at": started,
         "finished_at": datetime.now(timezone.utc).isoformat(),
@@ -144,6 +303,14 @@ def run_tests(project_root: Path, port: str, timeout_ms: int) -> dict[str, Any]:
         "passed": len(records) - len(failed),
         "failed": len(failed),
         "tests": records,
+        "temp_artifacts": {
+            "status": "failed" if temp_errors else "success",
+            "enabled": bool(temp_upload_patterns),
+            "patterns": temp_upload_patterns,
+            "setup": temp_setup,
+            "cleanup": temp_cleanup,
+            "errors": temp_errors,
+        },
         "errors": [
             {
                 "code": classify_failure(record),
@@ -151,7 +318,7 @@ def run_tests(project_root: Path, port: str, timeout_ms: int) -> dict[str, Any]:
                 "message": failure_message(record),
             }
             for record in failed
-        ],
+        ] + test_runner_errors + temp_errors,
     }
 
 
@@ -184,6 +351,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-root", required=True)
     parser.add_argument("--port", default="")
     parser.add_argument("--timeout-ms", type=int, default=60000)
+    parser.add_argument(
+        "--temp-upload-pattern",
+        action="append",
+        default=None,
+        help="Project-local glob for temporary device-test artifacts. Use 'none' to disable defaults.",
+    )
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
     parser.add_argument("--log-file")
@@ -194,16 +367,23 @@ def main() -> int:
     configure_stdio()
     args = parse_args()
     project_root = Path(args.project_root).resolve()
+    temp_upload_patterns = list(DEFAULT_TEMP_UPLOAD_PATTERNS)
+    if args.temp_upload_pattern:
+        temp_upload_patterns = []
+        for pattern in args.temp_upload_pattern:
+            if pattern.lower() == "none":
+                continue
+            temp_upload_patterns.append(pattern.replace("\\", "/"))
     try:
         if args.mock:
-            result = mock_result(project_root, args.output_json)
+            result = mock_result(project_root, args.output_json, temp_upload_patterns)
         elif not args.port:
             result = {
                 "status": "action_required",
                 "errors": [{"code": "port_required", "message": "--port is required unless --mock is used"}],
             }
         else:
-            result = run_tests(project_root, args.port, args.timeout_ms)
+            result = run_tests(project_root, args.port, args.timeout_ms, temp_upload_patterns)
     except MpremoteUnavailable as exc:
         result = {"status": "action_required", "errors": [exc.to_error()]}
     except Exception as exc:

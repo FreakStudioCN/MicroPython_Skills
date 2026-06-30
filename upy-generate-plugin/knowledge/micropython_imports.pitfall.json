@@ -10,10 +10,11 @@
   },
   "symptoms": [
     "Device raises ImportError for typing, pathlib, dataclasses, logging, or asyncio",
-    "PC tests pass but firmware fails at boot"
+    "PC tests pass but firmware fails at boot",
+    "check_mpy_imports.py --include-lib reports scaffold rotating_logger.py CPython logging fallback as a hard error"
   ],
-  "wrong_pattern": "Importing CPython-only modules inside firmware code.",
-  "correct_pattern": "Use MicroPython modules, project local helpers, or simple built-ins. Use uasyncio for firmware async code.",
+  "wrong_pattern": "Importing CPython-only modules inside firmware runtime code, or treating CPython-only compatibility branches as runtime imports without checking their guard.",
+  "correct_pattern": "Use MicroPython modules, project local helpers, or simple built-ins. Use uasyncio for firmware async code. Allow CPython-only imports only when they are unreachable on MicroPython, such as an else branch guarded by _IS_MICROPYTHON=False.",
   "detection": {
     "script": "scripts/check_mpy_imports.py",
     "grep": "^(import|from) ",
@@ -22,7 +23,10 @@
   "fix_guidance": [
     "Remove typing/dataclasses/pathlib from firmware code.",
     "Use lib.logger instead of logging.",
-    "Use uasyncio instead of asyncio in firmware runtime."
+    "Use uasyncio instead of asyncio in firmware runtime.",
+    "Treat try uasyncio / except ImportError import asyncio as MPY_IMPORT_CPYTHON_FALLBACK warning, not a hard failure.",
+    "Treat if _IS_MICROPYTHON: MicroPython branch else: import logging as MPY_IMPORT_CPYTHON_ONLY_GUARD warning when the CPython import is unreachable on MicroPython.",
+    "Keep direct runtime import logging, import asyncio, import pathlib, import dataclasses, import typing as MPY_IMPORT_UNSUPPORTED."
   ],
   "references": [
     "https://docs.micropython.org/en/latest/develop/index.html"

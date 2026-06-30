@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 SCRIPT = ROOT / "scripts" / "init_scaffold.py"
 RUNNER = ROOT / "scripts" / "apply_scaffold.py"
+VALIDATOR = ROOT / "scripts" / "scaffold_manifest.py"
 SELECT_HW_SAMPLE = REPO / "upy-select-hw-plugin" / "sample" / "phase_complete.select_hw.success.json"
 FLASH_SAMPLE = REPO / "upy-flash-mpy-firmware-plugin" / "sample" / "phase_complete.upy_flash_mpy_firmware_plugin.esp32_c3_success.json"
 
@@ -51,6 +52,19 @@ def run_runner(*args: str) -> tuple[int, dict]:
     )
     if not result.stdout.strip():
         raise AssertionError(f"runner produced no JSON: {' '.join(cmd)}\nSTDERR:\n{result.stderr}")
+    return result.returncode, json.loads(result.stdout)
+
+
+def run_json_allow_failure(cmd: list[str]) -> tuple[int, dict]:
+    result = subprocess.run(
+        cmd,
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if not result.stdout.strip():
+        raise AssertionError(f"command produced no JSON: {' '.join(cmd)}\nSTDERR:\n{result.stderr}")
     return result.returncode, json.loads(result.stdout)
 
 
@@ -143,6 +157,7 @@ def full_timer_generates_json_payload() -> None:
         "firmware/tasks/maintenance.py",
         "tools/flash_device.py",
         "tools/read_device_log.py",
+        ".gitignore",
         ".upy/schemas/project-manifest.schema.json",
         ".upy/schemas/wiring.schema.json",
         ".upy/schemas/diagram.schema.json",
@@ -194,6 +209,10 @@ def full_timer_generates_json_payload() -> None:
         raise AssertionError(".flake8 must not ignore board.py indentation errors")
     if "F821" in flake8_config or "extend-ignore =\n    F401" in flake8_config:
         raise AssertionError(".flake8 must not globally ignore F821/F401")
+    gitignore = content(output, ".gitignore")
+    for expected_text in ("__pycache__/", "*.pyc", "build/mpy/"):
+        if expected_text not in gitignore:
+            raise AssertionError(f".gitignore must ignore generated local artifacts: {expected_text}")
     board_py = content(output, "firmware/board.py")
     if "\n {'device':" in board_py or "\n  {'device':" in board_py:
         raise AssertionError("board.py PINOUT should be rendered with stable visual indentation")
@@ -454,6 +473,8 @@ def approval_sample_uses_item_groups() -> None:
         raise AssertionError("extra_modules must be multi-select")
     if not any(item.get("group") == "scheduler_mode" for item in payload.get("items", [])):
         raise AssertionError("approval sample missing scheduler_mode items")
+    if not any(item.get("id") == "module_time_helper" and item.get("group") == "extra_modules" for item in payload.get("items", [])):
+        raise AssertionError("approval sample missing module_time_helper time measurement option")
 
 
 def run_on_device_reports_missing_file_as_json() -> None:
@@ -495,6 +516,17 @@ def local_actual_runner_writes_session_project_and_file_manifest() -> None:
             if data.startswith(b"\xef\xbb\xbf"):
                 raise AssertionError(f"runner must write UTF-8 without BOM: {rel_path}")
         phase_complete = summary["phase_complete"]
+        phase_path = session_dir / "phase_complete.inline.json"
+        phase_path.write_text(json.dumps(phase_complete, ensure_ascii=False), encoding="utf-8")
+        validator_rc, validator = run_json_allow_failure([
+            sys.executable,
+            str(VALIDATOR),
+            "--input",
+            str(phase_path),
+            "--validate-phase-complete",
+        ])
+        if validator_rc != 0 or validator.get("status") != "ok":
+            raise AssertionError(f"scaffold phase_complete validator rejected valid output: {validator}")
         payload = phase_complete["payload"]
         expected_project_root = "sessions/sample-session/project"
         runtime_context = payload["runtime_context"]
@@ -645,6 +677,44 @@ def local_actual_runner_detects_conflict_without_force() -> None:
             raise AssertionError(f"conflict should emit FILE_CONFLICT: {errors}")
 
 
+def scaffold_phase_validator_rejects_success_with_errors() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "bad-scaffold"
+        session_dir.mkdir(parents=True)
+        returncode, summary = run_runner("--session-dir", str(session_dir), "--manifest", str(SELECT_HW_SAMPLE))
+        if returncode != 0:
+            raise AssertionError(f"runner should create a valid baseline: {summary}")
+        bad = summary["phase_complete"]
+        payload = bad["payload"]
+        payload["result"] = "success"
+        payload["next_phase"] = "upy-generate-plugin"
+        payload["structured_errors"] = [
+            {
+                "code": "SCAFFOLD_LINT_FAILED",
+                "message": "flake8 gate failed",
+                "severity": "error",
+            }
+        ]
+        payload["errors"] = ["flake8 gate failed"]
+        payload["lint"]["returncode"] = 0
+        payload["lint"]["stdout"] = "firmware\\main.py:19:1: E303 too many blank lines (3)\n"
+        bad_path = session_dir / "bad_phase_complete.json"
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, result = run_json_allow_failure([
+            sys.executable,
+            str(VALIDATOR),
+            "--input",
+            str(bad_path),
+            "--validate-phase-complete",
+        ])
+        if rc == 0 or result.get("status") != "failed":
+            raise AssertionError(f"validator must reject success with lint errors: {result}")
+        text = json.dumps(result, ensure_ascii=False)
+        for expected in ("success payload.structured_errors must be empty", "flake8 violations"):
+            if expected not in text:
+                raise AssertionError(f"validator did not report {expected}: {result}")
+
+
 def flash_device_template_has_stable_json_summary() -> None:
     script = ROOT / "templates" / "pc" / "flash_device.py"
     result = subprocess.run(
@@ -681,10 +751,19 @@ def flash_device_template_excludes_source_only_and_mocks() -> None:
     text = (ROOT / "templates" / "pc" / "flash_device.py").read_text(encoding="utf-8")
     required = [
         'SOURCE_ONLY_FILES = {"main.py", "boot.py", "conf.py"}',
+        'SOURCE_ONLY_MPY_FILES = {"main.mpy", "boot.mpy", "conf.mpy"}',
         'COMPILE_EXCLUDE_PATTERNS = {"drivers/*/mock.py"}',
         'UPLOAD_EXCLUDE_PATTERNS = {"drivers/*/mock.py", "drivers/*/mock.mpy"}',
+        "import shutil",
+        "shutil.rmtree(MPY_DIR)",
+        "_clear_mpy_dir()",
         "compile_skip_reason(rel)",
         "_stale_mpy_for_source(rel)",
+        "forbidden_upload_reason(rel, src)",
+        "wrong_firmware_root",
+        "python_cache_not_runtime",
+        "source_only_compiled",
+        "forbidden_upload_artifact",
         "upload_skip_reason(rel)",
         "\"compiled_files\": []",
         "\"uploaded_files\": []",
@@ -716,6 +795,7 @@ def main() -> int:
         run_on_device_reports_missing_file_as_json,
         local_actual_runner_writes_session_project_and_file_manifest,
         local_actual_runner_detects_conflict_without_force,
+        scaffold_phase_validator_rejects_success_with_errors,
         flash_device_template_has_stable_json_summary,
         flash_device_template_upload_uses_resume_fs,
         flash_device_template_excludes_source_only_and_mocks,

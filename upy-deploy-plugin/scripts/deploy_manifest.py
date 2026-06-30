@@ -11,6 +11,17 @@ from common import configure_stdio, get_manifest, get_payload, load_json, print_
 
 PHASE = "upy-deploy-plugin"
 UPSTREAM_PHASE = "upy-generate-plugin"
+SUCCESS_REQUIRED_ARTIFACT_BASENAMES = {
+    "deploy_result.json",
+    "upload_summary.json",
+    "clean_result.json",
+    "mip_install_result.json",
+    "device_tests_result.json",
+}
+SUCCESS_REQUIRED_ARTIFACT_KEYWORDS = {
+    "serial": ("serial", "repl", "capture"),
+    "log": ("log", "device_log", "log_report"),
+}
 
 
 def require(condition: bool, errors: list[str], message: str) -> None:
@@ -68,6 +79,7 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
             require(manifest.get("deploy") or manifest.get("deploy_result"), errors, "manifest_content.deploy or deploy_result is required")
     artifacts = payload.get("artifacts")
     require(isinstance(artifacts, list), errors, "payload.artifacts must be a list")
+    artifact_paths = artifact_file_paths(artifacts) if isinstance(artifacts, list) else []
     deploy_result = payload.get("deploy_result")
     require(isinstance(deploy_result, dict), errors, "payload.deploy_result object is required")
     if isinstance(deploy_result, dict):
@@ -79,7 +91,57 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
                 "deploy_result.status is invalid",
             )
         require("strategy" in deploy_result, errors, "deploy_result.strategy is required")
+    if payload.get("result") == "success":
+        require(not payload.get("structured_errors"), errors, "success payload.structured_errors must be empty")
+        require(
+            has_artifact_basename(artifact_paths, "deploy_result.json"),
+            errors,
+            "success payload.artifacts must include deploy_result.json",
+        )
+        for basename in sorted(SUCCESS_REQUIRED_ARTIFACT_BASENAMES - {"deploy_result.json"}):
+            require(
+                has_artifact_basename(artifact_paths, basename),
+                errors,
+                f"success payload.artifacts must include {basename}",
+            )
+        for label, keywords in SUCCESS_REQUIRED_ARTIFACT_KEYWORDS.items():
+            require(
+                has_artifact_keyword(artifact_paths, keywords),
+                errors,
+                f"success payload.artifacts must include {label} capture/report artifact",
+            )
+    elif payload.get("result") in {"failed", "partial"}:
+        require(
+            has_artifact_basename(artifact_paths, "deploy_result.json") or payload.get("checkpoint"),
+            errors,
+            "failed/partial payload.artifacts must include deploy_result.json or a checkpoint",
+        )
     return {"status": "ok" if not errors else "failed", "errors": errors}
+
+
+def artifact_file_paths(artifacts: list[Any]) -> list[str]:
+    paths: list[str] = []
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        path = artifact.get("path")
+        if isinstance(path, str):
+            paths.append(path.replace("\\", "/"))
+        files = artifact.get("files")
+        if isinstance(files, list):
+            for item in files:
+                if isinstance(item, dict) and isinstance(item.get("path"), str):
+                    paths.append(item["path"].replace("\\", "/"))
+    return paths
+
+
+def has_artifact_basename(paths: list[str], basename: str) -> bool:
+    return any(path.rstrip("/").split("/")[-1] == basename for path in paths)
+
+
+def has_artifact_keyword(paths: list[str], keywords: tuple[str, ...]) -> bool:
+    lowered = [path.lower() for path in paths]
+    return any(any(keyword in path for keyword in keywords) for path in lowered)
 
 
 def parse_args() -> argparse.Namespace:

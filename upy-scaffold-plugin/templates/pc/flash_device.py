@@ -17,6 +17,7 @@ import subprocess
 import sys
 import argparse
 import fnmatch
+import shutil
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,6 +26,7 @@ BUILD_DIR = os.path.join(ROOT, "build")
 MPY_DIR = os.path.join(BUILD_DIR, "mpy")
 MANIFEST_PATH = os.path.join(ROOT, "project-manifest.json")
 SOURCE_ONLY_FILES = {"main.py", "boot.py", "conf.py"}
+SOURCE_ONLY_MPY_FILES = {"main.mpy", "boot.mpy", "conf.mpy"}
 COMPILE_EXCLUDE_PATTERNS = {"drivers/*/mock.py"}
 UPLOAD_EXCLUDE_PATTERNS = {"drivers/*/mock.py", "drivers/*/mock.mpy"}
 
@@ -150,6 +152,18 @@ def upload_skip_reason(rel: str):
     return None
 
 
+def forbidden_upload_reason(rel: str, src=None):
+    rel = _posix_rel(rel)
+    src_rel = _posix_rel(os.path.relpath(src, ROOT)) if src else ""
+    if rel in SOURCE_ONLY_MPY_FILES:
+        return "source_only_compiled"
+    if rel.startswith("firmware/") or src_rel.startswith("build/mpy/firmware/"):
+        return "wrong_firmware_root"
+    if "__pycache__/" in rel or rel.endswith(".pyc") or "__pycache__/" in src_rel or src_rel.endswith(".pyc"):
+        return "python_cache_not_runtime"
+    return None
+
+
 def _record_skip(path: str, reason: str, stage: str):
     item = {"path": _posix_rel(path), "reason": reason, "stage": stage}
     _SUMMARY["skipped_files"].append(item)
@@ -160,11 +174,18 @@ def _stale_mpy_for_source(rel: str) -> str:
     return os.path.join(MPY_DIR, rel).replace(".py", ".mpy")
 
 
+def _clear_mpy_dir():
+    if os.path.exists(MPY_DIR):
+        shutil.rmtree(MPY_DIR)
+    os.makedirs(MPY_DIR, exist_ok=True)
+
+
 def compile_py_files() -> bool:
     """Compile all .py files under firmware/ to build/mpy/, preserving structure."""
     print("[compile] Compiling .py → .mpy ...")
     step = {"type": "compile", "status": "running", "files": [], "skipped": []}
     _SUMMARY["steps"].append(step)
+    _clear_mpy_dir()
     if not check_mpy_cross():
         print("[WARNING] mpy-cross not found. Install: pip install mpy-cross")
         print("          Skipping compilation (use .py directly).")
@@ -194,7 +215,6 @@ def compile_py_files() -> bool:
         step["reason"] = "no python files"
         return True
 
-    os.makedirs(MPY_DIR, exist_ok=True)
     manifest = load_manifest()
     mcu = manifest.get("mcu", {})
     mpy_version = mcu.get("mpy_version", "")
@@ -315,6 +335,17 @@ def _upload_dir(source_dir: str, label: str):
                 continue
             src = os.path.join(root, f)
             rel = os.path.relpath(src, source_dir).replace("\\", "/")
+            forbidden = forbidden_upload_reason(rel, src)
+            if forbidden:
+                _mark_failed(
+                    "forbidden_upload_artifact",
+                    "refusing to upload non-runtime or wrong-root artifact",
+                    source=os.path.relpath(src, ROOT).replace("\\", "/"),
+                    target=":{}".format(_posix_rel(rel)),
+                    reason=forbidden,
+                )
+                print("[ERROR] refusing to upload {}: {}".format(rel, forbidden))
+                sys.exit(1)
             reason = upload_skip_reason(rel)
             if reason:
                 _record_skip(rel, reason, "upload")

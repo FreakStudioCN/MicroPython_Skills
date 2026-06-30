@@ -61,7 +61,11 @@
         "title": "Deploy artifacts",
         "files": [
           {"path": "sessions/demo-session/deploy_result.json", "status": "new"},
+          {"path": "sessions/demo-session/upload_summary.json", "status": "new"},
+          {"path": "sessions/demo-session/clean_result.json", "status": "new"},
+          {"path": "sessions/demo-session/mip_install_result.json", "status": "new"},
           {"path": "sessions/demo-session/serial_capture.log", "status": "new"},
+          {"path": "sessions/demo-session/device_log_report.json", "status": "new"},
           {"path": "sessions/demo-session/device_tests_result.json", "status": "new"}
         ]
       }

@@ -46,6 +46,13 @@
         "group": "extra_modules"
       },
       {
+        "id": "module_time_helper",
+        "name": "时间测量工具",
+        "subtitle": "firmware/lib/time_helper.py",
+        "selected": true,
+        "group": "extra_modules"
+      },
+      {
         "id": "module_flash",
         "name": "部署工具",
         "subtitle": "tools/flash_device.py",

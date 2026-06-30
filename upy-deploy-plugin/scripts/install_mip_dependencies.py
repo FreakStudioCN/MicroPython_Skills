@@ -207,14 +207,29 @@ def fs_verify_dependency(port: str, dep: dict[str, Any], timeout_ms: int) -> dic
     package_path = normalize_device_path(f"{target}/{module.replace('.', '/')}")
     root_listing = fs_ls(port, target, timeout_ms)
     package_listing = fs_ls(port, package_path, timeout_ms)
+    root_names = parse_ls_names(root_listing.get("stdout_excerpt") or "")
     package_names = parse_ls_names(package_listing.get("stdout_excerpt") or "")
-    expected_file = "__init__.py"
-    ok = bool(root_listing["ok"] and package_listing["ok"] and expected_file in package_names)
+    expected_files = ["__init__.py", "__init__.mpy"]
+    matched_files = [name for name in expected_files if name in package_names]
+    module_leaf = module.split(".")[-1]
+    module_files = [f"{module_leaf}.py", f"{module_leaf}.mpy"]
+    matched_module_files = [name for name in module_files if name in root_names]
+    ok = bool(
+        root_listing["ok"]
+        and (
+            (package_listing["ok"] and matched_files)
+            or matched_module_files
+            or module_leaf in root_names
+        )
+    )
     return {
         "status": "success" if ok else "failed",
         "target": target,
         "package_path": package_path,
-        "expected_files": [expected_file],
+        "expected_files": expected_files,
+        "matched_files": matched_files,
+        "module_files": module_files,
+        "matched_module_files": matched_module_files,
         "root_listing": root_listing,
         "package_listing": package_listing,
         "ok": ok,
@@ -238,9 +253,12 @@ def mock_install(deps: list[dict[str, Any]]) -> dict[str, Any]:
                     "status": "success",
                     "target": dep["target"],
                     "package_path": f"{dep['target'].rstrip('/')}/{dep.get('verify_import') or dep['package']}",
-                    "expected_files": ["__init__.py"],
+                    "expected_files": ["__init__.py", "__init__.mpy"],
+                    "matched_files": ["__init__.mpy"],
+                    "module_files": ["unittest.py", "unittest.mpy"],
+                    "matched_module_files": [],
                     "root_listing": {"ok": True, "stdout_excerpt": "unittest/"},
-                    "package_listing": {"ok": True, "stdout_excerpt": "__init__.py"},
+                    "package_listing": {"ok": True, "stdout_excerpt": "__init__.mpy"},
                     "ok": True,
                 },
             }
