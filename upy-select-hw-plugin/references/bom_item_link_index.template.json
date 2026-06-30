@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "purpose": "BOM item procurement/link field template for all physical BOM items.",
+  "policy": {
+    "applies_to": "all_physical_bom_items",
+    "required_for_select_hw_success": false,
+    "empty_string_allowed": true,
+    "not_generate_or_deploy_contract": true,
+    "do_not_fabricate_links": true
+  },
+  "link_fields": [
+    "product_url",
+    "shop_url",
+    "datasheet_url",
+    "supplier",
+    "sku"
+  ],
+  "bom_item_template": {
+    "name": "",
+    "model": "",
+    "quantity": 1,
+    "unit_price_yuan": 0,
+    "product_url": "",
+    "shop_url": "",
+    "datasheet_url": "",
+    "supplier": "",
+    "sku": "",
+    "notes": ""
+  },
+  "examples": [
+    {
+      "name": "温湿度传感器",
+      "model": "AHT20",
+      "quantity": 1,
+      "unit_price_yuan": 12,
+      "product_url": "",
+      "shop_url": "",
+      "datasheet_url": "",
+      "supplier": "",
+      "sku": "",
+      "notes": "实体物料，链接未知时留空"
+    },
+    {
+      "name": "杜邦线",
+      "model": "Female-Female 20cm",
+      "quantity": 1,
+      "unit_price_yuan": 3,
+      "product_url": "",
+      "shop_url": "",
+      "datasheet_url": "",
+      "supplier": "",
+      "sku": "",
+      "notes": "实体物料，链接未知时留空"
+    }
+  ]
+}

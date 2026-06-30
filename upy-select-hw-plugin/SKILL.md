@@ -351,6 +351,19 @@ next_phase = null
 checkpoint 必填
 ```
 
+## 器件一致性边界
+
+`select-hw` 只能消费上游 `upstream_manifest.devices[]` 中已经确认的真实功能器件，不得在引脚分配、BOM 或最终 `manifest_content.devices[]` 中静默新增/替换传感器、显示屏、执行器、音频模块、通信模块等功能硬件。用户在本阶段要求新增或替换功能器件时，输出 `partial` 并回到 analyze/select-hw 重新确认器件清单。
+
+硬性规则：
+
+- `hardware_plan.pinout[].device` 必须匹配上游 `devices[].name`，只允许 `power`、`GND`、`3V3`、`5V`、`board`、`mcu` 等供电/系统项例外。
+- `hardware_plan.bom[]` 中的功能硬件必须能通过 `name`、`model`、`device` 或 `selected_model` 映射到上游 `devices[]`；杜邦线、面包板、电阻、电容、排针、USB 线、外壳、电池盒、电源模块、转接板等支撑物料可以不在上游器件清单中。
+- BOM 的 `url`、`link`、`product_url`、`shop_url`、`datasheet_url`、`supplier`、`sku` 等采购/参考字段可以保留，但不是传给 generate/deploy 的强 contract，不得作为下游成功前置条件。
+- 所有实体 BOM 项统一按 `references/bom_item_link_index.template.json` 保留 `product_url`、`shop_url`、`datasheet_url`、`supplier`、`sku`；未知时写空字符串，链接为空不得阻断 `select-hw` success 或进入下一阶段。
+- 不得为了补齐链接编造真实商城 URL、供应商或 SKU；链接索引只是采购展示模板，不改变硬件事实边界。
+- 如果 `select-hw` 为上游泛称补了具体型号，例如 `OLED display` -> `SSD1306 OLED`，应记录为原器件的型号补充或 BOM/model 信息，不要追加成新 `devices[]` 项；若型号会影响驱动/API，必须保持能映射回原上游器件。
+
 ## approval_request: board_unavailable
 
 当用户指定的具体板卡或 `pre_selected_board.id` 不在 `upy-analyze-plugin/boards` 中时，不要直接失败。先按同系列、同 `chip_family`、相同固件 port、相近功能需求排序，推荐一个已知且有 `pin_layout` 的替代板卡；同时给用户保留手动描述接线的选项。

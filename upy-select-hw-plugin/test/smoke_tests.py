@@ -422,7 +422,7 @@ def check_config_power_tie_simplified_validation() -> None:
     bad = json.loads(json.dumps(draft))
     bad["hardware_plan"]["pinout"].append(
         {
-            "device": "CONFIG_DEVICE",
+            "device": "MAX98357",
             "pin_name": "GAIN",
             "gpio": "3V3",
             "type": "power_3v3",
@@ -432,7 +432,7 @@ def check_config_power_tie_simplified_validation() -> None:
     )
     bad["hardware_plan"]["pin_decisions"].append(
         {
-            "device": "CONFIG_DEVICE",
+            "device": "MAX98357",
             "pin_name": "GAIN",
             "assigned_gpio": "3V3",
             "decision_type": "fixed_power_tie",
@@ -538,6 +538,167 @@ def check_user_wiring_and_onboard_validation() -> None:
     joined = "\n".join(result.get("errors", []) + result.get("warnings", []))
     if "onboard peripheral" not in joined:
         raise AssertionError(f"onboard occupied pin warning was not reported: {result}")
+
+
+def check_pinout_rejects_unknown_device() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    bad = json.loads(json.dumps(draft))
+    bad["hardware_plan"]["pinout"].append(
+        {
+            "device": "DHT22",
+            "pin_name": "DATA",
+            "gpio": 12,
+            "type": "gpio_in",
+            "source": "auto_assigned",
+        }
+    )
+    bad["hardware_plan"]["pin_decisions"].append(
+        {
+            "device": "DHT22",
+            "pin_name": "DATA",
+            "assigned_gpio": 12,
+            "decision_type": "auto_assign_free_gpio",
+            "source": "auto_assigned",
+            "evidence": {"note": "test fixture: unknown generated device"},
+            "requires_user_review": False,
+        }
+    )
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("pinout must reject devices not confirmed by upstream analyze")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "DHT22" not in joined or "upstream_manifest.devices" not in joined:
+        raise AssertionError(f"unknown pinout device was not reported: {result}")
+
+
+def check_bom_rejects_unknown_functional_hardware() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    bad = json.loads(json.dumps(draft))
+    bad["hardware_plan"]["bom"].append(
+        {
+            "name": "OLED显示屏",
+            "model": "SSD1306",
+            "quantity": 1,
+            "unit_price_yuan": 9,
+            "product_url": "https://example.invalid/ssd1306",
+        }
+    )
+    bad["hardware_plan"]["estimated_total_yuan"] = 67
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(bad, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("BOM must reject functional hardware not confirmed upstream")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("errors", []))
+    if "SSD1306" not in joined and "OLED" not in joined:
+        raise AssertionError(f"unknown functional BOM hardware was not reported: {result}")
+
+
+def check_bom_allows_support_items_and_links() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    ok = json.loads(json.dumps(draft))
+    ok["hardware_plan"]["bom"].append(
+        {
+            "name": "杜邦线",
+            "model": "Female-Female 20cm",
+            "quantity": 1,
+            "unit_price_yuan": 3,
+            "product_url": "https://example.invalid/jumper-wire",
+        }
+    )
+    ok["hardware_plan"]["bom"][2]["product_url"] = "https://example.invalid/ttp223"
+    ok["hardware_plan"]["estimated_total_yuan"] = 64
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(ok, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(
+            "BOM support items and product links should not be treated as downstream hardware contract:\n"
+            f"stdout={proc.stdout}\nstderr={proc.stderr}"
+        )
+
+
+def check_bom_link_index_template() -> None:
+    template_path = SKILL_DIR / "references" / "bom_item_link_index.template.json"
+    template = load_json(template_path)
+    policy = template.get("policy", {})
+    if policy.get("applies_to") != "all_physical_bom_items":
+        raise AssertionError("BOM link template must apply to all physical BOM items")
+    if policy.get("required_for_select_hw_success") is not False:
+        raise AssertionError("BOM links must remain optional for select-hw success")
+    if policy.get("do_not_fabricate_links") is not True:
+        raise AssertionError("BOM link template must prohibit fabricated links")
+    required = {"product_url", "shop_url", "datasheet_url", "supplier", "sku"}
+    fields = set(template.get("link_fields", []))
+    if fields != required:
+        raise AssertionError(f"BOM link template fields mismatch: {fields}")
+    item_template = template.get("bom_item_template", {})
+    missing = required.difference(item_template)
+    if missing:
+        raise AssertionError(f"BOM item template missing link fields: {missing}")
+
+
+def check_bom_link_template_is_optional_and_normalized() -> None:
+    draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+    missing = json.loads(json.dumps(draft))
+    for item in missing["hardware_plan"]["bom"]:
+        for field in ["product_url", "shop_url", "datasheet_url", "supplier", "sku"]:
+            item.pop(field, None)
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(missing, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(
+            "BOM link fields are optional procurement metadata and must not block select-hw:\n"
+            f"stdout={proc.stdout}\nstderr={proc.stderr}"
+        )
+    result = json.loads(proc.stdout)
+    manifest = result.get("manifest") or {}
+    bom = manifest.get("bom")
+    if not isinstance(bom, list) or not bom:
+        raise AssertionError(f"normalized manifest missing BOM: {result}")
+    required = {"product_url", "shop_url", "datasheet_url", "supplier", "sku"}
+    for index, item in enumerate(bom):
+        if not isinstance(item, dict):
+            continue
+        missing_fields = required.difference(item)
+        if missing_fields:
+            raise AssertionError(f"normalized BOM[{index}] missing optional link template fields: {missing_fields}")
+        for field in required:
+            if not isinstance(item.get(field), str):
+                raise AssertionError(f"normalized BOM[{index}].{field} must be a string template value")
 
 
 def check_runtime_context_required() -> None:
@@ -661,6 +822,11 @@ def main() -> int:
         ("adc2 wifi digital warning", check_adc2_wifi_digital_warning),
         ("strict board pin validation", check_strict_board_pin_validation),
         ("user wiring and onboard validation", check_user_wiring_and_onboard_validation),
+        ("pinout rejects unknown device", check_pinout_rejects_unknown_device),
+        ("bom rejects unknown functional hardware", check_bom_rejects_unknown_functional_hardware),
+        ("bom allows support items and links", check_bom_allows_support_items_and_links),
+        ("bom link index template", check_bom_link_index_template),
+        ("bom link template optional and normalized", check_bom_link_template_is_optional_and_normalized),
         ("runtime context required", check_runtime_context_required),
         ("artifact cwd bare fails", check_artifact_root_mode_cwd_bare_fails),
         ("artifact session_root ok", check_artifact_root_mode_session_root_ok),

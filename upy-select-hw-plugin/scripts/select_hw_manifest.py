@@ -158,6 +158,128 @@ VALID_DEVICE_INTERFACES = {
     "WiFi",
     "BLE",
 }
+PINOUT_SYSTEM_DEVICES = {
+    "power",
+    "gnd",
+    "ground",
+    "3v3",
+    "5v",
+    "vcc",
+    "vdd",
+    "usb",
+    "battery",
+    "board",
+    "mcu",
+    "mainboard",
+    "主控板",
+    "开发板",
+    "电源",
+    "地",
+}
+BOM_SUPPORT_ITEM_KEYWORDS = {
+    "wire",
+    "jumper",
+    "cable",
+    "breadboard",
+    "resistor",
+    "capacitor",
+    "header",
+    "connector",
+    "screw",
+    "case",
+    "enclosure",
+    "battery holder",
+    "usb cable",
+    "power supply",
+    "voltage regulator",
+    "杜邦线",
+    "导线",
+    "线缆",
+    "面包板",
+    "电阻",
+    "电容",
+    "排针",
+    "接线端子",
+    "螺丝",
+    "外壳",
+    "电池盒",
+    "usb线",
+    "usb 线",
+    "电源模块",
+    "稳压模块",
+    "转接板",
+}
+BOM_CONTROLLER_KEYWORDS = {
+    "board",
+    "devkit",
+    "development board",
+    "mcu",
+    "controller",
+    "主控",
+    "开发板",
+    "控制板",
+}
+BOM_FUNCTIONAL_HARDWARE_KEYWORDS = {
+    "sensor",
+    "display",
+    "oled",
+    "lcd",
+    "eink",
+    "microphone",
+    "mic",
+    "speaker",
+    "amplifier",
+    "amp",
+    "camera",
+    "relay",
+    "motor",
+    "servo",
+    "buzzer",
+    "led",
+    "neopixel",
+    "ws2812",
+    "gps",
+    "imu",
+    "accelerometer",
+    "gyro",
+    "touch",
+    "button",
+    "传感器",
+    "显示",
+    "屏",
+    "麦克风",
+    "咪头",
+    "喇叭",
+    "功放",
+    "摄像头",
+    "继电器",
+    "电机",
+    "舵机",
+    "蜂鸣器",
+    "灯",
+    "按键",
+    "触摸",
+}
+BOM_DEVICE_MATCH_FIELDS = (
+    "device",
+    "device_name",
+    "source_device",
+    "upstream_device",
+    "for_device",
+    "name",
+    "model",
+    "selected_model",
+    "module",
+    "part",
+)
+BOM_LINK_TEMPLATE_FIELDS = (
+    "product_url",
+    "shop_url",
+    "datasheet_url",
+    "supplier",
+    "sku",
+)
+BOM_LINK_INDEX_TEMPLATE = SKILL_DIR / "references" / "bom_item_link_index.template.json"
 
 
 def utc_now() -> str:
@@ -207,6 +329,172 @@ def require_list(value: Any, field: str, errors: list[str]) -> list[Any] | None:
         errors.append(f"{field} must be an array")
         return None
     return value
+
+
+def normalized_label(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    for char in (" ", "-", "_", "/", "\\", "(", ")", "[", "]"):
+        text = text.replace(char, "")
+    return text
+
+
+def text_contains_any(value: str, keywords: set[str]) -> bool:
+    lowered = value.lower()
+    compact = normalized_label(value)
+    return any(keyword.lower() in lowered or normalized_label(keyword) in compact for keyword in keywords)
+
+
+def device_match_tokens(devices: Any) -> tuple[set[str], list[str]]:
+    tokens: set[str] = set()
+    display_names: list[str] = []
+    if not isinstance(devices, list):
+        return tokens, display_names
+    for device in devices:
+        if not isinstance(device, dict):
+            continue
+        name = device.get("name")
+        if name:
+            display_names.append(str(name))
+        for field in ("name", "model", "selected_model"):
+            value = device.get(field)
+            if value:
+                tokens.add(normalized_label(value))
+        aliases = device.get("aliases")
+        if isinstance(aliases, list):
+            for alias in aliases:
+                if alias:
+                    tokens.add(normalized_label(alias))
+    return tokens, display_names
+
+
+def matches_device_token(value: Any, tokens: set[str]) -> bool:
+    token = normalized_label(value)
+    return bool(token and token in tokens)
+
+
+def is_system_pinout_device(value: Any) -> bool:
+    return normalized_label(value) in {normalized_label(item) for item in PINOUT_SYSTEM_DEVICES}
+
+
+def bom_text(item: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for field in ("name", "model", "category", "type", "notes"):
+        value = item.get(field)
+        if value not in (None, ""):
+            parts.append(str(value))
+    return " ".join(parts)
+
+
+def bom_matches_upstream_device(item: dict[str, Any], tokens: set[str]) -> bool:
+    for field in BOM_DEVICE_MATCH_FIELDS:
+        value = item.get(field)
+        if matches_device_token(value, tokens):
+            return True
+    return False
+
+
+def bom_is_support_item(item: dict[str, Any]) -> bool:
+    return text_contains_any(bom_text(item), BOM_SUPPORT_ITEM_KEYWORDS)
+
+
+def bom_is_controller(item: dict[str, Any], selected_board: Any, mcu: Any) -> bool:
+    text = bom_text(item)
+    if text_contains_any(text, BOM_CONTROLLER_KEYWORDS):
+        return True
+    selected_values: list[Any] = []
+    if isinstance(selected_board, dict):
+        selected_values.extend(
+            selected_board.get(field) for field in ("id", "display_name", "mcu", "chip_family")
+        )
+        firmware = selected_board.get("firmware")
+        if isinstance(firmware, dict):
+            selected_values.extend(firmware.get(field) for field in ("board_name", "port"))
+    if isinstance(mcu, dict):
+        selected_values.extend(mcu.get(field) for field in ("model", "board_id", "display_name", "chip_family"))
+    item_values = [item.get(field) for field in ("name", "model", "device", "part")]
+    selected_tokens = {normalized_label(value) for value in selected_values if value not in (None, "")}
+    return any(normalized_label(value) in selected_tokens for value in item_values if value not in (None, ""))
+
+
+def bom_is_functional_hardware(item: dict[str, Any]) -> bool:
+    return text_contains_any(bom_text(item), BOM_FUNCTIONAL_HARDWARE_KEYWORDS)
+
+
+def load_bom_link_fields() -> tuple[str, ...]:
+    try:
+        with open(BOM_LINK_INDEX_TEMPLATE, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except Exception:  # noqa: BLE001
+        return BOM_LINK_TEMPLATE_FIELDS
+    fields = data.get("link_fields") if isinstance(data, dict) else None
+    if not isinstance(fields, list):
+        return BOM_LINK_TEMPLATE_FIELDS
+    normalized = tuple(field for field in fields if isinstance(field, str) and field)
+    return normalized or BOM_LINK_TEMPLATE_FIELDS
+
+
+def normalize_bom_items(bom: Any) -> list[Any]:
+    if not isinstance(bom, list):
+        return []
+    link_fields = load_bom_link_fields()
+    normalized: list[Any] = []
+    for raw in bom:
+        if not isinstance(raw, dict):
+            normalized.append(copy.deepcopy(raw))
+            continue
+        item = copy.deepcopy(raw)
+        for field in link_fields:
+            item.setdefault(field, "")
+        normalized.append(item)
+    return normalized
+
+
+def validate_device_consistency(
+    upstream_manifest: Any,
+    plan: dict[str, Any],
+    selected_board: Any,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    upstream = upstream_manifest if isinstance(upstream_manifest, dict) else {}
+    tokens, display_names = device_match_tokens(upstream.get("devices"))
+    known = ", ".join(display_names) if display_names else "<none>"
+
+    pinout = plan.get("pinout")
+    if isinstance(pinout, list):
+        for index, raw in enumerate(pinout):
+            if not isinstance(raw, dict):
+                continue
+            device = raw.get("device")
+            if is_system_pinout_device(device) or matches_device_token(device, tokens):
+                continue
+            errors.append(
+                f"hardware_plan.pinout[{index}].device '{device}' is not in upstream_manifest.devices; "
+                f"select-hw must not introduce new hardware devices. Known devices: {known}"
+            )
+
+    bom = plan.get("bom")
+    mcu = plan.get("mcu")
+    if isinstance(bom, list):
+        for index, raw in enumerate(bom):
+            if not isinstance(raw, dict):
+                continue
+            if (
+                bom_matches_upstream_device(raw, tokens)
+                or bom_is_support_item(raw)
+                or bom_is_controller(raw, selected_board, mcu)
+            ):
+                continue
+            if bom_is_functional_hardware(raw):
+                errors.append(
+                    f"hardware_plan.bom[{index}] '{raw.get('name') or raw.get('model')}' looks like functional hardware "
+                    "but does not map to upstream_manifest.devices; add/replace devices in analyze before select-hw success"
+                )
+            elif text_contains_any(bom_text(raw), {"module", "模块"}):
+                warnings.append(
+                    f"hardware_plan.bom[{index}] '{raw.get('name') or raw.get('model')}' is not mapped to an upstream device; "
+                    "confirm it is only an accessory/support item"
+                )
 
 
 def validate_protocol_version(data: dict[str, Any], errors: list[str]) -> None:
@@ -835,7 +1123,7 @@ def normalize_manifest(draft: dict[str, Any]) -> dict[str, Any]:
         "pinout": copy.deepcopy(plan.get("pinout", [])),
         "pin_decisions": copy.deepcopy(plan.get("pin_decisions", [])),
         "pin_review": copy.deepcopy(plan.get("pin_review", {})),
-        "bom": copy.deepcopy(plan.get("bom", [])),
+        "bom": normalize_bom_items(plan.get("bom", [])),
         "estimated_total_yuan": estimated_total,
         "final_status": "hardware_selected",
     }
@@ -904,6 +1192,7 @@ def validate_draft(
             require_confirmed=require_pin_review_confirmed,
             phase_timestamp=phase_timestamp,
         )
+        validate_device_consistency(draft.get("upstream_manifest"), plan, selected_board, errors, warnings)
         total = validate_bom(plan.get("bom"), errors)
         declared_total = plan.get("estimated_total_yuan")
         if declared_total is None:

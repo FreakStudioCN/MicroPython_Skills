@@ -218,6 +218,11 @@
         "model": "ESP32-C3-DevKitM-1",
         "quantity": 1,
         "unit_price_yuan": 15,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
         "notes": "MicroPython ESP32-C3"
       },
       {
@@ -225,6 +230,11 @@
         "model": "HC-SR501",
         "quantity": 1,
         "unit_price_yuan": 6,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
         "notes": "GPIO 输入"
       },
       {
@@ -232,6 +242,11 @@
         "model": "TTP223",
         "quantity": 1,
         "unit_price_yuan": 3,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
         "notes": "GPIO 输入"
       },
       {
@@ -239,6 +254,11 @@
         "model": "AHT20",
         "quantity": 1,
         "unit_price_yuan": 12,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
         "notes": "I2C"
       },
       {
@@ -246,6 +266,11 @@
         "model": "INMP441",
         "quantity": 1,
         "unit_price_yuan": 10,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
         "notes": "I2S 输入"
       },
       {
@@ -253,10 +278,27 @@
         "model": "MAX98357",
         "quantity": 1,
         "unit_price_yuan": 12,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
         "notes": "I2S 输出"
+      },
+      {
+        "name": "杜邦线",
+        "model": "Female-Female 20cm",
+        "quantity": 1,
+        "unit_price_yuan": 3,
+        "product_url": "",
+        "shop_url": "",
+        "datasheet_url": "",
+        "supplier": "",
+        "sku": "",
+        "notes": "实体物料，链接未知时留空"
       }
     ],
-    "estimated_total_yuan": 58,
+    "estimated_total_yuan": 61,
     "pin_decisions": [
       {
         "device": "AHT20",
