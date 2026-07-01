@@ -101,6 +101,23 @@ MOCK_DRIVER_INDEX = {
 }
 
 
+def driver_query(device: dict[str, Any]) -> str:
+    name = str(device.get("name", "")).strip()
+    interface = str(device.get("interface", "")).strip()
+    device_type = str(device.get("type", "")).strip()
+    parts = [part for part in [name, interface, device_type, "MicroPython driver"] if part]
+    return " ".join(parts)
+
+
+def with_mock_search_metadata(driver: dict[str, Any], device: dict[str, Any]) -> dict[str, Any]:
+    result = dict(driver)
+    result.setdefault("search_provider", "pkg_guide_adapter")
+    result.setdefault("search_mode", "mock")
+    result.setdefault("mock", True)
+    result.setdefault("query", driver_query(device))
+    return result
+
+
 def builtin_driver_for(device: dict[str, Any]) -> Optional[dict[str, Any]]:
     interface = device.get("interface")
     device_type = str(device.get("type", "")).lower()
@@ -115,6 +132,8 @@ def builtin_driver_for(device: dict[str, Any]) -> Optional[dict[str, Any]]:
     return {
         "source": "builtin_runtime",
         "module": module,
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": False,
         "notes": f"MicroPython runtime provides {module}; no external driver package required",
     }
 
@@ -129,6 +148,8 @@ def micropython_lib_driver_for(device: dict[str, Any]) -> Optional[dict[str, Any
             "install_cmd": "mpremote mip install aioble",
             "repo_url": "https://github.com/micropython/micropython-lib",
             "version": "latest",
+            "search_provider": "micropython_lib_classifier",
+            "search_required": False,
             "notes": "official MicroPython BLE helper package",
         }
     return None
@@ -138,11 +159,11 @@ def mock_upy_pkg_guide(device: dict[str, Any]) -> dict[str, Any]:
     name = str(device.get("name", "")).lower()
     for key, driver in MOCK_DRIVER_INDEX.items():
         if key in name:
-            return dict(driver)
-    return {
+            return with_mock_search_metadata(driver, device)
+    return with_mock_search_metadata({
         "source": "none",
         "notes": "mock pkg-guide found no MicroPython driver",
-    }
+    }, device)
 
 
 def resolve_driver(device: dict[str, Any]) -> dict[str, Any]:

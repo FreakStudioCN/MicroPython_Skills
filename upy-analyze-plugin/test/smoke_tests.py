@@ -141,6 +141,56 @@ def check_ttp223_active_low_sample(samples: list[dict]) -> None:
         raise AssertionError("TTP223 sample notes should preserve low-level behavior")
 
 
+def check_driver_search_provenance_validation(samples: list[dict]) -> None:
+    target_manifest = None
+    for sample in samples:
+        manifest = sample.get("payload", {}).get("manifest_content")
+        if not isinstance(manifest, dict):
+            continue
+        if any(device.get("driver", {}).get("source") == "upypi" for device in manifest.get("devices", [])):
+            target_manifest = json.loads(json.dumps(manifest))
+            break
+    if target_manifest is None:
+        raise AssertionError("missing sample manifest with upypi driver source")
+
+    for device in target_manifest["devices"]:
+        driver = device.get("driver", {})
+        if driver.get("source") == "upypi":
+            driver.pop("search_provider", None)
+            driver.pop("search_mode", None)
+            driver.pop("query", None)
+            driver.pop("evidence", None)
+            break
+
+    proc = run(
+        [sys.executable, str(INIT_MANIFEST), "--stdin"],
+        input_text=json.dumps(target_manifest, ensure_ascii=False),
+    )
+    if proc.returncode == 0:
+        raise AssertionError("manifest validation should fail when upypi driver lacks search_provider")
+    result = json.loads(proc.stdout)
+    errors = result.get("errors", [])
+    if not any("driver.search_provider is required" in error for error in errors):
+        raise AssertionError(f"missing search_provider error for unproven upypi driver: {result}")
+
+
+def check_pkg_guide_adapter_marks_mock() -> None:
+    sys.path.insert(0, str(TEST_DIR))
+    from pkg_guide_adapter import resolve_driver
+
+    driver = resolve_driver({
+        "name": "SHT30",
+        "type": "temperature_humidity_sensor",
+        "interface": "I2C",
+    })
+    if driver.get("source") != "upypi":
+        raise AssertionError(f"SHT30 adapter result should resolve to upypi: {driver}")
+    if driver.get("search_provider") != "pkg_guide_adapter":
+        raise AssertionError(f"adapter result must declare pkg_guide_adapter provider: {driver}")
+    if driver.get("search_mode") != "mock" or driver.get("mock") is not True:
+        raise AssertionError(f"adapter result must be marked as mock: {driver}")
+
+
 def check_runner_bridge() -> None:
     proc = run([sys.executable, str(TEST_DIR / "run_local_mock_session.py")])
     combined = proc.stdout + proc.stderr
@@ -255,6 +305,12 @@ def main() -> int:
 
     check_ttp223_active_low_sample(samples)
     print("[OK] TTP223 active-low sample")
+
+    check_driver_search_provenance_validation(samples)
+    print("[OK] driver search provenance validation")
+
+    check_pkg_guide_adapter_marks_mock()
+    print("[OK] pkg-guide adapter mock provenance")
 
     check_runner_bridge()
     print("[OK] runner bridge")

@@ -48,6 +48,8 @@
           "driver": {
             "source": "builtin_runtime",
             "module": "machine.Pin",
+            "search_provider": "builtin_runtime_classifier",
+            "search_required": false,
             "notes": "GPIO 输入；按下为低电平，代码生成阶段应按 active-low 处理"
           }
         },
@@ -60,6 +62,8 @@
           "driver": {
             "source": "builtin_runtime",
             "module": "machine.Pin",
+            "search_provider": "builtin_runtime_classifier",
+            "search_required": false,
             "notes": "GPIO 输出"
           }
         }

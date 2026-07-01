@@ -217,6 +217,17 @@ description: 插件化工作流版 analyze。读取用户自然语言和插件�
 - 具体器件驱动搜索必须委托 `upy-pkg-guide` skill，不得由 analyze 自己伪造 upypi 包名或安装命令
 - 本机 runner/mock 环境可以使用 `pkg_guide_adapter` 返回固定测试结果，但该 adapter 必须模拟 `upy-pkg-guide` 的输出语义
 
+强制证据要求：
+
+- `driver.source = "upypi" | "awesome-micropython" | "github"` 时，必须写入 `driver.search_provider`
+- 正式插件模式下，具体器件驱动的 `driver.search_provider` 必须是 `upy-pkg-guide`
+- 本机 `test/` mock runner 只允许使用 `pkg_guide_adapter`，且必须同时写入 `driver.search_mode = "mock"` 和 `driver.mock = true`
+- `driver.source = "none" | "cold-driver"` 且该器件不是 builtin runtime only 时，也必须记录 `driver.search_provider` 和查询说明，证明不是未搜索就下结论
+- `driver.source = "builtin_runtime"` 必须写入 `driver.search_required = false`，并用 `driver.search_provider = "builtin_runtime_classifier"` 标明这是内置能力分类，不是包搜索结果
+- `driver.source = "micropython_lib"` 必须写入 `driver.search_provider = "micropython_lib_classifier"` 或 `driver.search_provider = "upy-pkg-guide"`
+
+`test/` 目录只用于本地 JSON/protocol 演练；真实插件流程不得把 `pkg_guide_adapter` 当成真实驱动搜索来源。
+
 #### 5A. 驱动搜索总原则
 
 Analyze 在做驱动搜索前，必须先区分两层：
@@ -915,6 +926,15 @@ Analyze 交给下游 `select-hw` 的 `manifest_content` 至少必须包含：
 - `install_cmd`
 - `version`
 - `api_ref`：优先为对象；字符串形式只可作为临时弱结果，并应在校验警告中暴露
+
+`driver` 还应保留搜索证据字段，供 analyze 校验和排查使用；下游 `select-hw` 可以忽略这些字段：
+
+- `search_provider`：`upy-pkg-guide`、`pkg_guide_adapter`、`builtin_runtime_classifier` 或 `micropython_lib_classifier`
+- `search_mode`：`real` 或 `mock`
+- `mock`：仅本地测试 adapter 结果允许为 `true`
+- `search_required`：builtin runtime only 时应为 `false`
+- `query`：传给 `upy-pkg-guide` 或 adapter 的关键词
+- `evidence`：结构化来源证据，例如包名、仓库 URL、结果说明
 
 ## boards 资产约束
 

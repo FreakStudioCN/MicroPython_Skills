@@ -443,13 +443,27 @@ def main() -> None:
                 target["interface"] = "I2C"
                 target["driver"] = resolve_driver(target)
             else:
-                target["driver"] = {"source": "cold-driver"}
+                target["driver"] = {
+                    "source": "cold-driver",
+                    "search_provider": "pkg_guide_adapter",
+                    "search_mode": "mock",
+                    "mock": True,
+                    "query": f"{target['name']} {target['interface']} {target['type']} MicroPython driver",
+                    "notes": "mock local runner: user kept original device after no ready driver path",
+                }
 
     if maybe_trigger_cold_driver(start_payload, manifest_draft):
         target = pick_first_device_by_name(manifest_draft, ["SHT30", "土壤湿度传感器", "通用传感器"])
         if target:
             target["source"] = "user_specified"
-            target["driver"] = {"source": "cold-driver"}
+            target["driver"] = {
+                "source": "cold-driver",
+                "search_provider": "pkg_guide_adapter",
+                "search_mode": "mock",
+                "mock": True,
+                "query": f"{target['name']} {target['interface']} {target['type']} MicroPython driver",
+                "notes": "mock local runner: forced cold-driver branch",
+            }
 
     send(
         emit(

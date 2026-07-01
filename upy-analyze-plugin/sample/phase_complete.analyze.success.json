@@ -42,7 +42,16 @@
             "source": "upypi",
             "package_name": "sht30-driver",
             "install_cmd": "mpremote mip install sht30-driver",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "search_provider": "upy-pkg-guide",
+            "search_mode": "real",
+            "query": "SHT30 I2C temperature_humidity_sensor MicroPython driver",
+            "evidence": [
+              {
+                "source": "upypi",
+                "package_name": "sht30-driver"
+              }
+            ]
           }
         }
       ]

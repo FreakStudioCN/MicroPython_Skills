@@ -46,6 +46,14 @@ VALID_DRIVER_SOURCES = [
 ]
 VALID_DEVICE_SOURCES = ["user_specified", "system_recommended"]
 REAL_DRIVER_SOURCES = ["micropython_lib", "upypi", "awesome-micropython", "github", "local"]
+READY_DRIVER_SEARCH_SOURCES = {"upypi", "awesome-micropython", "github"}
+VALID_DRIVER_SEARCH_PROVIDERS = [
+    "upy-pkg-guide",
+    "pkg_guide_adapter",
+    "builtin_runtime_classifier",
+    "micropython_lib_classifier",
+]
+VALID_DRIVER_SEARCH_MODES = ["real", "mock"]
 PHASE_COMPLETE_RESULTS = ["success", "failed", "partial"]
 ARTIFACT_TYPES = ["table", "file_tree", "markdown", "html", "code_diff", "file_list"]
 NEXT_PHASE_ON_SUCCESS = "select-hw"
@@ -219,6 +227,20 @@ def validate_and_fill(data: dict[str, Any]) -> list[str]:
                 if source == "micropython_lib" and not driver.get("repo_url"):
                     errors.append(f"{prefix}.driver.repo_url is required when driver.source=micropython_lib")
 
+            search_provider = driver.get("search_provider")
+            if search_provider is not None and search_provider not in VALID_DRIVER_SEARCH_PROVIDERS:
+                errors.append(
+                    f"{prefix}.driver.search_provider invalid value '{search_provider}', "
+                    f"valid values: {VALID_DRIVER_SEARCH_PROVIDERS}"
+                )
+
+            search_mode = driver.get("search_mode")
+            if search_mode is not None and search_mode not in VALID_DRIVER_SEARCH_MODES:
+                errors.append(
+                    f"{prefix}.driver.search_mode invalid value '{search_mode}', "
+                    f"valid values: {VALID_DRIVER_SEARCH_MODES}"
+                )
+
         if "quantity" not in device:
             device["quantity"] = 1
 
@@ -272,6 +294,8 @@ def validate_semantics(data: dict[str, Any]) -> tuple[list[str], list[str]]:
         device_type = str(device.get("type", "")).lower()
         driver_notes = str(driver.get("notes", "") or driver.get("note", "")).lower()
         driver_module = str(driver.get("module", "")).lower()
+        search_provider = driver.get("search_provider")
+        search_mode = driver.get("search_mode")
 
         if interface == "I22C":
             errors.append(f"{prefix}.interface has suspicious value 'I22C'; did you mean 'I2C'?")
@@ -307,6 +331,48 @@ def validate_semantics(data: dict[str, Any]) -> tuple[list[str], list[str]]:
             builtin_expected = True
         elif "machine." in driver_notes or driver_module.startswith("machine."):
             builtin_expected = True
+
+        if driver_source == "builtin_runtime":
+            if search_provider and search_provider != "builtin_runtime_classifier":
+                errors.append(
+                    f"{prefix}.driver.search_provider must be builtin_runtime_classifier when driver.source=builtin_runtime"
+                )
+            if driver.get("search_required") is not False:
+                errors.append(f"{prefix}.driver.search_required must be false when driver.source=builtin_runtime")
+
+        if driver_source == "micropython_lib":
+            if search_provider not in {"micropython_lib_classifier", "upy-pkg-guide"}:
+                errors.append(
+                    f"{prefix}.driver.search_provider must be micropython_lib_classifier or upy-pkg-guide when driver.source=micropython_lib"
+                )
+
+        if driver_source in READY_DRIVER_SEARCH_SOURCES:
+            if not search_provider:
+                errors.append(f"{prefix}.driver.search_provider is required when driver.source={driver_source}")
+            elif search_provider not in {"upy-pkg-guide", "pkg_guide_adapter"}:
+                errors.append(
+                    f"{prefix}.driver.search_provider must be upy-pkg-guide or pkg_guide_adapter when driver.source={driver_source}"
+                )
+            if search_provider == "pkg_guide_adapter":
+                if driver.get("mock") is not True:
+                    errors.append(f"{prefix}.driver.mock must be true when search_provider=pkg_guide_adapter")
+                if search_mode != "mock":
+                    errors.append(f"{prefix}.driver.search_mode must be mock when search_provider=pkg_guide_adapter")
+            elif search_provider == "upy-pkg-guide" and search_mode == "mock":
+                errors.append(f"{prefix}.driver.search_mode cannot be mock when search_provider=upy-pkg-guide")
+
+        if driver_source in {"none", "cold-driver"} and not builtin_expected:
+            if not search_provider:
+                errors.append(f"{prefix}.driver.search_provider is required when driver.source={driver_source}")
+            elif search_provider not in {"upy-pkg-guide", "pkg_guide_adapter"}:
+                errors.append(
+                    f"{prefix}.driver.search_provider must be upy-pkg-guide or pkg_guide_adapter when driver.source={driver_source}"
+                )
+            if search_provider == "pkg_guide_adapter":
+                if driver.get("mock") is not True:
+                    errors.append(f"{prefix}.driver.mock must be true when search_provider=pkg_guide_adapter")
+                if search_mode != "mock":
+                    errors.append(f"{prefix}.driver.search_mode must be mock when search_provider=pkg_guide_adapter")
 
         if driver_source == "none" and builtin_expected:
             module_hint = builtin_module or "builtin runtime"
