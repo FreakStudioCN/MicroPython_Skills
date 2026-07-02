@@ -1,0 +1,5 @@
+{"type":"status_update","phase":"upy-wiring-plugin","payload":{"stage":"start","message":"Validating generate phase_complete for wiring artifacts."}}
+{"type":"status_update","phase":"upy-wiring-plugin","payload":{"stage":"inspect","message":"Reading generated firmware and project manifest."}}
+{"type":"status_update","phase":"upy-wiring-plugin","payload":{"stage":"derive","message":"Deriving wiring.json from firmware, manifest, and schema rules."}}
+{"type":"status_update","phase":"upy-wiring-plugin","payload":{"stage":"render","message":"Rendering wiring Markdown, HTML, image assets, and pin table."}}
+{"type":"status_update","phase":"upy-wiring-plugin","payload":{"stage":"complete","message":"Writing wiring phase_complete."}}

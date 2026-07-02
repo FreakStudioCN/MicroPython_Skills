@@ -1,0 +1,27 @@
+{
+  "type": "approval_request",
+  "phase": "upy-wiring-plugin",
+  "payload": {
+    "phase": "upy-wiring-plugin",
+    "approval_id": "wiring_network_render",
+    "title": "Render wiring image assets",
+    "summary": "SVG and PNG rendering uses mermaid.ink over the network. Local-only mode still generates JSON, Markdown, HTML, and the pin table.",
+    "actions": [
+      {
+        "id": "render_all",
+        "label": "Render all",
+        "description": "Allow network image rendering and produce SVG/PNG when available."
+      },
+      {
+        "id": "local_only",
+        "label": "Local only",
+        "description": "Skip network image rendering and produce local wiring artifacts only."
+      },
+      {
+        "id": "cancel",
+        "label": "Cancel",
+        "description": "Stop the optional wiring phase and keep the main workflow unchanged."
+      }
+    ]
+  }
+}

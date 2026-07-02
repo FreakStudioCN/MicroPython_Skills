@@ -61,7 +61,7 @@
         "type": "object",
         "required": ["type", "id", "signals", "devices"],
         "properties": {
-          "type": { "type": "string", "enum": ["i2c", "spi", "uart", "onewire", "can"], "description": "总线协议类型" },
+          "type": { "type": "string", "enum": ["i2c", "spi", "uart", "onewire", "can", "i2s"], "description": "总线协议类型" },
           "id": { "type": "string", "description": "总线编号，如 I2C0、SPI1、UART1" },
           "frequency_hz": { "type": "integer", "description": "通信速率" },
           "signals": {
@@ -71,7 +71,7 @@
               "type": "object",
               "required": ["role", "gpio"],
               "properties": {
-                "role": { "type": "string", "enum": ["SDA", "SCL", "MOSI", "MISO", "SCK", "CS", "TX", "RX", "DQ"], "description": "信号角色" },
+                "role": { "type": "string", "enum": ["SDA", "SCL", "MOSI", "MISO", "SCK", "CS", "TX", "RX", "DQ", "BCK", "BCLK", "WS", "LRC", "LRCLK", "DIN", "DOUT", "SD", "SDIN", "SDOUT", "MCLK"], "description": "信号角色" },
                 "gpio": { "type": "string", "description": "对应 MCU 的哪个引脚" }
               }
             }
@@ -88,10 +88,73 @@
                 "addr": { "type": "string", "pattern": "^0x[0-9a-fA-F]{2}$", "description": "I2C 地址（I2C 器件必填）" },
                 "cs_gpio": { "type": "string", "description": "片选引脚（SPI 器件必填）" },
                 "quantity": { "type": "integer", "default": 1 },
+                "notes": { "type": "string" },
+                "pins": {
+                  "type": "array",
+                  "description": "器件侧引脚定义，用于把总线信号映射到外设引脚名",
+                  "items": {
+                    "type": "object",
+                    "required": ["role", "pin"],
+                    "properties": {
+                      "role": { "type": "string", "description": "信号角色，如 BCK、WS、DIN、SDA" },
+                      "pin": { "type": "string", "description": "外设端引脚名，如 BCLK、LRC、DIN、SCK" },
+                      "notes": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "components": {
+      "type": "array",
+      "description": "元器件级拓扑节点。每个实际硬件模块应作为独立组件，用于渲染组件方框。",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$", "description": "稳定组件 ID，connections 通过它引用组件" },
+          "name": { "type": "string", "description": "显示名称，如 ESP32 DevKit、INMP441 Mic" },
+          "type": { "type": "string", "description": "组件类别，如 mcu、microphone、audio_amplifier、led、button、sensor" },
+          "model": { "type": "string", "description": "器件型号" },
+          "interface": { "type": "string", "description": "主要接口，如 GPIO、I2C、SPI、I2S、UART" },
+          "notes": { "type": "string" },
+          "pins": {
+            "type": "array",
+            "description": "组件引脚定义",
+            "items": {
+              "type": "object",
+              "required": ["pin"],
+              "properties": {
+                "pin": { "type": "string", "description": "组件端引脚名" },
+                "role": { "type": "string", "description": "信号或电气角色" },
+                "type": { "type": "string", "description": "signal、power、ground 等" },
                 "notes": { "type": "string" }
               }
             }
           }
+        }
+      }
+    },
+
+    "connections": {
+      "type": "array",
+      "description": "元器件之间的真实电气连接。每一项表示一根信号线、电源线或地线，并保留两端引脚名。",
+      "items": {
+        "type": "object",
+        "required": ["signal", "from", "to"],
+        "properties": {
+          "net": { "type": "string", "description": "可选网名，用于幂等和去重" },
+          "signal": { "type": "string", "description": "线名或信号名，如 I2S1 BCK、3V3、GND" },
+          "kind": { "type": "string", "enum": ["signal", "power", "ground"], "default": "signal", "description": "连接类别" },
+          "protocol": { "type": "string", "description": "协议或电气分组，如 I2S、I2C、GPIO" },
+          "direction": { "type": "string", "enum": ["mcu_to_device", "device_to_mcu", "bidirectional", "power", "ground"], "description": "信号方向" },
+          "from": { "$ref": "#/definitions/endpoint" },
+          "to": { "$ref": "#/definitions/endpoint" },
+          "notes": { "type": "string" }
         }
       }
     },
@@ -176,5 +239,18 @@
       }
     }
 
+  },
+  "definitions": {
+    "endpoint": {
+      "type": "object",
+      "required": ["component", "pin"],
+      "properties": {
+        "component": { "type": "string", "description": "组件 id 或名称" },
+        "pin": { "type": "string", "description": "该组件端引脚名，如 GPIO14、BCLK、VCC" },
+        "role": { "type": "string", "description": "该端引脚上的功能角色，如 I2S1 BCK、DIN、3V3" },
+        "label": { "type": "string", "description": "显示标签；存在时优先用于渲染" },
+        "gpio": { "type": "string", "description": "若该端是 MCU GPIO，可额外记录 GPIO 编号" }
+      }
+    }
   }
 }

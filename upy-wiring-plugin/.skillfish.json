@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-wiring-plugin",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-wiring-plugin",
+  "branch": "main",
+  "source": "manual"
+}

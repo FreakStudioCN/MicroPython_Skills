@@ -1,0 +1,208 @@
+{
+  "type": "phase_complete",
+  "phase": "upy-wiring-plugin",
+  "protocol_version": "1.0",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-wiring-plugin",
+    "result": "success",
+    "checkpoint": "phase_completed",
+    "session_id": "demo-session",
+    "idempotency_key": "upy-wiring-plugin:demo-session:full:v1",
+    "next_phase": null,
+    "source_phase": "upy-generate-plugin",
+    "source_phase_complete_path": "sessions/demo-session/phase_complete.upy_generate_plugin.json",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "wiring",
+      "project_name": "demo_temp_monitor",
+      "requirements": {
+        "description": "Read SHT30 temperature and humidity and buzz on high temperature."
+      },
+      "mcu": {
+        "name": "Raspberry Pi Pico",
+        "chip": "RP2040"
+      },
+      "devices": [
+        {
+          "name": "SHT30",
+          "type": "temperature_humidity_sensor",
+          "interface": "I2C"
+        },
+        {
+          "name": "Buzzer",
+          "type": "buzzer",
+          "interface": "GPIO"
+        }
+      ],
+      "pinout": [
+        {
+          "device": "SHT30",
+          "signal": "SDA",
+          "gpio": "GP4"
+        },
+        {
+          "device": "SHT30",
+          "signal": "SCL",
+          "gpio": "GP5"
+        },
+        {
+          "device": "Buzzer",
+          "signal": "OUT",
+          "gpio": "GP15"
+        }
+      ],
+      "generate": {
+        "status": "generated"
+      },
+      "wiring": {
+        "json": "docs/wiring.json",
+        "md": "docs/wiring.md",
+        "html": "docs/wiring.html",
+        "pins": "docs/wiring_pins.md",
+        "svg": "docs/wiring.svg",
+        "png": "docs/wiring.png"
+      }
+    },
+    "artifacts": [
+      {
+        "type": "wiring_json",
+        "path": "docs/wiring.json"
+      },
+      {
+        "type": "wiring_markdown",
+        "path": "docs/wiring.md"
+      },
+      {
+        "type": "wiring_html",
+        "path": "docs/wiring.html"
+      },
+      {
+        "type": "wiring_pins",
+        "path": "docs/wiring_pins.md"
+      },
+      {
+        "type": "wiring_svg",
+        "path": "docs/wiring.svg"
+      },
+      {
+        "type": "wiring_png",
+        "path": "docs/wiring.png"
+      }
+    ],
+    "checks": {
+      "wiring_schema": {
+        "ok": true,
+        "command": "validate_json.py --schema wiring.schema.json --json docs/wiring.json",
+        "duration_ms": 120
+      },
+      "render_wiring": {
+        "ok": true,
+        "command": "render_wiring_local.py --input docs/wiring.json --output docs --format all",
+        "duration_ms": 930
+      },
+      "manifest_update": {
+        "ok": true,
+        "command": "wiring_manifest.py --validate-phase-complete",
+        "duration_ms": 40
+      }
+    },
+    "render_result": {
+      "json": {
+        "ok": true,
+        "path": "docs/wiring.json"
+      },
+      "md": {
+        "ok": true,
+        "path": "docs/wiring.md"
+      },
+      "html": {
+        "ok": true,
+        "path": "docs/wiring.html"
+      },
+      "pins": {
+        "ok": true,
+        "path": "docs/wiring_pins.md"
+      },
+      "svg": {
+        "ok": true,
+        "path": "docs/wiring.svg",
+        "backend": "local_mermaid"
+      },
+      "png": {
+        "ok": true,
+        "path": "docs/wiring.png",
+        "backend": "local_mermaid"
+      }
+    },
+    "network_permission": null,
+    "file_manifest": {
+      "path": "sessions/demo-session/wiring_file_manifest.json",
+      "files": [
+        {
+          "path": "docs/wiring.json",
+          "type": "wiring_json",
+          "required": true,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 2324,
+          "source": "llm_generated",
+          "checkpoint": "wiring_json_validated"
+        },
+        {
+          "path": "docs/wiring.md",
+          "type": "wiring_markdown",
+          "required": true,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "bytes": 1458,
+          "source": "render_wiring_local.py",
+          "checkpoint": "artifacts_rendered"
+        },
+        {
+          "path": "docs/wiring.html",
+          "type": "wiring_html",
+          "required": true,
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "bytes": 7221,
+          "source": "render_wiring_local.py",
+          "checkpoint": "artifacts_rendered"
+        },
+        {
+          "path": "docs/wiring_pins.md",
+          "type": "wiring_pins",
+          "required": true,
+          "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "bytes": 411,
+          "source": "render_wiring_local.py",
+          "checkpoint": "artifacts_rendered"
+        },
+        {
+          "path": "docs/wiring.svg",
+          "type": "wiring_svg",
+          "required": true,
+          "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "bytes": 120000,
+          "source": "render_wiring_local.py",
+          "checkpoint": "artifacts_rendered"
+        },
+        {
+          "path": "docs/wiring.png",
+          "type": "wiring_png",
+          "required": true,
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "bytes": 340000,
+          "source": "render_wiring_local.py",
+          "checkpoint": "artifacts_rendered"
+        }
+      ]
+    },
+    "session_state": {
+      "path": "sessions/demo-session/session_state.upy_wiring_plugin.json",
+      "session_id": "demo-session",
+      "idempotency_key": "upy-wiring-plugin:demo-session:full:v1",
+      "checkpoint": "phase_completed"
+    },
+    "warnings": [],
+    "errors": []
+  }
+}

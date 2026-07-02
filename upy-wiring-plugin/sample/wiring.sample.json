@@ -1,0 +1,393 @@
+{
+  "meta": {
+    "project": "demo_voice_chatbot",
+    "mcu_model": "ESP32-WROOM-32",
+    "generated_at": "2026-07-01T06:40:00Z",
+    "source_phase": "generate"
+  },
+  "mcu": {
+    "name": "ESP32-WROOM-32",
+    "package": "ESP32 DevKit V1",
+    "pin_count": 30,
+    "orientation": "vertical",
+    "pins": [
+      {
+        "gpio": "3V3",
+        "physical_pin": 1,
+        "side": "left",
+        "pos": 0,
+        "label": "3.3V Power",
+        "type": "power_3v3"
+      },
+      {
+        "gpio": "VIN",
+        "physical_pin": 15,
+        "side": "left",
+        "pos": 14,
+        "label": "5V Power",
+        "type": "power_5v"
+      },
+      {
+        "gpio": "GND",
+        "physical_pin": 14,
+        "side": "left",
+        "pos": 13,
+        "label": "Ground",
+        "type": "gnd"
+      },
+      {
+        "gpio": "14",
+        "physical_pin": 12,
+        "side": "left",
+        "pos": 11,
+        "label": "I2S1 BCK",
+        "type": "i2s"
+      },
+      {
+        "gpio": "32",
+        "physical_pin": 7,
+        "side": "left",
+        "pos": 6,
+        "label": "I2S1 WS",
+        "type": "i2s"
+      },
+      {
+        "gpio": "33",
+        "physical_pin": 8,
+        "side": "left",
+        "pos": 7,
+        "label": "I2S1 DIN",
+        "type": "i2s"
+      },
+      {
+        "gpio": "26",
+        "physical_pin": 10,
+        "side": "left",
+        "pos": 9,
+        "label": "I2S0 BCK",
+        "type": "i2s"
+      },
+      {
+        "gpio": "25",
+        "physical_pin": 9,
+        "side": "left",
+        "pos": 8,
+        "label": "I2S0 WS",
+        "type": "i2s"
+      },
+      {
+        "gpio": "27",
+        "physical_pin": 11,
+        "side": "left",
+        "pos": 10,
+        "label": "I2S0 SD",
+        "type": "i2s"
+      },
+      {
+        "gpio": "21",
+        "physical_pin": 26,
+        "side": "right",
+        "pos": 10,
+        "label": "AMP SD",
+        "type": "gpio_out"
+      },
+      {
+        "gpio": "19",
+        "physical_pin": 28,
+        "side": "right",
+        "pos": 12,
+        "label": "Status LED",
+        "type": "gpio_out"
+      },
+      {
+        "gpio": "18",
+        "physical_pin": 29,
+        "side": "right",
+        "pos": 13,
+        "label": "Push Button",
+        "type": "gpio_in_pullup"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "mcu",
+      "name": "ESP32 DevKit",
+      "type": "mcu",
+      "model": "ESP32-WROOM-32",
+      "interface": "GPIO/I2S",
+      "pins": [
+        { "pin": "GPIO14", "role": "I2S1 BCK", "type": "signal" },
+        { "pin": "GPIO32", "role": "I2S1 WS", "type": "signal" },
+        { "pin": "GPIO33", "role": "I2S1 DIN", "type": "signal" },
+        { "pin": "GPIO26", "role": "I2S0 BCK", "type": "signal" },
+        { "pin": "GPIO25", "role": "I2S0 WS", "type": "signal" },
+        { "pin": "GPIO27", "role": "I2S0 SD", "type": "signal" },
+        { "pin": "GPIO21", "role": "AMP SD", "type": "signal" },
+        { "pin": "GPIO19", "role": "LED", "type": "signal" },
+        { "pin": "GPIO18", "role": "BUTTON", "type": "signal" },
+        { "pin": "3V3", "role": "3.3V", "type": "power" },
+        { "pin": "VIN", "role": "5V", "type": "power" },
+        { "pin": "GND", "role": "Ground", "type": "ground" }
+      ]
+    },
+    {
+      "id": "amp",
+      "name": "MAX98357 Audio Amplifier",
+      "type": "audio_amplifier",
+      "model": "MAX98357",
+      "interface": "I2S",
+      "pins": [
+        { "pin": "BCLK", "role": "I2S1 BCK", "type": "signal" },
+        { "pin": "LRC", "role": "I2S1 WS", "type": "signal" },
+        { "pin": "DIN", "role": "I2S1 DIN", "type": "signal" },
+        { "pin": "SD", "role": "Shutdown", "type": "signal" },
+        { "pin": "VIN", "role": "5V", "type": "power" },
+        { "pin": "GND", "role": "Ground", "type": "ground" }
+      ]
+    },
+    {
+      "id": "mic",
+      "name": "INMP441 Microphone",
+      "type": "microphone",
+      "model": "INMP441",
+      "interface": "I2S",
+      "pins": [
+        { "pin": "SCK", "role": "I2S0 BCK", "type": "signal" },
+        { "pin": "WS", "role": "I2S0 WS", "type": "signal" },
+        { "pin": "SD", "role": "I2S0 SD", "type": "signal" },
+        { "pin": "VDD", "role": "3.3V", "type": "power" },
+        { "pin": "GND", "role": "Ground", "type": "ground" }
+      ]
+    },
+    {
+      "id": "led",
+      "name": "Status LED",
+      "type": "led",
+      "interface": "GPIO"
+    },
+    {
+      "id": "button",
+      "name": "Push Button",
+      "type": "button",
+      "interface": "GPIO"
+    }
+  ],
+  "connections": [
+    {
+      "net": "i2s1_bck",
+      "signal": "I2S1 BCK",
+      "kind": "signal",
+      "protocol": "I2S",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO14", "role": "I2S1 BCK", "gpio": "14" },
+      "to": { "component": "amp", "pin": "BCLK", "role": "BCK" }
+    },
+    {
+      "net": "i2s1_ws",
+      "signal": "I2S1 WS",
+      "kind": "signal",
+      "protocol": "I2S",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO32", "role": "I2S1 WS", "gpio": "32" },
+      "to": { "component": "amp", "pin": "LRC", "role": "WS" }
+    },
+    {
+      "net": "i2s1_din",
+      "signal": "I2S1 DIN",
+      "kind": "signal",
+      "protocol": "I2S",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO33", "role": "I2S1 DIN", "gpio": "33" },
+      "to": { "component": "amp", "pin": "DIN", "role": "DIN" }
+    },
+    {
+      "net": "amp_sd",
+      "signal": "AMP SD",
+      "kind": "signal",
+      "protocol": "GPIO",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO21", "role": "AMP SD", "gpio": "21" },
+      "to": { "component": "amp", "pin": "SD", "role": "Shutdown" }
+    },
+    {
+      "net": "i2s0_bck",
+      "signal": "I2S0 BCK",
+      "kind": "signal",
+      "protocol": "I2S",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO26", "role": "I2S0 BCK", "gpio": "26" },
+      "to": { "component": "mic", "pin": "SCK", "role": "BCK" }
+    },
+    {
+      "net": "i2s0_ws",
+      "signal": "I2S0 WS",
+      "kind": "signal",
+      "protocol": "I2S",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO25", "role": "I2S0 WS", "gpio": "25" },
+      "to": { "component": "mic", "pin": "WS", "role": "WS" }
+    },
+    {
+      "net": "i2s0_sd",
+      "signal": "I2S0 SD",
+      "kind": "signal",
+      "protocol": "I2S",
+      "direction": "device_to_mcu",
+      "from": { "component": "mic", "pin": "SD", "role": "DATA" },
+      "to": { "component": "mcu", "pin": "GPIO27", "role": "I2S0 SD", "gpio": "27" }
+    },
+    {
+      "net": "led_out",
+      "signal": "LED",
+      "kind": "signal",
+      "protocol": "GPIO",
+      "direction": "mcu_to_device",
+      "from": { "component": "mcu", "pin": "GPIO19", "role": "LED", "gpio": "19" },
+      "to": { "component": "led", "pin": "A", "role": "Anode" }
+    },
+    {
+      "net": "button_in",
+      "signal": "BUTTON",
+      "kind": "signal",
+      "protocol": "GPIO",
+      "direction": "device_to_mcu",
+      "from": { "component": "button", "pin": "OUT", "role": "Pressed low" },
+      "to": { "component": "mcu", "pin": "GPIO18", "role": "BUTTON", "gpio": "18" }
+    },
+    {
+      "net": "amp_5v",
+      "signal": "5V",
+      "kind": "power",
+      "protocol": "Power",
+      "direction": "power",
+      "from": { "component": "mcu", "pin": "VIN", "role": "5V" },
+      "to": { "component": "amp", "pin": "VIN", "role": "5V" }
+    },
+    {
+      "net": "mic_3v3",
+      "signal": "3.3V",
+      "kind": "power",
+      "protocol": "Power",
+      "direction": "power",
+      "from": { "component": "mcu", "pin": "3V3", "role": "3.3V" },
+      "to": { "component": "mic", "pin": "VDD", "role": "3.3V" }
+    },
+    {
+      "net": "common_gnd",
+      "signal": "GND",
+      "kind": "ground",
+      "protocol": "Power",
+      "direction": "ground",
+      "from": { "component": "mcu", "pin": "GND", "role": "Ground" },
+      "to": { "component": "amp", "pin": "GND", "role": "Ground" }
+    },
+    {
+      "net": "common_gnd_mic",
+      "signal": "GND",
+      "kind": "ground",
+      "protocol": "Power",
+      "direction": "ground",
+      "from": { "component": "mcu", "pin": "GND", "role": "Ground" },
+      "to": { "component": "mic", "pin": "GND", "role": "Ground" }
+    }
+  ],
+  "buses": [
+    {
+      "type": "i2s",
+      "id": "I2S1",
+      "frequency_hz": 16000,
+      "signals": [
+        { "role": "BCK", "gpio": "14" },
+        { "role": "WS", "gpio": "32" },
+        { "role": "DIN", "gpio": "33" }
+      ],
+      "devices": [
+        {
+          "name": "MAX98357 Audio Amplifier",
+          "type": "audio_amplifier",
+          "quantity": 1,
+          "pins": [
+            { "role": "BCK", "pin": "BCLK" },
+            { "role": "WS", "pin": "LRC" },
+            { "role": "DIN", "pin": "DIN" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "i2s",
+      "id": "I2S0",
+      "frequency_hz": 16000,
+      "signals": [
+        { "role": "BCK", "gpio": "26" },
+        { "role": "WS", "gpio": "25" },
+        { "role": "SD", "gpio": "27" }
+      ],
+      "devices": [
+        {
+          "name": "INMP441 Microphone",
+          "type": "microphone",
+          "quantity": 1,
+          "pins": [
+            { "role": "BCK", "pin": "SCK" },
+            { "role": "WS", "pin": "WS" },
+            { "role": "SD", "pin": "SD" }
+          ]
+        }
+      ]
+    }
+  ],
+  "standalone": [
+    {
+      "name": "Status LED",
+      "pin": "19",
+      "type": "gpio_out",
+      "active_level": "high",
+      "external_components": "220 ohm series resistor",
+      "quantity": 1
+    },
+    {
+      "name": "Push Button",
+      "pin": "18",
+      "type": "gpio_in_pullup",
+      "active_level": "low",
+      "external_components": "Internal pull-up, press to GND",
+      "quantity": 1
+    }
+  ],
+  "power": [
+    {
+      "rail": "3.3V",
+      "source_pins": ["3V3"],
+      "consumers": ["INMP441 Microphone"]
+    },
+    {
+      "rail": "5V",
+      "source_pins": ["VIN"],
+      "consumers": ["MAX98357 Audio Amplifier"]
+    },
+    {
+      "rail": "GND",
+      "source_pins": ["GND"],
+      "consumers": ["INMP441 Microphone", "MAX98357 Audio Amplifier", "Status LED", "Push Button"]
+    }
+  ],
+  "alerts": [
+    {
+      "level": "danger",
+      "category": "power",
+      "msg": "INMP441 must use 3.3V, not 5V"
+    },
+    {
+      "level": "warning",
+      "category": "current_limit",
+      "msg": "LED requires a series current-limiting resistor"
+    },
+    {
+      "level": "info",
+      "category": "general",
+      "msg": "MAX98357 GAIN to GND sets 9dB gain"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "type": "phase_complete",
+  "phase": "upy-wiring-plugin",
+  "protocol_version": "1.0",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-wiring-plugin",
+    "result": "partial",
+    "checkpoint": "wiring_json_validated",
+    "session_id": "demo-session",
+    "idempotency_key": "upy-wiring-plugin:demo-session:full:v1",
+    "next_phase": null,
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "wiring",
+      "project_name": "demo_temp_monitor",
+      "wiring": {
+        "json": "docs/wiring.json",
+        "md": "docs/wiring.md",
+        "html": "docs/wiring.html",
+        "pins": "docs/wiring_pins.md"
+      }
+    },
+    "artifacts": [
+      {"type": "wiring_json", "path": "docs/wiring.json"},
+      {"type": "wiring_markdown", "path": "docs/wiring.md"},
+      {"type": "wiring_html", "path": "docs/wiring.html"},
+      {"type": "wiring_pins", "path": "docs/wiring_pins.md"}
+    ],
+    "checks": {
+      "wiring_schema": {"ok": true},
+      "render_wiring": {"ok": false},
+      "manifest_update": {"ok": true}
+    },
+    "warnings": [],
+    "errors": [
+      {
+        "code": "WIRING_IMAGE_RENDER_PERMISSION_DENIED",
+        "severity": "blocking",
+        "retryable": true,
+        "message": "Network rendering was denied and no local image renderer was available.",
+        "details": {"network_rendering": "deny"},
+        "checkpoint": "wiring_json_validated",
+        "next_action": "Install a local Mermaid renderer or allow network rendering."
+      }
+    ]
+  }
+}

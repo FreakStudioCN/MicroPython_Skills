@@ -1,0 +1,32 @@
+{
+  "name": "upy-wiring-plugin",
+  "version": "0.1.0",
+  "description": "Workflow plugin phase for generating MicroPython wiring artifacts from generated firmware and manifest data.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "micropython",
+    "wiring",
+    "hardware",
+    "workflow"
+  ],
+  "interface": {
+    "displayName": "upy-wiring-plugin",
+    "shortDescription": "Generates wiring diagrams and pin tables after firmware generation.",
+    "longDescription": "Consumes upy-generate-plugin phase_complete manifest_content and generated firmware files, derives docs/wiring.json, validates the wiring schema, renders Markdown, HTML, SVG, PNG, and pin cross-reference artifacts, then emits a wiring phase_complete without changing the main deploy chain.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run wiring from a generate phase_complete.",
+      "Generate wiring diagrams for a MicroPython project.",
+      "Validate wiring artifacts and pin tables."
+    ],
+    "brandColor": "#EA580C"
+  }
+}

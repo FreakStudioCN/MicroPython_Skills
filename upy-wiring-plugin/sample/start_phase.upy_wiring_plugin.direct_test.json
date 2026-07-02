@@ -1,0 +1,34 @@
+{
+  "protocol_version": "1.0",
+  "type": "start_phase",
+  "phase": "upy-wiring-plugin",
+  "session_id": "demo-session",
+  "idempotency_key": "upy-wiring-plugin:demo-session:direct_test:v1",
+  "payload": {
+    "mode": "direct_test",
+    "invocation_mode": "local_skill_test",
+    "local_test": true,
+    "source_phase": "test_only",
+    "runtime_context": {
+      "session_root": "sessions/demo-session",
+      "project_root": "sessions/demo-session/project",
+      "file_operation_root": "sessions/demo-session/project",
+      "resource_root": "upy-wiring-plugin"
+    },
+    "capabilities": {
+      "approval_request": true,
+      "file_operation": true,
+      "script_run": true,
+      "checkpoint_resume": true,
+      "cancellation": true,
+      "retry": true,
+      "timeout": true,
+      "permission_prompt": true
+    },
+    "render_policy": {
+      "formats": ["json", "md", "html", "pins", "svg", "png"],
+      "network_rendering": "deny",
+      "timeout_ms": 30000
+    }
+  }
+}
