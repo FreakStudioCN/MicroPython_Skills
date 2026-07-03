@@ -1,0 +1,133 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "msg_id": "msg-diagram-success",
+  "timestamp": "2026-07-02T00:05:00Z",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "success",
+    "checkpoint": "phase_completed",
+    "session_id": "demo-session",
+    "idempotency_key": "upy-diagram-plugin:demo-session:full:v1",
+    "next_phase": null,
+    "mode": "full",
+    "invocation_mode": "plugin_protocol",
+    "local_test": false,
+    "source_phase": "upy-generate-plugin",
+    "source_phase_complete_path": "sessions/demo-session/phase_complete.upy_generate_plugin.json",
+    "complexity": "medium",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "diagram",
+      "project_name": "demo_temp_monitor",
+      "mcu": {
+        "name": "Raspberry Pi Pico",
+        "chip": "RP2040"
+      },
+      "generate": {
+        "status": "generated"
+      },
+      "diagrams": {
+        "json": "docs/diagram.json",
+        "architecture": "docs/architecture.md",
+        "architecture_svg": "docs/architecture.svg",
+        "architecture_png": "docs/architecture.png",
+        "architecture_html": "docs/architecture.html",
+        "flowchart": "docs/flowchart.md",
+        "flowchart_svg": "docs/flowchart.svg",
+        "flowchart_png": "docs/flowchart.png",
+        "flowchart_html": "docs/flowchart.html",
+        "data_flow": "docs/data_flow.md",
+        "data_flow_svg": "docs/data_flow.svg",
+        "data_flow_png": "docs/data_flow.png",
+        "data_flow_html": "docs/data_flow.html",
+        "generated_at": "2026-07-02T00:05:00Z",
+        "complexity": "medium"
+      }
+    },
+    "artifacts": [
+      {"type": "diagram_json", "path": "docs/diagram.json", "required": true},
+      {"type": "diagram_architecture_markdown", "path": "docs/architecture.md", "required": true},
+      {"type": "diagram_architecture_svg", "path": "docs/architecture.svg", "required": true},
+      {"type": "diagram_architecture_png", "path": "docs/architecture.png", "required": true},
+      {"type": "diagram_architecture_html", "path": "docs/architecture.html", "required": true},
+      {"type": "diagram_flowchart_markdown", "path": "docs/flowchart.md", "required": true},
+      {"type": "diagram_flowchart_svg", "path": "docs/flowchart.svg", "required": true},
+      {"type": "diagram_flowchart_png", "path": "docs/flowchart.png", "required": true},
+      {"type": "diagram_flowchart_html", "path": "docs/flowchart.html", "required": true},
+      {"type": "diagram_data_flow_markdown", "path": "docs/data_flow.md", "required": true},
+      {"type": "diagram_data_flow_svg", "path": "docs/data_flow.svg", "required": true},
+      {"type": "diagram_data_flow_png", "path": "docs/data_flow.png", "required": true},
+      {"type": "diagram_data_flow_html", "path": "docs/data_flow.html", "required": true},
+      {
+        "type": "table",
+        "title": "诊断信息",
+        "headers": ["指标", "值"],
+        "rows": [
+          ["总模块数", "5"],
+          ["总依赖边", "5"],
+          ["最大深度", "4"],
+          ["循环依赖", "无"],
+          ["直接 import machine", "main"]
+        ]
+      }
+    ],
+    "checks": {
+      "diagram_schema": {
+        "ok": true,
+        "command": "validate_json.py --schema diagram.schema.json --json docs/diagram.json",
+        "duration_ms": 120
+      },
+      "render_diagram": {
+        "ok": true,
+        "command": "render_diagram_local.py --input docs/diagram.json --output docs --format all --json-summary",
+        "duration_ms": 1500
+      },
+      "manifest_update": {
+        "ok": true,
+        "command": "diagram_manifest.py --validate-phase-complete",
+        "duration_ms": 40
+      }
+    },
+    "render_result": {
+      "json": {"ok": true, "path": "docs/diagram.json"},
+      "md": {"ok": true, "paths": ["docs/architecture.md", "docs/flowchart.md", "docs/data_flow.md"]},
+      "html": {"ok": true, "paths": ["docs/architecture.html", "docs/flowchart.html", "docs/data_flow.html"]},
+      "svg": {"ok": true, "paths": ["docs/architecture.svg", "docs/flowchart.svg", "docs/data_flow.svg"], "backend": "mermaid.ink"},
+      "png": {"ok": true, "paths": ["docs/architecture.png", "docs/flowchart.png", "docs/data_flow.png"], "backend": "mermaid.ink"}
+    },
+    "network_permission": {
+      "domain": "mermaid.ink",
+      "decision": "allow"
+    },
+    "file_manifest": {
+      "path": "sessions/demo-session/diagram_file_manifest.json",
+      "files": [
+        {"path": "docs/diagram.json", "type": "diagram_json", "required": true, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 8192, "source": "llm_generated", "checkpoint": "diagram_json_validated"},
+        {"path": "docs/architecture.md", "type": "diagram_architecture_markdown", "required": true, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 3072, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/architecture.svg", "type": "diagram_architecture_svg", "required": true, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "bytes": 45056, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/architecture.png", "type": "diagram_architecture_png", "required": true, "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "bytes": 87040, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/architecture.html", "type": "diagram_architecture_html", "required": true, "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bytes": 10240, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/flowchart.md", "type": "diagram_flowchart_markdown", "required": true, "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "bytes": 2048, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/flowchart.svg", "type": "diagram_flowchart_svg", "required": true, "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "bytes": 32768, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/flowchart.png", "type": "diagram_flowchart_png", "required": true, "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "bytes": 56320, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/flowchart.html", "type": "diagram_flowchart_html", "required": true, "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "bytes": 9216, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/data_flow.md", "type": "diagram_data_flow_markdown", "required": true, "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "bytes": 1536, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/data_flow.svg", "type": "diagram_data_flow_svg", "required": true, "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "bytes": 24576, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/data_flow.png", "type": "diagram_data_flow_png", "required": true, "sha256": "6666666666666666666666666666666666666666666666666666666666666666", "bytes": 39936, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"},
+        {"path": "docs/data_flow.html", "type": "diagram_data_flow_html", "required": true, "sha256": "7777777777777777777777777777777777777777777777777777777777777777", "bytes": 7168, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered"}
+      ]
+    },
+    "session_state": {
+      "path": "sessions/demo-session/checkpoints/diagram/session_state.upy_diagram_plugin.json",
+      "checkpoint": "phase_completed",
+      "resume_supported": true,
+      "resume_from": null
+    },
+    "warnings": [],
+    "errors": []
+  }
+}

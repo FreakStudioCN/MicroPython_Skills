@@ -1,0 +1,32 @@
+{
+  "name": "upy-diagram-plugin",
+  "version": "0.1.0",
+  "description": "Workflow plugin phase for generating MicroPython software architecture diagrams from generated firmware and manifest data.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "micropython",
+    "diagram",
+    "architecture",
+    "workflow"
+  ],
+  "interface": {
+    "displayName": "upy-diagram-plugin",
+    "shortDescription": "Generates architecture, flow, and data-flow diagrams after firmware generation.",
+    "longDescription": "Consumes upy-generate-plugin phase_complete manifest_content and generated firmware files, derives docs/diagram.json, validates the diagram schema, renders Markdown, HTML, SVG, and PNG diagram artifacts, then emits a diagram phase_complete with checkpoint, structured errors, and file manifest data without changing the main deploy chain.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run diagram from a generate phase_complete.",
+      "Generate architecture diagrams for a MicroPython project.",
+      "Validate diagram artifacts and file manifests."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

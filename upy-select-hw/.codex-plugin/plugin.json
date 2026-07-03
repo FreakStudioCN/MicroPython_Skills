@@ -1,0 +1,31 @@
+{
+    "name":  "upy-select-hw",
+    "version":  "0.1.0",
+    "description":  "第二步——MCU 选型 + 固件核验 + 引脚分配 + BOM 生成。输入 upy-analyze 的 project-manifest.json，输出完整的硬件方案。触发：upy-analyze 完成后自动进入。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "select",
+                     "hw"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-select-hw",
+                      "shortDescription":  "第二步——MCU 选型 + 固件核验 + 引脚分配 + BOM 生成。输入 upy-analyze 的 project-manifest.json，输出完整的硬件方案。触发：upy-analyze 完成后自动进入。",
+                      "longDescription":  "第二步——MCU 选型 + 固件核验 + 引脚分配 + BOM 生成。输入 upy-analyze 的 project-manifest.json，输出完整的硬件方案。触发：upy-analyze 完成后自动进入。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-select-hw.",
+                                            "Use upy-select-hw in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

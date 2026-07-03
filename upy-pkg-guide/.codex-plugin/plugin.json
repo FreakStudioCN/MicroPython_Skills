@@ -1,0 +1,31 @@
+{
+    "name":  "upy-pkg-guide",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user mentions a device/chip name and wants to know how to use its MicroPython driver from upypi. Invoke when user says things like \"怎么用BMP280\", \"DS18B20怎么调用\", \"告诉我MPR121的用法\", \"查一下upypi上XX的驱动怎么用\", or mentions any chip/sensor name and asks for usage guidance.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "pkg",
+                     "guide"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-pkg-guide",
+                      "shortDescription":  "Use this skill when the user mentions a device/chip name and wants to know how to use its MicroPython driver from upy...",
+                      "longDescription":  "Use this skill when the user mentions a device/chip name and wants to know how to use its MicroPython driver from upypi. Invoke when user says things like \"怎么用BMP280\", \"DS18B20怎么调用\", \"告诉我MPR121的用法\", \"查一下upypi上XX的驱动怎么用\", or mentions any chip/sensor name and asks for usage guidance.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-pkg-guide.",
+                                            "Use upy-pkg-guide in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

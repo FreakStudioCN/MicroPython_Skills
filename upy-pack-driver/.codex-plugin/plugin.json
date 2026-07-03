@@ -1,0 +1,31 @@
+{
+    "name":  "upy-pack-driver",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to package a MicroPython driver into the standard GraftSense directory structure. Invoke when user says things like \"打包驱动\", \"pack driver\", \"生成驱动包目录\", \"整理成标准目录\", or has finished normalizing/generating all files and wants to organize them.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "pack",
+                     "driver"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-pack-driver",
+                      "shortDescription":  "Use this skill when the user wants to package a MicroPython driver into the standard GraftSense directory structure....",
+                      "longDescription":  "Use this skill when the user wants to package a MicroPython driver into the standard GraftSense directory structure. Invoke when user says things like \"打包驱动\", \"pack driver\", \"生成驱动包目录\", \"整理成标准目录\", or has finished normalizing/generating all files and wants to organize them.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-pack-driver.",
+                                            "Use upy-pack-driver in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

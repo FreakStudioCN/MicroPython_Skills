@@ -1,0 +1,32 @@
+{
+    "name":  "mpremote-file-transfer",
+    "version":  "0.1.0",
+    "description":  "Use this skill when copying files to or from a MicroPython device using mpremote. Covers file copy syntax, directory operations, and best practices for device filesystem management. Triggers on \"copy file to device\", \"upload to device\", \"download from device\", \"mpremote fs\", \"device filesystem\", \"copy firmware files\", \"上传文件到设备\", \"从设备下载文件\", \"同步文件\".",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "mpremote",
+                     "file",
+                     "transfer"
+                 ],
+    "interface":  {
+                      "displayName":  "mpremote-file-transfer",
+                      "shortDescription":  "Use this skill when copying files to or from a MicroPython device using mpremote. Covers file copy syntax, directory...",
+                      "longDescription":  "Use this skill when copying files to or from a MicroPython device using mpremote. Covers file copy syntax, directory operations, and best practices for device filesystem management. Triggers on \"copy file to device\", \"upload to device\", \"download from device\", \"mpremote fs\", \"device filesystem\", \"copy firmware files\", \"上传文件到设备\", \"从设备下载文件\", \"同步文件\".",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run mpremote-file-transfer.",
+                                            "Use mpremote-file-transfer in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

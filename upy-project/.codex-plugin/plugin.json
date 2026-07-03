@@ -1,0 +1,30 @@
+{
+    "name":  "upy-project",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user describes a MicroPython project — what it should do, what microcontroller and sensors to use. Invoke when user says things like \"我想做一个MicroPython项目\", \"帮我写一个ESP32程序\", \"用BMP280和OLED做一个气象站\", \"帮我实现XX功能\", or describes any embedded project with hardware components.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "project"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-project",
+                      "shortDescription":  "Use this skill when the user describes a MicroPython project — what it should do, what microcontroller and sensors to...",
+                      "longDescription":  "Use this skill when the user describes a MicroPython project — what it should do, what microcontroller and sensors to use. Invoke when user says things like \"我想做一个MicroPython项目\", \"帮我写一个ESP32程序\", \"用BMP280和OLED做一个气象站\", \"帮我实现XX功能\", or describes any embedded project with hardware components.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-project.",
+                                            "Use upy-project in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

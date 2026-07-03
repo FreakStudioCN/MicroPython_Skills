@@ -1,0 +1,31 @@
+{
+    "name":  "upy-deploy-test",
+    "version":  "0.1.0",
+    "description":  "Use this skill after upy-norm-pkg completes to deploy normalized driver files to a MicroPython device and validate by running main.py. Invoke when user says things like \"烧录测试\", \"deploy and test\", \"上传并运行\", \"验证设备\", or after norm-pkg asks to proceed with device testing.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "deploy",
+                     "test"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-deploy-test",
+                      "shortDescription":  "Use this skill after upy-norm-pkg completes to deploy normalized driver files to a MicroPython device and validate by...",
+                      "longDescription":  "Use this skill after upy-norm-pkg completes to deploy normalized driver files to a MicroPython device and validate by running main.py. Invoke when user says things like \"烧录测试\", \"deploy and test\", \"上传并运行\", \"验证设备\", or after norm-pkg asks to proceed with device testing.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-deploy-test.",
+                                            "Use upy-deploy-test in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

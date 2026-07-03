@@ -1,0 +1,31 @@
+{
+    "name":  "upy-gen-pkg",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to generate a package.json from scratch for a MicroPython driver package. Invoke when user says things like \"generate package.json\", \"生成package.json\", \"帮我写包配置\", \"创建mip包配置\", or provides a driver directory/file and asks to create a package config.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "gen",
+                     "pkg"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-gen-pkg",
+                      "shortDescription":  "Use this skill when the user wants to generate a package.json from scratch for a MicroPython driver package. Invoke w...",
+                      "longDescription":  "Use this skill when the user wants to generate a package.json from scratch for a MicroPython driver package. Invoke when user says things like \"generate package.json\", \"生成package.json\", \"帮我写包配置\", \"创建mip包配置\", or provides a driver directory/file and asks to create a package config.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-gen-pkg.",
+                                            "Use upy-gen-pkg in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

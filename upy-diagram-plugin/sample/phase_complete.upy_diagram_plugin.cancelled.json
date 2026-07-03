@@ -1,0 +1,35 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "cancelled",
+    "checkpoint": "source_read",
+    "session_id": "demo-session",
+    "next_phase": null,
+    "summary": "用户取消 diagram 阶段。",
+    "checkpoint_info": {
+      "checkpoint_id": "source_read",
+      "resume_phase": "upy-diagram-plugin",
+      "resume_step": "generate_diagram_json",
+      "resume_label": "继续生成 diagram.json"
+    },
+    "artifacts": [],
+    "file_manifest": {"path": "sessions/demo-session/diagram_file_manifest.json", "files": []},
+    "warnings": [{"code": "DIAGRAM_CANCELLED_BY_USER", "message": "阶段已取消，未继续生成 diagram.json。"}],
+    "errors": [
+      {
+        "code": "DIAGRAM_CANCELLED",
+        "message": "用户取消 diagram 阶段",
+        "step_id": "source_read",
+        "severity": "info",
+        "retryable": true,
+        "recoverable": true,
+        "suggested_actions": ["从 checkpoint 继续", "重新运行 diagram 阶段"]
+      }
+    ]
+  }
+}

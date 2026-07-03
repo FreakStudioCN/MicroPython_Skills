@@ -1,0 +1,31 @@
+{
+    "name":  "upy-norm-pkg",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to normalize/standardize an existing validated MicroPython driver package (one or more driver .py files, optional main.py) according to the GraftSense coding spec. Invoke when user says things like \"规范化驱动包\", \"norm pkg\", \"对整个驱动目录规范化\", or provides a driver directory path and asks for full normalization.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "norm",
+                     "pkg"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-norm-pkg",
+                      "shortDescription":  "Use this skill when the user wants to normalize/standardize an existing validated MicroPython driver package (one or...",
+                      "longDescription":  "Use this skill when the user wants to normalize/standardize an existing validated MicroPython driver package (one or more driver .py files, optional main.py) according to the GraftSense coding spec. Invoke when user says things like \"规范化驱动包\", \"norm pkg\", \"对整个驱动目录规范化\", or provides a driver directory path and asks for full normalization.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-norm-pkg.",
+                                            "Use upy-norm-pkg in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

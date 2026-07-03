@@ -1,0 +1,23 @@
+{
+  "protocol_version": "1.0",
+  "type": "approval_request",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "msg_id": "msg-diagram-network-render",
+  "timestamp": "2026-07-02T00:00:02Z",
+  "idempotency_key": "upy-diagram-plugin:demo-session:network-render:v1",
+  "payload": {
+    "approval_id": "diagram_network_render",
+    "header": "允许网络渲染架构图",
+    "question": "是否允许访问 mermaid.ink 生成 SVG 和 PNG？",
+    "summary": {
+      "domain": "mermaid.ink",
+      "outputs": ["docs/architecture.svg", "docs/architecture.png", "docs/flowchart.svg", "docs/flowchart.png", "docs/data_flow.svg", "docs/data_flow.png"]
+    },
+    "items": [],
+    "actions": [
+      {"label": "允许", "value": "allow", "primary": true},
+      {"label": "只生成 Markdown/HTML", "value": "deny"}
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+    "name":  "upy-scaffold",
+    "version":  "0.1.0",
+    "description":  "第三步——项目骨架生成。读取 select-hw 阶段的 project-manifest.json，按调度模式（Timer/asyncio/_thread）生成完整 firmware/ 目录骨架。触发：upy-select-hw 完成后自动进入。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "scaffold"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-scaffold",
+                      "shortDescription":  "第三步——项目骨架生成。读取 select-hw 阶段的 project-manifest.json，按调度模式（Timer/asyncio/_thread）生成完整 firmware/ 目录骨架。触发：upy-select-hw 完...",
+                      "longDescription":  "第三步——项目骨架生成。读取 select-hw 阶段的 project-manifest.json，按调度模式（Timer/asyncio/_thread）生成完整 firmware/ 目录骨架。触发：upy-select-hw 完成后自动进入。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-scaffold.",
+                                            "Use upy-scaffold in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

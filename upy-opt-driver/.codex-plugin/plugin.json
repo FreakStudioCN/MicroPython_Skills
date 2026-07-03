@@ -1,0 +1,31 @@
+{
+    "name":  "upy-opt-driver",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to optimize the performance of any existing MicroPython .py file (driver, main.py, or any other file) according to the GraftSense performance optimization guide. Invoke when user says things like \"优化性能\", \"optimize\", \"加速\", \"对驱动做性能优化\", \"优化这个文件\", or provides any .py file path or directory path and asks for performance improvement.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "opt",
+                     "driver"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-opt-driver",
+                      "shortDescription":  "Use this skill when the user wants to optimize the performance of any existing MicroPython .py file (driver, main.py,...",
+                      "longDescription":  "Use this skill when the user wants to optimize the performance of any existing MicroPython .py file (driver, main.py, or any other file) according to the GraftSense performance optimization guide. Invoke when user says things like \"优化性能\", \"optimize\", \"加速\", \"对驱动做性能优化\", \"优化这个文件\", or provides any .py file path or directory path and asks for performance improvement.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-opt-driver.",
+                                            "Use upy-opt-driver in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "upy-diagram-plugin",
+  "owner": "leezisheng",
+  "repo": "MicroPython_Skills",
+  "path": "upy-diagram-plugin",
+  "branch": "main",
+  "source": "manual"
+}

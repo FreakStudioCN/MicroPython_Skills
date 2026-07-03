@@ -1,0 +1,31 @@
+{
+    "name":  "upy-gen-driver",
+    "version":  "0.1.0",
+    "description":  "从 PDF 数据手册或 Arduino/C++ 代码生成 MicroPython 驱动。当 upypi 和 GitHub 均无驱动时使用。流程：提取→生成调试版→硬件验证循环→脱调试→规范化。触发：upy-analyze 搜不到驱动时调用，或用户直接 /upy-gen-driver。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "gen",
+                     "driver"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-gen-driver",
+                      "shortDescription":  "从 PDF 数据手册或 Arduino/C++ 代码生成 MicroPython 驱动。当 upypi 和 GitHub 均无驱动时使用。流程：提取→生成调试版→硬件验证循环→脱调试→规范化。触发：upy-analyze 搜不到驱动时...",
+                      "longDescription":  "从 PDF 数据手册或 Arduino/C++ 代码生成 MicroPython 驱动。当 upypi 和 GitHub 均无驱动时使用。流程：提取→生成调试版→硬件验证循环→脱调试→规范化。触发：upy-analyze 搜不到驱动时调用，或用户直接 /upy-gen-driver。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-gen-driver.",
+                                            "Use upy-gen-driver in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

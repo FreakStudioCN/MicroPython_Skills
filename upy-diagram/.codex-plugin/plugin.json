@@ -1,0 +1,30 @@
+{
+    "name":  "upy-diagram",
+    "version":  "0.1.0",
+    "description":  "第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ SVG + PNG + HTML（双击浏览器可看）。触发：upy-generate 完成后。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "diagram"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-diagram",
+                      "shortDescription":  "第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ SVG + PNG + H...",
+                      "longDescription":  "第七步——软件架构图生成。读取 firmware/ 代码和 project-manifest.json，LLM 生成中间 JSON，脚本渲染 Mermaid 文本架构图（.md 代码块，CLI 原生可读）+ SVG + PNG + HTML（双击浏览器可看）。触发：upy-generate 完成后。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-diagram.",
+                                            "Use upy-diagram in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

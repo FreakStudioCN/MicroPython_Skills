@@ -1,0 +1,30 @@
+{
+    "name":  "review",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to review MicroPython code changes using historical review patterns. Invoke when user mentions reviewing code, finding review examples, or wants feedback on MicroPython PRs/commits/diffs. Provides semantic search across ~19.5K categorized review comments.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "review"
+                 ],
+    "interface":  {
+                      "displayName":  "review",
+                      "shortDescription":  "Use this skill when the user wants to review MicroPython code changes using historical review patterns. Invoke when u...",
+                      "longDescription":  "Use this skill when the user wants to review MicroPython code changes using historical review patterns. Invoke when user mentions reviewing code, finding review examples, or wants feedback on MicroPython PRs/commits/diffs. Provides semantic search across ~19.5K categorized review comments.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run review.",
+                                            "Use review in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

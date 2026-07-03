@@ -1,0 +1,31 @@
+{
+    "name":  "upy-gen-readme",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to generate a README.md from scratch for a MicroPython driver. Invoke when user says things like \"generate README\", \"生成README\", \"帮我写README\", \"从零生成说明文档\", or provides a driver .py file and asks to create documentation.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "gen",
+                     "readme"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-gen-readme",
+                      "shortDescription":  "Use this skill when the user wants to generate a README.md from scratch for a MicroPython driver. Invoke when user sa...",
+                      "longDescription":  "Use this skill when the user wants to generate a README.md from scratch for a MicroPython driver. Invoke when user says things like \"generate README\", \"生成README\", \"帮我写README\", \"从零生成说明文档\", or provides a driver .py file and asks to create documentation.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-gen-readme.",
+                                            "Use upy-gen-readme in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

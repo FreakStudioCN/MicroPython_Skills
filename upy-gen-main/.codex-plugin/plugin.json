@@ -1,0 +1,31 @@
+{
+    "name":  "upy-gen-main",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to generate a new main.py test file from scratch for a MicroPython driver. Invoke when user says things like \"generate main.py\", \"生成测试文件\", \"从零生成main.py\", \"帮我写测试文件\", or provides a driver .py file and asks to create a test program.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "gen",
+                     "main"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-gen-main",
+                      "shortDescription":  "Use this skill when the user wants to generate a new main.py test file from scratch for a MicroPython driver. Invoke...",
+                      "longDescription":  "Use this skill when the user wants to generate a new main.py test file from scratch for a MicroPython driver. Invoke when user says things like \"generate main.py\", \"生成测试文件\", \"从零生成main.py\", \"帮我写测试文件\", or provides a driver .py file and asks to create a test program.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-gen-main.",
+                                            "Use upy-gen-main in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

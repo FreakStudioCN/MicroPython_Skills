@@ -1,0 +1,35 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "failed",
+    "checkpoint": "input_loaded",
+    "session_id": "demo-session",
+    "next_phase": null,
+    "summary": "宿主缺少 script_run 能力，无法校验和渲染 diagram。",
+    "checkpoint_info": {
+      "checkpoint_id": "input_loaded",
+      "resume_phase": "upy-diagram-plugin",
+      "resume_step": "capability_negotiation",
+      "resume_label": "补齐能力后继续 diagram 阶段"
+    },
+    "artifacts": [],
+    "file_manifest": {"path": "sessions/demo-session/diagram_file_manifest.json", "files": []},
+    "warnings": [],
+    "errors": [
+      {
+        "code": "DIAGRAM_CAPABILITY_MISSING",
+        "message": "capabilities.script_run=false",
+        "step_id": "capability_negotiation",
+        "severity": "error",
+        "retryable": false,
+        "recoverable": true,
+        "suggested_actions": ["启用 script_run 能力", "切换到本地直测模式"]
+      }
+    ]
+  }
+}

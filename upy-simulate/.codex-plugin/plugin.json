@@ -1,0 +1,30 @@
+{
+    "name":  "upy-simulate",
+    "version":  "0.1.0",
+    "description":  "PC 端全流程业务模拟。读取 firmware/ 全部代码为上下文，LLM 自主设计调度/器件/可视化方案，生成 test/pc/ 下的模拟脚本，经 flake8 + pylint 校验后运行。触发：upy-generate 完成后手动触发，或 upy-autofix 修复后调用。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "simulate"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-simulate",
+                      "shortDescription":  "PC 端全流程业务模拟。读取 firmware/ 全部代码为上下文，LLM 自主设计调度/器件/可视化方案，生成 test/pc/ 下的模拟脚本，经 flake8 + pylint 校验后运行。触发：upy-generate 完成后手...",
+                      "longDescription":  "PC 端全流程业务模拟。读取 firmware/ 全部代码为上下文，LLM 自主设计调度/器件/可视化方案，生成 test/pc/ 下的模拟脚本，经 flake8 + pylint 校验后运行。触发：upy-generate 完成后手动触发，或 upy-autofix 修复后调用。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-simulate.",
+                                            "Use upy-simulate in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

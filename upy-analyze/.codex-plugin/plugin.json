@@ -1,0 +1,30 @@
+{
+    "name":  "upy-analyze",
+    "version":  "0.1.0",
+    "description":  "插件化 V0 analyze 阶段。读取一句话硬件项目需求和插件上下文，完成需求解析、器件确认、驱动搜索、替代推荐或冷门驱动标记，并输出完整 envelope 的 phase_complete + manifest_content。触发：插件 start_phase(analyze)、用户描述“做一个/我想做/帮我写一个”MicroPython 硬件项目、需要生成 project manifest。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "analyze"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-analyze",
+                      "shortDescription":  "插件化 V0 analyze 阶段。读取一句话硬件项目需求和插件上下文，完成需求解析、器件确认、驱动搜索、替代推荐或冷门驱动标记，并输出完整 envelope 的 phase_complete + manifest_content。触...",
+                      "longDescription":  "插件化 V0 analyze 阶段。读取一句话硬件项目需求和插件上下文，完成需求解析、器件确认、驱动搜索、替代推荐或冷门驱动标记，并输出完整 envelope 的 phase_complete + manifest_content。触发：插件 start_phase(analyze)、用户描述“做一个/我想做/帮我写一个”MicroPython 硬件项目、需要生成 project manifest。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-analyze.",
+                                            "Use upy-analyze in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

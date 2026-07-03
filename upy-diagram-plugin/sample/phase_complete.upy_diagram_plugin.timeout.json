@@ -1,0 +1,44 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "partial",
+    "checkpoint": "diagram_json_validated",
+    "session_id": "demo-session",
+    "next_phase": null,
+    "summary": "diagram.json 已校验通过，但渲染超时。",
+    "artifacts": [
+      {"type": "diagram_json", "path": "docs/diagram.json", "required": true}
+    ],
+    "file_manifest": {
+      "path": "sessions/demo-session/diagram_file_manifest.json",
+      "files": [
+        {"path": "docs/diagram.json", "type": "diagram_json", "required": true, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 8192, "source": "llm_generated", "checkpoint": "diagram_json_validated"}
+      ]
+    },
+    "checkpoint_info": {
+      "checkpoint_id": "diagram_json_validated",
+      "resume_phase": "upy-diagram-plugin",
+      "resume_step": "render",
+      "resume_label": "继续渲染 diagram 产物"
+    },
+    "warnings": [],
+    "errors": [
+      {
+        "code": "DIAGRAM_RENDER_TIMEOUT",
+        "message": "render_diagram_local.py 执行超时",
+        "step_id": "render",
+        "severity": "error",
+        "retryable": true,
+        "recoverable": true,
+        "idempotency_key": "upy-diagram-plugin:demo-session:render:v1",
+        "artifact_refs": ["docs/diagram.json"],
+        "suggested_actions": ["重试渲染", "只生成 Markdown/HTML", "稍后继续"]
+      }
+    ]
+  }
+}

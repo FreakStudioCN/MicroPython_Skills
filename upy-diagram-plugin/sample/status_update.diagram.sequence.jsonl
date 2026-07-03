@@ -1,0 +1,5 @@
+{"type":"status_update","phase":"upy-diagram-plugin","session_id":"demo-session","payload":{"step_id":"start","level":"info","message":"正在校验上游 generate 输出..."}}
+{"type":"status_update","phase":"upy-diagram-plugin","session_id":"demo-session","payload":{"step_id":"read_src","level":"info","message":"正在读取 firmware/ 源码..."}}
+{"type":"status_update","phase":"upy-diagram-plugin","session_id":"demo-session","payload":{"step_id":"gen_json","level":"info","message":"正在生成 diagram.json..."}}
+{"type":"status_update","phase":"upy-diagram-plugin","session_id":"demo-session","payload":{"step_id":"validate_pass","level":"success","message":"diagram.json 校验通过"}}
+{"type":"status_update","phase":"upy-diagram-plugin","session_id":"demo-session","payload":{"step_id":"render_done","level":"success","message":"已生成 13 个 diagram 文件"}}

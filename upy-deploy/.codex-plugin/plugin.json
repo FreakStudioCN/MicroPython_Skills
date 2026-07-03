@@ -1,0 +1,30 @@
+{
+    "name":  "upy-deploy",
+    "version":  "0.1.0",
+    "description":  "第五步——一键烧录运行。上传 firmware/ 到设备、软复位、持久会话采集输出、读取设备端日志、初判通过/失败。触发：upy-generate 完成后自动进入。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "deploy"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-deploy",
+                      "shortDescription":  "第五步——一键烧录运行。上传 firmware/ 到设备、软复位、持久会话采集输出、读取设备端日志、初判通过/失败。触发：upy-generate 完成后自动进入。",
+                      "longDescription":  "第五步——一键烧录运行。上传 firmware/ 到设备、软复位、持久会话采集输出、读取设备端日志、初判通过/失败。触发：upy-generate 完成后自动进入。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-deploy.",
+                                            "Use upy-deploy in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

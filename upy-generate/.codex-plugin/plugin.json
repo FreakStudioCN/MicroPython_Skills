@@ -1,0 +1,30 @@
+{
+    "name":  "upy-generate",
+    "version":  "0.1.0",
+    "description":  "第四步——业务代码生成。读取 scaffold 阶段的 project-manifest.json，下载驱动、生成 DI 架构的业务代码、Mock 层、单元测试。触发：upy-scaffold 完成后自动进入。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "generate"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-generate",
+                      "shortDescription":  "第四步——业务代码生成。读取 scaffold 阶段的 project-manifest.json，下载驱动、生成 DI 架构的业务代码、Mock 层、单元测试。触发：upy-scaffold 完成后自动进入。",
+                      "longDescription":  "第四步——业务代码生成。读取 scaffold 阶段的 project-manifest.json，下载驱动、生成 DI 架构的业务代码、Mock 层、单元测试。触发：upy-scaffold 完成后自动进入。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-generate.",
+                                            "Use upy-generate in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

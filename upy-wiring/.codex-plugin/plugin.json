@@ -1,0 +1,30 @@
+{
+    "name":  "upy-wiring",
+    "version":  "0.1.0",
+    "description":  "接线图生成。通读 firmware/ 全部 .py 源码提取实际引脚/地址/总线，与 project-manifest.json 交叉验证后 LLM 生成中间 JSON，脚本渲染 Mermaid 接线图（.md 代码块，CLI 原生可读）+ SVG + PNG + HTML（双击浏览器可看）。触发：upy-scaffold 或 upy-generate 完成后。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "wiring"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-wiring",
+                      "shortDescription":  "接线图生成。通读 firmware/ 全部 .py 源码提取实际引脚/地址/总线，与 project-manifest.json 交叉验证后 LLM 生成中间 JSON，脚本渲染 Mermaid 接线图（.md 代码块，CLI 原生可...",
+                      "longDescription":  "接线图生成。通读 firmware/ 全部 .py 源码提取实际引脚/地址/总线，与 project-manifest.json 交叉验证后 LLM 生成中间 JSON，脚本渲染 Mermaid 接线图（.md 代码块，CLI 原生可读）+ SVG + PNG + HTML（双击浏览器可看）。触发：upy-scaffold 或 upy-generate 完成后。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-wiring.",
+                                            "Use upy-wiring in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

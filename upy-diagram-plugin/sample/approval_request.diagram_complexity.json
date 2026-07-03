@@ -1,0 +1,25 @@
+{
+  "protocol_version": "1.0",
+  "type": "approval_request",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "msg_id": "msg-diagram-complexity",
+  "timestamp": "2026-07-02T00:00:01Z",
+  "idempotency_key": "upy-diagram-plugin:demo-session:complexity:v1",
+  "payload": {
+    "approval_id": "diagram_complexity",
+    "header": "架构图复杂度",
+    "question": "选择架构图的详细程度",
+    "items": [
+      {"id": "simple", "name": "简单", "subtitle": "≤6 模块，≤5 步骤，高度精简", "selected": false},
+      {"id": "medium", "name": "中等 (推荐)", "subtitle": "≤10 模块，≤8 步骤，平衡信息量", "selected": true},
+      {"id": "full", "name": "详细", "subtitle": "≤16 模块，≤14 步骤，完整展开", "selected": false}
+    ],
+    "allow_add": false,
+    "allow_remove": false,
+    "multi_select": false,
+    "actions": [
+      {"label": "确认", "value": "confirm", "primary": true}
+    ]
+  }
+}

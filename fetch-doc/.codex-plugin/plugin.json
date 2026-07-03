@@ -1,0 +1,31 @@
+{
+    "name":  "fetch-doc",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user provides a URL and wants to extract key information from it. Supports GitHub files, upypi pages, and general web pages. Invoke when user says things like \"帮我看一下这个链接\", \"从这个URL提取信息\", \"这个页面说了什么\", \"读取这个文档\", or pastes any URL and asks about its content.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "fetch",
+                     "doc"
+                 ],
+    "interface":  {
+                      "displayName":  "fetch-doc",
+                      "shortDescription":  "Use this skill when the user provides a URL and wants to extract key information from it. Supports GitHub files, upyp...",
+                      "longDescription":  "Use this skill when the user provides a URL and wants to extract key information from it. Supports GitHub files, upypi pages, and general web pages. Invoke when user says things like \"帮我看一下这个链接\", \"从这个URL提取信息\", \"这个页面说了什么\", \"读取这个文档\", or pastes any URL and asks about its content.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run fetch-doc.",
+                                            "Use fetch-doc in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

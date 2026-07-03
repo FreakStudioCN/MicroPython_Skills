@@ -1,0 +1,32 @@
+{
+    "name":  "mpremote-live-session",
+    "version":  "0.1.0",
+    "description":  "Use this skill when maintaining a persistent interactive connection to a MicroPython device for sending commands and capturing output. This is the PREFERRED method for device interaction when multiple commands need to be sent, when monitoring device output over time, or when the device runs an asyncio event loop with aiorepl. Triggers on \"send commands to device\", \"monitor device output\", \"interactive session\", \"persistent connection\", \"stress test device\", \"capture serial output\", \"持续监听设备\", \"长连接设备\", \"监控串口输出\".",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "mpremote",
+                     "live",
+                     "session"
+                 ],
+    "interface":  {
+                      "displayName":  "mpremote-live-session",
+                      "shortDescription":  "Use this skill when maintaining a persistent interactive connection to a MicroPython device for sending commands and...",
+                      "longDescription":  "Use this skill when maintaining a persistent interactive connection to a MicroPython device for sending commands and capturing output. This is the PREFERRED method for device interaction when multiple commands need to be sent, when monitoring device output over time, or when the device runs an asyncio event loop with aiorepl. Triggers on \"send commands to device\", \"monitor device output\", \"interactive session\", \"persistent connection\", \"stress test device\", \"capture serial output\", \"持续监听设备\", \"长连接设备\", \"监控串口输出\".",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run mpremote-live-session.",
+                                            "Use mpremote-live-session in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

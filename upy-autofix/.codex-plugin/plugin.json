@@ -1,0 +1,30 @@
+{
+    "name":  "upy-autofix",
+    "version":  "0.1.0",
+    "description":  "第六步——编排协调层。读取设备日志，解析错误，分级决策后委托上游 skill 修复（generate/select-hw/analyze），最多 3 次尝试。触发：upy-deploy 运行失败后自动进入。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "autofix"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-autofix",
+                      "shortDescription":  "第六步——编排协调层。读取设备日志，解析错误，分级决策后委托上游 skill 修复（generate/select-hw/analyze），最多 3 次尝试。触发：upy-deploy 运行失败后自动进入。",
+                      "longDescription":  "第六步——编排协调层。读取设备日志，解析错误，分级决策后委托上游 skill 修复（generate/select-hw/analyze），最多 3 次尝试。触发：upy-deploy 运行失败后自动进入。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-autofix.",
+                                            "Use upy-autofix in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

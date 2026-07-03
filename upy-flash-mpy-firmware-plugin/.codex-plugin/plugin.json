@@ -1,0 +1,32 @@
+{
+    "name":  "upy-flash-mpy-firmware-plugin",
+    "version":  "0.1.0",
+    "description":  "插件化工作流版 MicroPython 固件解析、下载、烧录或手动确认。用于 Codex 收到 next_phase=upy-flash-mpy-firmware-plugin 的 phase_complete(select-hw) 时；消费 select-hw manifest_content，从 micropython.org/download 解析最新固件，协助 ESP32 esptool 烧录，引导 Pico UF2 复制，或为其他板卡提供手动烧录链接，最后输出 next_phase=upy-scaffold-plugin。",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "flash",
+                     "mpy",
+                     "firmware"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-flash-mpy-firmware-plugin",
+                      "shortDescription":  "插件化工作流版 MicroPython 固件解析、下载、烧录或手动确认。用于 Codex 收到 next_phase=upy-flash-mpy-firmware-plugin 的 phase_complete(select-hw)...",
+                      "longDescription":  "插件化工作流版 MicroPython 固件解析、下载、烧录或手动确认。用于 Codex 收到 next_phase=upy-flash-mpy-firmware-plugin 的 phase_complete(select-hw) 时；消费 select-hw manifest_content，从 micropython.org/download 解析最新固件，协助 ESP32 esptool 烧录，引导 Pico UF2 复制，或为其他板卡提供手动烧录链接，最后输出 next_phase=upy-scaffold-plugin。",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-flash-mpy-firmware-plugin.",
+                                            "Use upy-flash-mpy-firmware-plugin in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

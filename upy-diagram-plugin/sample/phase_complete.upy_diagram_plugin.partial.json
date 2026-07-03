@@ -1,0 +1,73 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "partial",
+    "checkpoint": "artifacts_rendered_partial",
+    "session_id": "demo-session",
+    "idempotency_key": "upy-diagram-plugin:demo-session:full:v1",
+    "next_phase": null,
+    "summary": "Markdown 和 HTML 已生成，SVG/PNG 网络渲染未完成。",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "diagram",
+      "project_name": "demo_temp_monitor",
+      "diagrams": {
+        "json": "docs/diagram.json",
+        "architecture": "docs/architecture.md",
+        "architecture_html": "docs/architecture.html",
+        "flowchart": "docs/flowchart.md",
+        "flowchart_html": "docs/flowchart.html",
+        "data_flow": "docs/data_flow.md",
+        "data_flow_html": "docs/data_flow.html",
+        "generated_at": "2026-07-02T00:05:00Z",
+        "complexity": "medium"
+      }
+    },
+    "artifacts": [
+      {"type": "diagram_json", "path": "docs/diagram.json", "required": true},
+      {"type": "diagram_architecture_markdown", "path": "docs/architecture.md", "required": true},
+      {"type": "diagram_architecture_html", "path": "docs/architecture.html", "required": true},
+      {"type": "diagram_flowchart_markdown", "path": "docs/flowchart.md", "required": true},
+      {"type": "diagram_flowchart_html", "path": "docs/flowchart.html", "required": true},
+      {"type": "diagram_data_flow_markdown", "path": "docs/data_flow.md", "required": true},
+      {"type": "diagram_data_flow_html", "path": "docs/data_flow.html", "required": true}
+    ],
+    "file_manifest": {
+      "path": "sessions/demo-session/diagram_file_manifest.json",
+      "files": [
+        {"path": "docs/diagram.json", "type": "diagram_json", "required": true, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 8192, "source": "llm_generated", "checkpoint": "diagram_json_validated"},
+        {"path": "docs/architecture.md", "type": "diagram_architecture_markdown", "required": true, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 3072, "source": "render_diagram_local.py", "checkpoint": "artifacts_rendered_partial"}
+      ]
+    },
+    "checkpoint_info": {
+      "checkpoint_id": "artifacts_rendered_partial",
+      "resume_phase": "upy-diagram-plugin",
+      "resume_step": "render_missing_images",
+      "resume_label": "继续渲染 SVG/PNG 架构图",
+      "resume_from": {
+        "diagram_json": "docs/diagram.json",
+        "project_root": "sessions/demo-session/project"
+      }
+    },
+    "warnings": [
+      {"code": "DIAGRAM_PARTIAL_ARTIFACTS", "message": "SVG/PNG 尚未生成，可从 checkpoint 继续。"}
+    ],
+    "errors": [
+      {
+        "code": "DIAGRAM_RENDER_NETWORK_FAILED",
+        "message": "mermaid.ink 网络渲染失败",
+        "step_id": "render",
+        "severity": "error",
+        "retryable": true,
+        "recoverable": true,
+        "artifact_refs": ["docs/diagram.json"],
+        "suggested_actions": ["重试渲染", "只保留 Markdown/HTML 输出", "稍后从 checkpoint 继续"]
+      }
+    ]
+  }
+}

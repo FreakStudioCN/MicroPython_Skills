@@ -1,0 +1,32 @@
+{
+    "name":  "mpremote-device-interaction",
+    "version":  "0.1.0",
+    "description":  "Use this skill for general MicroPython device interaction via mpremote, including connecting, running code, checking device state, and managing the device. Triggers on \"connect to micropython\", \"run code on device\", \"check device state\", \"mpremote\", \"micropython device\", \"repl\", \"device version\", \"device reset\", \"连接设备\", \"在设备上运行代码\", \"查看设备状态\".",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "mpremote",
+                     "device",
+                     "interaction"
+                 ],
+    "interface":  {
+                      "displayName":  "mpremote-device-interaction",
+                      "shortDescription":  "Use this skill for general MicroPython device interaction via mpremote, including connecting, running code, checking...",
+                      "longDescription":  "Use this skill for general MicroPython device interaction via mpremote, including connecting, running code, checking device state, and managing the device. Triggers on \"connect to micropython\", \"run code on device\", \"check device state\", \"mpremote\", \"micropython device\", \"repl\", \"device version\", \"device reset\", \"连接设备\", \"在设备上运行代码\", \"查看设备状态\".",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run mpremote-device-interaction.",
+                                            "Use mpremote-device-interaction in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

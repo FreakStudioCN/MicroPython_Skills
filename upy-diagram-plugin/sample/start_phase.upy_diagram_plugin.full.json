@@ -1,0 +1,44 @@
+{
+  "protocol_version": "1.0",
+  "type": "start_phase",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "msg_id": "msg-start-diagram-full",
+  "timestamp": "2026-07-02T00:00:00Z",
+  "idempotency_key": "upy-diagram-plugin:demo-session:full:v1",
+  "payload": {
+    "mode": "full",
+    "invocation_mode": "plugin_protocol",
+    "local_test": false,
+    "source_phase": "upy-generate-plugin",
+    "source_phase_complete_path": "sessions/demo-session/phase_complete.upy_generate_plugin.json",
+    "complexity": null,
+    "runtime_context": {
+      "session_root": "sessions/demo-session",
+      "project_root": "sessions/demo-session/project",
+      "file_operation_root": "sessions/demo-session/project",
+      "resource_root": "upy-diagram-plugin"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "file_operation": true,
+      "script_run": true,
+      "checkpoint_resume": true,
+      "cancellation": true,
+      "retry": true,
+      "timeout": true,
+      "permission_prompt": true,
+      "artifact_manifest": true,
+      "network_access": {
+        "allowed": true,
+        "domains": ["mermaid.ink"]
+      }
+    },
+    "render_policy": {
+      "formats": ["json", "md", "html", "svg", "png"],
+      "network_rendering": "ask",
+      "timeout_ms": 90000
+    }
+  }
+}

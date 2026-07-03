@@ -1,0 +1,70 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "msg_id": "msg-diagram-direct-test",
+  "timestamp": "2026-07-02T00:05:00Z",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "partial",
+    "checkpoint": "phase_completed",
+    "session_id": "demo-session",
+    "idempotency_key": "upy-diagram-plugin:demo-session:direct-test:v1",
+    "next_phase": null,
+    "mode": "direct_test",
+    "invocation_mode": "local_skill_test",
+    "local_test": true,
+    "source_phase": "test_only",
+    "complexity": "medium",
+    "summary": "LOCAL_TEST_ONLY: direct skill test rendered diagram artifacts, but this is not a formal plugin success.",
+    "manifest_content": {
+      "schema_version": "1.0",
+      "phase": "diagram_test",
+      "test_artifacts": {
+        "diagram": {
+          "source_phase": "test_only",
+          "generated_at": "2026-07-02T00:05:00Z",
+          "files": [
+            "docs/diagram.json",
+            "docs/architecture.md",
+            "docs/architecture.html"
+          ]
+        }
+      }
+    },
+    "artifacts": [
+      {"type": "diagram_json", "path": "docs/diagram.json", "required": true},
+      {"type": "diagram_architecture_markdown", "path": "docs/architecture.md", "required": true},
+      {"type": "diagram_architecture_html", "path": "docs/architecture.html", "required": true}
+    ],
+    "file_manifest": {
+      "path": "sessions/demo-session/diagram_file_manifest.json",
+      "files": [
+        {"path": "docs/diagram.json", "type": "diagram_json", "required": true, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 8192, "source": "local_skill_test", "checkpoint": "diagram_json_validated"},
+        {"path": "docs/architecture.md", "type": "diagram_architecture_markdown", "required": true, "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 3072, "source": "local_skill_test", "checkpoint": "artifacts_rendered_partial"},
+        {"path": "docs/architecture.html", "type": "diagram_architecture_html", "required": true, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "bytes": 10240, "source": "local_skill_test", "checkpoint": "artifacts_rendered_partial"}
+      ]
+    },
+    "session_state": {
+      "path": "sessions/demo-session/checkpoints/diagram/session_state.upy_diagram_plugin.json",
+      "checkpoint": "phase_completed",
+      "resume_supported": true,
+      "resume_from": null
+    },
+    "checkpoint_info": {
+      "checkpoint_id": "phase_completed",
+      "resume_phase": "upy-diagram-plugin",
+      "resume_step": "done",
+      "resume_label": "local direct test completed; rerun formal plugin invocation for success"
+    },
+    "warnings": [
+      {
+        "code": "LOCAL_TEST_ONLY",
+        "message": "direct_test/local_skill_test/test_only artifacts are test evidence only and must not be treated as formal success."
+      }
+    ],
+    "errors": []
+  }
+}

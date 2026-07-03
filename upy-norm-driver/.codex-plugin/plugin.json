@@ -1,0 +1,31 @@
+{
+    "name":  "upy-norm-driver",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to normalize or standardize an existing MicroPython driver .py file (non-main.py) according to the GraftSense coding spec. Invoke when user says things like \"normalize this driver\", \"规范化这个驱动文件\", \"按规范改写\", or provides a .py driver file path and asks for standardization.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "norm",
+                     "driver"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-norm-driver",
+                      "shortDescription":  "Use this skill when the user wants to normalize or standardize an existing MicroPython driver .py file (non-main.py)...",
+                      "longDescription":  "Use this skill when the user wants to normalize or standardize an existing MicroPython driver .py file (non-main.py) according to the GraftSense coding spec. Invoke when user says things like \"normalize this driver\", \"规范化这个驱动文件\", \"按规范改写\", or provides a .py driver file path and asks for standardization.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-norm-driver.",
+                                            "Use upy-norm-driver in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}

@@ -1,0 +1,46 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "payload": {
+    "protocol_version": "1.0",
+    "phase": "upy-diagram-plugin",
+    "result": "partial",
+    "checkpoint": "diagram_json_validated",
+    "session_id": "demo-session",
+    "next_phase": null,
+    "summary": "用户拒绝网络渲染权限，已保留可恢复 checkpoint。",
+    "artifacts": [
+      {"type": "diagram_json", "path": "docs/diagram.json", "required": true}
+    ],
+    "file_manifest": {
+      "path": "sessions/demo-session/diagram_file_manifest.json",
+      "files": [
+        {"path": "docs/diagram.json", "type": "diagram_json", "required": true, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 8192, "source": "llm_generated", "checkpoint": "diagram_json_validated"}
+      ]
+    },
+    "network_permission": {
+      "domain": "mermaid.ink",
+      "decision": "deny"
+    },
+    "checkpoint_info": {
+      "checkpoint_id": "diagram_json_validated",
+      "resume_phase": "upy-diagram-plugin",
+      "resume_step": "render",
+      "resume_label": "授权后继续渲染 SVG/PNG"
+    },
+    "warnings": [],
+    "errors": [
+      {
+        "code": "DIAGRAM_PERMISSION_DENIED",
+        "message": "用户拒绝访问 mermaid.ink",
+        "step_id": "permission",
+        "severity": "warn",
+        "retryable": true,
+        "recoverable": true,
+        "suggested_actions": ["重新授权网络渲染", "只保留 Markdown/HTML 输出"]
+      }
+    ]
+  }
+}

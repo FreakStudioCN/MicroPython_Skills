@@ -1,0 +1,44 @@
+{
+  "protocol_version": "1.0",
+  "type": "start_phase",
+  "phase": "upy-diagram-plugin",
+  "session_id": "demo-session",
+  "msg_id": "msg-start-diagram-direct-test",
+  "timestamp": "2026-07-02T00:00:00Z",
+  "idempotency_key": "upy-diagram-plugin:demo-session:direct-test:v1",
+  "payload": {
+    "mode": "direct_test",
+    "invocation_mode": "local_skill_test",
+    "local_test": true,
+    "source_phase": "test_only",
+    "source_phase_complete_path": "sample/phase_complete.upy_generate_plugin.success.json",
+    "complexity": "medium",
+    "runtime_context": {
+      "session_root": "sample/session",
+      "project_root": "sample/project",
+      "file_operation_root": "sample/project",
+      "resource_root": "upy-diagram-plugin"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": false,
+      "file_operation": true,
+      "script_run": true,
+      "checkpoint_resume": true,
+      "cancellation": true,
+      "retry": true,
+      "timeout": true,
+      "permission_prompt": false,
+      "artifact_manifest": true,
+      "network_access": {
+        "allowed": false,
+        "domains": []
+      }
+    },
+    "render_policy": {
+      "formats": ["json", "md", "html"],
+      "network_rendering": "deny",
+      "timeout_ms": 30000
+    }
+  }
+}

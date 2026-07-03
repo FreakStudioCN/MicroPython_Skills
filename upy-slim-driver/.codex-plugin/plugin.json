@@ -1,0 +1,31 @@
+{
+    "name":  "upy-slim-driver",
+    "version":  "0.1.0",
+    "description":  "Use this skill when the user wants to reduce the memory footprint of any existing MicroPython .py file (driver, main.py, or any other file) according to the GraftSense memory minimization guide. Invoke when user says things like \"减少内存占用\", \"slim\", \"降低RAM使用\", \"对文件做内存优化\", \"优化内存\", or provides any .py file path or directory path and asks for memory reduction.",
+    "author":  {
+                   "name":  "MicroPython Skills"
+               },
+    "license":  "MIT",
+    "keywords":  [
+                     "micropython",
+                     "workflow",
+                     "slim",
+                     "driver"
+                 ],
+    "interface":  {
+                      "displayName":  "upy-slim-driver",
+                      "shortDescription":  "Use this skill when the user wants to reduce the memory footprint of any existing MicroPython .py file (driver, main....",
+                      "longDescription":  "Use this skill when the user wants to reduce the memory footprint of any existing MicroPython .py file (driver, main.py, or any other file) according to the GraftSense memory minimization guide. Invoke when user says things like \"减少内存占用\", \"slim\", \"降低RAM使用\", \"对文件做内存优化\", \"优化内存\", or provides any .py file path or directory path and asks for memory reduction.",
+                      "developerName":  "MicroPython Skills",
+                      "category":  "Productivity",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "defaultPrompt":  [
+                                            "Run upy-slim-driver.",
+                                            "Use upy-slim-driver in a MicroPython workflow."
+                                        ],
+                      "brandColor":  "#2563EB"
+                  }
+}
