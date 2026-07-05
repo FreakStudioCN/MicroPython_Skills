@@ -30,6 +30,7 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - 最终协议文件名必须是 `phase_complete.upy_gen_driver_plugin.json`；session state 文件名必须是 `session_state.upy_gen_driver_plugin.json`。不要输出 `phase_complete.upy_driver_plugin.json`、`session_state.upy_driver_plugin.json` 或任何其他 phase 文件名。
 - 所有 phase-scoped `idempotency_key`、`checkpoint_id`、`resume_phase` 和 permission action key 必须使用 `upy-gen-driver-plugin` 前缀；业务 payload 里的 `phase` 与 `domain_phase` 只能使用 `gen-driver`。
 - 插件调用和本地 skill-call 测试必须使用同一套 message contract。本地测试可以直接执行文件，但仍必须写出插件 host 会收到的 `session_state`、permissions、file manifest、structured errors 和 `phase_complete` artifacts。
+- 不要手写 `session_state.upy_gen_driver_plugin.json`。必须通过 `scripts/update_session_state.py` 创建或更新 state，并在写出 `phase_complete` 前运行 `scripts/update_session_state.py --session-dir <session_root> --check`。
 - 正式 artifact path 必须相对 `artifact_root` 或 `project_root`；不要把 Windows drive path 写进 `phase_complete`。
 - 将 `runtime_context.session_root` 视为 workflow session 的事实来源。不要从最新的 `sessions/*` 目录推断当前 session。
 - MicroPython I2C driver code、debug driver、test script 和 wiring docs 中的默认设备地址必须使用 7-bit address，不要把包含 R/W bit 的 8-bit transfer address 传给 `scan()`、`readfrom_mem()`、`writeto_mem()` 或同类 I2C API。
@@ -43,6 +44,7 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - partial 且未完成验证时必须写 `hardware_verified=false` 和 `verification_mode="none"`。不要把无设备、取消、超时或普通未验证 partial 标成 `verification_mode="mock"`。
 - `verification_mode="mock"` 只允许用于本地 mock self-test 实际返回 `SELF_TEST_PASS` 的 success 结果；它仍然不能设置 `hardware_verified=true`。
 - 未验证 `{chip}.py` 的 file write action 必须使用 `write_driver_artifact` idempotency key；只有 `file_manifest.files[].role="production_driver"` 时才允许使用 `write_production_driver`。
+- 未验证 partial 的任何 summary、description、artifact label、permission reason 或 file_manifest description 都不要写 `production driver`；统一写 `driver artifact` 或 `unverified driver artifact`。
 - 重试同一个 action 时保持相同 `session_id` 和 action 级 `idempotency_key`；将 `retry_of` 设置为原始 message id，并追加一个 `status="retrying"` 的 state event。
 - cancellation 默认是可恢复的 partial result，除非用户明确丢弃 artifacts。保留最后一个可信 artifact，并将 checkpoint 设置为 `cancelled`。
 - timeout 不能静默处理。host、script、approval 和 device timeout 都必须转换成 structured errors；如果可以从 checkpoint 继续，设置 `retryable=true`。
@@ -262,6 +264,7 @@ Plugin-mode behavior:
 - I2C address constants 必须是 7-bit address，例如 `_I2C_ADDR = const(0x1E)`；不要把 `_I2C_ADDR_WRITE = const(0x3C)` 或 `_I2C_ADDR_READ = const(0x3D)` 作为实际 API 调用地址。
 - I2C driver 必须通过 duck typing 接受 `machine.I2C`、`SoftI2C` 或兼容对象；不要通过 strict `isinstance(i2c, I2C)` 拒绝 `SoftI2C`。
 - 生成 `{chip}.py`、`{chip}_debug.py` 和 `test_{chip}.py` 后，必须执行静态质量检查：Python syntax、未定义常量/名称、helper method 调用参数数量、I2C capability check 与实际 I/O API 使用一致性。
+- 静态质量检查和 PC-side compile/test 必须禁止写入 `__pycache__` 或 `.pyc` 到 session/project artifacts；运行 CPython 检查时使用 `python -B` 或等价方式。
 - 不要让 debug driver 和 production driver 的 constant 命名风格漂移；如果 debug driver 使用 `_ODR_10HZ` / `_MD_IDLE`，production driver 要么定义同名常量，要么全部改为 `ODR_10HZ` / `MODE_IDLE` 并同步所有引用。
 - helper method 签名必须覆盖所有调用形式；例如代码调用 `_read_reg(reg, buf)` 时，定义必须是 `def _read_reg(self, reg, buf=None)` 或等价形式。
 - I2C constructor capability check 必须覆盖实际使用的方法；如果 helper 调用 `readfrom_mem_into`，不要只检查 `readfrom_mem`。
@@ -274,7 +277,7 @@ Plugin-mode behavior:
 - hot read loops 中尽量避免 dynamic allocation。
 - datasheet page/table comments 只用于解释 constants、timing、formulas 或 register behavior，不要写成教程。
 
-然后运行 `references/norm_driver_p0_rules.md` 中的 P0 normalization checklist，并用 `scripts/validate_phase_complete.py --artifact-root <session_root> --session-state <state_file>` 校验真实文件内容。validator 失败时不要输出可继续集成的结果。
+然后运行 `references/norm_driver_p0_rules.md` 中的 P0 normalization checklist，并用 `scripts/validate_phase_complete.py --input <phase_complete> --artifact-root <session_root> --session-state <state_file>` 校验真实文件内容。`--session-state` 必须传入，不能只校验 phase_complete JSON。validator 会检查 state 完整性、permission paths、未验证文案、CPython cache artifacts 和真实文件 hash；失败时不要输出可继续集成的结果。
 
 ## Checkpoints
 
@@ -284,7 +287,7 @@ Plugin-mode behavior:
 
 `phase_complete.payload.checkpoint.checkpoint_id` 必须使用 `upy-gen-driver-plugin:<session_id>:<checkpoint_name>`。例如 `upy-gen-driver-plugin:8234517f-d65a-4620-a391-3936c7c9eda4:hardware_verify_ready`；不要只写 `upy-gen-driver-plugin:hardware_verify_ready`。
 
-使用下面命令维护 state：
+必须使用下面命令维护 state：
 
 ```bash
 python scripts/update_session_state.py --session-dir <session_root> --session-id <session_id> --checkpoint <name> --step <step> --status running --idempotency-key <key>

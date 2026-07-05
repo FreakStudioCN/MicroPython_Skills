@@ -68,6 +68,7 @@ CHECKPOINT_NAMES = {
 }
 VERIFICATION_MODES = {"hardware", "mock", "skipped", "none"}
 PHASE_COMPLETE_SAMPLE_RE = re.compile(r"^phase_complete\.upy_gen_driver_plugin\.[A-Za-z0-9_.-]+\.json$")
+TEXT_FIELDS = {"summary", "description", "label", "role", "title", "name", "display_role", "note", "message", "reason"}
 
 
 def is_relative_path(value: str) -> bool:
@@ -120,6 +121,34 @@ def validate_nested_idempotency_keys(value: Any, path: str, session_id: Any, err
     elif isinstance(value, list):
         for index, child in enumerate(value):
             validate_nested_idempotency_keys(child, f"{path}[{index}]", session_id, errors)
+
+
+def text_uses_production_driver(value: Any) -> bool:
+    return isinstance(value, str) and "production driver" in value.lower()
+
+
+def validate_unverified_text(value: Any, path: str, errors: list[str]) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            if key in TEXT_FIELDS and text_uses_production_driver(child):
+                errors.append(f"{child_path} must not use production driver wording before verification")
+            validate_unverified_text(child, child_path, errors)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            validate_unverified_text(child, f"{path}[{index}]", errors)
+
+
+def validate_no_python_cache(artifact_root: Path, errors: list[str]) -> None:
+    if not artifact_root.exists():
+        return
+    for path in artifact_root.rglob("*"):
+        try:
+            relative = path.relative_to(artifact_root).as_posix()
+        except ValueError:
+            relative = str(path)
+        if path.name == "__pycache__" or path.suffix == ".pyc":
+            errors.append(f"artifact_root must not contain CPython cache artifact: {relative}")
 
 
 def sha256_file(path: Path) -> str:
@@ -493,6 +522,14 @@ def validate_session_state(
         errors.append(f"session_state.phase must be {PHASE}")
     if state_path.name != STATE_FILE:
         errors.append(f"session_state file must be named {STATE_FILE}")
+    for field in ("domain_phase", "status", "step", "idempotency_key"):
+        if not state.get(field):
+            errors.append(f"session_state.{field} is required")
+    if state.get("domain_phase") and state.get("domain_phase") != DOMAIN_PHASE:
+        errors.append(f"session_state.domain_phase must be {DOMAIN_PHASE}")
+    key = state.get("idempotency_key")
+    if isinstance(key, str):
+        validate_phase_scoped_id("session_state.idempotency_key", key, data.get("session_id"), errors)
     expected_checkpoint = checkpoint_name(checkpoint)
     if state.get("checkpoint") != expected_checkpoint:
         errors.append(f"session_state.checkpoint must match phase_complete checkpoint: {expected_checkpoint}")
@@ -508,6 +545,8 @@ def validate(
 ) -> tuple[bool, list[str]]:
     errors: list[str] = []
     validate_input_filename(input_path, errors)
+    if artifact_root:
+        validate_no_python_cache(artifact_root, errors)
     for field in ("protocol_version", "msg_id", "session_id", "phase", "timestamp", "type", "idempotency_key", "payload"):
         if field not in data:
             errors.append(f"missing envelope field {field}")
@@ -646,10 +685,14 @@ def validate(
                 errors.append(f"permissions[{index}].operation is not recognized")
             if "timeout_ms" in item and not isinstance(item.get("timeout_ms"), int):
                 errors.append(f"permissions[{index}].timeout_ms must be an integer")
+            if "target" in item:
+                errors.append(f"permissions[{index}] must use paths[], not target")
             paths = item.get("paths", [])
             if paths is not None and not isinstance(paths, list):
                 errors.append(f"permissions[{index}].paths must be an array")
                 paths = []
+            if item.get("operation") in {"file_read", "file_write", "manifest_update"} and not paths:
+                errors.append(f"permissions[{index}].paths is required for {item.get('operation')}")
             for path in paths or []:
                 if not isinstance(path, str) or not is_relative_path(path):
                     errors.append(f"permissions[{index}].paths must be relative")
@@ -657,6 +700,10 @@ def validate(
             if retry_of is not None and not isinstance(retry_of, str):
                 errors.append(f"permissions[{index}].retry_of must be a string")
     validate_permission_idempotency_keys(permissions, has_driver, errors)
+    if (payload.get("result") != "success" or payload.get("hardware_verified") is not True) and not (
+        payload.get("verification_skipped_by_user") is True or payload.get("verification_mode") == "mock"
+    ):
+        validate_unverified_text(payload, "payload", errors)
     warnings = payload.get("warnings")
     if warnings is None:
         warnings = []

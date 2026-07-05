@@ -96,6 +96,8 @@ Use `write_driver_artifact` when `{chip}.py` is emitted with role `artifact` bec
 
 Permission entries must include `permission_id`, `operation`, `reason`, `timeout_ms`, `idempotency_key`, and any relevant `paths`, `command_preview`, or `network_domains`.
 
+For `file_read`, `file_write`, and `manifest_update`, `paths[]` is required. Do not use `target` as a substitute because hosts and local tests need per-file auditability.
+
 Operations: `file_read`, `file_write`, `script_run`, `device_scan`, `device_run`, `network_fetch`, `manifest_update`.
 
 Local mock tests must still write permission entries. If the mock auto-grants permission, set `result="granted"` and include `mock=true` in the entry details.
@@ -160,6 +162,8 @@ Each `file_manifest.files[]` entry should include:
 
 If an unverified `{chip}.py` is emitted for inspection, use role `artifact` and UI text such as `Driver artifact (unverified)` or `Unverified driver artifact`. Do not display it as `Production driver (unverified)`.
 
+For unverified partial outcomes, no summary, file manifest description, artifact label, permission reason, or other user-facing text should use `production driver` wording.
+
 The idempotency key for that unverified file write must use `write_driver_artifact`, not `write_production_driver`.
 
 ## Driver Understanding
@@ -186,6 +190,7 @@ Before emitting `phase_complete`, validate generated Python artifacts without wr
 - Reject I2C duck-typing checks that do not include the exact methods used later.
 - Reject test scripts that use `const(...)` without importing `const` from `micropython` or defining a fallback.
 - Reject `const(...)` calls with non-integer literal arguments. Keep float scale factors as normal variables.
+- Reject `__pycache__` directories and `.pyc` files under `artifact_root`.
 
 ## Structured Errors
 
