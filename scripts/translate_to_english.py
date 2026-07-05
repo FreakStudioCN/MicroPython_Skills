@@ -48,7 +48,7 @@ import requests
 # ---------------------------------------------------------------------------
 
 SKIP_DIRS  = {".git", "__pycache__", ".idea", ".codex-plugin", "node_modules"}
-SKIP_FILES = {".gitignore", ".DS_Store"}
+SKIP_FILES = {".gitignore", ".DS_Store", ".api_key"}
 SKIP_EXTENSIONS = {".pyc", ".png", ".jpg", ".jpeg", ".gif", ".bin", ".hex", ".uf2"}
 
 TRANSLATE_EXTENSIONS = {".md", ".json"}

@@ -6,6 +6,86 @@ GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两�
 
 **B. 驱动开发规范化（15 个 skill）**：基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行），覆盖驱动规范化、测试文件生成、README 生成、性能优化、内存优化、打包、设备部署。
 
+> **当前 source of truth（2026-07）**：本仓库已经完成 VS Code 插件版 8 流程 Skill/plugin。若下游仓库的 submodule 只看到 6 个 plugin，说明下游 pinned commit 落后，应 bump/sync 到本仓库最新 commit，而不是认为 wiring/diagram 缺失。
+
+---
+
+## 当前 Skill / Plugin 全量导览
+
+本仓库同时保留两类资产：
+
+- **插件版 Skill/plugin**：面向 Blockless VS Code 插件和自动化 workflow host，目录名以 `-plugin` 结尾，并带 `.codex-plugin/plugin.json`。
+- **Classic Skill**：面向 Claude Code / Skillfish 直接调用，目录名通常不带 `-plugin`，保留原有 `/upy-*` 命令式用法。
+
+### 插件版 8 流程 Skill/plugin
+
+| # | Skill/plugin | 类型 | 流程位置 | 说明 |
+|---|---|---|---|---|
+| 1 | `upy-analyze-plugin` | 主链必经 | analyze | 需求解析、器件识别、驱动资料搜索、输出 manifest_content |
+| 2 | `upy-select-hw-plugin` | 主链必经 | select-hw | 官方板卡选择、本地 overlay 合并、pin plan、BOM、`board_unavailable` |
+| 3 | `upy-flash-mpy-firmware-plugin` | 主链必经 | flash | MicroPython 固件解析、下载、烧录或 UF2/manual 指引 |
+| 4 | `upy-scaffold-plugin` | 主链必经 | scaffold | 生成项目骨架、目录结构、模板、session/checkpoint/file_manifest |
+| 5 | `upy-generate-plugin` | 主链必经 | generate | 业务代码、驱动适配、质量门禁、可选 wiring/diagram 入口 |
+| 6 | `upy-deploy-plugin` | 主链必经 | deploy | mpremote 上传、运行、REPL 日志、marker、设备端验证 |
+| 7 | `upy-wiring-plugin` | 可选产物流程 | wiring | 从 manifest/代码/pin plan 生成接线图和 artifact |
+| 8 | `upy-diagram-plugin` | 可选产物流程 | diagram | 生成架构图、流程图、数据流图和 artifact |
+
+### 缺失硬件驱动分支
+
+| Skill/plugin | 类型 | 说明 |
+|---|---|---|
+| `upy-gen-driver-plugin` | 插件版缺失驱动分支 | 面向 VS Code 插件的缺失硬件驱动生成流程，支持 pipeline/standalone/fix、PDF/Arduino/GitHub/芯片型号/手工事实输入、硬件验证状态和 generate 前门禁 |
+| `upy-gen-driver` | Classic Skill | 原始缺失驱动生成 Skill，保留直接调用和规则来源；插件化时不应覆盖该目录 |
+
+### Classic 一句话造硬件流水线 Skill
+
+| Skill | 说明 |
+|---|---|
+| `upy-analyze` | 自然语言需求解析、器件清单、驱动 API 参考 |
+| `upy-select-hw` | MCU/板卡选型、引脚分配、BOM |
+| `upy-scaffold` | 生成 firmware/ 项目骨架 |
+| `upy-generate` | 下载驱动、生成 DI 架构业务代码、Mock 和 unittest |
+| `upy-simulate` | PC 端 CLI/rich 全流程模拟，无需真实硬件 |
+| `upy-deploy` | mpremote 上传、烧录、持久会话和 PASS/FAIL 初判 |
+| `upy-autofix` | deploy 失败后的 triage、分级决策和上游 skill 委托修复 |
+| `upy-wiring` | Classic 接线图生成 Skill |
+| `upy-diagram` | Classic 架构图、流程图、数据流图生成 Skill |
+| `upy-project` | 早期端到端项目生成入口，适合直接从项目描述生成代码和调试流程 |
+
+### 驱动规范化、生成、优化和打包 Skill
+
+| Skill | 说明 |
+|---|---|
+| `upy-norm-driver` | 将可用但不规范的 MicroPython 驱动改写为 GraftSense 规范格式 |
+| `upy-norm-main` | 规范化 `main.py` 测试文件，不改变测试逻辑 |
+| `upy-norm-pkg` | 驱动包全流程规范化 orchestrator |
+| `upy-gen-main` | 根据驱动 `.py` 从 0 生成完整 `main.py` 测试文件 |
+| `upy-gen-readme` | 根据驱动 `.py` 从 0 生成 README |
+| `upy-gen-pkg` | 根据驱动目录或 `.py` 从 0 生成 `package.json` |
+| `upy-opt-driver` | 按性能优化指南改写 MicroPython 代码 |
+| `upy-slim-driver` | 按内存占用最小化指南降低 RAM 使用 |
+| `upy-pack-driver` | 将驱动、main、README、package.json 组织为标准驱动包目录 |
+| `upy-deploy-test` | 设备部署与验证 Skill，可用于驱动包验收 |
+
+### 查询、审查和设备工具 Skill
+
+| Skill | 说明 |
+|---|---|
+| `upy-pkg-guide` | 查询器件驱动包用法，整合 upypi、awesome-micropython、README/API 信息 |
+| `fetch-doc` | 获取 URL / GitHub / upypi 页面内容，供其他 Skill 补充资料 |
+| `review` | MicroPython 代码审查，基于历史 review 模式辅助检查 |
+| `mpremote-device-interaction` | 设备连接、状态查询、固件版本、内存和文件信息 |
+| `mpremote-file-transfer` | 本地与设备之间复制文件、管理设备文件系统 |
+| `mpremote-live-session` | 长连接和输出监控，适合 asyncio/aiorepl 或长时间运行场景 |
+
+### 支撑目录
+
+| 目录 | 说明 |
+|---|---|
+| `shared-plugin-scripts` | 插件版共用脚本和设备/mpremote 工具 |
+| `upy-project-gen-toolchain-spec` | 项目生成工具链、协议、manifest/schema 和插件接口参考 |
+| `scripts` | 仓库维护脚本，例如文档同步和翻译工具 |
+
 ---
 
 ## 📚 仓库文档说明
@@ -28,6 +108,7 @@ GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两�
 
 ## 目录
 
+- [当前 Skill / Plugin 全量导览](#当前-skill--plugin-全量导览)
 - [安装方法](#安装方法)
 - [一句话造硬件 — AI 嵌入式代码生成流水线](#一句话造硬件--ai-嵌入式代码生成流水线)
 - [驱动开发规范化 Skill 列表](#skill-列表)
@@ -753,6 +834,7 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.6.0 | 2026-06-02 | leezisheng | 新增"一句话造硬件"AI 代码生成流水线（10 个 skill）：analyze/select-hw/scaffold/generate/simulate/deploy/autofix/wiring/diagram/cold-driver + 整体架构文档。upy-simulate 改为 CLI+rich 优先。upy-select-hw 增加引脚电气类型枚举 + 物理引脚规则。Skill 总数从 15 增至 25。 |
 | v1.7.0 | 2026-06-03 | leezisheng | upy-cold-driver 重命名为 upy-gen-driver，定位为独立可调用 skill（非仅异常路径）。upy-gen-driver 流程落地：调试版驱动 → mpremote 硬件验证循环 → 脱调试 → 规范化。upy-wiring + upy-diagram 新增 HTML 输出（自包含浏览器页面，Mermaid.js CDN + Tab 切换），--format all 现在输出 md + svg + png + html 全部四种格式。全部 25 个 skill 补全 .skillfish.json。 |
 | v1.7.1 | 2026-06-03 | leezisheng | README.md 安装脚本补充 upy-deploy-test + review skill。功能规划.md 修复：模块四可视化方案（Pillow→Mermaid）、模块七 gen-driver 流程补充硬件验证环、triage.py 行数修正、项目架构脚本名刷新、/cold-driver→/gen-driver。 |
+| v1.8.0 | 2026-07-05 | leezisheng | README.md 新增当前 Skill / Plugin 全量导览，明确插件版 8 流程：`upy-analyze-plugin`、`upy-select-hw-plugin`、`upy-flash-mpy-firmware-plugin`、`upy-scaffold-plugin`、`upy-generate-plugin`、`upy-deploy-plugin`、`upy-wiring-plugin`、`upy-diagram-plugin`；补充 `upy-gen-driver-plugin` 为缺失硬件驱动分支，并区分插件版 Skill/plugin 与 Classic Skill。 |
 
 ---
 
@@ -767,4 +849,3 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-

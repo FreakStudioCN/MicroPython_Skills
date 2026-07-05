@@ -27,19 +27,43 @@
       "resume_step": "hardware_verify",
       "state_file": "sessions/sample-standalone/session_state.upy_gen_driver_plugin.json"
     },
-    "permissions": [],
+    "permissions": [
+      {
+        "permission_id": "file_write_sht30_debug",
+        "operation": "file_write",
+        "reason": "Write debug driver artifact before hardware verification.",
+        "paths": [
+          "sessions/sample-standalone/project/firmware/drivers/sht30_driver/sht30_debug.py"
+        ],
+        "timeout_ms": 30000,
+        "idempotency_key": "upy-gen-driver-plugin:sample-standalone:file_write:sht30:debug:v1",
+        "result": "granted"
+      },
+      {
+        "permission_id": "device_scan_sht30_scan",
+        "operation": "device_scan",
+        "reason": "Scan for a MicroPython device before running the debug driver.",
+        "timeout_ms": 5000,
+        "idempotency_key": "upy-gen-driver-plugin:sample-standalone:device_scan:sht30:scan:v1",
+        "result": "granted"
+      }
+    ],
     "file_manifest": {
       "root": ".",
       "files": [
         {
           "path": "sessions/sample-standalone/session_state.upy_gen_driver_plugin.json",
           "status": "created",
-          "role": "state"
+          "role": "state",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
         },
         {
           "path": "sessions/sample-standalone/project/firmware/drivers/sht30_driver/sht30_debug.py",
           "status": "created",
-          "role": "debug_driver"
+          "role": "debug_driver",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
         }
       ]
     },
@@ -75,6 +99,8 @@
         "next_action": "connect_device_and_resume"
       }
     ],
+    "hardware_verified": false,
+    "verification_mode": "none",
     "manifest_content": null
   }
 }

@@ -31,6 +31,11 @@
       {
         "permission_id": "device_run_sht30_round1",
         "operation": "device_run",
+        "reason": "Run SHT30 debug driver on the selected MicroPython device.",
+        "paths": [
+          "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/sht30_debug.py"
+        ],
+        "command_preview": "mpremote connect <port> resume run <debug-driver>",
         "idempotency_key": "upy-gen-driver-plugin:sample-pipeline:device_run:sht30:round1:v1",
         "timeout_ms": 60000
       }
@@ -41,22 +46,30 @@
         {
           "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/sht30.py",
           "status": "created",
-          "role": "production_driver"
+          "role": "production_driver",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
         },
         {
           "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/test_sht30.py",
           "status": "created",
-          "role": "test"
+          "role": "test",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
         },
         {
           "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/wiring_sht30.md",
           "status": "created",
-          "role": "wiring"
+          "role": "wiring",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
         },
         {
           "path": "sessions/sample-pipeline/session_state.upy_gen_driver_plugin.json",
           "status": "created",
-          "role": "state"
+          "role": "state",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
         }
       ]
     },
@@ -85,6 +98,7 @@
     ],
     "warnings": [],
     "structured_errors": [],
+    "hardware_verified": true,
     "manifest_content": {
       "phase": "gen-driver",
       "devices": [

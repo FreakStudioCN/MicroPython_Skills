@@ -22,3 +22,10 @@ Use this checklist after hardware verification and before success.
 18. Keep comments concise and evidence-oriented, not tutorial prose.
 19. `test_<chip>.py` remains separate from production driver.
 20. The production file imports only MicroPython-compatible modules.
+21. MicroPython I2C address constants use 7-bit addresses only; datasheet 8-bit read/write transfer addresses must not be passed to I2C APIs or scan checks.
+22. I2C drivers accept `machine.I2C`, `SoftI2C`, and compatible objects by capability/duck typing instead of strict `isinstance(i2c, I2C)`.
+23. Generated Python files must pass static syntax checks without writing `__pycache__`.
+24. Every name referenced by driver methods must be defined, imported, or a valid builtin; constants must not drift between debug and production variants.
+25. Helper method signatures must match all internal calls, including buffer-accepting read helpers such as `_read_reg(reg, buf)`.
+26. I2C capability checks must cover the exact methods used later, such as `readfrom_mem_into` when that API is called.
+27. Standalone test scripts must import every MicroPython helper they use, including `const` when constants are declared with `const(...)`.

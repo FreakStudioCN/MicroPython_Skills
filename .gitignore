@@ -12,6 +12,9 @@ venv/
 build/
 dist/
 
+# API key (local only)
+.api_key
+
 # OS junk
 .DS_Store
 Thumbs.db

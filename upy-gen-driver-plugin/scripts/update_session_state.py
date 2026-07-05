@@ -91,6 +91,8 @@ def update(args: argparse.Namespace) -> dict[str, Any]:
         "status": args.status,
         "idempotency_key": args.idempotency_key,
     }
+    if args.retry_of:
+        event["retry_of"] = args.retry_of
     if error:
         event["error"] = error
     events.append(event)
@@ -108,6 +110,7 @@ def update(args: argparse.Namespace) -> dict[str, Any]:
         "checkpoint": args.checkpoint,
         "step": args.step,
         "idempotency_key": args.idempotency_key,
+        "retry_of": args.retry_of or state.get("retry_of"),
         "manifest_hash": manifest_hash,
         "updated_at": ts,
         "artifacts": artifacts or state.get("artifacts", []),
@@ -139,6 +142,9 @@ def check(args: argparse.Namespace) -> dict[str, Any]:
         errors.append("protocol_version must be 1.0")
     if state.get("phase") != PHASE:
         errors.append(f"phase must be {PHASE}")
+    key = state.get("idempotency_key")
+    if isinstance(key, str) and not key.startswith(f"{PHASE}:"):
+        errors.append(f"idempotency_key must start with {PHASE}:")
     if state.get("checkpoint") not in CHECKPOINTS:
         errors.append("checkpoint is not recognized")
     if state.get("status") not in STATUSES:
@@ -155,6 +161,7 @@ def main() -> int:
     parser.add_argument("--step", default="start")
     parser.add_argument("--status", default="running")
     parser.add_argument("--idempotency-key", default="")
+    parser.add_argument("--retry-of", default="")
     parser.add_argument("--manifest-hash", default="")
     parser.add_argument("--artifacts", default="")
     parser.add_argument("--permissions", default="")
