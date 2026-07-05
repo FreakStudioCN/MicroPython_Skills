@@ -1,0 +1,145 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "msg-sample-retry-success-phase_completed",
+  "session_id": "sample-retry-success",
+  "phase": "upy-gen-driver-plugin",
+  "timestamp": "2026-07-04T00:50:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-gen-driver-plugin:sample-retry-success:phase_complete:phase_completed:v1",
+  "retry_of": "msg-sample-retry-success-device-run-timeout",
+  "payload": {
+    "phase": "gen-driver",
+    "domain_phase": "gen-driver",
+    "result": "success",
+    "summary": "Retry completed and SELF_TEST_PASS was observed.",
+    "next_phase": "upy-generate-plugin",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-retry-success",
+      "project_root": "sessions/sample-retry-success/project",
+      "file_operation_root": "sessions/sample-retry-success/project",
+      "resource_root": "upy-gen-driver-plugin"
+    },
+    "checkpoint": {
+      "checkpoint_id": "upy-gen-driver-plugin:sample-retry-success:phase_completed",
+      "resume_phase": "upy-gen-driver-plugin",
+      "resume_step": "phase_completed",
+      "state_file": "sessions/sample-retry-success/session_state.upy_gen_driver_plugin.json"
+    },
+    "permissions": [
+      {
+        "permission_id": "device_run_sht30_round1",
+        "operation": "device_run",
+        "reason": "First device run timed out.",
+        "paths": [
+          "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/sht30_debug.py"
+        ],
+        "timeout_ms": 60000,
+        "idempotency_key": "upy-gen-driver-plugin:sample-retry-success:device_run:sht30:round1:v1",
+        "result": "granted"
+      },
+      {
+        "permission_id": "device_run_sht30_round1_retry",
+        "operation": "device_run",
+        "reason": "Retry device run after timeout.",
+        "paths": [
+          "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/sht30_debug.py"
+        ],
+        "timeout_ms": 60000,
+        "idempotency_key": "upy-gen-driver-plugin:sample-retry-success:device_run:sht30:round1:v1",
+        "retry_of": "msg-sample-retry-success-device-run-timeout",
+        "result": "granted"
+      }
+    ],
+    "file_manifest": {
+      "root": ".",
+      "files": [
+        {
+          "path": "sessions/sample-retry-success/session_state.upy_gen_driver_plugin.json",
+          "status": "created",
+          "role": "state",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/sht30_debug.py",
+          "status": "created",
+          "role": "debug_driver",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-retry-success/gen_driver/logs/driver_verify_round1.log",
+          "status": "created",
+          "role": "verify_log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-retry-success/gen_driver/logs/driver_verify_round2.log",
+          "status": "created",
+          "role": "verify_log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/sht30.py",
+          "status": "created",
+          "role": "production_driver",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/test_sht30.py",
+          "status": "created",
+          "role": "test",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/wiring_sht30.md",
+          "status": "created",
+          "role": "wiring",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "Generated files",
+        "files": [
+          {
+            "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/sht30.py",
+            "status": "created"
+          },
+          {
+            "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/test_sht30.py",
+            "status": "created"
+          },
+          {
+            "path": "sessions/sample-retry-success/project/firmware/drivers/sht30_driver/wiring_sht30.md",
+            "status": "created"
+          }
+        ]
+      }
+    ],
+    "warnings": [],
+    "structured_errors": [],
+    "hardware_verified": true,
+    "manifest_content": {
+      "phase": "gen-driver",
+      "devices": [
+        {
+          "name": "SHT30",
+          "driver": {
+            "status": "local_generated",
+            "path": "firmware/drivers/sht30_driver/sht30.py"
+          }
+        }
+      ]
+    }
+  }
+}

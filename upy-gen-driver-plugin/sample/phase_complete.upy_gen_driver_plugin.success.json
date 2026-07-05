@@ -1,0 +1,101 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "msg-success",
+  "session_id": "sample-pipeline",
+  "phase": "upy-gen-driver-plugin",
+  "timestamp": "2026-07-04T00:20:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-gen-driver-plugin:sample-pipeline:phase_complete:success:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "gen-driver",
+    "domain_phase": "gen-driver",
+    "result": "success",
+    "summary": "Generated and verified SHT30 MicroPython driver.",
+    "next_phase": "upy-generate-plugin",
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-pipeline",
+      "project_root": "sessions/sample-pipeline/project",
+      "file_operation_root": "sessions/sample-pipeline/project",
+      "resource_root": "upy-gen-driver-plugin"
+    },
+    "checkpoint": {
+      "checkpoint_id": "upy-gen-driver-plugin:sample-pipeline:phase_completed",
+      "resume_phase": "upy-gen-driver-plugin",
+      "resume_step": "phase_completed",
+      "state_file": "sessions/sample-pipeline/session_state.upy_gen_driver_plugin.json"
+    },
+    "permissions": [
+      {
+        "permission_id": "device_run_sht30_round1",
+        "operation": "device_run",
+        "idempotency_key": "upy-gen-driver-plugin:sample-pipeline:device_run:sht30:round1:v1",
+        "timeout_ms": 60000
+      }
+    ],
+    "file_manifest": {
+      "root": ".",
+      "files": [
+        {
+          "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/sht30.py",
+          "status": "created",
+          "role": "production_driver"
+        },
+        {
+          "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/test_sht30.py",
+          "status": "created",
+          "role": "test"
+        },
+        {
+          "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/wiring_sht30.md",
+          "status": "created",
+          "role": "wiring"
+        },
+        {
+          "path": "sessions/sample-pipeline/session_state.upy_gen_driver_plugin.json",
+          "status": "created",
+          "role": "state"
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "Generated driver files",
+        "files": [
+          {
+            "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/sht30.py",
+            "status": "created",
+            "description": "Production driver"
+          },
+          {
+            "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/test_sht30.py",
+            "status": "created",
+            "description": "Standalone test"
+          },
+          {
+            "path": "sessions/sample-pipeline/project/firmware/drivers/sht30_driver/wiring_sht30.md",
+            "status": "created",
+            "description": "Wiring reference"
+          }
+        ]
+      }
+    ],
+    "warnings": [],
+    "structured_errors": [],
+    "manifest_content": {
+      "phase": "gen-driver",
+      "devices": [
+        {
+          "name": "SHT30",
+          "driver": {
+            "status": "local_generated",
+            "path": "firmware/drivers/sht30_driver/sht30.py"
+          }
+        }
+      ]
+    }
+  }
+}

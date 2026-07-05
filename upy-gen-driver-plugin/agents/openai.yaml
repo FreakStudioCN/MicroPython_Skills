@@ -1,0 +1,4 @@
+interface:
+  display_name: "UPY Gen Driver Plugin"
+  short_description: "Generate missing MicroPython hardware drivers."
+  default_prompt: "Use upy-gen-driver-plugin to generate a missing MicroPython hardware driver from a datasheet, Arduino source, GitHub URL, chip model, or current project cold-driver item."

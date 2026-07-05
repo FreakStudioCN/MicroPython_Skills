@@ -1,0 +1,39 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "msg-start-standalone",
+  "session_id": "sample-standalone",
+  "phase": "upy-gen-driver-plugin",
+  "timestamp": "2026-07-04T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-gen-driver-plugin:sample-standalone:start:v1",
+  "retry_of": null,
+  "payload": {
+    "mode": "standalone",
+    "phase": "gen-driver",
+    "domain_phase": "gen-driver",
+    "source": null,
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-standalone",
+      "project_root": "sessions/sample-standalone/project",
+      "file_operation_root": "sessions/sample-standalone/project",
+      "resource_root": "upy-gen-driver-plugin"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "permission_request": true,
+      "file_operation": true,
+      "script_run": true,
+      "device_command": true,
+      "serial_port_scan": true,
+      "mpremote_run": true,
+      "file_upload": true,
+      "checkpoint_resume": true,
+      "cancellation": true,
+      "idempotency_cache": true,
+      "artifact_root": true
+    }
+  }
+}

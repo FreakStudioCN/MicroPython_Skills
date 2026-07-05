@@ -1,0 +1,108 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "msg-sample-timeout-partial-hardware_verify_ready",
+  "session_id": "sample-timeout",
+  "phase": "upy-gen-driver-plugin",
+  "timestamp": "2026-07-04T00:40:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-gen-driver-plugin:sample-timeout:phase_complete:hardware_verify_ready:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "gen-driver",
+    "domain_phase": "gen-driver",
+    "result": "partial",
+    "summary": "Device verification timed out. Retry can continue from the saved debug driver.",
+    "next_phase": null,
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-timeout",
+      "project_root": "sessions/sample-timeout/project",
+      "file_operation_root": "sessions/sample-timeout/project",
+      "resource_root": "upy-gen-driver-plugin"
+    },
+    "checkpoint": {
+      "checkpoint_id": "upy-gen-driver-plugin:sample-timeout:hardware_verify_ready",
+      "resume_phase": "upy-gen-driver-plugin",
+      "resume_step": "hardware_verify",
+      "state_file": "sessions/sample-timeout/session_state.upy_gen_driver_plugin.json"
+    },
+    "permissions": [
+      {
+        "permission_id": "device_run_sht30_round1",
+        "operation": "device_run",
+        "reason": "Run debug driver on the selected MicroPython device.",
+        "paths": [
+          "sessions/sample-timeout/project/firmware/drivers/sht30_driver/sht30_debug.py"
+        ],
+        "command_preview": "mpremote connect <port> resume run <debug-driver>",
+        "timeout_ms": 60000,
+        "idempotency_key": "upy-gen-driver-plugin:sample-timeout:device_run:sht30:round1:v1",
+        "result": "granted"
+      }
+    ],
+    "file_manifest": {
+      "root": ".",
+      "files": [
+        {
+          "path": "sessions/sample-timeout/session_state.upy_gen_driver_plugin.json",
+          "status": "created",
+          "role": "state",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-timeout/project/firmware/drivers/sht30_driver/sht30_debug.py",
+          "status": "created",
+          "role": "debug_driver",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-timeout/gen_driver/logs/driver_verify_round1.log",
+          "status": "created",
+          "role": "verify_log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "Generated files",
+        "files": [
+          {
+            "path": "sessions/sample-timeout/session_state.upy_gen_driver_plugin.json",
+            "status": "created"
+          },
+          {
+            "path": "sessions/sample-timeout/project/firmware/drivers/sht30_driver/sht30_debug.py",
+            "status": "created"
+          },
+          {
+            "path": "sessions/sample-timeout/gen_driver/logs/driver_verify_round1.log",
+            "status": "created"
+          }
+        ]
+      }
+    ],
+    "warnings": [],
+    "structured_errors": [
+      {
+        "code": "DEVICE_RUN_TIMEOUT",
+        "severity": "error",
+        "phase_step": "hardware_verify",
+        "retryable": true,
+        "message": "Device run timed out.",
+        "details": {
+          "timeout_ms": 60000
+        },
+        "next_action": "retry_device_run"
+      }
+    ],
+    "hardware_verified": false,
+    "verification_mode": "none",
+    "manifest_content": null
+  }
+}

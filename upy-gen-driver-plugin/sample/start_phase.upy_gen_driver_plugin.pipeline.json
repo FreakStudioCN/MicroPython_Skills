@@ -1,0 +1,56 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "msg-start-pipeline",
+  "session_id": "sample-pipeline",
+  "phase": "upy-gen-driver-plugin",
+  "timestamp": "2026-07-04T00:00:00Z",
+  "type": "start_phase",
+  "idempotency_key": "upy-gen-driver-plugin:sample-pipeline:start:v1",
+  "retry_of": null,
+  "payload": {
+    "mode": "pipeline",
+    "phase": "gen-driver",
+    "domain_phase": "gen-driver",
+    "source_phase": "upy-scaffold-plugin",
+    "source_phase_complete_path": "sessions/sample-pipeline/phase_complete.upy_scaffold_plugin.json",
+    "manifest_content": {
+      "phase": "scaffold",
+      "devices": [
+        {
+          "name": "SHT30",
+          "interface": "i2c",
+          "driver": {
+            "status": "cold_driver_required"
+          }
+        }
+      ]
+    },
+    "source": {
+      "type": "chip_model",
+      "chip_model": "SHT30"
+    },
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-pipeline",
+      "project_root": "sessions/sample-pipeline/project",
+      "file_operation_root": "sessions/sample-pipeline/project",
+      "resource_root": "upy-gen-driver-plugin"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "permission_request": true,
+      "file_operation": true,
+      "script_run": true,
+      "device_command": true,
+      "serial_port_scan": true,
+      "mpremote_run": true,
+      "file_upload": true,
+      "checkpoint_resume": true,
+      "cancellation": true,
+      "idempotency_cache": true,
+      "artifact_root": true
+    }
+  }
+}

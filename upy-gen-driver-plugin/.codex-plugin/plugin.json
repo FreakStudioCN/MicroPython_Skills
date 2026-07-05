@@ -1,0 +1,32 @@
+{
+  "name": "upy-gen-driver-plugin",
+  "version": "0.1.0",
+  "description": "Workflow plugin phase for generating missing MicroPython hardware drivers from datasheets, Arduino source, GitHub URLs, chip model names, or current project cold-driver items.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "micropython",
+    "hardware",
+    "driver",
+    "workflow",
+    "gen-driver"
+  ],
+  "interface": {
+    "displayName": "生成缺失硬件驱动",
+    "shortDescription": "Generate a missing MicroPython hardware driver.",
+    "longDescription": "Runs upy-gen-driver-plugin in standalone or pipeline mode with session checkpoints, retry, timeout, cancellation, permission prompts, structured errors, and artifact manifests.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Generate a missing MicroPython driver from a datasheet or Arduino source.",
+      "Run upy-gen-driver-plugin for the current project's cold-driver item."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

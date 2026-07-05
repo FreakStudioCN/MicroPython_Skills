@@ -1,0 +1,96 @@
+{
+  "protocol_version": "1.0",
+  "msg_id": "msg-sample-cancelled-partial-cancelled",
+  "session_id": "sample-cancelled",
+  "phase": "upy-gen-driver-plugin",
+  "timestamp": "2026-07-04T00:30:00Z",
+  "type": "phase_complete",
+  "idempotency_key": "upy-gen-driver-plugin:sample-cancelled:phase_complete:cancelled:v1",
+  "retry_of": null,
+  "payload": {
+    "phase": "gen-driver",
+    "domain_phase": "gen-driver",
+    "result": "partial",
+    "summary": "User cancelled hardware verification. Progress is saved for resume.",
+    "next_phase": null,
+    "runtime_context": {
+      "artifact_root": ".",
+      "artifact_root_mode": "cwd",
+      "session_root": "sessions/sample-cancelled",
+      "project_root": "sessions/sample-cancelled/project",
+      "file_operation_root": "sessions/sample-cancelled/project",
+      "resource_root": "upy-gen-driver-plugin"
+    },
+    "checkpoint": {
+      "checkpoint_id": "upy-gen-driver-plugin:sample-cancelled:cancelled",
+      "resume_phase": "upy-gen-driver-plugin",
+      "resume_step": "hardware_verify",
+      "state_file": "sessions/sample-cancelled/session_state.upy_gen_driver_plugin.json"
+    },
+    "permissions": [
+      {
+        "permission_id": "file_write_sht30_debug",
+        "operation": "file_write",
+        "reason": "Write debug driver artifact before cancellation.",
+        "paths": [
+          "sessions/sample-cancelled/project/firmware/drivers/sht30_driver/sht30_debug.py"
+        ],
+        "timeout_ms": 30000,
+        "idempotency_key": "upy-gen-driver-plugin:sample-cancelled:file_write:sht30:debug:v1",
+        "result": "granted"
+      }
+    ],
+    "file_manifest": {
+      "root": ".",
+      "files": [
+        {
+          "path": "sessions/sample-cancelled/session_state.upy_gen_driver_plugin.json",
+          "status": "created",
+          "role": "state",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sessions/sample-cancelled/project/firmware/drivers/sht30_driver/sht30_debug.py",
+          "status": "created",
+          "role": "debug_driver",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "type": "file_list",
+        "title": "Generated files",
+        "files": [
+          {
+            "path": "sessions/sample-cancelled/session_state.upy_gen_driver_plugin.json",
+            "status": "created"
+          },
+          {
+            "path": "sessions/sample-cancelled/project/firmware/drivers/sht30_driver/sht30_debug.py",
+            "status": "created"
+          }
+        ]
+      }
+    ],
+    "warnings": [],
+    "structured_errors": [
+      {
+        "code": "CANCELLED_BY_USER",
+        "severity": "warning",
+        "phase_step": "hardware_verify",
+        "retryable": true,
+        "message": "User cancelled hardware verification.",
+        "details": {
+          "mock": true
+        },
+        "next_action": "resume_upy_gen_driver_plugin"
+      }
+    ],
+    "hardware_verified": false,
+    "verification_mode": "none",
+    "manifest_content": null
+  }
+}
