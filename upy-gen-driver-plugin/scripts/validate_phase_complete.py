@@ -69,6 +69,11 @@ CHECKPOINT_NAMES = {
 VERIFICATION_MODES = {"hardware", "mock", "skipped", "none"}
 PHASE_COMPLETE_SAMPLE_RE = re.compile(r"^phase_complete\.upy_gen_driver_plugin\.[A-Za-z0-9_.-]+\.json$")
 TEXT_FIELDS = {"summary", "description", "label", "role", "title", "name", "display_role", "note", "message", "reason"}
+MOJIBAKE_MARKERS = ("\ufffd", "â€", "â€™", "â€œ", "â€\u009d", "â€“", "â€”", "Ã", "Â", "鈥")
+CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
+LATIN_OR_CJK_RE = re.compile(r"[A-Za-z\u4E00-\u9FFF]")
+C1_CONTROL_RE = re.compile(r"[\u0080-\u009F]")
+SMART_PUNCTUATION_RE = re.compile(r"[\u2010-\u201F\u2026\u00A0]")
 
 
 def is_relative_path(value: str) -> bool:
@@ -137,6 +142,44 @@ def validate_unverified_text(value: Any, path: str, errors: list[str]) -> None:
     elif isinstance(value, list):
         for index, child in enumerate(value):
             validate_unverified_text(child, f"{path}[{index}]", errors)
+
+
+def text_has_encoding_artifact(value: str) -> bool:
+    if C1_CONTROL_RE.search(value):
+        return True
+    if SMART_PUNCTUATION_RE.search(value):
+        return True
+    if any(marker in value for marker in MOJIBAKE_MARKERS):
+        return True
+    cyrillic_count = len(CYRILLIC_RE.findall(value))
+    latin_or_cjk_count = len(LATIN_OR_CJK_RE.findall(value))
+    return 0 < cyrillic_count <= 3 and latin_or_cjk_count >= 10
+
+
+def validate_text_encoding(value: Any, path: str, errors: list[str]) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            if key in TEXT_FIELDS and isinstance(child, str) and text_has_encoding_artifact(child):
+                errors.append(f"{child_path} appears to contain an encoding artifact or garbled text")
+            validate_text_encoding(child, child_path, errors)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            validate_text_encoding(child, f"{path}[{index}]", errors)
+
+
+def has_device_attempt_permission(permissions: Any) -> bool:
+    if not isinstance(permissions, list):
+        return False
+    for item in permissions:
+        if not isinstance(item, dict):
+            continue
+        if item.get("operation") not in {"device_scan", "device_run"}:
+            continue
+        result = item.get("result")
+        if result not in {"denied", "rejected", "cancelled"}:
+            return True
+    return False
 
 
 def validate_no_python_cache(artifact_root: Path, errors: list[str]) -> None:
@@ -663,6 +706,10 @@ def validate(
                 errors.append(
                     f"structured_errors[{index}] must use HOST_CAPABILITY_MISSING when details.missing_capability is present"
                 )
+            if item.get("code") == "DEVICE_NOT_FOUND" and not has_device_attempt_permission(payload.get("permissions")):
+                errors.append(
+                    f"structured_errors[{index}] DEVICE_NOT_FOUND requires a device_scan or device_run permission entry"
+                )
             if item.get("code") == "HOST_CAPABILITY_MISSING":
                 if not isinstance(details, dict) or not details.get("missing_capability"):
                     errors.append(f"structured_errors[{index}].details.missing_capability is required for HOST_CAPABILITY_MISSING")
@@ -700,6 +747,7 @@ def validate(
             if retry_of is not None and not isinstance(retry_of, str):
                 errors.append(f"permissions[{index}].retry_of must be a string")
     validate_permission_idempotency_keys(permissions, has_driver, errors)
+    validate_text_encoding(payload, "payload", errors)
     if (payload.get("result") != "success" or payload.get("hardware_verified") is not True) and not (
         payload.get("verification_skipped_by_user") is True or payload.get("verification_mode") == "mock"
     ):

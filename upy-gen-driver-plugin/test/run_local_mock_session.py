@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -26,14 +25,6 @@ def utc_now() -> str:
 def write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def append_message(session_dir: Path, message: dict[str, Any]) -> None:
@@ -189,12 +180,8 @@ def common_phase_complete(
 
 def file_entry(output_root: Path, path: str, role: str, status: str = "created") -> dict[str, Any]:
     entry: dict[str, Any] = {"path": path, "status": status, "role": role}
-    if status in {"created", "updated", "unchanged"}:
-        resolved = output_root / Path(path)
-        if not resolved.exists():
-            raise FileNotFoundError(f"manifest entry target missing: {resolved}")
-        entry["sha256"] = sha256_file(resolved)
-        entry["bytes"] = resolved.stat().st_size
+    if status in {"created", "updated", "unchanged"} and not (output_root / Path(path)).exists():
+        raise FileNotFoundError(f"manifest entry target missing: {output_root / Path(path)}")
     return entry
 
 
@@ -373,15 +360,17 @@ def main() -> int:
         run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "retrying", retry_of=retry_of, error=error)
         run_state(session_dir, args.session_id, "phase_completed", "phase_complete", "success", retry_of=retry_of)
 
-    phase_complete = SCENARIOS[args.scenario](args.session_id, session_dir)
-    append_message(session_dir, phase_complete)
     pc_path = session_dir / "phase_complete.upy_gen_driver_plugin.json"
-    write(pc_path, json.dumps(phase_complete, ensure_ascii=False, indent=2) + "\n")
-    validate = subprocess.run(
+    draft_path = session_dir / "phase_complete.upy_gen_driver_plugin.draft.json"
+    phase_complete = SCENARIOS[args.scenario](args.session_id, session_dir)
+    write(draft_path, json.dumps(phase_complete, ensure_ascii=False, indent=2) + "\n")
+    finalize = subprocess.run(
         [
             sys.executable,
-            str(ROOT / "scripts" / "validate_phase_complete.py"),
+            str(ROOT / "scripts" / "finalize_phase_complete.py"),
             "--input",
+            str(draft_path),
+            "--output",
             str(pc_path),
             "--artifact-root",
             str(Path(args.output_root)),
@@ -392,8 +381,13 @@ def main() -> int:
         capture_output=True,
         check=False,
     )
-    print(validate.stdout)
-    return validate.returncode
+    print(finalize.stdout)
+    if finalize.returncode != 0:
+        print(finalize.stderr, file=sys.stderr)
+        return finalize.returncode
+    phase_complete = json.loads(pc_path.read_text(encoding="utf-8"))
+    append_message(session_dir, phase_complete)
+    return 0
 
 
 if __name__ == "__main__":

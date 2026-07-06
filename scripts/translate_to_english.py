@@ -457,7 +457,7 @@ def process(
     resume:  bool = True,
     single_file: Optional[str] = None,
 ) -> dict:
-    stats = {"total": 0, "translated": 0, "skipped": 0, "failed": 0, "copied": 0}
+    stats = {"total": 0, "translated": 0, "skipped": 0, "failed": 0, "copied": 0, "raw_unchanged": 0}
     token_total = {"input": 0, "output": 0}
 
     # Walk the tree
@@ -477,16 +477,24 @@ def process(
             # --single-file filter
             if single_file:
                 if rel_path.replace("\\", "/") != single_file.replace("\\", "/"):
-                    stats["copied"] += 1
                     if not dry_run:
-                        _copy_raw(filepath, os.path.join(dst_dir, rel_path))
+                        if _copy_raw(filepath, os.path.join(dst_dir, rel_path)):
+                            stats["copied"] += 1
+                        else:
+                            stats["raw_unchanged"] += 1
+                    else:
+                        stats["copied"] += 1
                     continue
 
             ftype = classify(filepath)
             if ftype == "skip":
-                stats["copied"] += 1
                 if not dry_run:
-                    _copy_raw(filepath, os.path.join(dst_dir, rel_path))
+                    if _copy_raw(filepath, os.path.join(dst_dir, rel_path)):
+                        stats["copied"] += 1
+                    else:
+                        stats["raw_unchanged"] += 1
+                else:
+                    stats["copied"] += 1
                 continue
 
             stats["total"] += 1
@@ -563,10 +571,18 @@ def process(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _copy_raw(src: str, dst: str):
+def _copy_raw(src: str, dst: str) -> bool:
+    """Copy src → dst. Returns True if copied, False if already identical."""
+    with open(src, "rb") as f_in:
+        content = f_in.read()
+    if os.path.isfile(dst):
+        with open(dst, "rb") as f_out:
+            if f_out.read() == content:
+                return False
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    with open(src, "rb") as f_in, open(dst, "wb") as f_out:
-        f_out.write(f_in.read())
+    with open(dst, "wb") as f_out:
+        f_out.write(content)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -642,7 +658,7 @@ def main():
     print(
         f"\nDone. total={stats['total']}  translated={stats['translated']}"
         f"  skipped={stats['skipped']}  failed={stats['failed']}"
-        f"  copied={stats['copied']}"
+        f"  copied={stats['copied']}  raw_unchanged={stats['raw_unchanged']}"
     )
 
 

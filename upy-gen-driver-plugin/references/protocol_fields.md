@@ -51,7 +51,7 @@ Required fields: `artifact_root`, `session_root`, `project_root`, `file_operatio
 
 Start every run by checking required capabilities for the selected mode. Do not defer a missing required capability until after files have been generated unless the capability is optional for the current path.
 
-Use `HOST_CAPABILITY_MISSING` when a required host capability is absent, and record `details.missing_capability`. Use `DEVICE_NOT_FOUND` only after device scan/run capability exists, permission was granted, and the scan/run actually failed to find the target device.
+Use `HOST_CAPABILITY_MISSING` when a required host capability is absent, and record `details.missing_capability`. Use `DEVICE_NOT_FOUND` only after device scan/run capability exists, permission was granted, and the scan/run actually failed to find the target device. A `DEVICE_NOT_FOUND` result must have at least one `payload.permissions[]` entry with `operation="device_scan"` or `operation="device_run"`.
 
 ## Checkpoints
 
@@ -101,6 +101,8 @@ For `file_read`, `file_write`, and `manifest_update`, `paths[]` is required. Do 
 Operations: `file_read`, `file_write`, `script_run`, `device_scan`, `device_run`, `network_fetch`, `manifest_update`.
 
 Local mock tests must still write permission entries. If the mock auto-grants permission, set `result="granted"` and include `mock=true` in the entry details.
+
+All user-facing protocol text fields (`summary`, `description`, `label`, `title`, `message`, `reason`, and similar fields) must be UTF-8 clean. Reject replacement characters, mojibake sequences, C1 control characters, smart punctuation, and isolated foreign-script fragments in otherwise English/Chinese protocol text. Use ASCII punctuation for generated protocol strings.
 
 Example:
 
@@ -157,6 +159,14 @@ Each `file_manifest.files[]` entry should include:
 | `sha256` | Final SHA-256 hash for every existing/generated file. Do not use `hash="unverified"` or placeholder hashes. |
 | `bytes` | UTF-8 byte length or binary file byte length for every existing/generated file. |
 | `overwrite` | True only with explicit approval. |
+
+Build the final manifest after the final `session_state.upy_gen_driver_plugin.json` update. Prefer `scripts/finalize_phase_complete.py` over hand-written hashes:
+
+```bash
+python scripts/finalize_phase_complete.py --input <draft_phase_complete> --output <session_root>/phase_complete.upy_gen_driver_plugin.json --artifact-root <artifact_root> --session-state <session_root>/session_state.upy_gen_driver_plugin.json
+```
+
+Do not modify files listed in `payload.file_manifest.files[]` after this command. If `session_state` or any artifact changes, rerun the command so `sha256` and `bytes` match disk.
 
 `production_driver` may appear only when real hardware verification passed, when the user explicitly skipped verification and the payload records `verification_skipped_by_user=true` with a warning, or when a local mock success records `verification_mode="mock"` with a warning. Mock verification must not set `hardware_verified=true`. A no-device, timeout, cancellation, or unverified partial result must not label `{chip}.py` as `production_driver`.
 
@@ -218,6 +228,8 @@ Known codes: `MISSING_INPUT_SOURCE`, `SOURCE_PREPROCESS_FAILED`, `SOURCE_PREPROC
 - `manifest_content` when a manifest exists
 
 For every `file_list` artifact, include non-empty `files[]` or `items[]`. Do not emit a placeholder file list with only `title`, `label`, or an empty array.
+
+Write `phase_complete` as the last workflow file. It must not include a self-referential `file_manifest` entry for `phase_complete.upy_gen_driver_plugin.json`; host or an external sidecar may audit that envelope separately.
 
 For `result="partial"`:
 

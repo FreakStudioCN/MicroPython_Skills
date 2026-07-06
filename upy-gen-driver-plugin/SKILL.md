@@ -31,6 +31,7 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - 所有 phase-scoped `idempotency_key`、`checkpoint_id`、`resume_phase` 和 permission action key 必须使用 `upy-gen-driver-plugin` 前缀；业务 payload 里的 `phase` 与 `domain_phase` 只能使用 `gen-driver`。
 - 插件调用和本地 skill-call 测试必须使用同一套 message contract。本地测试可以直接执行文件，但仍必须写出插件 host 会收到的 `session_state`、permissions、file manifest、structured errors 和 `phase_complete` artifacts。
 - 不要手写 `session_state.upy_gen_driver_plugin.json`。必须通过 `scripts/update_session_state.py` 创建或更新 state，并在写出 `phase_complete` 前运行 `scripts/update_session_state.py --session-dir <session_root> --check`。
+- 最终封包必须按固定顺序收尾：先完成所有 artifact 和最终 `session_state` 更新，再生成 draft phase_complete，然后运行 `scripts/finalize_phase_complete.py` 刷新 `payload.file_manifest.files[].sha256/bytes` 并写出最终 `phase_complete.upy_gen_driver_plugin.json`。最终文件写出后，不要再修改 manifest 中列出的文件。
 - 正式 artifact path 必须相对 `artifact_root` 或 `project_root`；不要把 Windows drive path 写进 `phase_complete`。
 - 将 `runtime_context.session_root` 视为 workflow session 的事实来源。不要从最新的 `sessions/*` 目录推断当前 session。
 - MicroPython I2C driver code、debug driver、test script 和 wiring docs 中的默认设备地址必须使用 7-bit address，不要把包含 R/W bit 的 8-bit transfer address 传给 `scan()`、`readfrom_mem()`、`writeto_mem()` 或同类 I2C API。
@@ -48,6 +49,8 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - 重试同一个 action 时保持相同 `session_id` 和 action 级 `idempotency_key`；将 `retry_of` 设置为原始 message id，并追加一个 `status="retrying"` 的 state event。
 - cancellation 默认是可恢复的 partial result，除非用户明确丢弃 artifacts。保留最后一个可信 artifact，并将 checkpoint 设置为 `cancelled`。
 - timeout 不能静默处理。host、script、approval 和 device timeout 都必须转换成 structured errors；如果可以从 checkpoint 继续，设置 `retryable=true`。
+- `DEVICE_NOT_FOUND` 必须有可审计的 device 操作证据：`payload.permissions[]` 中至少包含一次 `device_scan` 或 `device_run`。如果本轮只有 file/script 操作，或 host 缺少设备操作能力，不要写 `DEVICE_NOT_FOUND`。
+- 所有用户可见文本字段必须是 UTF-8 clean text。不要输出 replacement character、mojibake 片段、smart punctuation、误解码标点或夹在中英文中的异常短外文片段；协议文案必须使用 ASCII punctuation。
 
 ## Start Phase Contract
 
@@ -145,6 +148,7 @@ Payload fields:
 - 两种形态都必须生成 `sessions/<session_id>/session_state.upy_gen_driver_plugin.json`。
 - 两种形态都必须为 success、partial、failed、cancelled 和 timeout outcome 生成 `phase_complete.upy_gen_driver_plugin.json`。
 - 本地测试不能绕过 permission 语义。即使 mock 自动授权，也要在 `payload.permissions[]` 中记录 file/script/device permissions。
+- 本地 no-device mock 如果返回 `DEVICE_NOT_FOUND`，也必须记录 `device_scan` 或 `device_run` permission entry；缺少设备操作能力时使用 `HOST_CAPABILITY_MISSING`。
 - 本地测试不能把 mock `SELF_TEST_PASS` 当成真实硬件证明。只有本地 mock self-test 实际返回 `SELF_TEST_PASS` 时才标记 `verification_mode="mock"`；无设备、取消、超时或没有运行 mock self-test 的 partial 必须标记 `verification_mode="none"`。
 
 ## Workflow
@@ -167,7 +171,8 @@ Payload fields:
 14. 在 `approval_request(gen_driver_standalone_test)` 后，可选运行 standalone test。
 15. 在 `pipeline` 模式下，更新 `project/project-manifest.json` 和 `manifest_content.devices[].driver`，指向生成的 local driver。
 16. 只有需要用户选择时才发出 `approval_request(gen_driver_next_step)`。常见选择包括接入 `upy-generate-plugin`、结束流程或稍后 publish。
-17. 写入 `phase_complete.upy_gen_driver_plugin.json`，用 `scripts/validate_phase_complete.py` 校验后，作为最终结果输出。
+17. 将最终 checkpoint 写入 `session_state.upy_gen_driver_plugin.json`，并运行 `scripts/update_session_state.py --session-dir <session_root> --check`。
+18. 写入 draft phase_complete，然后运行 `scripts/finalize_phase_complete.py --input <draft_phase_complete> --output <session_root>/phase_complete.upy_gen_driver_plugin.json --artifact-root <artifact_root> --session-state <session_root>/session_state.upy_gen_driver_plugin.json`。通过后才作为最终结果输出。
 
 ## Driver Understanding Contract
 
@@ -277,7 +282,7 @@ Plugin-mode behavior:
 - hot read loops 中尽量避免 dynamic allocation。
 - datasheet page/table comments 只用于解释 constants、timing、formulas 或 register behavior，不要写成教程。
 
-然后运行 `references/norm_driver_p0_rules.md` 中的 P0 normalization checklist，并用 `scripts/validate_phase_complete.py --input <phase_complete> --artifact-root <session_root> --session-state <state_file>` 校验真实文件内容。`--session-state` 必须传入，不能只校验 phase_complete JSON。validator 会检查 state 完整性、permission paths、未验证文案、CPython cache artifacts 和真实文件 hash；失败时不要输出可继续集成的结果。
+然后运行 `references/norm_driver_p0_rules.md` 中的 P0 normalization checklist，并用 `scripts/validate_phase_complete.py --input <phase_complete> --artifact-root <session_root> --session-state <state_file>` 校验真实文件内容。`--session-state` 必须传入，不能只校验 phase_complete JSON。validator 会检查 state 完整性、permission paths、device error evidence、用户可见文本编码质量、未验证文案、CPython cache artifacts 和真实文件 hash；失败时不要输出可继续集成的结果。
 
 ## Checkpoints
 
@@ -350,6 +355,7 @@ success 时，如果已生成对应文件，必须把下面内容写入 `payload
 partial 时，必须包含 last trusted artifact 和可从中 resume 的 checkpoint。
 
 `file_manifest.files[]` 中每个已存在或已生成文件都必须包含真实 `sha256` 和 `bytes`。不要使用 `"hash": "unverified"` 或其他占位字段替代 `sha256`。
+不要手算最终 manifest。`session_state.upy_gen_driver_plugin.json` 也在 manifest 中时，必须在最后一次 state 更新之后再计算它的 `sha256` 和 `bytes`；如果 state 被再次修改，必须重新运行 `scripts/finalize_phase_complete.py`。
 `payload.artifacts[]` 中必须包含非空 `file_list`，其 `files[]` 或 `items[]` 至少列出本次产生或保留的可信文件；不要只给 `title`、`label` 或空数组。
 
 ## Local Mock Testing
@@ -362,6 +368,7 @@ python test/run_local_mock_session.py --mode standalone --scenario no_device
 python test/run_local_mock_session.py --mode standalone --scenario cancelled
 python test/run_local_mock_session.py --mode standalone --scenario timeout
 python test/run_local_mock_session.py --mode standalone --scenario retry_success
+python scripts/finalize_phase_complete.py --input <draft_phase_complete> --output <session_root>/phase_complete.upy_gen_driver_plugin.json --artifact-root <artifact_root> --session-state <session_root>/session_state.upy_gen_driver_plugin.json
 python scripts/validate_phase_complete.py --input sample/phase_complete.upy_gen_driver_plugin.partial.no_device.json
 ```
 
