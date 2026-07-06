@@ -1,6 +1,6 @@
 # MicroPython Skills for GraftSense
 
-GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两大体系： 
+GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两大体系：
 
 **A. 一句话造硬件 — AI 嵌入式代码生成流水线（10 个 skill）**：从自然语言需求出发，自动完成硬件选型、代码生成、PC 仿真、烧录部署、错误修复的完整闭环。
 
