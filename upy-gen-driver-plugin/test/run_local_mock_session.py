@@ -42,6 +42,8 @@ def run_state(
     status: str,
     retry_of: str | None = None,
     error: dict[str, Any] | None = None,
+    artifacts: list[str] | None = None,
+    permissions: list[dict[str, Any]] | None = None,
 ) -> None:
     cmd = [
         sys.executable,
@@ -63,6 +65,10 @@ def run_state(
         cmd.extend(["--retry-of", retry_of])
     if error:
         cmd.extend(["--error", json.dumps(error, ensure_ascii=False)])
+    if artifacts:
+        cmd.extend(["--artifacts", json.dumps(artifacts, ensure_ascii=False)])
+    if permissions:
+        cmd.extend(["--permissions", json.dumps(permissions, ensure_ascii=False)])
     subprocess.run(cmd, check=True, text=True, capture_output=True)
 
 
@@ -346,18 +352,19 @@ def main() -> int:
 
     driver_path = session_dir / "project" / "firmware" / "drivers" / f"{CHIP}_driver" / f"{CHIP}_debug.py"
     write(driver_path, "print('SELF_TEST_PENDING')\n")
+    debug_rel = debug_driver_rel(args.session_id)
     if args.scenario == "no_device":
-        run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "partial")
+        run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "partial", artifacts=[debug_rel])
     elif args.scenario == "cancelled":
         error = structured_error("CANCELLED_BY_USER", "warning", "hardware_verify", "User cancelled hardware verification.", "resume_upy_gen_driver_plugin")
-        run_state(session_dir, args.session_id, "cancelled", "hardware_verify", "cancelled", error=error)
+        run_state(session_dir, args.session_id, "cancelled", "hardware_verify", "cancelled", error=error, artifacts=[debug_rel])
     elif args.scenario == "timeout":
         error = structured_error("DEVICE_RUN_TIMEOUT", "error", "hardware_verify", "Device run timed out.", "retry_device_run")
-        run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "partial", error=error)
+        run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "partial", error=error, artifacts=[debug_rel])
     elif args.scenario == "retry_success":
         retry_of = f"msg-{args.session_id}-device-run-timeout"
         error = structured_error("DEVICE_RUN_TIMEOUT", "error", "hardware_verify", "Device run timed out.", "retry_device_run")
-        run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "retrying", retry_of=retry_of, error=error)
+        run_state(session_dir, args.session_id, "hardware_verify_ready", "hardware_verify", "retrying", retry_of=retry_of, error=error, artifacts=[debug_rel])
         run_state(session_dir, args.session_id, "phase_completed", "phase_complete", "success", retry_of=retry_of)
 
     pc_path = session_dir / "phase_complete.upy_gen_driver_plugin.json"

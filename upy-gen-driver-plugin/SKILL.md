@@ -38,8 +38,10 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - datasheet 中的 `0x3C/0x3D` 这类 write/read address 只能作为 datasheet evidence 记录；生成代码前必须归一化为 7-bit address，例如 `0x3C >> 1 == 0x1E`。
 - 本地文件、脚本、网络和设备操作使用 `permission_request`；用户业务选择使用 `approval_request`。
 - 每个本地 action 都必须有稳定的 `idempotency_key`。
+- 不同 permission action 不能复用同一个 `idempotency_key`。只有同一 operation、同一 paths/command/network signature 的 retry 才能复用 key，并且后续 entry 必须带 `retry_of`。
 - 每个 script/device/approval wait 都必须有 `timeout_ms`。
 - 用户取消、无设备、超时、artifact stale、缺少 capability 或硬件验证耗尽时，输出 `result="partial"`，并携带 checkpoint 和 `structured_errors[]`；不要宣称 success。
+- partial 结果的 `session_state` 必须记录可恢复锚点：`artifacts[]` 或 `last_ok_artifact` 至少包含一个已写入的可信 artifact。
 - 缺少 host 能力时使用 `HOST_CAPABILITY_MISSING`，并在 `details.missing_capability` 写明能力名；只有 host 已支持并实际执行 device scan/run 后仍找不到设备，才使用 `DEVICE_NOT_FOUND`。不要把 `missing_capability=device_command` 放进 `DEVICE_NOT_FOUND`。
 - 只有用户明确选择时才可以跳过硬件验证，并且最终结果必须带 warning。默认行为是保存 checkpoint，等待后续 resume。
 - partial 且未完成验证时必须写 `hardware_verified=false` 和 `verification_mode="none"`。不要把无设备、取消、超时或普通未验证 partial 标成 `verification_mode="mock"`。
@@ -50,7 +52,7 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - cancellation 默认是可恢复的 partial result，除非用户明确丢弃 artifacts。保留最后一个可信 artifact，并将 checkpoint 设置为 `cancelled`。
 - timeout 不能静默处理。host、script、approval 和 device timeout 都必须转换成 structured errors；如果可以从 checkpoint 继续，设置 `retryable=true`。
 - `DEVICE_NOT_FOUND` 必须有可审计的 device 操作证据：`payload.permissions[]` 中至少包含一次 `device_scan` 或 `device_run`。如果本轮只有 file/script 操作，或 host 缺少设备操作能力，不要写 `DEVICE_NOT_FOUND`。
-- 所有用户可见文本字段必须是 UTF-8 clean text。不要输出 replacement character、mojibake 片段、smart punctuation、误解码标点或夹在中英文中的异常短外文片段；协议文案必须使用 ASCII punctuation。
+- 所有用户可见文本字段和文本 artifact 必须是 UTF-8 clean text。不要输出 replacement character、mojibake 片段、smart punctuation、误解码标点或夹在中英文中的异常短外文片段；协议文案、代码注释和 Markdown 文档都必须使用 ASCII punctuation。
 
 ## Start Phase Contract
 
@@ -352,7 +354,7 @@ success 时，如果已生成对应文件，必须把下面内容写入 `payload
 
 `phase_complete.upy_gen_driver_plugin.json` 是最终协议 envelope，不要求放进自己的 `payload.file_manifest.files[]`。如果需要审计它，由 host 或外部 sidecar manifest 记录；不要为了自引用 hash 把它强塞进自身 file manifest。
 
-partial 时，必须包含 last trusted artifact 和可从中 resume 的 checkpoint。
+partial 时，必须包含 last trusted artifact 和可从中 resume 的 checkpoint；`session_state.upy_gen_driver_plugin.json` 也必须记录 `artifacts[]` 或 `last_ok_artifact`。
 
 `file_manifest.files[]` 中每个已存在或已生成文件都必须包含真实 `sha256` 和 `bytes`。不要使用 `"hash": "unverified"` 或其他占位字段替代 `sha256`。
 不要手算最终 manifest。`session_state.upy_gen_driver_plugin.json` 也在 manifest 中时，必须在最后一次 state 更新之后再计算它的 `sha256` 和 `bytes`；如果 state 被再次修改，必须重新运行 `scripts/finalize_phase_complete.py`。

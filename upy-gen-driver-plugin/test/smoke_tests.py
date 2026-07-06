@@ -111,6 +111,20 @@ def test_validator_rejects_bad_business_states() -> None:
     )
     expect_invalid(artifact_with_production_key, "write_driver_artifact for unverified driver artifacts")
 
+    duplicate_key_different_action = json.loads((ROOT / "sample" / "phase_complete.upy_gen_driver_plugin.partial.no_device.json").read_text(encoding="utf-8"))
+    duplicate_key_different_action["payload"]["permissions"].append(
+        {
+            "permission_id": "write_wiring",
+            "operation": "file_write",
+            "reason": "Write a different artifact.",
+            "paths": ["sessions/sample-standalone/project/firmware/drivers/sht30_driver/wiring_sht30.md"],
+            "timeout_ms": 30000,
+            "idempotency_key": duplicate_key_different_action["payload"]["permissions"][0]["idempotency_key"],
+            "result": "granted",
+        }
+    )
+    expect_invalid(duplicate_key_different_action, "duplicates permissions[0] for a different action signature")
+
     missing_file_operation_root = json.loads(json.dumps(sample))
     del missing_file_operation_root["payload"]["runtime_context"]["file_operation_root"]
     expect_invalid(missing_file_operation_root, "payload.runtime_context.file_operation_root is required")
@@ -323,6 +337,7 @@ def test_validator_rejects_artifact_hygiene_regressions() -> None:
         )
         driver_path.write_text(
             "from micropython import const\n"
+            "# Generated driver — pending hardware verification\n"
             "_I2C_ADDR = const(0x1E)\n"
             "class Demo:\n"
             "    def __init__(self, i2c):\n"
@@ -439,6 +454,8 @@ def test_validator_rejects_artifact_hygiene_regressions() -> None:
         assert_ok("paths is required for file_write" in result.stdout, result.stdout)
         assert_ok("production driver wording" in result.stdout, result.stdout)
         assert_ok("CPython cache artifact" in result.stdout, result.stdout)
+        assert_ok("partial session_state must record artifacts or last_ok_artifact" in result.stdout, result.stdout)
+        assert_ok("text artifact appears to contain an encoding artifact" in result.stdout, result.stdout)
 
 
 def test_validator_rejects_i2c_driver_antipatterns() -> None:
@@ -750,6 +767,10 @@ def test_finalize_phase_complete_refreshes_state_manifest() -> None:
             "checkpoint": "hardware_verify_ready",
             "step": "hardware_verify",
             "idempotency_key": f"upy-gen-driver-plugin:{session_id}:hardware_verify:v1",
+            "artifacts": [
+                f"sessions/{session_id}/project/firmware/drivers/demo_driver/demo_debug.py"
+            ],
+            "last_ok_artifact": f"sessions/{session_id}/project/firmware/drivers/demo_driver/demo_debug.py",
         }
         state_path.write_text(json.dumps(state_v1, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         state_rel = f"sessions/{session_id}/session_state.upy_gen_driver_plugin.json"
@@ -913,6 +934,8 @@ def test_mock_session() -> None:
             state_path = Path(tmp) / "sessions" / session_id / "session_state.upy_gen_driver_plugin.json"
             state = json.loads(state_path.read_text(encoding="utf-8"))
             assert_ok(state["session_id"] == session_id, f"{scenario} state session mismatch")
+            if expected_result == "partial":
+                assert_ok(state.get("artifacts") or state.get("last_ok_artifact"), f"{scenario} state should keep resume artifacts")
             if scenario == "retry_success":
                 assert_ok(data["retry_of"], "retry_success should carry retry_of")
                 events = state.get("events", [])

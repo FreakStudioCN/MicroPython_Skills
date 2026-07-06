@@ -102,7 +102,9 @@ Operations: `file_read`, `file_write`, `script_run`, `device_scan`, `device_run`
 
 Local mock tests must still write permission entries. If the mock auto-grants permission, set `result="granted"` and include `mock=true` in the entry details.
 
-All user-facing protocol text fields (`summary`, `description`, `label`, `title`, `message`, `reason`, and similar fields) must be UTF-8 clean. Reject replacement characters, mojibake sequences, C1 control characters, smart punctuation, and isolated foreign-script fragments in otherwise English/Chinese protocol text. Use ASCII punctuation for generated protocol strings.
+Do not reuse the same `idempotency_key` for different permission actions. Reuse is allowed only for retrying the same action signature: same operation, same paths, same command preview, same network domains, and the later permission entry must include `retry_of`.
+
+All user-facing protocol text fields and generated text artifacts (`.py`, `.md`, `.json`, `.txt`, `.yaml`, source snippets) must be UTF-8 clean. Reject replacement characters, mojibake sequences, C1 control characters, smart punctuation, and isolated foreign-script fragments in otherwise English/Chinese protocol text. Use ASCII punctuation for generated protocol strings, code comments, and Markdown.
 
 Example:
 
@@ -127,6 +129,7 @@ Retry:
 - Keep the same `idempotency_key` when retrying the same action.
 - Set `retry_of` to the original message id.
 - Append a `session_state.events[]` item with `status="retrying"`.
+- For partial results, record at least one resume artifact in `session_state.artifacts[]` or `session_state.last_ok_artifact`.
 
 Cancellation:
 

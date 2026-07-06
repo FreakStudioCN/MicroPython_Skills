@@ -37,6 +37,20 @@ FILE_ROLES = {
     "phase_complete",
     "artifact",
 }
+TEXT_ARTIFACT_EXTENSIONS = {
+    ".c",
+    ".cpp",
+    ".h",
+    ".hpp",
+    ".ini",
+    ".ino",
+    ".json",
+    ".md",
+    ".py",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
 PERMISSION_OPERATIONS = {
     "file_read",
     "file_write",
@@ -182,6 +196,17 @@ def has_device_attempt_permission(permissions: Any) -> bool:
     return False
 
 
+def permission_signature(item: dict[str, Any]) -> tuple[Any, ...]:
+    paths = tuple(sorted(path for path in item.get("paths", []) if isinstance(path, str)))
+    network_domains = tuple(sorted(domain for domain in item.get("network_domains", []) if isinstance(domain, str)))
+    return (
+        item.get("operation"),
+        paths,
+        item.get("command_preview"),
+        network_domains,
+    )
+
+
 def validate_no_python_cache(artifact_root: Path, errors: list[str]) -> None:
     if not artifact_root.exists():
         return
@@ -277,12 +302,26 @@ def validate_artifacts(artifacts: Any, result: Any, hardware_verified: Any, erro
 def validate_permission_idempotency_keys(permissions: Any, has_production_driver: bool, errors: list[str]) -> None:
     if not isinstance(permissions, list):
         return
+    seen: dict[str, tuple[int, tuple[Any, ...]]] = {}
     for index, item in enumerate(permissions):
         if not isinstance(item, dict):
             continue
         key = item.get("idempotency_key")
         if not isinstance(key, str):
             continue
+        signature = permission_signature(item)
+        if key in seen:
+            first_index, first_signature = seen[key]
+            if signature != first_signature:
+                errors.append(
+                    f"permissions[{index}].idempotency_key duplicates permissions[{first_index}] for a different action signature"
+                )
+            elif index != first_index and not item.get("retry_of"):
+                errors.append(
+                    f"permissions[{index}].idempotency_key duplicates permissions[{first_index}] without retry_of"
+                )
+        else:
+            seen[key] = (index, signature)
         if "write_production_driver" in key and not has_production_driver:
             errors.append(
                 f"permissions[{index}].idempotency_key must use write_driver_artifact for unverified driver artifacts"
@@ -542,6 +581,24 @@ def validate_driver_text(path: Path, role: str, errors: list[str]) -> None:
     validate_python_static(text, path, role, errors)
 
 
+def validate_artifact_text_encoding(path: Path, role: str, errors: list[str]) -> None:
+    if path.suffix.lower() not in TEXT_ARTIFACT_EXTENSIONS:
+        return
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        errors.append(f"{role} text artifact is not valid UTF-8: {path.name}")
+        return
+    except OSError:
+        return
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if text_has_encoding_artifact(line):
+            errors.append(
+                f"{role} text artifact appears to contain an encoding artifact or garbled text at {path.name}:{line_number}"
+            )
+            return
+
+
 def validate_session_state(
     state_path: Path,
     data: dict[str, Any],
@@ -578,6 +635,18 @@ def validate_session_state(
         errors.append(f"session_state.checkpoint must match phase_complete checkpoint: {expected_checkpoint}")
     if payload.get("result") == "partial" and state.get("checkpoint") == "phase_completed":
         errors.append("partial result must not leave session_state checkpoint at phase_completed")
+    files = payload.get("file_manifest", {}).get("files", []) if isinstance(payload.get("file_manifest"), dict) else []
+    trusted_artifacts = [
+        item for item in files
+        if isinstance(item, dict)
+        and item.get("status") in HASHED_FILE_STATUSES
+        and item.get("role") not in {"state", "source", "phase_complete"}
+    ]
+    if payload.get("result") == "partial" and trusted_artifacts:
+        state_artifacts = state.get("artifacts")
+        has_artifacts = isinstance(state_artifacts, list) and bool(state_artifacts)
+        if not has_artifacts and not state.get("last_ok_artifact"):
+            errors.append("partial session_state must record artifacts or last_ok_artifact for resume")
 
 
 def validate(
@@ -689,6 +758,7 @@ def validate(
                                 errors.append(f"file_manifest.files[{index}].sha256 does not match file: {path}")
                             if isinstance(byte_count, int) and byte_count != actual_bytes:
                                 errors.append(f"file_manifest.files[{index}].bytes does not match file: {path}")
+                            validate_artifact_text_encoding(resolved, str(role), errors)
                             validate_driver_text(resolved, str(role), errors)
     structured = payload.get("structured_errors")
     if not isinstance(structured, list):
