@@ -3,7 +3,7 @@
   "msg_id": "msg-start-pipeline",
   "session_id": "sample-pipeline",
   "phase": "upy-gen-driver-plugin",
-  "timestamp": "2026-07-04T00:00:00Z",
+  "timestamp": "2026-07-06T00:00:00Z",
   "type": "start_phase",
   "idempotency_key": "upy-gen-driver-plugin:sample-pipeline:start:v1",
   "retry_of": null,
@@ -17,17 +17,73 @@
       "phase": "scaffold",
       "devices": [
         {
+          "device_id": "sht30_temperature_humidity",
           "name": "SHT30",
           "interface": "i2c",
+          "i2c_addresses": [
+            "0x44",
+            "0x45"
+          ],
           "driver": {
             "status": "cold_driver_required"
           }
         }
       ]
     },
-    "source": {
-      "type": "chip_model",
-      "chip_model": "SHT30"
+    "driver_request": {
+      "driver_id": "sht30",
+      "chip_model": "SHT30",
+      "module_model": "",
+      "vendor": "Sensirion",
+      "interface": "i2c",
+      "i2c_addresses": [
+        "0x44",
+        "0x45"
+      ],
+      "target_board": {
+        "id": "esp32-devkit-v1",
+        "official_id": "ESP32_GENERIC",
+        "local_board_id": "esp32-devkit-v1",
+        "skill_board_id": "esp32-devkit-v1",
+        "support_status": "builtin_pin_layout"
+      },
+      "expected_output": {
+        "driver_dir": "firmware/drivers/sht30_driver",
+        "module_file": "firmware/drivers/sht30_driver/sht30.py",
+        "debug_file": "firmware/drivers/sht30_driver/sht30_debug.py",
+        "test_file": "firmware/drivers/sht30_driver/test_sht30.py",
+        "wiring_file": "firmware/drivers/sht30_driver/wiring_sht30.md"
+      }
+    },
+    "sources": [
+      {
+        "type": "current_cold_driver_item",
+        "artifact_path": "sessions/sample-pipeline/phase_complete.upy_scaffold_plugin.json",
+        "sha256": "required-when-artifact-exists",
+        "primary": true,
+        "metadata": {
+          "device_id": "sht30_temperature_humidity",
+          "driver_status": "cold_driver_required"
+        }
+      },
+      {
+        "type": "chip_model",
+        "artifact_path": null,
+        "sha256": null,
+        "primary": false,
+        "metadata": {
+          "chip_model": "SHT30",
+          "vendor": "Sensirion",
+          "interface": "i2c"
+        }
+      }
+    ],
+    "verification": {
+      "required": true,
+      "policy": "hardware_required",
+      "port": null,
+      "marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK",
+      "max_rounds": 3
     },
     "runtime_context": {
       "artifact_root": ".",
@@ -38,7 +94,9 @@
       "resource_root": "upy-gen-driver-plugin"
     },
     "capabilities": {
-      "protocol_versions": ["1.0"],
+      "protocol_versions": [
+        "1.0"
+      ],
       "approval_request": true,
       "permission_request": true,
       "file_operation": true,

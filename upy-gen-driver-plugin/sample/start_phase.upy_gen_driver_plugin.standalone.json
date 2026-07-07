@@ -3,7 +3,7 @@
   "msg_id": "msg-start-standalone",
   "session_id": "sample-standalone",
   "phase": "upy-gen-driver-plugin",
-  "timestamp": "2026-07-04T00:00:00Z",
+  "timestamp": "2026-07-06T00:00:00Z",
   "type": "start_phase",
   "idempotency_key": "upy-gen-driver-plugin:sample-standalone:start:v1",
   "retry_of": null,
@@ -11,7 +11,24 @@
     "mode": "standalone",
     "phase": "gen-driver",
     "domain_phase": "gen-driver",
-    "source": null,
+    "driver_request": {
+      "driver_id": "",
+      "chip_model": "",
+      "module_model": "",
+      "vendor": "",
+      "interface": "",
+      "i2c_addresses": [],
+      "target_board": null,
+      "expected_output": {}
+    },
+    "sources": [],
+    "verification": {
+      "required": true,
+      "policy": "hardware_required",
+      "port": null,
+      "marker": null,
+      "max_rounds": 3
+    },
     "runtime_context": {
       "artifact_root": ".",
       "artifact_root_mode": "cwd",
@@ -21,7 +38,9 @@
       "resource_root": "upy-gen-driver-plugin"
     },
     "capabilities": {
-      "protocol_versions": ["1.0"],
+      "protocol_versions": [
+        "1.0"
+      ],
       "approval_request": true,
       "permission_request": true,
       "file_operation": true,

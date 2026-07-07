@@ -11,7 +11,7 @@
     "phase": "gen-driver",
     "domain_phase": "gen-driver",
     "result": "partial",
-    "summary": "Device verification timed out. Retry can continue from the saved debug driver.",
+    "summary": "Device verification timed out. Retry can continue from the saved debug driver; driver_status is failed until hardware validation passes.",
     "next_phase": null,
     "runtime_context": {
       "artifact_root": ".",
@@ -103,6 +103,17 @@
     ],
     "hardware_verified": false,
     "verification_mode": "none",
-    "manifest_content": null
+    "manifest_content": null,
+    "driver_status": "failed",
+    "hardware_marker": null,
+    "verification_required": true,
+    "verification": {
+      "required": true,
+      "policy": "hardware_required",
+      "port": null,
+      "marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK",
+      "max_rounds": 3,
+      "observed_marker": null
+    }
   }
 }

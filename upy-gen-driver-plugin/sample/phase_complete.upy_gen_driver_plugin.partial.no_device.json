@@ -11,7 +11,7 @@
     "phase": "gen-driver",
     "domain_phase": "gen-driver",
     "result": "partial",
-    "summary": "Debug driver was generated but no MicroPython device was detected. Progress is saved for resume.",
+    "summary": "Debug driver was generated but no MicroPython device was detected. Progress is saved for resume; driver_status remains pending_validation.",
     "next_phase": null,
     "runtime_context": {
       "artifact_root": ".",
@@ -101,6 +101,17 @@
     ],
     "hardware_verified": false,
     "verification_mode": "none",
-    "manifest_content": null
+    "manifest_content": null,
+    "driver_status": "pending_validation",
+    "hardware_marker": null,
+    "verification_required": true,
+    "verification": {
+      "required": true,
+      "policy": "hardware_required",
+      "port": null,
+      "marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK",
+      "max_rounds": 3,
+      "observed_marker": null
+    }
   }
 }

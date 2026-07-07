@@ -11,7 +11,7 @@
     "phase": "gen-driver",
     "domain_phase": "gen-driver",
     "result": "success",
-    "summary": "Retry completed and SELF_TEST_PASS was observed.",
+    "summary": "Retry completed and hardware validation marker SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK was observed.",
     "next_phase": "upy-generate-plugin",
     "runtime_context": {
       "artifact_root": ".",
@@ -135,11 +135,24 @@
         {
           "name": "SHT30",
           "driver": {
-            "status": "local_generated",
-            "path": "firmware/drivers/sht30_driver/sht30.py"
+            "status": "ready",
+            "path": "firmware/drivers/sht30_driver/sht30.py",
+            "hardware_marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK"
           }
         }
       ]
+    },
+    "driver_status": "ready",
+    "verification_mode": "hardware",
+    "hardware_marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK",
+    "verification_required": true,
+    "verification": {
+      "required": true,
+      "policy": "hardware_required",
+      "port": null,
+      "marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK",
+      "max_rounds": 3,
+      "observed_marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK"
     }
   }
 }
