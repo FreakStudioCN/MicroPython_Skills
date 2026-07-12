@@ -1,0 +1,68 @@
+{
+  "chip_family_inferred": "esp32s2",
+  "display_name": "S2 pico",
+  "features": [
+    "Display",
+    "External Flash",
+    "External RAM",
+    "JST-SH",
+    "USB-C",
+    "WiFi"
+  ],
+  "firmware": {
+    "board_name": "LOLIN_S2_PICO",
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/LOLIN_S2_PICO-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    },
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/LOLIN_S2_PICO-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "port": "esp32",
+    "url": "https://micropython.org/download/LOLIN_S2_PICO/"
+  },
+  "known_missing_for_select_hw": [
+    "physical board variant confirmation",
+    "pinout diagram or schematic",
+    "pin_layout.default_bus_pins",
+    "pin_layout.restricted_gpio",
+    "pin_layout.pin_options when applicable",
+    "onboard_peripherals and occupied pins",
+    "board power/logic voltage notes"
+  ],
+  "mcu_inferred": "esp32s2",
+  "notes": [
+    "This file is an official MicroPython inventory record, not a select-hw board definition.",
+    "Do not copy this file to the top-level boards directory as a supported board until verification is complete."
+  ],
+  "official_board_slug": "LOLIN_S2_PICO",
+  "port": "esp32",
+  "promotion_target": "upy-analyze-plugin/boards/<skill_board_id>.json only after pin-layout review",
+  "proposed_skill_board_id": "lolin-s2-pico",
+  "schema": "blockless.micropython.official_board_pending.v1",
+  "select_hw_ready": false,
+  "source": {
+    "detail_url": "https://micropython.org/download/LOLIN_S2_PICO/",
+    "fetched_at": "2026-07-12T07:59:13+00:00",
+    "image_url": "https://micropython.org/resources/micropython-media/boards/LOLIN_S2_PICO/lolin_s2_pico.jpg",
+    "index_url": "https://micropython.org/download/",
+    "more_info_url": "https://www.wemos.cc/en/latest/s2/s2_pico.html",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/LOLIN_S2_PICO"
+  },
+  "status": "needs_human_verification",
+  "support_status": "official_firmware_only",
+  "vendor": "Wemos",
+  "verification": {
+    "default_bus_pins_verified": false,
+    "image_matches_physical_board": false,
+    "official_slug_maps_to_specific_board": false,
+    "onboard_peripherals_verified": false,
+    "pinout_source_verified": false,
+    "restricted_gpio_verified": false,
+    "safe_to_promote_to_skill_board_definition": false,
+    "schematic_or_vendor_doc_verified": false
+  }
+}

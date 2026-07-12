@@ -1,0 +1,61 @@
+{
+  "chip_family_inferred": "stm32",
+  "display_name": "Nucleo F722ZE",
+  "features": [],
+  "firmware": {
+    "board_name": "NUCLEO_F722ZE",
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_F722ZE-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    },
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_F722ZE-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "port": "stm32",
+    "url": "https://micropython.org/download/NUCLEO_F722ZE/"
+  },
+  "known_missing_for_select_hw": [
+    "physical board variant confirmation",
+    "pinout diagram or schematic",
+    "pin_layout.default_bus_pins",
+    "pin_layout.restricted_gpio",
+    "pin_layout.pin_options when applicable",
+    "onboard_peripherals and occupied pins",
+    "board power/logic voltage notes"
+  ],
+  "mcu_inferred": "stm32",
+  "notes": [
+    "This file is an official MicroPython inventory record, not a select-hw board definition.",
+    "Do not copy this file to the top-level boards directory as a supported board until verification is complete."
+  ],
+  "official_board_slug": "NUCLEO_F722ZE",
+  "port": "stm32",
+  "promotion_target": "upy-analyze-plugin/boards/<skill_board_id>.json only after pin-layout review",
+  "proposed_skill_board_id": "nucleo-f722ze",
+  "schema": "blockless.micropython.official_board_pending.v1",
+  "select_hw_ready": false,
+  "source": {
+    "detail_url": "https://micropython.org/download/NUCLEO_F722ZE/",
+    "fetched_at": "2026-07-12T07:59:13+00:00",
+    "image_url": "https://micropython.org/resources/micropython-media/boards/NUCLEO_F722ZE/nucleo_f722ze.jpg",
+    "index_url": "https://micropython.org/download/",
+    "more_info_url": "",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_F722ZE"
+  },
+  "status": "needs_human_verification",
+  "support_status": "official_firmware_only",
+  "vendor": "ST Microelectronics",
+  "verification": {
+    "default_bus_pins_verified": false,
+    "image_matches_physical_board": false,
+    "official_slug_maps_to_specific_board": false,
+    "onboard_peripherals_verified": false,
+    "pinout_source_verified": false,
+    "restricted_gpio_verified": false,
+    "safe_to_promote_to_skill_board_definition": false,
+    "schematic_or_vendor_doc_verified": false
+  }
+}
