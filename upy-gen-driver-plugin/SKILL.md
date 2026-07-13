@@ -45,7 +45,7 @@ description: 插件化 workflow skill，用于从 datasheet、Arduino/C/C++ sour
 - 缺少 host 能力时使用 `HOST_CAPABILITY_MISSING`，并在 `details.missing_capability` 写明能力名；只有 host 已支持并实际执行 device scan/run 后仍找不到设备，才使用 `DEVICE_NOT_FOUND`。不要把 `missing_capability=device_command` 放进 `DEVICE_NOT_FOUND`。
 - 只有用户明确选择时才可以跳过硬件验证，并且最终结果必须带 warning。默认行为是保存 checkpoint，等待后续 resume。
 - partial 且未完成验证时必须写 `hardware_verified=false` 和 `verification_mode="none"`。不要把无设备、取消、超时或普通未验证 partial 标成 `verification_mode="mock"`。
-- `verification_mode="mock"` 只允许用于本地 mock self-test 实际返回 `SELF_TEST_PASS` 的 success 结果；它仍然不能设置 `hardware_verified=true`。
+- `verification_mode="mock"` 只允许用于本地 mock self-test 实际返回 `SELF_TEST_PASS` 的 success 结果；它仍然不能设置 `hardware_verified=true`，不能设置 `next_phase`，manifest driver status 必须是 `unverified`，不得写 `ready`。
 - 未验证 `{chip}.py` 的 file write action 必须使用 `write_driver_artifact` idempotency key；只有 `file_manifest.files[].role="production_driver"` 时才允许使用 `write_production_driver`。
 - 未验证 partial 的任何 summary、description、artifact label、permission reason 或 file_manifest description 都不要写 `production driver`；统一写 `driver artifact` 或 `unverified driver artifact`。
 - 重试同一个 action 时保持相同 `session_id` 和 action 级 `idempotency_key`；将 `retry_of` 设置为原始 message id，并追加一个 `status="retrying"` 的 state event。
@@ -127,7 +127,7 @@ Payload fields:
 
 未完成真实硬件验证时，如果保留 `{chip}.py`，`file_manifest.files[].role` 必须使用 `artifact`，面向用户的 `artifacts[].file_list` 文案必须写成 `Driver artifact (unverified)` 或 `Unverified driver artifact`，不要写 `Production driver (unverified)`。
 
-未完成真实硬件验证时，如果写入 `{chip}.py`，permission/action 的 `idempotency_key` 必须使用 `upy-gen-driver-plugin:<session_id>:write_driver_artifact:<chip>:v1`。通过真实硬件验证、用户明确 skip verification 或 local mock success 后，才允许使用 `write_production_driver`。
+未完成真实硬件验证时，如果写入 `{chip}.py`，permission/action 的 `idempotency_key` 必须使用 `upy-gen-driver-plugin:<session_id>:write_driver_artifact:<chip>:v1`。只有真实硬件验证通过或用户明确 skip verification 后，才允许使用 `write_production_driver`；local mock success 只能写 `unverified driver artifact`。
 
 `structured_errors[]` fields:
 
@@ -141,6 +141,8 @@ Payload fields:
 | `details` | 机器可读上下文，例如 timeout、command、port、path、source hash、missing capability 或 log path。 |
 | `next_action` | 建议下一步动作，例如 `connect_device_and_resume`、`retry_device_run` 或 `request_pdf_or_arduino_source`。 |
 
+Shared protocol error codes also include `PROTOCOL_VERSION_UNSUPPORTED` and `IDEMPOTENCY_CONFLICT`.
+
 ## Plugin and Local Compatibility
 
 两种执行形态使用同一套 contract：
@@ -151,7 +153,7 @@ Payload fields:
 - 两种形态都必须为 success、partial、failed、cancelled 和 timeout outcome 生成 `phase_complete.upy_gen_driver_plugin.json`。
 - 本地测试不能绕过 permission 语义。即使 mock 自动授权，也要在 `payload.permissions[]` 中记录 file/script/device permissions。
 - 本地 no-device mock 如果返回 `DEVICE_NOT_FOUND`，也必须记录 `device_scan` 或 `device_run` permission entry；缺少设备操作能力时使用 `HOST_CAPABILITY_MISSING`。
-- 本地测试不能把 mock `SELF_TEST_PASS` 当成真实硬件证明。只有本地 mock self-test 实际返回 `SELF_TEST_PASS` 时才标记 `verification_mode="mock"`；无设备、取消、超时或没有运行 mock self-test 的 partial 必须标记 `verification_mode="none"`。
+- 本地测试不能把 mock `SELF_TEST_PASS` 当成真实硬件证明。只有本地 mock self-test 实际返回 `SELF_TEST_PASS` 时才标记 `verification_mode="mock"`；无设备、取消、超时或没有运行 mock self-test 的 partial 必须标记 `verification_mode="none"`。mock success 的 `driver_status` 和 manifest driver status 必须是 `unverified`，`next_phase` 必须是 `null`。
 
 ## Workflow
 
@@ -374,7 +376,7 @@ python scripts/finalize_phase_complete.py --input <draft_phase_complete> --outpu
 python scripts/validate_phase_complete.py --input sample/phase_complete.upy_gen_driver_plugin.partial.no_device.json
 ```
 
-不要把 mock outputs 当成真实硬件验证证明。`no_device`、`cancelled`、`timeout` 都必须使用 `verification_mode="none"`；只有 `retry_success` 这类本地 mock self-test 成功路径才可以使用 `verification_mode="mock"`，并且必须带 `MOCK_VERIFICATION_ONLY` warning。
+不要把 mock outputs 当成真实硬件验证证明。`no_device`、`cancelled`、`timeout` 都必须使用 `verification_mode="none"`；只有 `retry_success` 这类本地 mock self-test 成功路径才可以使用 `verification_mode="mock"`，并且必须带 `MOCK_VERIFICATION_ONLY` warning、`driver_status="unverified"`、manifest `driver.status="unverified"`、`next_phase=null`。
 
 Minimum local coverage:
 

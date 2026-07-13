@@ -138,6 +138,7 @@ def common_phase_complete(
     warnings: list[dict[str, Any]] | None = None,
     hardware_verified: bool = False,
     verification_mode: str | None = "none",
+    driver_status: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "phase": DOMAIN_PHASE,
@@ -171,6 +172,8 @@ def common_phase_complete(
     }
     if verification_mode:
         payload["verification_mode"] = verification_mode
+    if driver_status:
+        payload["driver_status"] = driver_status
     return {
         "protocol_version": "1.0",
         "msg_id": f"msg-{session_id}-{result}-{checkpoint_name}",
@@ -214,6 +217,7 @@ def phase_complete_no_device(session_id: str, session_dir: Path) -> dict[str, An
         ],
         [structured_error("DEVICE_NOT_FOUND", "warning", "hardware_verify", "No MicroPython device was detected.", "connect_device_and_resume")],
         None,
+        driver_status="pending_validation",
     )
 
 
@@ -233,6 +237,7 @@ def phase_complete_cancelled(session_id: str, session_dir: Path) -> dict[str, An
         ],
         [structured_error("CANCELLED_BY_USER", "warning", "hardware_verify", "User cancelled hardware verification.", "resume_upy_gen_driver_plugin")],
         None,
+        driver_status="pending_validation",
     )
 
 
@@ -265,6 +270,7 @@ def phase_complete_timeout(session_id: str, session_dir: Path) -> dict[str, Any]
         ],
         [structured_error("DEVICE_RUN_TIMEOUT", "error", "hardware_verify", "Device run timed out.", "retry_device_run")],
         None,
+        driver_status="failed",
     )
 
 
@@ -295,16 +301,25 @@ def phase_complete_retry_success(session_id: str, session_dir: Path) -> dict[str
             file_entry(output_root, debug_rel, "debug_driver"),
             file_entry(output_root, f"sessions/{session_id}/gen_driver/logs/driver_verify_round1.log", "verify_log"),
             file_entry(output_root, f"sessions/{session_id}/gen_driver/logs/driver_verify_round2.log", "verify_log"),
-            file_entry(output_root, driver_rel, "production_driver"),
+            file_entry(output_root, driver_rel, "artifact"),
             file_entry(output_root, test_rel, "test"),
             file_entry(output_root, wiring_rel, "wiring"),
         ],
         [],
-        "upy-generate-plugin",
+        None,
         retry_of=retry_of,
         manifest_content={
             "phase": DOMAIN_PHASE,
-            "devices": [{"name": "SHT30", "driver": {"status": "local_generated", "path": f"firmware/drivers/{CHIP}_driver/{CHIP}.py"}}],
+            "devices": [
+                {
+                    "name": "SHT30",
+                    "driver": {
+                        "source": "cold-driver",
+                        "status": "unverified",
+                        "path": f"firmware/drivers/{CHIP}_driver/{CHIP}.py",
+                    },
+                }
+            ],
         },
         warnings=[
             {
@@ -313,6 +328,7 @@ def phase_complete_retry_success(session_id: str, session_dir: Path) -> dict[str
             }
         ],
         verification_mode="mock",
+        driver_status="unverified",
     )
 
 

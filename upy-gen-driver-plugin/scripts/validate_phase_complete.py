@@ -328,6 +328,56 @@ def validate_permission_idempotency_keys(permissions: Any, has_production_driver
             )
 
 
+def validate_manifest_driver_states(
+    payload: dict[str, Any],
+    hardware_verified: Any,
+    verification_mode: Any,
+    mock_verification: bool,
+    errors: list[str],
+) -> None:
+    driver_status = payload.get("driver_status")
+    if driver_status == "ready" and (verification_mode != "hardware" or hardware_verified is not True):
+        errors.append("payload.driver_status=ready requires verification_mode=hardware and hardware_verified=true")
+    if mock_verification and driver_status not in (None, "unverified"):
+        errors.append("mock verification must report payload.driver_status=unverified")
+
+    manifest = payload.get("manifest_content")
+    if manifest is None:
+        return
+    if not isinstance(manifest, dict):
+        errors.append("payload.manifest_content must be an object when present")
+        return
+    devices = manifest.get("devices")
+    if devices is None:
+        return
+    if not isinstance(devices, list):
+        errors.append("payload.manifest_content.devices must be an array")
+        return
+
+    for index, device in enumerate(devices):
+        prefix = f"payload.manifest_content.devices[{index}].driver"
+        if not isinstance(device, dict):
+            errors.append(f"payload.manifest_content.devices[{index}] must be an object")
+            continue
+        driver = device.get("driver")
+        if driver is None:
+            continue
+        if not isinstance(driver, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        status = driver.get("status")
+        if mock_verification and status not in (None, "unverified"):
+            errors.append("mock verification manifest driver.status must be unverified")
+        if status == "ready":
+            if verification_mode != "hardware" or hardware_verified is not True:
+                errors.append(f"{prefix}.status=ready requires verification_mode=hardware and hardware_verified=true")
+            if not driver.get("path") or not driver.get("hardware_marker"):
+                errors.append(f"{prefix}.status=ready requires driver.path and hardware_marker")
+            marker = str(driver.get("hardware_marker", ""))
+            if marker and "SELF_TEST_PASS" not in marker:
+                errors.append(f"{prefix}.hardware_marker must include SELF_TEST_PASS")
+
+
 def names_from_target(node: ast.AST) -> set[str]:
     names: set[str] = set()
     if isinstance(node, ast.Name):
@@ -711,6 +761,7 @@ def validate(
             errors.append(f"payload.checkpoint.state_file must be named {STATE_FILE}")
     file_manifest = payload.get("file_manifest")
     has_driver = False
+    has_unverified_driver_artifact = False
     if not isinstance(file_manifest, dict):
         errors.append("payload.file_manifest must be an object")
     else:
@@ -731,6 +782,8 @@ def validate(
                     errors.append(f"file_manifest.files[{index}].state path must be named {STATE_FILE}")
                 if role == "production_driver":
                     has_driver = True
+                if role == "artifact" and isinstance(path, str) and path.endswith(".py"):
+                    has_unverified_driver_artifact = True
                 if not role:
                     errors.append(f"file_manifest.files[{index}].role is required")
                 elif role not in FILE_ROLES:
@@ -859,8 +912,15 @@ def validate(
         errors.append("verification_mode=mock requires a warning")
     if mock_verification and hardware_verified is True:
         errors.append("verification_mode=mock must not set hardware_verified=true")
+    if mock_verification and payload.get("next_phase") is not None:
+        errors.append("mock verification must not unlock generate; next_phase must be null")
+    if mock_verification and has_driver:
+        errors.append("mock verification must emit an unverified driver artifact, not a production_driver")
+    validate_manifest_driver_states(payload, hardware_verified, verification_mode, mock_verification, errors)
     if payload.get("result") == "success":
-        if not has_driver:
+        if mock_verification and not has_unverified_driver_artifact:
+            errors.append("mock success must include an unverified driver artifact")
+        if not mock_verification and not has_driver:
             errors.append("success must include a production_driver file")
         if hardware_verified is not True and not verification_skipped and not mock_verification:
             errors.append("success must set hardware_verified=true, verification_skipped_by_user=true, or verification_mode=mock")

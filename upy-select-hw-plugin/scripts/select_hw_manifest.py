@@ -144,6 +144,15 @@ VALID_DRIVER_SOURCES = {
     "cold-driver",
     "none",
 }
+DRIVER_STATUS_COLD_REQUIRED = "cold_driver_required"
+DRIVER_STATUS_READY = "ready"
+VALID_DRIVER_STATUSES = {
+    DRIVER_STATUS_COLD_REQUIRED,
+    DRIVER_STATUS_READY,
+    "pending_validation",
+    "failed",
+    "unverified",
+}
 VALID_DEVICE_INTERFACES = {
     "I2C",
     "SPI",
@@ -209,6 +218,51 @@ BOM_SUPPORT_ITEM_KEYWORDS = {
     "稳压模块",
     "转接板",
 }
+
+
+def normalize_driver_status(driver: dict[str, Any], prefix: str, warnings: list[str], errors: list[str]) -> None:
+    source = driver.get("source")
+    status = driver.get("status")
+
+    if status not in (None, "") and status not in VALID_DRIVER_STATUSES:
+        if source == "cold-driver":
+            warnings.append(
+                f"{prefix}.driver.status invalid value '{status}' for source='cold-driver'; "
+                f"normalized to '{DRIVER_STATUS_COLD_REQUIRED}'"
+            )
+            driver["status"] = DRIVER_STATUS_COLD_REQUIRED
+        else:
+            errors.append(
+                f"{prefix}.driver.status invalid value '{status}', valid values: {sorted(VALID_DRIVER_STATUSES)}"
+            )
+        return
+
+    if source != "cold-driver":
+        if status == DRIVER_STATUS_COLD_REQUIRED:
+            warnings.append(
+                f"{prefix}.driver.status is '{DRIVER_STATUS_COLD_REQUIRED}' but source is '{source}'; keeping source unchanged"
+            )
+        return
+
+    if status in (None, ""):
+        driver["status"] = DRIVER_STATUS_COLD_REQUIRED
+        warnings.append(f"{prefix} uses cold-driver; downstream gen-driver is required")
+        return
+
+    if status == DRIVER_STATUS_READY:
+        if not driver.get("path") or not driver.get("hardware_marker"):
+            driver["status"] = DRIVER_STATUS_COLD_REQUIRED
+            warnings.append(
+                f"{prefix}.driver.status is ready but hardware proof is missing; "
+                f"normalized to '{DRIVER_STATUS_COLD_REQUIRED}'"
+            )
+        else:
+            warnings.append(f"{prefix}.driver.source remains cold-driver as provenance; preserving hardware-ready status")
+        return
+
+    warnings.append(f"{prefix} uses cold-driver; preserving durable gate status '{status}'")
+
+
 BOM_CONTROLLER_KEYWORDS = {
     "board",
     "devkit",
@@ -546,8 +600,7 @@ def validate_upstream_manifest(manifest: Any, errors: list[str], warnings: list[
                     errors.append(
                         f"{prefix}.driver.source invalid value '{source}', valid values: {sorted(VALID_DRIVER_SOURCES)}"
                     )
-                if source == "cold-driver":
-                    warnings.append(f"{prefix} uses cold-driver; select-hw will continue but downstream gen-driver is required")
+                normalize_driver_status(driver, prefix, warnings, errors)
 
 
 def validate_mcu(mcu: Any, errors: list[str]) -> None:

@@ -105,6 +105,7 @@
         {
           "name": "SHT30",
           "driver": {
+            "source": "cold-driver",
             "status": "ready",
             "path": "firmware/drivers/sht30_driver/sht30.py",
             "hardware_marker": "SELF_TEST_PASS:SHT30:TEMP_HUMIDITY_READ_OK"

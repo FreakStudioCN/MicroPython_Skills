@@ -93,6 +93,12 @@ def test_validator_rejects_bad_business_states() -> None:
     partial_mock["payload"]["warnings"] = [{"code": "MOCK_VERIFICATION_ONLY", "message": "Mock only."}]
     expect_invalid(partial_mock, "must use verification_mode=none")
 
+    mock_ready = json.loads(json.dumps(sample))
+    mock_ready["payload"]["hardware_verified"] = False
+    mock_ready["payload"]["verification_mode"] = "mock"
+    mock_ready["payload"]["warnings"] = [{"code": "MOCK_VERIFICATION_ONLY", "message": "Mock only."}]
+    expect_invalid(mock_ready, "mock verification must not unlock generate")
+
     misleading_label = json.loads((ROOT / "sample" / "phase_complete.upy_gen_driver_plugin.partial.no_device.json").read_text(encoding="utf-8"))
     misleading_label["payload"]["artifacts"][0]["files"][0]["description"] = "Production driver (unverified)"
     expect_invalid(misleading_label, "must label unverified drivers as driver artifacts")
@@ -938,6 +944,18 @@ def test_mock_session() -> None:
                 assert_ok(state.get("artifacts") or state.get("last_ok_artifact"), f"{scenario} state should keep resume artifacts")
             if scenario == "retry_success":
                 assert_ok(data["retry_of"], "retry_success should carry retry_of")
+                payload = data["payload"]
+                assert_ok(payload.get("next_phase") is None, "mock success must not unlock generate")
+                assert_ok(payload.get("driver_status") == "unverified", "mock success should report unverified driver_status")
+                assert_ok(payload.get("verification_mode") == "mock", "mock success should use verification_mode=mock")
+                assert_ok(payload.get("hardware_verified") is False, "mock success must not mark hardware_verified=true")
+                warnings = payload.get("warnings", [])
+                assert_ok(any(item.get("code") == "MOCK_VERIFICATION_ONLY" for item in warnings), "mock success needs warning")
+                driver = payload["manifest_content"]["devices"][0]["driver"]
+                assert_ok(driver.get("source") == "cold-driver", "mock manifest should preserve cold-driver source")
+                assert_ok(driver.get("status") == "unverified", "mock manifest driver status should be unverified")
+                roles = {item.get("role") for item in payload["file_manifest"]["files"]}
+                assert_ok("artifact" in roles and "production_driver" not in roles, "mock driver should be an artifact")
                 events = state.get("events", [])
                 assert_ok(any(item.get("status") == "retrying" for item in events), "retry_success should record retrying event")
             log_path = Path(tmp) / "sessions" / session_id / "gen_driver" / "message_log.jsonl"

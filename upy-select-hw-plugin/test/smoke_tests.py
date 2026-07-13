@@ -130,6 +130,55 @@ def check_manifest_validation() -> None:
         raise AssertionError("normalized manifest should preserve pin_review approval_id")
 
 
+def check_cold_driver_status_normalization() -> None:
+    def run_with_driver(driver: dict, *, index: int = 2) -> dict:
+        draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
+        draft["upstream_manifest"]["devices"][index]["driver"] = driver
+        proc = run(
+            [
+                sys.executable,
+                str(SELECT_HW_MANIFEST),
+                "--stdin",
+                "--board-root",
+                str(BOARD_ROOT),
+            ],
+            input_text=json.dumps(draft, ensure_ascii=False),
+        )
+        if proc.returncode != 0:
+            raise AssertionError(f"cold-driver draft should validate:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+        return json.loads(proc.stdout)
+
+    missing = run_with_driver({"source": "cold-driver"})
+    driver = missing["manifest"]["devices"][2]["driver"]
+    if driver.get("source") != "cold-driver" or driver.get("status") != "cold_driver_required":
+        raise AssertionError(f"cold-driver source must normalize to cold_driver_required: {missing}")
+
+    ready = run_with_driver(
+        {
+            "source": "cold-driver",
+            "status": "ready",
+            "path": "firmware/drivers/aht20_driver/aht20.py",
+            "hardware_marker": "SELF_TEST_PASS:AHT20:TEMP_HUMIDITY_READ_OK",
+        }
+    )
+    if ready["manifest"]["devices"][2]["driver"].get("status") != "ready":
+        raise AssertionError(f"hardware-proven ready status should be preserved: {ready}")
+
+    fake_ready = run_with_driver({"source": "cold-driver", "status": "ready"})
+    if fake_ready["manifest"]["devices"][2]["driver"].get("status") != "cold_driver_required":
+        raise AssertionError(f"ready without hardware proof must be downgraded: {fake_ready}")
+
+    pending = run_with_driver({"source": "cold-driver", "status": "pending_validation"})
+    if pending["manifest"]["devices"][2]["driver"].get("status") != "pending_validation":
+        raise AssertionError(f"pending_validation should be preserved: {pending}")
+
+    mismatched = run_with_driver({"source": "upypi", "status": "cold_driver_required", "package_name": "demo"})
+    if mismatched["manifest"]["devices"][2]["driver"].get("source") != "upypi":
+        raise AssertionError(f"source/status mismatch should not rewrite source: {mismatched}")
+    if not any("keeping source unchanged" in item for item in mismatched.get("warnings", [])):
+        raise AssertionError(f"source/status mismatch should warn: {mismatched}")
+
+
 def check_formatted_output_validation() -> None:
     with tempfile.TemporaryDirectory(prefix="select-hw-") as temp_dir:
         output_path = Path(temp_dir) / "select_hw_validated.json"
@@ -808,6 +857,7 @@ def main() -> int:
         ("sample json", check_sample_json),
         ("skill path contract", check_skill_path_contract),
         ("manifest validation", check_manifest_validation),
+        ("cold-driver status normalization", check_cold_driver_status_normalization),
         ("formatted output validation", check_formatted_output_validation),
         ("board unavailable sample", check_board_unavailable_sample),
         ("pin plan revise response sample", check_pin_plan_revise_response_sample),

@@ -25,6 +25,7 @@
             "0x45"
           ],
           "driver": {
+            "source": "cold-driver",
             "status": "cold_driver_required"
           }
         }

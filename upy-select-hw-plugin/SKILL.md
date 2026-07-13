@@ -489,7 +489,7 @@ upy-analyze-plugin/boards
 - 用户指定板卡不存在于板卡库时，优先推荐同系列或功能相似且有 `pin_layout` 的已知板卡；同时发 `approval_request(board_unavailable)`，允许用户改选已知板卡或手动描述接线。
 - 用户在 `select-hw` 中要求跨 MCU/芯片族/固件目标更换板卡时，不要继续成功产物；输出 partial/checkpoint，要求新建对话或回到 analyze 阶段重新确认需求。
 - 缺少 `pin_layout` 时，默认换功能类似且有 `pin_layout` 的已知板卡。
-- `cold-driver` 不影响 MCU 推荐、引脚分配或 BOM，只增加 warnings。
+- `cold-driver` 不影响 MCU 推荐、引脚分配或 BOM；但必须把 `devices[].driver.source="cold-driver"` 规范化为 `devices[].driver.status="cold_driver_required"`，供后续 generate 前 gate 和 `upy-gen-driver-plugin` 使用。`driver.source` 保留为 provenance，不作为 workflow gate。
 - select-hw 不负责确认 MicroPython 固件的实时最新版本。板卡库中的固件版本只能视为缓存信息；正式烧录阶段再访问 `firmware.url` 检查最新 release。select-hw 输出重点保留 `firmware_url`、`firmware_board_name`、`flash_tool`。
 
 ## 引脚分配规则
@@ -973,7 +973,7 @@ python upy-select-hw-plugin/scripts/select_hw_manifest.py --validate-manifest-co
 3. `mcu_specified` 存在但无 `pre_selected_board` 时触发 `approval_request(board_select)`。
 4. `pre_selected_board` 来自插件 UI 时可跳过 board_select。
 5. 缺 pin_layout 时换功能类似且有 pin_layout 的已知板卡。
-6. `cold-driver` 不阻塞 MCU 推荐和 pinout。
+6. `cold-driver` 不阻塞 MCU 推荐和 pinout，但必须输出 `driver.status="cold_driver_required"`；已硬件验证通过且带 `driver.path` 与 `hardware_marker` 的 `ready` 状态可保留。
 7. 未指定 MCU 时优先推荐 Pico/RP2 与 ESP32 系列。
 8. 板卡库无用户指定板卡时发 `approval_request(board_unavailable)`，提供相似板卡、改选已知板卡、手动描述接线、保存 checkpoint 四个选项。
 9. `select_hw_manifest.py --write-path` 生成的格式化 manifest 能再次被脚本读取校验。

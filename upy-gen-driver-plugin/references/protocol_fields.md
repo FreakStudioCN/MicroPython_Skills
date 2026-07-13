@@ -171,7 +171,7 @@ python scripts/finalize_phase_complete.py --input <draft_phase_complete> --outpu
 
 Do not modify files listed in `payload.file_manifest.files[]` after this command. If `session_state` or any artifact changes, rerun the command so `sha256` and `bytes` match disk.
 
-`production_driver` may appear only when real hardware verification passed, when the user explicitly skipped verification and the payload records `verification_skipped_by_user=true` with a warning, or when a local mock success records `verification_mode="mock"` with a warning. Mock verification must not set `hardware_verified=true`. A no-device, timeout, cancellation, or unverified partial result must not label `{chip}.py` as `production_driver`.
+`production_driver` may appear only when real hardware verification passed or when the user explicitly skipped verification and the payload records `verification_skipped_by_user=true` with a warning. Mock verification must not set `hardware_verified=true`, must not set `next_phase`, and must write manifest driver status as `unverified`. A no-device, timeout, cancellation, local mock, or unverified partial result must not label `{chip}.py` as `production_driver`.
 
 If an unverified `{chip}.py` is emitted for inspection, use role `artifact` and UI text such as `Driver artifact (unverified)` or `Unverified driver artifact`. Do not display it as `Production driver (unverified)`.
 
@@ -209,7 +209,7 @@ Before emitting `phase_complete`, validate generated Python artifacts without wr
 
 Each error must include: `code`, `severity`, `phase_step`, `retryable`, `message`, `details`, `next_action`.
 
-Known codes: `MISSING_INPUT_SOURCE`, `SOURCE_PREPROCESS_FAILED`, `SOURCE_PREPROCESS_TIMEOUT`, `DATASHEET_PARSE_INSUFFICIENT`, `I2C_ADDRESS_AMBIGUOUS`, `I2C_ADDRESS_NORMALIZATION_REQUIRED`, `HOST_CAPABILITY_MISSING`, `PERMISSION_DENIED`, `APPROVAL_TIMEOUT`, `DEVICE_NOT_FOUND`, `DEVICE_RUN_TIMEOUT`, `HARDWARE_VERIFY_FAILED`, `HARDWARE_VERIFY_EXHAUSTED`, `STANDALONE_TEST_FAILED`, `MANIFEST_UPDATE_CONFLICT`, `ARTIFACT_STALE`, `CANCELLED_BY_USER`, `PHASE_COMPLETE_INVALID`.
+Known codes: `MISSING_INPUT_SOURCE`, `SOURCE_PREPROCESS_FAILED`, `SOURCE_PREPROCESS_TIMEOUT`, `DATASHEET_PARSE_INSUFFICIENT`, `I2C_ADDRESS_AMBIGUOUS`, `I2C_ADDRESS_NORMALIZATION_REQUIRED`, `HOST_CAPABILITY_MISSING`, `PERMISSION_DENIED`, `APPROVAL_TIMEOUT`, `DEVICE_NOT_FOUND`, `DEVICE_RUN_TIMEOUT`, `HARDWARE_VERIFY_FAILED`, `HARDWARE_VERIFY_EXHAUSTED`, `STANDALONE_TEST_FAILED`, `MANIFEST_UPDATE_CONFLICT`, `ARTIFACT_STALE`, `CANCELLED_BY_USER`, `PROTOCOL_VERSION_UNSUPPORTED`, `IDEMPOTENCY_CONFLICT`, `PHASE_COMPLETE_INVALID`.
 
 ## Phase Complete
 
