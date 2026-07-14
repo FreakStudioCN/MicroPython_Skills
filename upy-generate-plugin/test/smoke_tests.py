@@ -49,6 +49,17 @@ def run_cmd(cmd: list[str], input_obj: dict | None = None, cwd: Path | None = No
     return result.returncode, result.stdout, result.stderr
 
 
+def ready_driver(driver_id: str = "LED", source: str = "cold-driver") -> dict:
+    safe = driver_id.lower()
+    return {
+        "source": source,
+        "status": "ready",
+        "driver_id": driver_id,
+        "path": f"firmware/drivers/{safe}_driver/{safe}.py",
+        "hardware_marker": f"SELF_TEST_PASS:{driver_id}:SMOKE",
+    }
+
+
 def assert_json_files_parse() -> None:
     for path in list((ROOT / "sample").glob("*.json")) + list((ROOT / "knowledge").glob("*.json")):
         load_json(path)
@@ -169,7 +180,7 @@ def assert_download_drivers_offline() -> None:
         "phase": "scaffold",
         "devices": [
             {"name": "LED", "driver": {"source": "none"}},
-            {"name": "Cold Sensor", "driver": {"status": "cold_driver_required"}},
+            {"name": "DHT22", "driver": {"source": "upypi", "package_name": "dht"}},
         ],
     }
     cmd = [
@@ -181,10 +192,45 @@ def assert_download_drivers_offline() -> None:
     ]
     rc, stdout, stderr = run_cmd(cmd, input_obj=manifest)
     if rc != 0:
-        raise AssertionError(f"offline driver resolution should not fail: {stderr}")
+        raise AssertionError(f"ordinary source-only driver resolution should not fail: {stderr}")
     payload = json.loads(stdout)
     if not isinstance(payload.get("drivers"), list) or len(payload["drivers"]) != 2:
         raise AssertionError(f"driver payload invalid: {payload}")
+
+    ready_manifest = {
+        "phase": "scaffold",
+        "devices": [{"name": "Ready Sensor", "driver": ready_driver("READY_SENSOR")}],
+    }
+    rc, stdout, stderr = run_cmd(cmd, input_obj=ready_manifest)
+    if rc != 0:
+        raise AssertionError(f"explicit hardware-ready driver should pass offline driver resolution: {stderr}")
+
+    for status, expected_code in (
+        ("cold_driver_required", "COLD_DRIVER_REQUIRED"),
+        ("pending_validation", "DRIVER_NOT_READY"),
+        ("unverified", "DRIVER_NOT_READY"),
+        ("failed", "DRIVER_NOT_READY"),
+    ):
+        blocked_manifest = {
+            "phase": "scaffold",
+            "devices": [{"name": "Cold Sensor", "driver": {"source": "cold-driver", "status": status}}],
+        }
+        rc, stdout, _stderr = run_cmd(cmd, input_obj=blocked_manifest)
+        if rc == 0 or expected_code not in stdout:
+            raise AssertionError(f"driver gate should block {status}: {stdout}")
+
+    fake_ready_manifest = {
+        "phase": "scaffold",
+        "devices": [
+            {
+                "name": "Fake Ready",
+                "driver": {"source": "cold-driver", "status": "ready", "driver_id": "FAKE", "path": "firmware/drivers/fake_driver/fake.py"},
+            }
+        ],
+    }
+    rc, stdout, _stderr = run_cmd(cmd, input_obj=fake_ready_manifest)
+    if rc == 0 or "DRIVER_READY_MARKER_MISSING" not in stdout:
+        raise AssertionError(f"driver gate should reject ready without SELF_TEST_PASS marker: {stdout}")
 
 
 def valid_deploy_plan() -> dict:
@@ -1149,6 +1195,55 @@ def assert_phase_complete_consistency() -> None:
         )
         if rc == 0 or "SESSION_STATE_CHECKPOINT_MANIFEST_HASH_IS_GIT_COMMIT" not in stdout:
             raise AssertionError("success phase_complete must reject manifest_hash copied from git_commit")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for status, expected_code in (
+            ("cold_driver_required", "COLD_DRIVER_REQUIRED"),
+            ("pending_validation", "DRIVER_NOT_READY"),
+            ("unverified", "DRIVER_NOT_READY"),
+            ("failed", "DRIVER_NOT_READY"),
+        ):
+            bad_path = Path(temp_dir) / f"bad_driver_status_{status}.json"
+            bad = load_json(sample_path)
+            bad["payload"]["manifest_content"]["devices"][0]["driver"] = {
+                "source": "cold-driver",
+                "status": status,
+                "driver_id": "AHT20",
+            }
+            bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+            rc, stdout, _stderr = run_cmd(
+                [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+            )
+            if rc == 0 or expected_code not in stdout:
+                raise AssertionError(f"success phase_complete must reject driver status {status}: {stdout}")
+
+        bad_unknown_status = load_json(sample_path)
+        bad_unknown_status["payload"]["manifest_content"]["devices"][0]["driver"] = {
+            "source": "cold-driver",
+            "status": "local_generated",
+        }
+        bad_unknown_status_path = Path(temp_dir) / "bad_driver_status_unknown.json"
+        bad_unknown_status_path.write_text(json.dumps(bad_unknown_status, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_unknown_status_path)]
+        )
+        if rc == 0 or "DRIVER_STATUS_UNSUPPORTED" not in stdout:
+            raise AssertionError(f"success phase_complete must reject unknown driver status: {stdout}")
+
+        bad_marker = load_json(sample_path)
+        bad_marker["payload"]["manifest_content"]["devices"][0]["driver"] = {
+            "source": "cold-driver",
+            "status": "ready",
+            "driver_id": "AHT20",
+            "path": "firmware/drivers/aht20_driver/aht20.py",
+        }
+        bad_marker_path = Path(temp_dir) / "bad_driver_ready_without_marker.json"
+        bad_marker_path.write_text(json.dumps(bad_marker, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_marker_path)]
+        )
+        if rc == 0 or "DRIVER_READY_MARKER_MISSING" not in stdout:
+            raise AssertionError(f"success phase_complete must reject ready without SELF_TEST_PASS marker: {stdout}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         bad_path = Path(temp_dir) / "bad_domain_phase.json"

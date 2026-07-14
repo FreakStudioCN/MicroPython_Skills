@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from common import configure_stdio, json_dump, load_manifest_arg, safe_name
+from driver_ready_gate import driver_ready_gate_errors
 
 
 UPYPI_BASE = "https://upypi.net"
@@ -188,6 +189,20 @@ def main() -> int:
     manifest = load_manifest_arg(args.manifest)
     drivers: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
+    gate_errors = driver_ready_gate_errors(manifest)
+    if gate_errors:
+        json_dump(
+            {
+                "drivers": [],
+                "errors": gate_errors,
+                "warnings": [],
+                "summary": "Blocked generate before driver resolution: {} device driver(s) are not ready".format(
+                    len(gate_errors)
+                ),
+            }
+        )
+        return 2
+
     all_warnings: list[dict[str, Any]] = []
     for device in manifest.get("devices", []):
         if not isinstance(device, dict):
@@ -198,10 +213,20 @@ def main() -> int:
         source = str(driver.get("source", "")).lower()
         device_name = str(device.get("name", "device"))
         package_name = str(driver.get("package_name", ""))
+        status = str(driver.get("status") or driver.get("driver_status") or device.get("driver_status") or "").strip()
         version = str(driver.get("version", "1.0.0"))
         files: list[dict[str, Any]] = []
         warnings: list[dict[str, Any]] = []
-        if args.offline:
+        if status == "ready" and driver.get("path"):
+            warnings.append(
+                {
+                    "code": "DRIVER_ALREADY_READY",
+                    "device": device_name,
+                    "path": driver.get("path"),
+                    "message": "driver is already hardware-ready; no firmware/lib download is required",
+                }
+            )
+        elif args.offline:
             warnings.append({"code": "OFFLINE_MODE", "message": "network download skipped"})
         elif source == "upypi" and package_name:
             files, warnings = download_upypi(device_name, package_name, version)
@@ -209,18 +234,9 @@ def main() -> int:
             files, warnings = download_github(device_name, str(driver["driver_url"]))
         elif source in {"none", "manual", ""}:
             files = [placeholder_for_none(device)]
-        elif driver.get("status") == "cold_driver_required":
-            errors.append(
-                {
-                    "code": "COLD_DRIVER_REQUIRED",
-                    "device": device_name,
-                    "message": "driver is marked cold_driver_required; use upy-gen-driver-plugin or simulate-only",
-                    "retryable": True,
-                }
-            )
         else:
             warnings.append({"code": "DRIVER_SOURCE_UNSUPPORTED", "device": device_name, "source": source})
-        if source != "none" and not files and not args.offline and driver.get("status") != "cold_driver_required":
+        if source != "none" and not files and not args.offline and status not in {"cold_driver_required", "ready"}:
             warnings.append({"code": "NO_DRIVER_FILES", "device": device_name})
         drivers.append(
             {

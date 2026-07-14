@@ -120,28 +120,29 @@ fix 模式：
 
 1. 校验上游 `phase_complete(upy-scaffold-plugin)`：`result=success` 且 `next_phase=upy-generate-plugin`。迁移期直测可直接传 manifest，但正式链路不要跳过 scaffold。随后运行 `scripts/check_session_state.py --session-dir <session_root> --project-dir <project_root>`，如果发现 stale 旧 generate 记录，必须归档/忽略旧 `phase_complete.upy_generate_plugin.json` 和 `generate_phase_log.md`，不得把它当作当前 success/resume 状态。
 2. 读取 `payload.manifest_content`、`runtime_context.project_root`、`firmware/board.py`、`firmware/conf.py`、`firmware/main.py`、`.flake8`。
-3. 运行前询问用户是否补充装置行为。只允许补充业务行为、阈值、周期、状态机、日志和模拟场景；新增硬件或改引脚必须回退到 analyze/select-hw/scaffold。
-4. 写 `project/generate_plan.json`，先只规划不写运行时代码。计划必须包含 scheduler_mode、driver adapters、tasks、config_constants、main_assembly、tests、resource_plan、cloud_integrations（如果需要云 API）。语音、传感器、云 API、状态机或跨 tick 业务流还必须包含 `data_flow_contract[]`，并为每条关键数据流声明 contract test 覆盖。随后运行 `scripts/check_generate_plan.py --project-dir <project_root> --require-plan`，失败则停在 partial，不要继续大规模写代码。
-5. 用英文关键词解析驱动和中间件依赖。先运行 `scripts/resolve_upypi_packages.py` 枚举 `https://upypi.net/packages.json`，再按英文关键词调用搜索、awesome-micropython 或 GitHub fallback。
-6. 如果需求涉及 LLM、ASR、TTS、视觉、IoT/MQTT、Webhook、天气地图、对象存储、第三方 REST API 或任何付费/带凭据云服务，读取 `references/cloud_integrations.md` 和 `knowledge/cloud_service_catalog.json`，发起用户确认：服务商、官方文档/控制台/价格链接、是否已开通计费/购买 token、API Key 是否准备好、是否需要网关/代理。不要把真实 token 写入代码。
-7. 运行 `scripts/download_drivers.py`。脚本只读 manifest/stdin，只 stdout JSON；不得直接写项目目录，不得直接改 `project-manifest.json`。
-8. 将脚本输出的 `files[]` 逐条转成 `file_operation(write)`，目标必须位于 `firmware/lib/...`。
-9. 读取 `references/driver_factory_templates.md`，再读取驱动源码、README、example 和 package metadata，生成 `firmware/drivers/<name>_driver/__init__.py` 与 `mock.py`。Mock 方法签名必须来自驱动源码。
-10. 读取 `references/task_generation_rules.md`，按 scaffold 选择的调度模式生成 task：
+3. 在写 `generate_plan.json`、Mock、业务框架或业务代码之前，必须对 `manifest_content.devices[]` 中显式的 driver workflow status 执行 gate。`driver.status`、`driver.driver_status` 或 `device.driver_status` 为 `cold_driver_required`、`pending_validation`、`unverified`、`failed` 或未知值时，必须输出 `partial`、`next_phase=null`、`structured_errors[]`，并引导用户先运行 `upy-gen-driver-plugin` pipeline mode 生成 `firmware/drivers/<driver_id>_driver/`。显式 `ready` 只有同时带 `driver.path` 与 `hardware_marker=SELF_TEST_PASS:<driver_id>:<scenario>` 才能通过；普通 `builtin_runtime`、`micropython_lib`、`upypi`、`awesome-micropython`、`github`、`none`、`manual` source-only 依赖若未写 workflow status，继续走既有依赖解析。
+4. 运行前询问用户是否补充装置行为。只允许补充业务行为、阈值、周期、状态机、日志和模拟场景；新增硬件或改引脚必须回退到 analyze/select-hw/scaffold。
+5. 写 `project/generate_plan.json`，先只规划不写运行时代码。计划必须包含 scheduler_mode、driver adapters、tasks、config_constants、main_assembly、tests、resource_plan、cloud_integrations（如果需要云 API）。语音、传感器、云 API、状态机或跨 tick 业务流还必须包含 `data_flow_contract[]`，并为每条关键数据流声明 contract test 覆盖。随后运行 `scripts/check_generate_plan.py --project-dir <project_root> --require-plan`，失败则停在 partial，不要继续大规模写代码。
+6. 用英文关键词解析驱动和中间件依赖。先运行 `scripts/resolve_upypi_packages.py` 枚举 `https://upypi.net/packages.json`，再按英文关键词调用搜索、awesome-micropython 或 GitHub fallback。
+7. 如果需求涉及 LLM、ASR、TTS、视觉、IoT/MQTT、Webhook、天气地图、对象存储、第三方 REST API 或任何付费/带凭据云服务，读取 `references/cloud_integrations.md` 和 `knowledge/cloud_service_catalog.json`，发起用户确认：服务商、官方文档/控制台/价格链接、是否已开通计费/购买 token、API Key 是否准备好、是否需要网关/代理。不要把真实 token 写入代码。
+8. 运行 `scripts/download_drivers.py`。脚本只读 manifest/stdin，只 stdout JSON；不得直接写项目目录，不得直接改 `project-manifest.json`。
+9. 将脚本输出的 `files[]` 逐条转成 `file_operation(write)`，目标必须位于 `firmware/lib/...`。
+10. 读取 `references/driver_factory_templates.md`，再读取驱动源码、README、example 和 package metadata，生成 `firmware/drivers/<name>_driver/__init__.py` 与 `mock.py`。Mock 方法签名必须来自驱动源码。
+11. 读取 `references/task_generation_rules.md`，按 scaffold 选择的调度模式生成 task：
    - `timer`：周期 tick，避免阻塞，优先使用 `time_helper.timed_function`。
    - `async`：使用 `uasyncio`，优先使用 `timed_coro`，阻塞 sleep 改为 `await asyncio.sleep_ms`。
    - `thread`：使用 `_thread` worker、锁和主循环心跳。
-11. 复用 scaffold 资产：`firmware/lib/logger`、`time_helper`、`maintenance`、`scheduler`。不要重复生成日志系统。
-12. 读取 `references/main_conf_rules.md`，更新 `firmware/conf.py`，所有阈值、周期、重试、日志配置必须在 conf 中，不在 task/main 中硬编码；云 API 只能写非密钥 endpoint、模型名、超时、重试、功能开关和 secret 名称，不写真实密钥。
-13. 涉及 `machine`、`network`、`neopixel`、`esp32`、`rp2`、`bluetooth` 等硬件/外设/端口 API 时，必须先查 `knowledge/micropython_official_library_index.json` 对应 MicroPython 官方页面，并在 `manifest_content.generate.doc_evidence[]` 记录 `module`、官方 `url`、`reason`。只有 CPython 参考链接或 MicroPython 页面内容不足时，不能当作充分外设实现依据，必须补端口文档证据或输出 partial。
-14. 继续按 `references/main_conf_rules.md` 更新 `firmware/main.py`，保留启动延时，安装 rotating logger，完成 `machine -> factory -> driver -> task` DI 装配，启动时执行 I2C scan，print 与 logger 双写关键状态。写完 `conf.py/main.py` 立即运行 `scripts/check_conf_contract.py --project-dir <project_root>`。
-15. 生成 PC `unittest` 和 device MicroPython `unittest` 测试。生成设备端测试前必须读取 `references/device_unittest_subset.md`；设备端测试不是 CPython-only 测试，也不应只是 import smoke。只要设备端测试 import `unittest`，必须在 `runtime_dependencies.mip` 声明 deploy 阶段安装 `unittest`，不要默认把 micropython-lib 源码复制进项目。
-16. 读取 `references/validation_gates.md`，运行完整质量门禁：`.pylintrc`、generate_plan、py_compile、conf_contract、driver compile、flake8、pylint、PC unittest、MicroPython import、dead config、task no-machine、device unittest subset、runtime dependencies、doc evidence、skeleton compliance、generated semantics、cloud integrations、session checkpoint。
-17. 读取 `references/final_review_checklist.md`，逐项做最终审查，并输出结构化 `review_findings`。
-18. 生成 `phase_complete` 草案后运行 `scripts/check_final_review_consistency.py` 与 `scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>`；如果失败，必须改为 `partial/failed`、`next_phase=null` 并记录 structured error。
-19. 检查和最终审查通过后发起 git commit 权限请求。full 和 fix 每次通过校验都必须 commit。
-20. 输出 `phase_complete`，默认 `next_phase=upy-deploy-plugin`；用户可选 `upy-simulate-plugin` 或 `null`。如果云服务是 `mock_only` 或 `blocked`，不得进入 deploy。
-21. 成功后询问是否生成附加产物：`upy-diagram-plugin` 和 `upy-wiring-plugin`。它们只能进入 `optional_next_phases`，不得覆盖主 `next_phase`。
+12. 复用 scaffold 资产：`firmware/lib/logger`、`time_helper`、`maintenance`、`scheduler`。不要重复生成日志系统。
+13. 读取 `references/main_conf_rules.md`，更新 `firmware/conf.py`，所有阈值、周期、重试、日志配置必须在 conf 中，不在 task/main 中硬编码；云 API 只能写非密钥 endpoint、模型名、超时、重试、功能开关和 secret 名称，不写真实密钥。
+14. 涉及 `machine`、`network`、`neopixel`、`esp32`、`rp2`、`bluetooth` 等硬件/外设/端口 API 时，必须先查 `knowledge/micropython_official_library_index.json` 对应 MicroPython 官方页面，并在 `manifest_content.generate.doc_evidence[]` 记录 `module`、官方 `url`、`reason`。只有 CPython 参考链接或 MicroPython 页面内容不足时，不能当作充分外设实现依据，必须补端口文档证据或输出 partial。
+15. 继续按 `references/main_conf_rules.md` 更新 `firmware/main.py`，保留启动延时，安装 rotating logger，完成 `machine -> factory -> driver -> task` DI 装配，启动时执行 I2C scan，print 与 logger 双写关键状态。写完 `conf.py/main.py` 立即运行 `scripts/check_conf_contract.py --project-dir <project_root>`。
+16. 生成 PC `unittest` 和 device MicroPython `unittest` 测试。生成设备端测试前必须读取 `references/device_unittest_subset.md`；设备端测试不是 CPython-only 测试，也不应只是 import smoke。只要设备端测试 import `unittest`，必须在 `runtime_dependencies.mip` 声明 deploy 阶段安装 `unittest`，不要默认把 micropython-lib 源码复制进项目。
+17. 读取 `references/validation_gates.md`，运行完整质量门禁：`.pylintrc`、generate_plan、py_compile、conf_contract、driver compile、flake8、pylint、PC unittest、MicroPython import、dead config、task no-machine、device unittest subset、runtime dependencies、doc evidence、skeleton compliance、generated semantics、cloud integrations、session checkpoint。
+18. 读取 `references/final_review_checklist.md`，逐项做最终审查，并输出结构化 `review_findings`。
+19. 生成 `phase_complete` 草案后运行 `scripts/check_final_review_consistency.py` 与 `scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>`；如果失败，必须改为 `partial/failed`、`next_phase=null` 并记录 structured error。
+20. 检查和最终审查通过后发起 git commit 权限请求。full 和 fix 每次通过校验都必须 commit。
+21. 输出 `phase_complete`，默认 `next_phase=upy-deploy-plugin`；用户可选 `upy-simulate-plugin` 或 `null`。如果云服务是 `mock_only` 或 `blocked`，不得进入 deploy。
+22. 成功后询问是否生成附加产物：`upy-diagram-plugin` 和 `upy-wiring-plugin`。它们只能进入 `optional_next_phases`，不得覆盖主 `next_phase`。
 
 Additional hard rules:
 
@@ -196,7 +197,7 @@ Additional hard rules:
 - 所有驱动和中间件文件必须写到 `firmware/lib`，协议路径使用 POSIX 相对路径。
 - 用户中文需求必须先转英文关键词再搜索。示例：`温湿度` -> `temperature humidity sensor`，`MQTT 上报` -> `mqtt publish client`。
 - V0 可调用 `upy-pkg-guide` 作为 adapter，但输出必须归一化为 JSON：包名、来源、版本、文件、README、example、API 摘要、warnings。
-- 如果 `devices[].driver.status == cold_driver_required`，可以生成 Mock 和业务框架，但不得输出 deploy-ready success；应 partial 并建议 `upy-gen-driver-plugin` 或 simulate。
+- 如果显式 `devices[].driver.status` / `driver_status` 是 `cold_driver_required`、`pending_validation`、`unverified`、`failed` 或未知值，不得进入业务代码生成；应 partial 并建议先运行 `upy-gen-driver-plugin` pipeline mode。不要把普通 source-only 依赖的缺失 status 当作 cold-driver 已解决或未解决信号。
 
 ## 云服务/API 接入规则
 

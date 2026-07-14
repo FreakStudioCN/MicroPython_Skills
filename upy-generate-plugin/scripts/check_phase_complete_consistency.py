@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from common import configure_stdio, json_dump
+from driver_ready_gate import driver_ready_gate_errors
 from run_quality_gates import PYLINT_KNOWN_BITS, PYLINT_STRONG_FAIL_BITS, pylint_exit_categories
 
 
@@ -472,6 +473,8 @@ def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[d
     devices = manifest.get("devices")
     if not isinstance(devices, list) or not devices:
         errors.append({"code": "MANIFEST_DEVICES_MISSING", "message": "manifest_content.devices must be a non-empty list on success"})
+    else:
+        errors.extend(driver_ready_gate_errors(manifest))
     requirements = manifest.get("requirements")
     if not isinstance(requirements, dict) or not requirements.get("description"):
         errors.append({"code": "MANIFEST_REQUIREMENTS_MISSING", "message": "manifest_content.requirements.description is required on success"})
