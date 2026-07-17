@@ -1,6 +1,7 @@
 # MicroPythonOS 对话式 Skill 拆分分析
 
 日期：2026-07-14
+最近更新：2026-07-17
 
 本文只做分析和设计建议，不创建或改写 skill。依据包括本地
 `/home/leeqingshui/MicroPythonOS`、`/home/leeqingshui/MicroPython_Skills`、
@@ -18,21 +19,32 @@ MicroPythonOS 的对话式开发不适合做成一个超大的 skill。正确形
 3. 一个共享基础 skill/reference 层，沉淀 MicroPythonOS、LVGL、MPK、mpremote、仿真器等项目事实。
 4. 把高确定性、易出错、重复执行的动作做成脚本，例如 API 提取、manifest 校验、单 app MPK 打包、MPK 结构验证、设备端安装检查。
 
-建议的拆分是 8 个用户可感知 skill + 1 个共享基础 skill：
+建议的拆分已经落地为 8 个用户可感知阶段 skill + 1 个共享基础 skill，另保留 `mpos-debug-app` 作为运行时排障辅助：
 
 | 建议 skill | 类型 | 主要职责 | 现状 |
 |---|---|---|---|
 | `mpos-dev` | 共享基础 | MicroPythonOS/LVGL/API 约束、API 提取脚本入口 | 已有，reference 路由、LVGL 独立仓库路径、API MD/JSON 双格式已补齐 |
-| `mpos-plan-app` | 用户入口/编排 | 对话式需求澄清、阶段状态、调用下游 skill | 建议新增 |
-| `mpos-analyze-app` | 阶段 skill | 需求分析、App 类型、功能边界、manifest 初稿、硬件/网络/存储风险 | 建议新增 |
-| `mpos-prepare-deps` | 阶段 skill | 驱动/依赖下载、资料检索、缺失驱动处理、资源准备 | 建议新增 |
-| `mpos-gen-app` | 阶段 skill | 生成或修改 MPOS App 代码、manifest、资源 | 已有，但需要补强 |
-| `mpos-test-app` | 阶段 skill | 语法、单元、图形化测试、截图/控制器验证 | 已有，可保留扩展 |
-| `mpos-package-app` | 阶段 skill | 单 App MPK 打包、app_index 片段、MPK 格式校验 | 建议新增 |
-| `mpos-deploy-app` | 阶段 skill | Linux 端仿真、安装 App 到设备、必要时烧录固件 | 建议新增，部分能力在 `mpos-debug-app`/mpremote skills |
-| `mpos-publish-app` | 阶段 skill | 发布前检查、upystore 上传指导、上传后验证建议 | 建议新增，上传本身给链接 |
+| `mpos-plan-app` | 用户入口/编排 | 对话式需求澄清、阶段状态、失效确认、恢复、调用下游 skill | 已有，维护 `tmp/mpos-plan-app/<fullname>/plan_state.json` 和 `activity_log.jsonl` |
+| `mpos-analyze-app` | 阶段 skill | 需求分析、App 类型、功能边界、manifest 初稿、硬件/网络/存储风险 | 已有，产出 `analysis_result.json` |
+| `mpos-prepare-deps` | 阶段 skill | 驱动/依赖下载、资料检索、async/aio/uasyncio 搜索、运行时文件 staging | 已有，产出 `dependency_handoff.json` |
+| `mpos-gen-app` | 阶段 skill | 两阶段生成/修改/修复 MPOS App 代码、manifest、资源、静态门禁 | 已有，默认 flat 布局，产出 `generation_result.json` |
+| `mpos-test-app` | 阶段 skill | 使用 MicroPythonOS 内置工具做目标 App runtime smoke、可选 Web Port 检查 | 已有，不拥有 lint/manifest/flake8/pylint 静态门禁 |
+| `mpos-package-app` | 阶段 skill | 单 App MPK 打包、app_index_entry 片段、MPK 格式校验、可选临时安装验证 | 已有，产出 `package_result.json` |
+| `mpos-deploy-app` | 阶段 skill | desktop/web 预览、设备复制、MPK 真机安装验证、installer/flash 指导 | 已有，产出 `deploy_result.json` |
+| `mpos-publish-app` | 阶段 skill | upystore 发布指导和校验、版本对比、store metadata 交接 | 已有，产出 `publish_result.json`，不登录不上传 |
 
-本轮重新读取本地仓库、四个 API reference、`upystore.io`、`install.micropythonos.com` 和 docs 全站后，这个拆分不需要改变；需要补强的是下游 skill 对 API reference 的使用规则，尤其是 LVGL 的 `type_aliases[]` 只能解释签名、不能当 runtime API 生成代码。
+本轮重新读取本地仓库、四个 API reference、`upystore.io`、`install.micropythonos.com` 和 docs 全站后，这个拆分不需要改变；后续维护重点是保持职责边界、交接 JSON、隔离测试和主仓库不污染，而不是继续增加阶段数量。下游 skill 仍必须正确使用 API reference，尤其是 LVGL 的 `type_aliases[]` 只能解释签名、不能当 runtime API 生成代码。
+
+2026-07-17 更新的统一约束：
+
+- 新 App 默认 flat 布局：`MANIFEST.JSON`、`icon_64x64.png`、`assets/*.py`；旧 `META-INF/` 和 `res/` 仅兼容读取并 warning。
+- 所有阶段共享 `<repo-root>/tmp/mpos-plan-app/<fullname>/plan_state.json` 和 `activity_log.jsonl`；阶段产物通过 `update_plan_state.py` 登记。
+- `/home/leeqingshui/MicroPythonOS` 主 checkout 默认不作为 build/simulator/web 联调工作区。测试和预览应使用隔离 clone/worktree/临时副本，除新增 App 或用户明确允许外不修改 OS 源码。
+- `mpos-gen-app` 保持强制两阶段；每次写文件后立即运行并记录 manifest、syntax、MPY import、`make lint`、flake8、pylint。
+- `mpos-test-app` 的定位是 runtime smoke，不回收 `mpos-gen-app` 的静态门禁，也不修 OS/tooling 外部问题。
+- `mpos-package-app` 在 generation/test 缺失或失败时仍可尝试打包，但必须把 warning 同步到 `package_result.json`。
+- `mpos-deploy-app` 不再做 desktop smoke；desktop/manual launch 和 Web Port 是可选预览路径。无实体板卡时，`desktop-preview` 或 `web-preview` 的 `deploy_result.json` 可满足 publish 前置。
+- `mpos-publish-app` 必须同时读取 `package_result.json`、`app_test_result.json`、`deploy_result.json`；只面向 upystore 做发布指导、版本对比和 store metadata 交接，不登录、不上传。
 
 这套拆分比直接复用旧 `upy-*` 流水线更合适。`upy-*` 主要面向“自然语言生成普通 MicroPython 硬件项目”，MicroPythonOS 的核心对象是 App、Activity、MANIFEST、MPK、AppStore、桌面仿真和系统镜像，生命周期和交付物不同。
 
@@ -47,7 +59,16 @@ MicroPythonOS 的对话式开发不适合做成一个超大的 skill。正确形
 - 设备安装 App 的入口是 `scripts/install.sh com.micropythonos.<appname>`，底层使用 `lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py`。
 - 固件 USB 烧录入口是 `scripts/flash_over_usb.sh`，默认写入 `lvgl_micropython/build/lvgl_micropy_ESP32_GENERIC_S3-SPIRAM_OCT-16.bin`。
 - App 打包入口是 `scripts/bundle_apps.sh`，会从 `internal_filesystem/apps` 生成 `../apps/app_index.json`、MPK 和图标 URL。
-- App 目录实际形态通常是：
+- 2026-07-17 skill 当前默认新 App 目录形态是 flat 布局：
+
+```text
+internal_filesystem/apps/com.example.app/
+  MANIFEST.JSON
+  icon_64x64.png
+  assets/main.py
+```
+
+旧布局仍兼容读取，但必须 warning：
 
 ```text
 internal_filesystem/apps/com.example.app/
@@ -56,8 +77,7 @@ internal_filesystem/apps/com.example.app/
   res/mipmap-mdpi/icon_64x64.png
 ```
 
-现有 `com.micropythonos.helloworld/META-INF/MANIFEST.JSON` 的 `entrypoint` 是 `assets/hello.py`，这比现有 `mpos-gen-app` 中“Activity 文件在 app 根目录”的示意更贴近仓库事实。
-- 在线 docs 的 `Creating Apps` 页面当前示例是扁平结构 `MANIFEST.JSON`、`icon_64x64.png`、`hello.py`；但本地仓库 `internal_filesystem/apps/*` 和 `tests/test_apps_manifest.py` 当前强制 `META-INF/MANIFEST.JSON`，入口文件也普遍在 `assets/*.py`。因此 skill 生成时必须以当前仓库测试和现有 app 为准，同时在 `mpos-dev` reference 中记录“docs 示例与仓库现状不一致”。
+历史分析中曾记录本地旧 App 普遍使用 `META-INF/` 和 `res/`；当前 skill 策略已经改为 flat 默认、legacy 兼容。生成、打包、发布链路都应优先根目录 `MANIFEST.JSON` 和 `icon_64x64.png`，仅在处理既有旧 App 时读取 legacy 路径。
 
 ### App 与 MPK 约束
 
@@ -221,7 +241,7 @@ mpos-dev/reference/
   "dependencies": [],
   "artifacts": {
     "app_dir": "internal_filesystem/apps/com.example.weather",
-    "manifest": "internal_filesystem/apps/com.example.weather/META-INF/MANIFEST.JSON",
+    "manifest": "internal_filesystem/apps/com.example.weather/MANIFEST.JSON",
     "mpk": null
   },
   "open_questions": [],
@@ -253,8 +273,8 @@ mpos-dev/reference/
 
 已完成或应继续保持：
 
-- App 结构示意应继续以当前仓库实际结构为准：`META-INF/MANIFEST.JSON`、`assets/*.py`、`res/mipmap-mdpi/icon_64x64.png`。
-- 已在 `reference/docs-app-model.md` / `reference/docs-packaging.md` 记录在线 docs 当前扁平 app 示例与本地仓库/测试约束不一致；生成和打包以本地测试为准，docs 只作背景参考。
+- App 结构示意应继续以当前 skill 默认新布局为准：`MANIFEST.JSON`、`icon_64x64.png`、`assets/*.py`。
+- 已在 `reference/docs-app-model.md` / `reference/docs-packaging.md` 记录 flat 默认与 legacy 兼容策略；生成和打包以当前 skill 与本地测试为准，docs 只作背景参考。
 - 明确 `from mpos import Activity` 是 docs 推荐的统一导入方式，同时也可从 `mpos.app.activity import Activity` 导入；新 skill 应优先使用主 `mpos` re-export，除非当前代码已有局部惯例。
 - `extract_lvgl_api.py` 默认路径已经覆盖 `/home/leeqingshui/lvgl_micropython`；涉及其他 binding checkout 时仍可显式传 `--lvgl-micropython-dir`。
 - 已让 MicroPythonOS 与 LVGL API reference 同时具备 MD/JSON 双格式；JSON 包含生成时间、统计和符号索引，便于判断是否过期。
@@ -286,26 +306,33 @@ mpos-dev/
 
 - 用户说“帮我做一个 MicroPythonOS App”。
 - 用户只给自然语言功能描述，希望从需求到生成、测试、打包、部署。
-- 用户问“下一步该做什么”“继续完成这个 app”。
+- 用户问“下一步该做什么”“继续完成这个 app”“恢复上次任务”。
+- 用户修改需求，需要判断哪些阶段产物失效。
 
 职责：
 
-- 把用户自然语言转为阶段状态。
-- 选择是否进入需求分析、依赖准备、代码生成、测试、打包、部署、发布。
-- 维护开放问题，但只问真正阻塞的问题，例如 App 名称/fullname、是否需要硬件、目标设备、是否允许烧录。
-- 调用下游 skill，不亲自写所有实现细节。
+- 作为状态机和编排入口，默认跑到 `mpos-publish-app` 的发布交接。
+- 维护 `<repo-root>/tmp/mpos-plan-app/<fullname>/plan_state.json` 和 `activity_log.jsonl`。
+- 没有 `fullname` 时，可根据最近修改的 App 或最近 artifact 自动选择，并明确告知用户选择依据。
+- 用户改需求时，先列出失效清单并等待确认；确认前不删除、不覆盖、不重跑下游。
+- 调用下游 skill，不亲自写代码、下载依赖、测试、打包、部署、发布。
+- 不得绕过 `mpos-gen-app` 的强制两阶段确认。
 
 不做：
 
 - 不直接下载不明驱动。
+- 不直接生成或修改 App 文件。
+- 不直接运行测试、打包、部署、烧录或上传。
 - 不直接烧录。
 - 不自动上传 upystore。
 
 输出：
 
 - 当前 phase。
-- App 目录/manifest/测试/MPK 等 artifact 路径。
-- 下一步建议和需要用户确认的高风险动作。
+- 已发现的 artifact 路径。
+- 失效 artifact 清单。
+- 下一步 skill 和原因。
+- 项目日志路径。
 
 ### 3. `mpos-analyze-app`：需求分析
 
@@ -329,11 +356,14 @@ mpos-dev/
   - 外部 MicroPython 驱动
   - C 模块或固件重编译
 - 明确测试策略：普通 unittest、GraphicalTestCase、手动硬件测试、设备端验证。
+- 产出 `analysis_result.json` 并登记到项目状态。
 
 输出建议：
 
 ```json
 {
+  "schema_version": "mpos-analyze-v1",
+  "phase": "analyze",
   "manifest_draft": {},
   "feature_slices": [],
   "dependency_plan": [],
@@ -353,19 +383,24 @@ mpos-dev/
 职责：
 
 - 优先检查 MicroPythonOS 内置能力和 managers，不重复引入外部驱动。
-- 需要 MicroPython 驱动时，复用现有 `fetch-doc`、`upy-pkg-guide`、`upy-gen-driver` 的资料检索和缺失驱动能力。
-- 下载或整理依赖到 App 的 `assets/` 或共享 `lib/`，并记录来源、版本、许可证。
-- 判断是否必须重编译固件：如果是 Python 驱动，通常不需要；如果是 C 模块、LVGL/display binding、固件组件，才进入固件构建/烧录链路。
+- 需要 MicroPython 驱动时，复用现有 `fetch-doc`、`upy-pkg-guide`、`upy-gen-driver` 的资料检索能力，但必须追加 async/aio/uasyncio 搜索策略。
+- 可以真实下载运行时需要的纯 Python/MPY 文件到 App 的 `assets/`；如果 App 尚未创建，则先 staged 到 `tmp/mpos-deps-cache/<fullname>/staged/assets/`。
+- 搜索结果、README、example、metadata 和候选证据写入 `tmp/mpos-deps-cache/<fullname>/`，不写入 skill 目录。
+- 同步库允许保留，但必须在 `dependency_handoff.json` 标记 `sync_needs_adapter=true`，交给 `mpos-gen-app` 生成非阻塞 wrapper。
+- 产出 `dependency_handoff.json` 并登记到项目状态。
 
 边界：
 
 - 这不是 `upy-select-hw`。MicroPythonOS App 通常运行在已有设备/系统镜像上，不应默认重新做 MCU/引脚选型。
+- 不修改 `lvgl_micropython`、board port、CMake、native binding 或固件配置。
+- 不接受 C extension、frozen module、native module、私有二进制 blob 或必须重编固件的依赖；这类依赖要进入 rejected/warning。
 - 外设引脚和目标板相关时，应要求用户提供设备/板卡，或读取 `internal_filesystem/lib/mpos/board/*.py`。
 
 建议脚本：
 
-- `scripts/vendor_python_module.py`：把单文件/目录驱动放入 app assets 或 lib，并生成来源记录。
-- `scripts/check_dependency_imports.py`：静态检查 App entrypoint 的 import 是否能在 MPOS 树或 vendor 目录中找到。
+- `scripts/build_search_plan.py`：生成并缓存基础词 + async/aio/uasyncio 查询计划。
+- `scripts/stage_runtime_file.py`：按 App 是否存在，把 runtime 文件写入真实 App 或 staged cache。
+- `scripts/validate_dependency_handoff.py`：校验 handoff schema。
 
 ### 5. `mpos-gen-app`：代码生成
 
@@ -377,15 +412,27 @@ mpos-dev/
 职责：
 
 - 创建或修改 `internal_filesystem/apps/<fullname>/`。
-- 生成 `META-INF/MANIFEST.JSON`。
+- 默认生成根目录 `MANIFEST.JSON`。
 - 生成 `assets/*.py` 中的 Activity/Service 代码。
-- 创建或补齐 `res/mipmap-mdpi/icon_64x64.png`。
+- 创建或补齐根目录 `icon_64x64.png`，可用 `scripts/generate_icon.py` 根据用户功能说明生成 64x64 PNG。
 - 使用 `mpos-dev` 的 API reference 和 LVGL rules。
 - 对 UI 代码严格遵守本仓库 LVGL 约束。
+- 支持反复调用：新建、用户功能修改、用户手动改文件后重验、测试失败 repair。
+- 产出 `generation_result.json` 并登记到项目状态。
 
-必须修正的生成规则：
+当前生成规则：
 
-- 当前 `mpos-gen-app/SKILL.md` 的目录示意仍把 Activity/Service 文件放在 app 根目录，且 manifest 示例里的 `entrypoint` 缺少 `.py`；这会直接生成不通过 `tests/test_apps_manifest.py` 的 app，必须优先修。
+- 默认必须两阶段：先 plan 并请用户确认，确认后才 create/update/repair。
+- 新 App 默认结构：
+
+```text
+internal_filesystem/apps/<fullname>/
+  MANIFEST.JSON
+  icon_64x64.png
+  assets/main.py
+```
+
+- 旧 `META-INF/MANIFEST.JSON` 和 `res/mipmap-mdpi/icon_64x64.png` 仅在更新 legacy App 时兼容读取，并 warning。
 - `entrypoint` 应优先用 `assets/main.py` 或 `assets/<app>.py`，必须带 `.py` 后缀，并确保文件存在。
 - Activity 类名必须在 entrypoint 代码中出现。
 - 如果自定义 `__init__`，必须 `super().__init__()`。
@@ -394,45 +441,45 @@ mpos-dev/
 - 不硬编码屏幕分辨率，优先 `lv.pct(100)`、flex、align。
 - 持久化使用 `SharedPreferences(self.appFullName)`。
 - 后台/异步用 `TaskManager`，UI 更新需要在前台或主线程安全路径。
+- 若消费 `dependency_handoff.json` 中的同步库，必须生成 adapter，避免在 `async def` 或 LVGL 事件回调里直接阻塞。
+- 测试失败 repair 允许不限次数自动修自己生成/修改的 App 文件；外部 OS/tooling 问题不得让它改 OS 源码。
 
-建议 resources：
+执行后固定门禁：
 
-```text
-mpos-gen-app/
-  SKILL.md
-  references/app-patterns.md
-  references/lifecycle.md
-  assets/templates/basic_app/
-  assets/templates/service_app/
-  scripts/validate_manifest.py
-```
+- `python -m unittest tests/test_apps_manifest.py`
+- `scripts/check_app_syntax.py`
+- `scripts/check_app_mpy_imports.py`
+- `make lint`
+- flake8，使用 `mpos-gen-app/templates/flake8-mpos-app.ini`
+- pylint，使用 `mpos-gen-app/templates/pylintrc-mpos-app`
+- 清理 `__pycache__/` 和 `.pyc`
 
 ### 6. `mpos-test-app`：测试与质量门禁
 
-现有 skill 基本方向正确。
+当前定位是运行时测试，不是静态门禁。
 
 触发：
 
-- 用户要验证 App、写测试、修 bug 前复现。
-- 生成或修改 App 后自动进入测试阶段。
+- 用户要在 MPOS runtime 中验证目标 App。
+- `mpos-gen-app` 静态门禁通过后进入 runtime smoke。
+- 用户要求 Web Port 验证或桌面 controller 自动化。
 
 职责：
 
-- 运行或指导运行：
-  - `make lint`
-  - `make syntax-tests`
-  - `./tests/unittest.sh`
-  - 单个测试文件
-  - 图形化测试
-- 使用 `mpos.ui.testing.GraphicalTestCase`、`KeyboardTestCase`。
-- 使用 `scripts/mpos_controller.py` 做桌面或串口自动化。
+- 复核 `generation_result.json` 中的静态门禁已经记录。
+- 默认先尝试 `<repo-root>/scripts/run_desktop.sh <fullname>` 作为内置 desktop runner 探测。
+- 使用 `scripts/mpos_controller.py` 和 `AppManager.start_app("<fullname>")` 做结构化 smoke。
+- 采集可见文本、widget tree、traceback、可选 screenshot。
+- 可选运行目标 App 专用 `GraphicalTestCase`/`KeyboardTestCase`，但不跑全量 OS 回归。
+- 可选 Web Port 检查：有 `web/` 产物则 serve + HTTP 检查；缺 Emscripten、Chrome 或 web artifact 时记录 skipped/warning。
 - 对截图用 widget tree/visible text/pixel 检查，不只靠肉眼描述。
+- 产出 `app_test_result.json` 并登记到项目状态。
 
-建议补强：
+边界：
 
-- 增加“新 App 最小测试模板”。
-- 增加“manifest 测试失败如何修”的 quick path。
-- 增加“MPK 打包后用 `test_streaming_unzip` 规则验证”的引用，但实际打包验证归 `mpos-package-app`。
+- 不运行 `make lint`、flake8、pylint、manifest 校验；这些属于 `mpos-gen-app`。
+- 不默认修 `_webrepl`、desktop binary、libffi/libv4l 等 OS/tooling 问题；只标 external/tooling blocked。用户明确要求时可用 helper 脚本准备本机 desktop tooling，但不编辑 OS 源码。
+- 不参考 `mpos-debug-app` 作为默认前置。
 
 ### 7. `mpos-package-app`：App 打包
 
@@ -443,11 +490,12 @@ mpos-gen-app/
 
 职责：
 
-- 读取 `internal_filesystem/apps/<fullname>/META-INF/MANIFEST.JSON`。
+- 读取 `internal_filesystem/apps/<fullname>/MANIFEST.JSON`；legacy `META-INF/MANIFEST.JSON` 仅兼容并 warning。
 - 校验 manifest 与文件结构。
-- 确保 icon 存在，路径为 `res/mipmap-mdpi/icon_64x64.png`。
+- 确保 icon 存在，默认根目录 `icon_64x64.png`；legacy `res/mipmap-mdpi/icon_64x64.png` 仅兼容并 warning。
 - 生成单 App MPK。
-- 生成或输出 app_index 条目，包括：
+- 默认生成单个 `app_index_entry.json`，不合并完整 `app_index.json`。
+- 生成或输出 app_index entry，包括：
   - `icon_url`
   - `download_url`
   - `fullname`
@@ -455,6 +503,10 @@ mpos-gen-app/
   - `activities`
   - `services`
 - 验证 MPK 的第一条 ZIP entry 是 `{fullname}/` 目录。
+- 默认压缩方式是 `stored`。
+- `generation_result.json` 或 `app_test_result.json` 缺失/失败时仍允许继续打包，但必须 warning，并将结果设为 partial。
+- 可选临时安装验证只解包到 `tmp/mpos-package-app/<fullname>/install-check/`，不写真实 App 目录。
+- 产出 `package_result.json` 并登记到项目状态。
 
 为什么需要独立 skill：
 
@@ -476,53 +528,47 @@ mpos-package-app/
 - 文件顺序稳定。
 - 修改时间可固定，便于可重复构建。
 - 排除 `.git/`、`__pycache__/`、`*.pyc`、`__MACOSX/`、`._*`。
-- 可选择 stored 或 deflated，但要符合 `StreamingUnzip` 支持范围。
+- 默认 stored；也可显式 deflated，但要符合 `StreamingUnzip` 支持范围。
 
-### 8. `mpos-deploy-app`：Linux 仿真、设备安装和固件烧录
+### 8. `mpos-deploy-app`：部署、预览和安装路径
 
 触发：
 
-- 用户说“在 Linux 端仿真”“运行桌面模拟器”“安装到设备”“烧录固件”“刷机”。
-- 打包前后需要真实运行验证。
+- 用户说“预览”“运行桌面模拟器”“Web 预览”“安装到设备”“MPK 真机验证”“刷机/烧录”。
+- 打包后需要发布前部署/预览记录。
 
 职责拆分：
 
-- 桌面仿真：
-  - 确认已有 `lvgl_micropython/build/lvgl_micropy_unix`。
-  - 若没有，指导或运行 `make build-mpos-unix`。
-  - 使用 `timeout -s 9 30 ./scripts/run_desktop.sh <app_fullname>`。
-  - 需要交互时用 `scripts/mpos_controller.py`。
-- App 安装到设备：
-  - 使用 `scripts/install.sh <fullname>` 或 mpremote 单文件复制。
-  - 安装后提醒执行 `AppManager.refresh_apps()` 或重启。
-  - 复用 `mpremote-device-interaction`、`mpremote-file-transfer`、`mpremote-live-session`。
-- 固件烧录：
-  - 只有在固件不存在、C 模块变更、系统镜像变更、用户明确要求刷机时才进入。
-  - 使用 `scripts/build_mpos.sh <target>` 和 `scripts/flash_over_usb.sh`。
-  - 烧录、擦除、重置都需要明确确认。
+- `desktop-preview`：手动/人工预览路径，不做 smoke 断言，不替代 `mpos-test-app`。
+- `web-preview`：默认只 serve 已有 `web/` 产物；缺产物时提示用户确认 build，不自动 build。
+- `device-copy`：显式确认目标板型和串口后，用项目内 mpremote 或 `mpos_controller.py installapp` 做可控复制。
+- `mpk-install`：推荐的真机发布验证路径，上传 MPK 后调用设备端 AppManager 安装。
+- `install-site`：固件安装、擦除、板卡识别默认引导到 `https://install.micropythonos.com/`。
+- `local-flash`：默认禁止；只有用户明确说“允许本机执行 flash”后，才可调用 `scripts/flash_over_usb.sh`。
+- 每次写出 `deploy_result.json`，记录设备、端口、安装模式、命令、结果、warning 和下一步。
 
 边界：
 
 - “安装 App”不是“烧录固件”。绝大多数 Python App 迭代只需复制 app 目录或安装 MPK。
-- “Linux 端仿真”不是 PC 端 mock 项目，它运行 MicroPythonOS 的 unix build 和 SDL LVGL。
+- “Linux 端仿真”不是 `mpos-test-app` 的 runtime smoke；在 deploy 中只是预览/发布前交接记录。
+- 不运行静态 lint，不打包，不登录或上传。
+- 不修改 MicroPythonOS OS/build 源码。
 
 ### 9. `mpos-publish-app`：upystore 发布指导
 
 触发：
 
-- 用户说“上传到 upystore”“发布 App”“准备 AppStore 上架”。
+- 用户说“上传到 upystore”“发布 App”“准备 AppStore 上架”“生成发布交接”。
 
 职责：
 
-- 确认已通过：
-  - manifest 校验
-  - 测试
-  - MPK 格式校验
-  - 图标存在
-  - 版本号递增
-- 输出发布包路径和元数据摘要。
+- 必须同时读取 `package_result.json`、`app_test_result.json`、`deploy_result.json`。
+- 检查上游结果 schema、phase、`fullname` 是否匹配；failed 为 blocker，partial 可带 warning 继续。
+- 读取 upystore 公开列表，对比同 `fullname` 的已发布版本。
+- 维护 upystore store metadata 交接：`short_description`、`long_description`、`hardware_tags`、`release_notes`、`screenshots`，以及可选 `tags`、`category`、`min_os_version`、`min_api_level`。
+- 输出 `publish_result.json`，记录版本状态、release readiness、warning、上传所需本地产物路径。
 - 明确 upystore Developer Console 需要用户登录 developer account；skill 不请求、不保存账号密码。
-- 引导用户打开 `https://upystore.io/` 或 Developer Console 上传。
+- 引导用户打开 `https://upystore.io/developer` 上传。
 - 告知上传后建议验证：
   - app_index 中字段是否完整。
   - 下载得到的 MPK 是否仍保留 `{fullname}/` 顶层目录。
@@ -532,28 +578,34 @@ mpos-package-app/
 
 - 不自动替用户上传。
 - 不保存或请求 upystore 账号密码。
+- 不生成 MPK，不运行测试，不部署设备，不修代码。
 - 不把 upystore 当成固件发布站点。固件发布和 `install.micropythonos.com` 属于另一条流程。
 
 ## 现有 skill 的复用与调整建议
 
 ### 已有 `mpos-*`
 
-当前 `MicroPython_Skills` 中已有：
+当前 `MicroPython_Skills` 中已有完整主链：
 
 - `mpos-dev`
+- `mpos-plan-app`
+- `mpos-analyze-app`
+- `mpos-prepare-deps`
 - `mpos-gen-app`
 - `mpos-test-app`
+- `mpos-package-app`
+- `mpos-deploy-app`
+- `mpos-publish-app`
 - `mpos-debug-app`
 
-它们可以作为新体系的基础，但还不完整：
+维护重点：
 
-- 缺少对话式入口/编排。
-- 缺少需求分析阶段。
-- 缺少驱动/依赖准备阶段。
-- 缺少单 App MPK 打包阶段。
-- 缺少“安装 App”和“烧录固件”分开的部署阶段。
-- 缺少 upystore 发布指导阶段。
-- `mpos-gen-app` 的 App 结构示意需要对齐实际 `assets/*.py` 模式，manifest 示例的 `entrypoint` 必须带 `.py` 后缀。
+- 所有阶段必须登记统一项目日志，不能各自散落状态。
+- 主仓库 `/home/leeqingshui/MicroPythonOS` 默认不作为 build/simulator/web 联调工作区；测试和预览用隔离 clone/worktree/临时副本。
+- flat 布局是新 App 默认；legacy 布局只兼容并 warning。
+- `mpos-gen-app` 两阶段确认不可绕过。
+- `mpos-test-app` 不回收静态门禁，`mpos-deploy-app` 不回收 runtime smoke，`mpos-publish-app` 不回收打包/测试/部署。
+- 任何 skill 都不应修改 MicroPythonOS OS/build 源码来“顺手修环境”；需要本机补丁时用 skill helper 脚本或隔离工作区。
 
 ### 旧 `upy-*` 的角色
 
@@ -571,25 +623,14 @@ mpos-package-app/
 - `upy-scaffold`/`upy-generate`：它们生成普通 MicroPython firmware 项目，不等同于 MPOS App 的 Activity/manifest/MPK。
 - `upy-simulate`：它是 PC CLI/rich 模拟，不等同于 MicroPythonOS unix SDL 桌面仿真。
 
-## 推荐实现顺序
+## 推荐维护顺序
 
-1. 先修正并巩固 `mpos-dev`。
-   - 对齐 App 目录事实。
-   - 确保 API 提取脚本可运行并更新 reference。
-2. 增强 `mpos-gen-app`。
-   - 加 manifest validator。
-   - 加基础 App 模板。
-   - 生成 `assets/*.py`。
-3. 新增 `mpos-package-app`。
-   - 这是发布链路最容易出错、最适合脚本化的阶段。
-4. 新增 `mpos-deploy-app`。
-   - 明确桌面仿真、App 安装、固件烧录三条路径。
-5. 新增 `mpos-analyze-app` 和 `mpos-plan-app`。
-   - 前面阶段稳定后，再做对话式编排入口，避免入口 skill 只会“口头规划”。
-6. 新增 `mpos-prepare-deps`。
-   - 复用 `fetch-doc`、`upy-pkg-guide`、`upy-gen-driver`。
-7. 新增 `mpos-publish-app`。
-   - 只做发布前检查、上传指引、上传后验证，不自动上传。
+1. 先看 `mpos-plan-app` 和 `mpos-dev`，确认全局日志、隔离工作区、flat/legacy 布局和 API reference 路由没有漂移。
+2. 再看被修改的阶段 skill，确认它的输入 artifact、输出 JSON、helper 脚本和模板一致。
+3. 涉及代码生成时，重点核对 `mpos-gen-app` 的两阶段确认、固定 flake8/pylint 模板、`generation_result.json` 和 repair 边界。
+4. 涉及测试/部署时，重点核对职责分离：runtime smoke 属于 `mpos-test-app`，预览/设备安装属于 `mpos-deploy-app`。
+5. 涉及发布时，重点核对 `mpos-package-app`、`mpos-deploy-app`、`mpos-publish-app` 的三份交接结果是否被同时读取。
+6. 每次修改后运行相关 skill 的 `quick_validate.py` 或各自 validator；如果没有统一 quick validate，至少运行被改脚本的 `py_compile` 和模板 JSON validator。
 
 ## 每个 SKILL.md 的写法模板
 
@@ -608,31 +649,42 @@ description: Package and validate MicroPythonOS Apps as MPK files for AppStore/u
 ## Workflow
 
 1. Read `mpos-dev` for MPOS App and MPK constraints.
-2. Locate `internal_filesystem/apps/<fullname>/META-INF/MANIFEST.JSON`.
-3. Run `scripts/validate_manifest.py`.
-4. Run `scripts/package_mpos_app.py --app <fullname>`.
-5. Run `scripts/validate_mpk.py <mpk> --fullname <fullname>`.
-6. Report MPK path and app_index metadata.
+2. Locate `internal_filesystem/apps/<fullname>/MANIFEST.JSON`; treat legacy `META-INF/MANIFEST.JSON` as compatibility with warning.
+3. Run `scripts/validate_mpos_app.py --repo <repo-root> --app-fullname <fullname>`.
+4. Run `scripts/package_mpos_app.py --repo <repo-root> --app-fullname <fullname> --compression stored`.
+5. Run `scripts/validate_package_result.py <package_result.json>`.
+6. Report MPK path, `app_index_entry.json`, warnings, and next handoff.
 
 ## Constraints
 
 - The first ZIP entry must be `<fullname>/`.
 - Exclude `__MACOSX/`, `._*`, `.git/`, `__pycache__/`, `*.pyc`.
+- Emit one `app_index_entry.json`; do not merge full `app_index.json`.
 - Do not publish or upload automatically.
 ```
 
 ## 最小脚本清单
 
-为了让 skill 真正可执行，建议至少补这些脚本：
+当前主链已经具备这些脚本，后续维护时应优先修复/复用它们，而不是在对话里重写一份：
 
 | 脚本 | 所属 skill | 用途 |
 |---|---|---|
-| `scripts/validate_manifest.py` | `mpos-gen-app` 或 `mpos-package-app` | 复刻 `test_apps_manifest.py` 中的单 App 校验 |
+| `scripts/update_plan_state.py` | `mpos-plan-app` | 统一登记、发现、失效标记阶段产物 |
+| `scripts/validate_plan_state.py` | `mpos-plan-app` | 校验 `plan_state.json` |
+| `scripts/check_app_syntax.py` | `mpos-gen-app` | CPython/MPY 语法风险校验 |
+| `scripts/check_app_mpy_imports.py` | `mpos-gen-app` | MicroPython import 风险校验 |
+| `scripts/generate_icon.py` | `mpos-gen-app` | 标准库生成 `icon_64x64.png` |
+| `scripts/build_search_plan.py` | `mpos-prepare-deps` | 依赖搜索计划，含 async/aio/uasyncio |
+| `scripts/stage_runtime_file.py` | `mpos-prepare-deps` | 下载 runtime 文件到 App 或 staged cache |
 | `scripts/package_mpos_app.py` | `mpos-package-app` | 单 App 生成规范 MPK |
 | `scripts/validate_mpk.py` | `mpos-package-app` | 检查 ZIP entry 顺序、顶层目录、非法文件 |
 | `scripts/emit_app_index_entry.py` | `mpos-package-app` | 根据 manifest 和 base URL 输出 app_index 条目 |
-| `scripts/check_dependency_imports.py` | `mpos-prepare-deps` | 静态检查 App import 来源 |
-| `scripts/run_app_desktop.py` | `mpos-deploy-app` | 包装 `run_desktop.sh` + timeout + app 启动 + 日志采集 |
+| `scripts/run_app_smoke.py` | `mpos-test-app` | 使用内置 desktop/controller 工具做 runtime smoke |
+| `scripts/launch_desktop_preview.py` | `mpos-deploy-app` | 桌面手动预览 |
+| `scripts/serve_web_preview.py` | `mpos-deploy-app` | serve 已有 Web Port 产物 |
+| `scripts/deploy_app_copy.py` | `mpos-deploy-app` | 设备 App 文件复制 |
+| `scripts/deploy_mpk_install.py` | `mpos-deploy-app` | 真机 MPK 安装验证 |
+| `scripts/prepare_publish.py` | `mpos-publish-app` | 生成 upystore 发布交接 |
 
 已有脚本继续保留：
 
@@ -643,11 +695,11 @@ description: Package and validate MicroPythonOS Apps as MPK files for AppStore/u
 
 > 需求分析
 
-应该独立成 `mpos-analyze-app`，并由 `mpos-plan-app` 调用。它输出 manifest 草案、功能切片、依赖计划、测试计划，而不是直接写代码。
+已经独立成 `mpos-analyze-app`，并由 `mpos-plan-app` 调用。它输出 `analysis_result.json`，不直接写代码。
 
 > 驱动下载
 
-应该独立成 `mpos-prepare-deps`。但默认先查 MicroPythonOS 内置 managers 和 `mpos/board`，不要一上来下载普通 MicroPython 驱动。确实缺驱动时复用 `fetch-doc`、`upy-pkg-guide`、`upy-gen-driver`。
+已经独立成 `mpos-prepare-deps`。默认先查 MicroPythonOS 内置 managers 和 API reference，不一上来下载普通 MicroPython 驱动。确实缺驱动时可真实下载 runtime 文件到 App 或 staged cache，并必须缓存搜索结果、追加 async/aio/uasyncio 策略。
 
 > 代码生成，需要脚本提取 MicroPythonOS 和 lvgl_micropython API
 
@@ -659,21 +711,24 @@ description: Package and validate MicroPythonOS Apps as MPK files for AppStore/u
 
 > App 打包
 
-应该独立成 `mpos-package-app`。这是发布链路的关键风险点，必须脚本化验证 MPK 顶层目录和 manifest。
+已经独立成 `mpos-package-app`。这是发布链路的关键风险点，必须脚本化验证 MPK 顶层目录、manifest、icon 和 `app_index_entry.json`。测试缺失/失败时仍可打包，但必须 warning。
 
 > Linux 端仿真和烧录 App
 
-建议合并成 `mpos-deploy-app`，但内部必须分三条路径：
+已经落在 `mpos-deploy-app`，但内部必须分为独立模式：
 
-- Linux 桌面仿真：`make build-mpos-unix` + `timeout -s 9 30 ./scripts/run_desktop.sh <app>`。
-- 安装 App 到设备：`scripts/install.sh <fullname>` 或 mpremote 文件复制。
-- 烧录固件：只有用户确认需要刷机时，才走 `build_mpos.sh`/`flash_over_usb.sh`。
+- `desktop-preview`：只做预览，不做 smoke gate。
+- `web-preview`：默认 serve 已有产物，缺产物时问用户是否 build。
+- `device-copy`：项目内 mpremote 可控复制，必须确认板型和串口。
+- `mpk-install`：推荐的真机发布验证路径。
+- `install-site`：固件安装/擦除默认引导到 `https://install.micropythonos.com/`。
+- `local-flash`：默认禁止，除非用户明确说“允许本机执行 flash”。
 
 “烧录 App”这个说法建议在 skill 里改成“安装 App 到设备”；“烧录”保留给固件镜像。
 
 > 上传到 upystore
 
-应该独立成 `mpos-publish-app`，但只做发布前检查、产物路径整理和上传链接提示。推荐用户自行访问 `https://upystore.io/` 上传。上传后如果用户提供下载 URL 或 app_index，可以让 skill 做 MPK 结构和设备端安装验证。
+已经独立成 `mpos-publish-app`，但只做发布指导 + 校验。它必须同时读取 `package_result.json`、`app_test_result.json`、`deploy_result.json`，对比 upystore 已发布版本，并把截图、short/long description、hardware tags、release notes 等 store 字段纳入 `publish_result.json`。推荐用户自行访问 `https://upystore.io/developer` 上传。
 
 ## 最终建议的用户体验
 
@@ -688,9 +743,10 @@ description: Package and validate MicroPythonOS Apps as MPK files for AppStore/u
 3. `mpos-prepare-deps` 确认是否需要网络 API SDK 或只用 `DownloadManager`。
 4. `mpos-gen-app` 通过 `mpos-dev` 检查或刷新 `mpos_api_summary.json` / `lvgl_api_summary.json`，确认 API reference 没过期。
 5. `mpos-gen-app` 生成 `internal_filesystem/apps/<fullname>/...`。
-6. `mpos-test-app` 跑 lint/syntax/graphical 测试。
-7. `mpos-deploy-app` 在 Linux 桌面仿真运行，必要时设备安装。
+6. `mpos-gen-app` 立即跑 manifest、syntax、MPY import、`make lint`、flake8、pylint 并记录 `generation_result.json`。
+7. `mpos-test-app` 使用 MicroPythonOS 内置 desktop/controller 工具做目标 App runtime smoke。
 8. `mpos-package-app` 生成并验证 `.mpk`。
-9. `mpos-publish-app` 给出发布摘要和 `https://upystore.io/` 上传指引。
+9. `mpos-deploy-app` 写入 desktop/web preview 或真机 install 的 `deploy_result.json`；没有实体板卡时可用 preview 结果。
+10. `mpos-publish-app` 给出发布摘要、store metadata 和 `https://upystore.io/developer` 上传指引。
 
 这样拆分后，每个 skill 都短、可触发、可测试，也符合 skill-creator 的 progressive disclosure 原则。

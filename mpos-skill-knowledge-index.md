@@ -1,6 +1,7 @@
 # MicroPythonOS Skill 知识索引
 
 生成日期：2026-07-14
+最近更新：2026-07-17
 
 这个文件是本次对话中形成的 MicroPythonOS / LVGL / mpos-* skill 知识总入口。它不是某一个具体 skill 的执行说明，而是给后续维护者和 Codex 快速定位资料用的索引：哪些目录是源头，哪些文件是参考文档，哪些 API 是脚本提取的，哪些外部站点需要重新同步。
 
@@ -9,6 +10,10 @@
 ## 1. 总体结论
 
 - `mpos-dev` 应继续作为 `mpos-*` skill 家族的共享基础层，放置 MicroPythonOS 架构、LVGL 约定、官方 docs 专题参考、API 提取脚本和生成出的 reference 文件。
+- 当前 `mpos-*` 主链已经补齐为：`mpos-plan-app` -> `mpos-analyze-app` -> `mpos-prepare-deps` -> `mpos-gen-app` -> `mpos-test-app` -> `mpos-package-app` -> `mpos-deploy-app` -> `mpos-publish-app`，外加共享 `mpos-dev` 和运行时排障用 `mpos-debug-app`。
+- 所有面向单个 App 的阶段 skill 应统一维护 `<repo-root>/tmp/mpos-plan-app/<fullname>/plan_state.json` 和 `activity_log.jsonl`，并通过 `mpos-plan-app/scripts/update_plan_state.py` 登记阶段产物，便于中断、恢复、用户改需求和 AI 调试。
+- 新 App 默认使用 flat 布局：`MANIFEST.JSON`、`icon_64x64.png`、`assets/*.py`。旧 `META-INF/MANIFEST.JSON` 和 `res/mipmap-mdpi/icon_64x64.png` 只做兼容读取，并必须 warning。
+- `/home/leeqingshui/MicroPythonOS` 主仓库应尽量保持和上游一致。build、desktop simulator、web preview、联调测试默认放在隔离 clone/worktree/临时副本中；除新增 App 或用户明确允许外，不修改 OS/build 源码。
 - `docs.micropythonos.com` 的内容已经被拆成多个专题 reference 文档，便于按任务读取；这不是逐字全文镜像。是否覆盖全部页面，应以 `mpos-dev/reference/docs-site-index.md` 里的 sitemap/search index 审计为准。
 - `web.micropythonos.com` 属于 WebAssembly/browser runtime 资料，应同时出现在 `mpos-dev/reference/docs-web-port.md` 和根级分析文件 `mpos-conversational-skills-analysis.md` 的路线图中。
 - LVGL API 的源头应是编译/生成后的 MicroPython stub：`/home/leeqingshui/lvgl_micropython/lvgl.pyi`，不是直接从 LVGL C 头文件猜 API。
@@ -30,11 +35,15 @@
 当前与 MicroPythonOS 相关的 skill：
 
 - `mpos-dev/`：共享基础知识库，包含 API reference、docs reference、提取脚本。
-- `mpos-gen-app/`：生成或修改 MicroPythonOS App 时使用。
-- `mpos-debug-app/`：调试 MicroPythonOS App 时使用。
-- `mpos-test-app/`：测试 MicroPythonOS App 时使用。
-
-`mpos-dev/SKILL.md` 里还提到这些规划/路由名：`mpos-package-app`、`mpos-deploy-app`、`mpos-publish-app`。本次检查顶层目录时没有看到这些目录，后续如果要完善打包、部署、发布流程，应按这个命名补齐。
+- `mpos-plan-app/`：对话式入口和状态机，负责阶段编排、中断恢复、失效清单确认和默认跑到发布交接。
+- `mpos-analyze-app/`：把自然语言需求转成 App 身份、manifest 草案、Activity/Service 计划、依赖风险和测试/部署计划。
+- `mpos-prepare-deps/`：准备应用层纯 Python/MPY 依赖，缓存搜索结果，支持 async/aio/uasyncio 搜索策略；同步库必须标 `sync_needs_adapter=true` 交给生成阶段做非阻塞封装。
+- `mpos-gen-app/`：两阶段生成、更新、修复 App 文件；强制先输出计划并等待确认，执行后立即跑 manifest、syntax、MPY import、`make lint`、flake8、pylint 等静态门禁并产出 `generation_result.json`。
+- `mpos-test-app/`：只做目标 App 的 MPOS runtime smoke/可选 Web Port 检查，使用 MicroPythonOS 内置 `run_desktop.sh`、`mpos_controller.py` 等工具；不拥有静态 lint/manifest 门禁。
+- `mpos-package-app/`：生成单 App `.mpk`、`app_index_entry.json` 和 `package_result.json`，默认 `stored` 压缩；测试缺失或失败时可继续打包但必须 warning。
+- `mpos-deploy-app/`：只做部署/预览路径，包括 desktop-preview、web-preview、device-copy、mpk-install、install-site、local-flash；desktop/manual launch 只是可选预览，不是 smoke gate。
+- `mpos-publish-app/`：只做 upystore 发布指导和校验，必须同时读取 `package_result.json`、`app_test_result.json`、`deploy_result.json`，并产出 `publish_result.json`；不登录、不上传。
+- `mpos-debug-app/`：运行时排障和人工诊断辅助，不作为 `mpos-test-app` 默认前置。
 
 ### `/home/leeqingshui/MicroPythonOS`
 
@@ -93,7 +102,34 @@
 - `lvgl-api-reference.md`：LVGL MicroPython API 人读参考。
 - `lvgl_api_summary.json`：LVGL MicroPython API 机器可读总结。
 
-## 4. 外部站点和索引
+## 4. mpos 阶段交接产物
+
+统一交接目录：
+
+```text
+<repo-root>/tmp/mpos-plan-app/<fullname>/
+  plan_state.json
+  activity_log.jsonl
+```
+
+标准 artifact key：
+
+- `analysis_result`：`mpos-analyze-app` 需求分析结果。
+- `dependency_handoff`：`mpos-prepare-deps` 依赖文件、缓存、同步适配需求。
+- `generation_result`：`mpos-gen-app` 写文件和静态门禁记录。
+- `app_test_result`：`mpos-test-app` runtime smoke/Web Port 记录。
+- `package_result`：`mpos-package-app` MPK、app_index_entry 和打包 warning。
+- `deploy_result`：`mpos-deploy-app` desktop/web/device/MPK install 预览或部署记录。
+- `publish_result`：`mpos-publish-app` upystore 版本对比、store metadata 和发布交接。
+
+维护规则：
+
+- 不手写 `plan_state.json` 或 `activity_log.jsonl`；使用 `mpos-plan-app/scripts/update_plan_state.py record/discover/invalidate`。
+- 用户中断后说“继续/恢复/下一步”时，先读取或重建 `plan_state.json`，不要从头开始分析。
+- 用户修改需求时，`mpos-plan-app` 必须先列出失效 artifact 清单并让用户确认；`mpos-gen-app` 的两阶段确认仍然强制。
+- 没有实体板卡时，`desktop-preview` 或 `web-preview` 的 `deploy_result.json` 可以满足 publish 前置；有硬件时优先用 `mpk-install` 做真机发布验证。
+
+## 5. 外部站点和索引
 
 本次对话涉及这些外部资料入口：
 
@@ -113,7 +149,7 @@
 - `upystore.io`、`.mpk`、`app_index.json` 放在 `docs-packaging.md`。
 - 需要重新同步外部站点时再抓取，不要把临时 curl 输出混进 skill 文件。
 
-## 5. Docs 拆分状态
+## 6. Docs 拆分状态
 
 当前 docs 已按任务主题拆分到 `mpos-dev/reference/`。这些文件应作为按需加载的 reference，而不是全部塞进 `SKILL.md`。
 
@@ -132,7 +168,7 @@
 - `docs-site-index.md` 记录过 sitemap 约 61 个页面、search index 约 977 条搜索项。
 - 这些 reference 是中文说明，代码、JSON、路径和 API 名保持英文。
 
-## 6. API 提取现状
+## 7. API 提取现状
 
 ### LVGL API
 
@@ -197,7 +233,7 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-dev/scripts/extract_mpos_api.p
 
 - `description`、`notes`、`examples` 只应从 docstring、注释、官方文档或人工 override 填充；没有来源时保持 `null` 或空数组。
 
-## 7. JSON 与 Markdown 的建议
+## 8. JSON 与 Markdown 的建议
 
 当前已同时保留两类产物：
 
@@ -264,7 +300,7 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-dev/scripts/extract_mpos_api.p
 - `examples`：短示例；优先来自官方 docs 或人工维护，不要自动生成误导性示例。
 - `source_path`、`source_line`：Python/stub API 可定位时填写；native 模块符号保持 `null`，避免把实现细节混入用户侧 API reference。
 
-## 8. `AGENTS.md` 基础规则
+## 9. `AGENTS.md` 基础规则
 
 从 `/home/leeqingshui/MicroPythonOS/AGENTS.md` 合并到 skill 的关键规则：
 
@@ -294,7 +330,7 @@ LVGL 重点规则：
 - 回调中优先用 `event.get_target_obj()`。
 - LVGL object wrapper 不支持任意 Python 属性赋值，关联数据用闭包/lambda 或平行列表。
 
-## 9. Codex/审批相关记录
+## 10. Codex/审批相关记录
 
 本次对话也涉及 Codex 审批模式。这个内容属于运行时安全配置，不建议写进某个 MicroPythonOS skill 的默认流程。
 
@@ -304,9 +340,9 @@ LVGL 重点规则：
 - 需要联网、写非工作区、运行可能危险命令时，应按当前 Codex 会话的审批机制单独确认。
 - 如果后续专门整理 Codex 使用说明，应放到单独的 Codex 工具说明文件，不和 `mpos-dev` 开发规则混在一起。
 
-## 10. 后续待办
+## 11. 后续待办
 
 - 为常用 API 增加人工维护的 `description`、`notes`、`examples`，并标注 `description_source: "manual_override"`。
 - 如果给 `webcam` 补人工示例，继续按实际 MPY 接口结构处理：module-level functions 加 `Webcam` type，示例要避免写成不存在的方法。
 - 重新同步外部 docs 时，优先更新 `docs-site-index.md`，再更新对应专题 reference。
-- 如果创建 `mpos-package-app`、`mpos-deploy-app`、`mpos-publish-app`，应让它们按需读取 `mpos-dev/reference/`，不要复制粘贴整份资料。
+- 维护 `mpos-*` skill 时继续遵守 progressive disclosure：`SKILL.md` 只保留阶段流程和资源路由，细节放 `reference/`，确定性动作放 `scripts/`，不要复制粘贴整份资料。
