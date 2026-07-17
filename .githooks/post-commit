@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -u
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+if [ "${SKILLS_SKIP_EN_SYNC:-}" = "1" ]; then
+    echo "SKILLS_SKIP_EN_SYNC=1; skipping English sync."
+    exit 0
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+    py=python3
+elif command -v python >/dev/null 2>&1; then
+    py=python
+else
+    echo "No python interpreter found; skipping English sync."
+    exit 0
+fi
+
+"$py" "$repo_root/scripts/sync_english_repo.py" \
+    --src-repo "$repo_root" \
+    --source-mode head \
+    --commit \
+    --from-hook
+
+exit 0

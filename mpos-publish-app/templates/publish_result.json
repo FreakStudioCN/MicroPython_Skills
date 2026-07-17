@@ -1,0 +1,138 @@
+{
+  "schema_version": "mpos-publish-app-v1",
+  "phase": "publish",
+  "result": "partial",
+  "created_at_utc": "2026-07-17T00:00:00Z",
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "version": "1.0.0",
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example",
+    "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
+    "icon": "internal_filesystem/apps/com.micropythonos.example/icon_64x64.png",
+    "layout": "flat"
+  },
+  "inputs": {
+    "package_result": "tmp/mpos-package-app/com.micropythonos.example/package_result.json",
+    "app_test_result": "tmp/mpos-test-app/com.micropythonos.example/app_test_result.json",
+    "deploy_result": "tmp/mpos-deploy-app/com.micropythonos.example/deploy_result.json"
+  },
+  "release_artifacts": {
+    "mpk_path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_1.0.0.mpk",
+    "mpk_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "mpk_size_bytes": 1234,
+    "app_index_entry": "tmp/mpos-package-app/com.micropythonos.example/app_index_entry.json"
+  },
+  "store_metadata": {
+    "short_description": "Short summary for upystore.",
+    "long_description": "Long description for upystore.",
+    "category": "tools",
+    "tags": [
+      "example"
+    ],
+    "hardware_tags": {
+      "required": [
+        {
+          "capability": "display"
+        }
+      ],
+      "optional": []
+    },
+    "screenshots": [
+      {
+        "path": "tmp/mpos-test-app/com.micropythonos.example.bmp",
+        "exists": true
+      }
+    ],
+    "release_notes": "Initial release.",
+    "min_os_version": "0.15.1",
+    "min_api_level": 1,
+    "missing_fields": []
+  },
+  "upystore": {
+    "developer_console_url": "https://upystore.io/developer",
+    "app_index_url": "https://upystore.io/app_index.json",
+    "api_apps_url": "https://upystore.io/api/v1/apps",
+    "published": {
+      "exists": false,
+      "source": null,
+      "version": null,
+      "slug": null,
+      "revision": null
+    },
+    "version_status": "new_app",
+    "checked_at_utc": "2026-07-17T00:00:00Z",
+    "warnings": []
+  },
+  "checks": [
+    {
+      "name": "package_result",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "app_test_result",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "deploy_result",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "artifact_consistency",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "upystore_version",
+      "required": true,
+      "ok": true,
+      "status": "new_app",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "store_metadata",
+      "required": true,
+      "ok": true,
+      "status": "complete",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "manual_upload_guidance",
+      "required": true,
+      "ok": true,
+      "status": "ready",
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "warnings": [],
+  "errors": [],
+  "artifacts": [
+    {
+      "kind": "publish_result",
+      "path": "tmp/mpos-publish-app/com.micropythonos.example/publish_result.json"
+    }
+  ],
+  "handoff": {
+    "next_skill": null,
+    "next_step": "Open https://upystore.io/developer and upload the MPK manually.",
+    "reason": "Release artifacts and metadata are ready for manual upystore submission."
+  }
+}

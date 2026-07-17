@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Analyze App"
+  short_description: "Analyze MicroPythonOS app requests"
+  default_prompt: "Use $mpos-analyze-app to analyze this MicroPythonOS app idea before code generation."

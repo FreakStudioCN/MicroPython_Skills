@@ -1,0 +1,175 @@
+---
+name: mpos-test-app
+description: Test a specific MicroPythonOS App after mpos-gen-app using MicroPythonOS built-in desktop simulator/controller tools. Use when Codex needs to smoke-test or interactively exercise one generated MPOS app in the MPOS runtime with AppManager.start_app, visible text/widget-tree checks, screenshots, or scripted UI input. Does not own static gates such as make lint, flake8, pylint, manifest checks, syntax checks, packaging, deployment, device debugging, firmware rebuilds, or full OS regression testing.
+---
+
+# MicroPythonOS App 运行测试
+
+## 角色
+
+对 `mpos-gen-app` 已生成的目标 App 做 MPOS runtime 级冒烟测试和轻量交互测试。默认只测目标 App，不跑全量 OS tests。
+
+静态门禁属于 `mpos-gen-app`：`make lint`、manifest、CPython/mpy syntax、MicroPython import、flake8、pylint 必须在生成/修复后立即执行。本 skill 只复核 `generation_result.json` 中这些门禁已记录通过；不要重复定义或替代它们。
+
+## 统一项目日志
+
+完成 runtime smoke 或可选 Web Port 验证并产出 `app_test_result.json` 后，必须登记到项目状态目录：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-plan-app/scripts/update_plan_state.py record \
+  --repo <repo-root> \
+  --fullname <fullname> \
+  --skill mpos-test-app \
+  --phase test-app \
+  --result <success|partial|failed|blocked> \
+  --artifact app_test_result=<app_test_result.json> \
+  --next-skill <handoff.next_skill-or-null> \
+  --event "Ran MPOS runtime smoke test"
+```
+
+如果失败属于 App 自身，`handoff.next_skill` 指向 `mpos-gen-app` repair；如果是 OS/tooling 外部阻塞，只记录 blocked/warning，不让 `mpos-gen-app` 修无关 OS 文件。
+
+必须使用 MicroPythonOS 仓库内置工具：
+
+- `<repo-root>/scripts/mpos_controller.py`
+- `<repo-root>/scripts/run_desktop.sh`
+- `<repo-root>/tests/unittest.sh`
+- `<repo-root>/internal_filesystem/lib/mpos/ui/testing.py`
+- `<repo-root>/internal_filesystem/lib/mpos/testing/`
+
+不要把 `mpos-debug-app` 作为前置或参考；设备调试、串口日志和硬件排障不属于本 skill 默认范围。
+
+不要直接修改 MicroPythonOS OS/build 源码来修测试环境。遇到缺 `_webrepl`、缺 desktop binary、缺 `libffi-dev`、缺 `libv4l-dev` 等本机 simulator/tooling 问题时，默认只标记 external/tooling blocking。只有用户明确要求修本机 simulator 时，才运行本 skill 的 helper：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/prepare_desktop_tooling.py \
+  --repo <repo-root> \
+  --build
+```
+
+`prepare_desktop_tooling.py` 不编辑 OS 源码；它只创建临时 build shim：用 fake `pkg-config` 指向用户态静态 `libffi.a`，并在缺 `libv4l2.a` 时提供仅供 desktop link 的空静态库，然后调用现有 `<repo-root>/scripts/build_mpos.sh unix`。运行结束后临时 shim 会随临时目录删除；构建产物仍由原 build 脚本生成。
+
+## 默认测试
+
+默认运行目标 App 桌面模拟器冒烟测试，分两层：
+
+1. 必须先尝试内置 desktop runner：
+
+```bash
+<repo-root>/scripts/run_desktop.sh <fullname>
+```
+
+`run_desktop.sh` 是人工/真实桌面启动路径，会设置 `auto_start_app_early` 并启动 desktop MPOS。自动化脚本必须用有界超时执行它：如果超时前没有 OS/tooling boot marker，并且输出包含 `run_desktop.sh: running app <fullname>`，则把长驻运行视为启动成功。`Error importing mpos.main`、缺 `_webrepl`、脚本/二进制缺失等属于 OS/tooling 外部阻塞；boot 后的普通 traceback/import error 只说明 desktop runner 看到运行期错误，必须继续用 `mpos_controller.py` 定位是否属于目标 App。探测前后必须恢复 `prefs/com.micropythonos.settings/config.json`，避免自启动配置污染后续测试。
+
+2. 再运行结构化 controller smoke：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/run_app_smoke.py \
+  --repo <repo-root> \
+  --app-fullname <fullname> \
+  --generation-result <generation_result.json> \
+  --screenshot
+```
+
+`run_app_smoke.py` 默认包含以上 `run_desktop.sh` 启动探测，然后通过 `scripts/mpos_controller.py` 启动 `lvgl_micropy_unix`，先确认 `mpos.main` 已成功 boot，再在 MPOS runtime 中执行：
+
+```python
+from mpos.content.app_manager import AppManager
+from mpos.ui.testing import wait_for_render
+AppManager.start_app("<fullname>")
+wait_for_render()
+```
+
+然后采集：
+
+- `run_desktop.sh <fullname>` 的启动输出、returncode、超时状态和错误摘要。
+- `AppManager.start_app()` 结果和 traceback。
+- 可见文本 `get_visible_text()`。
+- widget tree 摘要 `get_widget_tree()`。
+- 可选 screenshot BMP。
+
+如果用户给出期望文本，用 `--expected-text "<text>"` 增加强断言。没有期望文本时，只要 App 能启动且 runtime 没抛异常即可通过；空文本不能自动判失败，因为游戏、Canvas、图像类 App 可能没有 label 文本。
+
+## 可选测试
+
+### 目标测试文件
+
+只有用户要求写/运行测试文件，或生成 App 明确包含测试需求时，才创建目标 App 专用测试文件。不要跑全量 `./tests/unittest.sh`。
+
+可用模式：
+
+```bash
+cd <repo-root>
+./tests/unittest.sh tests/test_graphical_<app>.py
+```
+
+图形测试使用 `mpos.ui.testing.GraphicalTestCase`、`KeyboardTestCase`、`simulate_click`、`wait_for_render`、`capture_screenshot`。硬件相关逻辑使用 `mpos.testing` mocks。测试文件必须只覆盖目标 App 行为，避免改 OS/framework 回归测试。
+
+### Web Port
+
+`https://web.micropythonos.com/` 是 MicroPythonOS WebAssembly Web Port 的在线运行入口。官方文档说明 Web Port 可在浏览器中运行 OS，`/data` 和 `/apps` 存在浏览器 IndexedDB，HTTP 走浏览器 `fetch()`，并受 CORS、无 Bluetooth/ADC/IMU/camera 等浏览器限制影响。
+
+Web Port 只作为可选浏览器验证，不是默认 gate：
+
+- 仅当用户明确要求 Web Port 验证时运行；给 `run_app_smoke.py` 加 `--web-port-check`。
+- 当前最新本地代码已包含 `scripts/run_web.sh` 和 `scripts/web_port/`；如果缺失，记录为 `skipped_missing_local_web_tooling`。
+- `run_app_smoke.py --web-port-check` 只调用 `scripts/run_web.sh --no-build` serve 已存在的 `web/` 产物，并用 HTTP GET 检查 `http://127.0.0.1:<port>/`。
+- 如果 `web/index.html`、`web/micropython.js`、`web/micropython.wasm` 或 `web/micropython.data` 不存在，记录为 `skipped_missing_web_artifacts`；不要自动 rebuild，除非用户另行要求。
+- `scripts/run_web.sh` 默认会先执行 `scripts/build_mpos.sh web`，需要 Emscripten `emcc` 或可自动 source 的 `../emsdk`/`../../emsdk`。
+- 如果 `emcc` 不可用，记录为 `skipped_missing_emscripten`，不要把它当 App 失败。
+- 只有用户明确要求浏览器自动化时加 `--web-port-browser-check`；Chrome/Chromium 缺失、headless 启动失败或超时只记录 skipped/warning，不让目标 App 失败。
+- 不用 Web Port 代替 `scripts/mpos_controller.py` desktop smoke。
+
+当前最新代码和官方 Web Port 文档一致，本地命令是：
+
+```bash
+scripts/build_mpos.sh web
+scripts/run_web.sh
+```
+
+可选 smoke 命令：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/run_app_smoke.py \
+  --repo <repo-root> \
+  --app-fullname <fullname> \
+  --web-port-check
+```
+
+`scripts/build_mpos.sh web` 会把 `internal_filesystem` staging 到 `web/.preload_internal_filesystem`，注入 web-only `_thread`、`socket`、`aiorepl`、`_webrepl`、`websocket`、`aiohttp`、`machine.Timer` 等 shim，并输出 `web/micropython.{html,js,wasm,data}` 与 `web/index.html`。这验证的是浏览器/WASM 端兼容性；默认 App smoke 仍优先用本地 desktop simulator。
+
+## 失败处理
+
+失败时输出结构化结果并交回 `mpos-gen-app repair`，包含：
+
+- 失败阶段：`generation_result_static_gates`、`desktop_runner_launch`、`desktop_boot`、`app_start`、`expected_text`、`screenshot`。
+- command、cwd、returncode 或异常类型。
+- stdout/stderr/traceback 关键片段。
+- 可见文本和 widget tree 摘要。
+- screenshot 路径（如果生成成功）。
+- 涉及的 App 文件和是否允许修复。
+
+只把 App 自身启动/渲染/交互失败交给 `mpos-gen-app repair`。如果失败原因是缺少 `lvgl_micropy_unix`、`mpos.main` boot 失败、缺少 `_webrepl`、缺少本地 web tooling、缺少 Emscripten、缺少 web build 产物、全量 OS tests 失败、硬件不可用或外部服务不可达，标记为外部阻塞或 warning，不让 `mpos-gen-app` 修改无关 OS 文件，也不要直接改 OS 源码。
+
+## 输出 JSON
+
+使用 `templates/app_test_result.json` 作为字段模板，并用脚本校验：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/validate_app_test_result.py \
+  /path/to/app_test_result.json
+```
+
+成功时：
+
+- `schema_version` 为 `mpos-test-app-v1`。
+- `phase` 为 `test-app`。
+- `app.fullname` 指向目标 App。
+- `checks[]` 至少包含 `generation_result_static_gates`、`desktop_runner_launch` 和 `desktop_smoke`。
+- 如果运行 `--web-port-check`，`checks[]` 追加 `web_port`，且 `required` 必须为 `false`。
+- `handoff.next_skill` 为 `null`，或用户要继续修复时为 `"mpos-gen-app"`。

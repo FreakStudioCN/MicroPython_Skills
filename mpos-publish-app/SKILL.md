@@ -1,0 +1,155 @@
+---
+name: mpos-publish-app
+description: Validate and prepare a MicroPythonOS App for upystore release after packaging, testing, and deployment. Use when Codex needs to read package_result.json, app_test_result.json, and deploy_result.json together, compare the App version against upystore public listings, assemble store metadata such as screenshots, short/long descriptions, hardware tags, and release notes, produce publish_result.json, and guide the user to upload manually. Does not upload, login, package MPK files, deploy devices, flash firmware, or repair app code.
+---
+
+# MicroPythonOS App Publish
+
+## Role
+
+Prepare one already packaged MicroPythonOS App for manual upystore submission. This skill is a release-readiness gate and publishing handoff generator, not an uploader.
+
+## Unified Project Log
+
+After producing `publish_result.json`, record it in the shared project state:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-plan-app/scripts/update_plan_state.py record \
+  --repo <repo-root> \
+  --fullname <fullname> \
+  --skill mpos-publish-app \
+  --phase publish \
+  --result <success|partial|failed> \
+  --artifact publish_result=<publish_result.json> \
+  --next-skill <handoff.next_skill-or-null> \
+  --event "Prepared manual upystore publishing handoff"
+```
+
+If `deploy_result.json` is a `desktop-preview` or `web-preview`, accept it as the deploy record when no physical board is available.
+
+## Read first
+
+- `mpos-dev/reference/docs-packaging.md`
+- `<repo-root>/AGENTS.md`
+- `mpos-package-app/SKILL.md`
+- `mpos-test-app/SKILL.md`
+- `mpos-deploy-app/SKILL.md`
+
+Use current upystore public endpoints only for read-only version comparison:
+
+- `https://upystore.io/app_index.json`
+- `https://upystore.io/api/v1/apps`
+- `https://upystore.io/developer`
+
+If upystore is unavailable, record a warning and continue generating the handoff. Do not treat network failure as App failure.
+
+## Boundaries
+
+- Do not upload to upystore.
+- Do not ask for, save, or infer upystore credentials.
+- Do not package MPK files or rewrite app_index entries; use `mpos-package-app`.
+- Do not run tests; use `mpos-test-app`.
+- Do not deploy, preview, install, or flash; use `mpos-deploy-app`.
+- Do not repair App code, manifest, icon, or generated assets; hand back to `mpos-gen-app`.
+- Do not publish firmware or route firmware through upystore. Firmware install belongs to `install.micropythonos.com` and deploy guidance.
+
+## Required inputs
+
+Always read all three result files together:
+
+```bash
+--package-result /path/to/package_result.json
+--app-test-result /path/to/app_test_result.json
+--deploy-result /path/to/deploy_result.json
+```
+
+Missing, unreadable, wrong-schema, wrong-phase, or mismatched `app.fullname` inputs are publish blockers. A `result == "failed"` input is a blocker. A `result == "partial"` input is allowed only with warnings in `publish_result.json`.
+
+## Store metadata
+
+This skill owns the upystore submission metadata handoff:
+
+- `short_description`
+- `long_description`
+- `hardware_tags`
+- `release_notes`
+- `screenshots`
+- optional `tags`, `category`, `min_os_version`, `min_api_level`
+
+Prefer explicit CLI values. Otherwise reuse `app_index_entry.json` from `package_result.json` when available. Missing `short_description`, `long_description`, or `release_notes` makes the release not ready. Missing screenshots or hardware tags is a warning unless the App clearly needs hardware declarations.
+
+## Version policy
+
+Fetch upystore public listings and find the same `fullname`.
+
+- If no existing listing is found, mark `version_status` as `new_app`.
+- If the local version is greater than the published version, mark `upgrade_ready`.
+- If the local version is equal to the published version, mark `same_version_blocked`.
+- If the local version is lower, mark `downgrade_blocked`.
+- If either version is not parseable as integer dot components, mark `unknown` and warn.
+- If upystore cannot be reached, mark `unknown_unverified` and warn.
+
+Version comparison never requires login.
+
+## Workflow
+
+1. Locate `fullname`; default to `package_result.app.fullname` if not passed explicitly.
+2. Run the publish preparation script:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-publish-app/scripts/prepare_publish.py \
+  --repo <repo-root> \
+  --package-result <package_result.json> \
+  --app-test-result <app_test_result.json> \
+  --deploy-result <deploy_result.json> \
+  --short-description "<short store summary>" \
+  --long-description "<long store description>" \
+  --release-notes "<release notes>"
+```
+
+Add optional metadata:
+
+```bash
+  --hardware-tags-json '{"required":[{"capability":"display"}],"optional":[]}' \
+  --screenshot tmp/mpos-test-app/<fullname>.bmp \
+  --tag utility \
+  --category tools \
+  --min-os-version 0.15.1 \
+  --min-api-level 1
+```
+
+3. Validate the result:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-publish-app/scripts/validate_publish_result.py \
+  <repo-root>/tmp/mpos-publish-app/<fullname>/publish_result.json
+```
+
+4. Tell the user the release is ready, partial, or blocked. If ready, provide the MPK path, icon/app metadata, and `https://upystore.io/developer` as the manual upload destination.
+
+## Output JSON
+
+Use `templates/publish_result.json` as the shape.
+
+Required checks:
+
+- `package_result`
+- `app_test_result`
+- `deploy_result`
+- `artifact_consistency`
+- `upystore_version`
+- `store_metadata`
+- `manual_upload_guidance`
+
+`publish_result.json` must include:
+
+- MPK path, sha256, size, app_index_entry path.
+- app fullname, name, version, manifest, icon.
+- upystore endpoint status and published version comparison.
+- store metadata fields and missing metadata list.
+- warnings, errors, and handoff.
+
+`handoff.next_skill` is normally `null`. Use `mpos-package-app`, `mpos-test-app`, `mpos-deploy-app`, or `mpos-gen-app` only when a blocking failure belongs to that upstream stage.

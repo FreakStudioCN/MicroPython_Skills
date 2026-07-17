@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Publish App"
+  short_description: "Validate and guide upystore release"
+  default_prompt: "Use $mpos-publish-app to validate MicroPythonOS release artifacts and prepare an upystore publishing handoff."

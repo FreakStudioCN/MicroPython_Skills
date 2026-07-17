@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Plan App"
+  short_description: "Orchestrate MPOS app workflow state"
+  default_prompt: "Use $mpos-plan-app to resume or orchestrate a MicroPythonOS app from idea through publish."

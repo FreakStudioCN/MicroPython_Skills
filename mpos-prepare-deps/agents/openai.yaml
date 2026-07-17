@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Prepare Deps"
+  short_description: "Prepare app-layer MicroPython dependencies"
+  default_prompt: "Use $mpos-prepare-deps to research and vendor app-layer dependencies for this MicroPythonOS App."

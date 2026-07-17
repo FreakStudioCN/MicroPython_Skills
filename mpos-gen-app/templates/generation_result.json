@@ -1,0 +1,98 @@
+{
+  "schema_version": "mpos-gen-app-v1",
+  "phase": "generate",
+  "mode": "create",
+  "result": "success",
+  "confirmed_by_user": true,
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example",
+    "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
+    "assets_dir": "internal_filesystem/apps/com.micropythonos.example/assets"
+  },
+  "version_change": {
+    "old": null,
+    "new": "1.0.0",
+    "reason": "new_app"
+  },
+  "files_created": [
+    "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
+    "internal_filesystem/apps/com.micropythonos.example/assets/main.py",
+    "internal_filesystem/apps/com.micropythonos.example/icon_64x64.png"
+  ],
+  "files_modified": [],
+  "icon": {
+    "generated": true,
+    "path": "internal_filesystem/apps/com.micropythonos.example/icon_64x64.png",
+    "source": "mpos-gen-app/scripts/generate_icon.py",
+    "prompt": "Example utility app"
+  },
+  "dependencies_integrated": [
+    {
+      "name": "sync_sensor_driver",
+      "target_path": "assets/sync_sensor_driver.py",
+      "async_compatible": false,
+      "sync_needs_adapter": true,
+      "adapter_path": "assets/sync_sensor_driver_adapter.py"
+    }
+  ],
+  "validation": {
+    "gates": [
+      {
+        "name": "manifest",
+        "command": "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python -m unittest tests/test_apps_manifest.py",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "cpython_syntax",
+        "command": "check_app_syntax.py --app-fullname com.micropythonos.example",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "mpy_syntax",
+        "command": "check_app_syntax.py --app-fullname com.micropythonos.example",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "mpy_imports",
+        "command": "check_app_mpy_imports.py --app-dir internal_filesystem/apps/com.micropythonos.example",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "make_lint",
+        "command": "make lint",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "flake8",
+        "command": "/home/leeqingshui/mp_env/bin/python -m flake8 --config /home/leeqingshui/MicroPython_Skills/mpos-gen-app/templates/flake8-mpos-app.ini internal_filesystem/apps/com.micropythonos.example",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "pylint",
+        "command": "/home/leeqingshui/mp_env/bin/python -m pylint --persistent=n --rcfile=/home/leeqingshui/MicroPython_Skills/mpos-gen-app/templates/pylintrc-mpos-app internal_filesystem/apps/com.micropythonos.example/assets",
+        "returncode": 0,
+        "required": true,
+        "policy": "fail_on_fatal_error_usage"
+      }
+    ],
+    "warnings": []
+  },
+  "repair": {
+    "attempt": 0,
+    "source_failure": null,
+    "fixed_files": []
+  },
+  "blocking_questions": [],
+  "handoff": {
+    "next_skill": "mpos-test-app",
+    "reason": "App code was generated and required validation gates passed."
+  }
+}

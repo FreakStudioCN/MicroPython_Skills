@@ -1,0 +1,183 @@
+{
+  "schema_version": "mpos-prepare-deps-v1",
+  "phase": "prepare-deps",
+  "result": "success",
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example",
+    "assets_dir": "internal_filesystem/apps/com.micropythonos.example/assets"
+  },
+  "input": {
+    "analysis_schema_version": "mpos-analyze-v1",
+    "dependency_items": [
+      {
+        "name": "mqtt",
+        "purpose": "network messaging",
+        "required": true
+      }
+    ]
+  },
+  "search_policy": {
+    "sources": [
+      "mpos_builtin",
+      "micropython-lib",
+      "upypi",
+      "awesome-micropython",
+      "github",
+      "gitlab",
+      "codeberg",
+      "single_file_driver"
+    ],
+    "async_terms": [
+      "async",
+      "asyncio",
+      "uasyncio",
+      "aio",
+      "await",
+      "create_task",
+      "sleep_ms",
+      "event loop",
+      "task",
+      "coroutine",
+      "non-blocking",
+      "nonblocking",
+      "stream",
+      "queue",
+      "lock",
+      "event",
+      "callback",
+      "reconnect",
+      "timeout"
+    ]
+  },
+  "cache": {
+    "enabled": true,
+    "path": "tmp/mpos-deps-cache/com.micropythonos.example",
+    "artifacts": [
+      {
+        "kind": "search_plan",
+        "path": "tmp/mpos-deps-cache/com.micropythonos.example/search_plan.json"
+      },
+      {
+        "kind": "staged_runtime_root",
+        "path": "tmp/mpos-deps-cache/com.micropythonos.example/staged/assets"
+      },
+      {
+        "kind": "downloads",
+        "path": "tmp/mpos-deps-cache/com.micropythonos.example/downloads"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "mqtt_as",
+      "purpose": "async MQTT client",
+      "source": "github",
+      "url": "https://github.com/peterhinch/micropython-mqtt",
+      "version": "unknown",
+      "license": "unknown",
+      "install_action": "vendor_file",
+      "target_path": "assets/mqtt_as.py",
+      "staged_path": "tmp/mpos-deps-cache/com.micropythonos.example/staged/assets/mqtt_as.py",
+      "downloaded_to": "staged",
+      "search_queries": [
+        "mqtt micropython",
+        "mqtt micropython driver",
+        "mqtt micropython async",
+        "mqtt micropython asyncio",
+        "mqtt micropython uasyncio",
+        "mqtt micropython aio",
+        "mqtt micropython non-blocking",
+        "mqtt micropython await create_task sleep_ms"
+      ],
+      "cache_records": [
+        "tmp/mpos-deps-cache/com.micropythonos.example/mqtt/search_queries.json",
+        "tmp/mpos-deps-cache/com.micropythonos.example/downloads/assets_mqtt_as.py.json"
+      ],
+      "files": [
+        {
+          "source_url": "https://raw.githubusercontent.com/peterhinch/micropython-mqtt/master/mqtt_as/mqtt_as.py",
+          "target_path": "assets/mqtt_as.py",
+          "staged_path": "tmp/mpos-deps-cache/com.micropythonos.example/staged/assets/mqtt_as.py",
+          "sha256": "unknown",
+          "runtime": true
+        }
+      ],
+      "imports": [
+        "from mqtt_as import MQTTClient"
+      ],
+      "app_layer_ok": true,
+      "async_compatible": true,
+      "sync_needs_adapter": false,
+      "requires_vendor_path_injection": false,
+      "adapter_requirements": [],
+      "risks": [
+        "Network reconnect behavior must be tested on target hardware.",
+        "License and upstream revision should be confirmed before publishing."
+      ]
+    },
+    {
+      "name": "sync_sensor_driver",
+      "purpose": "example synchronous sensor driver",
+      "source": "github",
+      "url": "https://example.invalid/sync-sensor-driver",
+      "version": "unknown",
+      "license": "unknown",
+      "install_action": "vendor_file",
+      "target_path": "assets/sync_sensor_driver.py",
+      "staged_path": "tmp/mpos-deps-cache/com.micropythonos.example/staged/assets/sync_sensor_driver.py",
+      "downloaded_to": "staged",
+      "search_queries": [
+        "sync sensor driver micropython",
+        "sync sensor driver micropython driver",
+        "sync sensor driver micropython async",
+        "sync sensor driver micropython asyncio",
+        "sync sensor driver micropython uasyncio",
+        "sync sensor driver micropython aio",
+        "sensor micropython non-blocking",
+        "sensor micropython await create_task sleep_ms"
+      ],
+      "cache_records": [
+        "tmp/mpos-deps-cache/com.micropythonos.example/sync_sensor_driver/search_queries.json",
+        "tmp/mpos-deps-cache/com.micropythonos.example/downloads/assets_sync_sensor_driver.py.json"
+      ],
+      "files": [
+        {
+          "source_url": "https://example.invalid/sync_sensor_driver.py",
+          "target_path": "assets/sync_sensor_driver.py",
+          "staged_path": "tmp/mpos-deps-cache/com.micropythonos.example/staged/assets/sync_sensor_driver.py",
+          "sha256": "unknown",
+          "runtime": true
+        }
+      ],
+      "imports": [
+        "import sync_sensor_driver"
+      ],
+      "app_layer_ok": true,
+      "async_compatible": false,
+      "sync_needs_adapter": true,
+      "requires_vendor_path_injection": false,
+      "adapter_requirements": [
+        "Wrap blocking reads in a short async polling task.",
+        "Replace time.sleep calls with TaskManager.sleep_ms or asyncio.sleep_ms.",
+        "Add timeout and cancellation behavior so LVGL UI updates are not blocked."
+      ],
+      "risks": [
+        "Synchronous polling can block the MPOS event loop if used directly."
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "name": "example-native-lib",
+      "source": "github",
+      "url": "https://example.invalid/example-native-lib",
+      "reason": "Requires native/C/frozen module; out of scope for application-layer skills."
+    }
+  ],
+  "blocking_questions": [],
+  "handoff": {
+    "next_skill": "mpos-gen-app",
+    "reason": "Runtime dependencies are available as application-layer files and adapter requirements are explicit."
+  }
+}

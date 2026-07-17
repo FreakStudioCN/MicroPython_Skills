@@ -1,0 +1,97 @@
+{
+  "schema_version": "mpos-package-app-v1",
+  "phase": "package",
+  "result": "partial",
+  "created_at_utc": "2026-07-16T00:00:00Z",
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "version": "1.0.0",
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example",
+    "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
+    "icon": "internal_filesystem/apps/com.micropythonos.example/icon_64x64.png",
+    "layout": "flat"
+  },
+  "inputs": {
+    "generation_result": null,
+    "app_test_result": null,
+    "test_policy": "warn_only"
+  },
+  "package": {
+    "mpk_path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_1.0.0.mpk",
+    "compression": "stored",
+    "size_bytes": 1234,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "app_index_entry": {
+    "path": "tmp/mpos-package-app/com.micropythonos.example/app_index_entry.json",
+    "base_url": "https://apps.micropythonos.com",
+    "download_url": "https://apps.micropythonos.com/apps/com.micropythonos.example/mpks/com.micropythonos.example_1.0.0.mpk",
+    "icon_url": "https://apps.micropythonos.com/apps/com.micropythonos.example/icons/com.micropythonos.example_1.0.0_64x64.png"
+  },
+  "checks": [
+    {
+      "name": "app_validation",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "generation_result",
+      "required": false,
+      "ok": true,
+      "status": "not_provided",
+      "warnings": [
+        "generation_result.json was not provided; packaging continues with warning"
+      ],
+      "errors": []
+    },
+    {
+      "name": "app_test_result",
+      "required": false,
+      "ok": true,
+      "status": "not_provided",
+      "warnings": [
+        "app_test_result.json was not provided; packaging continues with warning"
+      ],
+      "errors": []
+    },
+    {
+      "name": "mpk_validation",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "app_index_entry",
+      "required": true,
+      "ok": true,
+      "status": "written",
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "warnings": [
+    "generation_result.json was not provided; packaging continues with warning",
+    "app_test_result.json was not provided; packaging continues with warning"
+  ],
+  "errors": [],
+  "artifacts": [
+    {
+      "kind": "mpk",
+      "path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_1.0.0.mpk"
+    },
+    {
+      "kind": "app_index_entry",
+      "path": "tmp/mpos-package-app/com.micropythonos.example/app_index_entry.json"
+    }
+  ],
+  "handoff": {
+    "next_skill": "mpos-publish-app",
+    "reason": "MPK and app_index entry were generated and validated; upload is a separate publishing step."
+  }
+}

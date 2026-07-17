@@ -1,0 +1,42 @@
+{
+  "schema_version": "mpos-plan-app-v1",
+  "phase": "analyze",
+  "result": "planned",
+  "updated_at_utc": "2026-07-17T00:00:00Z",
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "version": "1.0.0",
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example"
+  },
+  "intent": {
+    "goal": "create-to-publish",
+    "publish": true,
+    "deploy_record_required": true,
+    "deploy_record_policy": "desktop-or-web-preview-allowed"
+  },
+  "artifacts": {
+    "analysis_result": null,
+    "dependency_handoff": null,
+    "generation_result": null,
+    "app_test_result": null,
+    "package_result": null,
+    "deploy_result": null,
+    "publish_result": null
+  },
+  "artifact_status": {},
+  "invalidated": [],
+  "pending_confirmations": [],
+  "blocking_questions": [],
+  "last_event": {
+    "skill": "mpos-plan-app",
+    "phase": "analyze",
+    "result": "planned",
+    "summary": "Project state initialized."
+  },
+  "next_skill": "mpos-analyze-app",
+  "handoff": {
+    "next_skill": "mpos-analyze-app",
+    "reason": "Analyze the app request before generation."
+  }
+}

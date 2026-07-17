@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Package App"
+  short_description: "Package MPOS apps as validated MPK files"
+  default_prompt: "Use $mpos-package-app to package a MicroPythonOS app into a validated MPK."

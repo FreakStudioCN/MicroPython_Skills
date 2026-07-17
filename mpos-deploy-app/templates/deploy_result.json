@@ -1,0 +1,76 @@
+{
+  "schema_version": "mpos-deploy-app-v1",
+  "phase": "deploy",
+  "result": "partial",
+  "created_at_utc": "2026-07-16T00:00:00Z",
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "version": "1.0.0",
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example",
+    "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
+    "icon": "internal_filesystem/apps/com.micropythonos.example/icon_64x64.png",
+    "layout": "flat"
+  },
+  "deploy": {
+    "mode": "device-copy",
+    "transport": "serial",
+    "board": "ESP32-S3",
+    "port": "/dev/ttyACM0",
+    "device_id": null,
+    "confirmed": true,
+    "install_url": null,
+    "web_url": null
+  },
+  "command": {
+    "primary": "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python /home/leeqingshui/MicroPythonOS/scripts/mpos_controller.py --serial-port /dev/ttyACM0 installapp /home/leeqingshui/MicroPythonOS/internal_filesystem/apps/com.micropythonos.example",
+    "secondary": []
+  },
+  "checks": [
+    {
+      "name": "target_confirmation",
+      "required": true,
+      "ok": true,
+      "status": "confirmed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "preflight",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "deployment_action",
+      "required": true,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "name": "post_deploy_refresh",
+      "required": false,
+      "ok": true,
+      "status": "passed",
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "warnings": [],
+  "errors": [],
+  "artifacts": [
+    {
+      "kind": "deploy_result",
+      "path": "tmp/mpos-deploy-app/com.micropythonos.example/deploy_result.json"
+    }
+  ],
+  "handoff": {
+    "next_skill": "mpos-test-app",
+    "next_step": "Run mpos-test-app if you want a runtime smoke check after deployment.",
+    "reason": "The app was deployed and the registry was refreshed."
+  }
+}

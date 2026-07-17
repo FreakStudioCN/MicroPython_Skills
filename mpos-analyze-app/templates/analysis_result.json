@@ -1,0 +1,146 @@
+{
+  "schema_version": "mpos-analyze-v1",
+  "phase": "analyze",
+  "result": "success",
+  "summary": "Analyze a MicroPythonOS App request and prepare a handoff before code generation.",
+  "resource_links": [
+    {
+      "name": "MicroPythonOS Docs",
+      "url": "https://docs.micropythonos.com/",
+      "purpose": "Official documentation and App/framework reference."
+    },
+    {
+      "name": "UpyStore",
+      "url": "https://upystore.io/",
+      "purpose": "Storefront and publishing destination after MPK validation."
+    },
+    {
+      "name": "Install MicroPythonOS",
+      "url": "https://install.micropythonos.com/",
+      "purpose": "Recommended OS installer when a physical ESP32/ESP32-S3 device does not already run MicroPythonOS."
+    },
+    {
+      "name": "MicroPythonOS Web",
+      "url": "https://web.micropythonos.com/",
+      "purpose": "Browser/WebAssembly runtime for quick preview and smoke testing."
+    }
+  ],
+  "app": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "version": "1.0.0",
+    "category": "utilities",
+    "publisher": null,
+    "defaults_used": [
+      "fullname",
+      "name",
+      "version",
+      "category"
+    ]
+  },
+  "target": {
+    "run": "desktop-first",
+    "device": null,
+    "os_installed": "unknown",
+    "web_preview": true,
+    "publish_target": null
+  },
+  "requirements": {
+    "user_request": "",
+    "normalized_goal": "",
+    "mvp": [],
+    "later": [],
+    "non_goals": [],
+    "risks": []
+  },
+  "manifest_draft": {
+    "fullname": "com.micropythonos.example",
+    "name": "Example",
+    "version": "1.0.0",
+    "category": "utilities",
+    "activities": [
+      {
+        "classname": "ExampleActivity",
+        "entrypoint": "assets/main.py",
+        "intent_filters": [
+          {
+            "action": "main",
+            "category": "launcher"
+          }
+        ]
+      }
+    ],
+    "services": []
+  },
+  "app_structure": {
+    "app_dir": "internal_filesystem/apps/com.micropythonos.example",
+    "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
+    "entrypoints": [
+      "internal_filesystem/apps/com.micropythonos.example/assets/main.py"
+    ],
+    "icon": "internal_filesystem/apps/com.micropythonos.example/icon_64x64.png"
+  },
+  "feature_slices": [],
+  "framework_plan": [],
+  "lvgl_plan": [],
+  "dependency_plan": {
+    "builtin_api_sufficient": true,
+    "external_driver_required": false,
+    "cold_driver_required": false,
+    "items": [],
+    "notes": []
+  },
+  "api_references": [
+    "mpos-dev/reference/mpos_api_summary.json",
+    "mpos-dev/reference/lvgl_api_summary.json"
+  ],
+  "test_plan": [
+    {
+      "kind": "manifest",
+      "description": "Validate MANIFEST.JSON structure, entrypoints, and class names."
+    },
+    {
+      "kind": "syntax",
+      "description": "Run MicroPython syntax checks after code generation."
+    },
+    {
+      "kind": "desktop",
+      "description": "Run MicroPythonOS desktop simulator for integration smoke testing."
+    }
+  ],
+  "deploy_plan": {
+    "desktop": {
+      "recommended": true,
+      "notes": [
+        "Use Linux SDL desktop runtime for local App validation."
+      ]
+    },
+    "web": {
+      "recommended": true,
+      "url": "https://web.micropythonos.com/",
+      "notes": [
+        "Use browser runtime for quick preview, not hardware-specific validation."
+      ]
+    },
+    "device": {
+      "recommended": false,
+      "os_installed": "unknown",
+      "install_url": "https://install.micropythonos.com/",
+      "notes": [
+        "Ask whether MicroPythonOS is installed before physical-device testing."
+      ]
+    },
+    "publish": {
+      "recommended": false,
+      "url": "https://upystore.io/",
+      "notes": []
+    }
+  },
+  "blocking_questions": [],
+  "warnings": [],
+  "handoff": {
+    "next_skill": "mpos-gen-app",
+    "reason": "Requirements are clear enough for code generation.",
+    "artifacts": []
+  }
+}
