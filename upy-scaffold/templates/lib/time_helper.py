@@ -10,8 +10,12 @@ import time
 # ── Synchronous ──────────────────────────────────────────────
 
 
+def _callable_name(f):
+    return getattr(f, "__name__", None) or getattr(f, "_name_", None) or "fn"
+
+
 def timed_function(f):
-    myname = str(f).split(' ')[1]
+    myname = _callable_name(f)
 
     def new_func(*args, **kwargs):
         t = time.ticks_us()
@@ -26,7 +30,7 @@ def timed_function(f):
 
 
 def timed_coro(f):
-    myname = str(f).split(' ')[1]
+    myname = _callable_name(f)
 
     async def new_func(*args, **kwargs):
         t = time.ticks_us()

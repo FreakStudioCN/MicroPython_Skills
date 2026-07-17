@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 import sys
@@ -778,6 +779,56 @@ def flash_device_template_excludes_source_only_and_mocks() -> None:
         raise AssertionError(f"flash_device.py still has old entry-only policy: {present}")
 
 
+def time_helper_templates_do_not_depend_on_cpython_function_repr() -> None:
+    class FakeTime:
+        current = 0
+
+        @classmethod
+        def ticks_us(cls):
+            cls.current += 1000
+            return cls.current
+
+        @staticmethod
+        def ticks_diff(end, start):
+            return end - start
+
+    class MicroPythonLikeCallable:
+        def __str__(self):
+            return "micropython_callable"
+
+        def __call__(self):
+            return "ok"
+
+    class MicroPythonLikeAsyncCallable:
+        def __str__(self):
+            return "micropython_async_callable"
+
+        async def __call__(self):
+            return "async-ok"
+
+    template_paths = [
+        ROOT / "templates" / "lib" / "time_helper.py",
+        REPO / "upy-scaffold" / "templates" / "lib" / "time_helper.py",
+    ]
+    for template_path in template_paths:
+        text = template_path.read_text(encoding="utf-8")
+        forbidden = ["split(' ')[1]", 'split(" ")[1]']
+        found = [item for item in forbidden if item in text]
+        if found:
+            raise AssertionError(f"{template_path} still depends on CPython function repr: {found}")
+        namespace: dict[str, object] = {}
+        exec(compile(text, str(template_path), "exec"), namespace)
+        namespace["time"] = FakeTime
+
+        timed_function = namespace["timed_function"](MicroPythonLikeCallable())
+        if timed_function() != "ok":
+            raise AssertionError(f"{template_path} timed_function wrapper did not return original result")
+
+        timed_coro = namespace["timed_coro"](MicroPythonLikeAsyncCallable())
+        if asyncio.run(timed_coro()) != "async-ok":
+            raise AssertionError(f"{template_path} timed_coro wrapper did not return original result")
+
+
 def main() -> int:
     tests = [
         full_timer_generates_json_payload,
@@ -799,6 +850,7 @@ def main() -> int:
         flash_device_template_has_stable_json_summary,
         flash_device_template_upload_uses_resume_fs,
         flash_device_template_excludes_source_only_and_mocks,
+        time_helper_templates_do_not_depend_on_cpython_function_repr,
     ]
     for test in tests:
         test()
