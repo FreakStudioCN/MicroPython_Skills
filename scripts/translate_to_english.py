@@ -666,7 +666,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default=env_value("SKILLS_TRANSLATE_MODEL", "ANTHROPIC_MODEL"),
+        default=env_value("SKILLS_TRANSLATE_MODEL"),
         help="Model name (default depends on backend)",
     )
     parser.add_argument("--dry-run", action="store_true", help="List files, no API calls")
@@ -678,6 +678,8 @@ def main():
 
     if not args.base_url and args.backend == "anthropic":
         args.base_url = env_value("ANTHROPIC_BASE_URL")
+    if not args.model and args.backend == "anthropic":
+        args.model = env_value("ANTHROPIC_MODEL")
 
     if not args.dry_run and args.backend == "custom" and not args.base_url:
         print("ERROR: --backend custom requires --base-url or SKILLS_TRANSLATE_BASE_URL", file=sys.stderr)

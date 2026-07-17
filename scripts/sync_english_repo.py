@@ -84,8 +84,14 @@ def format_command(command: list[str]) -> str:
     return " ".join(redacted)
 
 
-def git(repo: Path, *args: str, check: bool = True, stdout: int | None = subprocess.PIPE) -> subprocess.CompletedProcess:
-    return run(["git", *args], cwd=repo, check=check, stdout=stdout)
+def git(
+    repo: Path,
+    *args: str,
+    check: bool = True,
+    text: bool = True,
+    stdout: int | None = subprocess.PIPE,
+) -> subprocess.CompletedProcess:
+    return run(["git", *args], cwd=repo, check=check, text=text, stdout=stdout)
 
 
 def repo_root(start: Path) -> Path:
@@ -207,17 +213,16 @@ def run_translation(args: argparse.Namespace, src_tree: Path, en_repo: Path) -> 
     run(command, cwd=src_tree, stdout=None, env=env)
 
 
-def ensure_branch(en_repo: Path, branch: str) -> None:
-    git(en_repo, "checkout", "-B", branch, stdout=None)
+def checkout_branch(en_repo: Path, branch: str) -> None:
+    git(en_repo, "checkout", branch, stdout=None)
 
 
-def commit_english_repo(en_repo: Path, src_full: str, src_short: str, branch_prefix: str) -> bool:
+def commit_english_repo(en_repo: Path, src_full: str, src_short: str) -> bool:
     if not porcelain(en_repo).strip():
         print("English repo has no changes to commit.")
         return False
 
-    branch = f"{branch_prefix.rstrip('/')}/{src_short}"
-    ensure_branch(en_repo, branch)
+    branch = git(en_repo, "branch", "--show-current").stdout.strip()
     git(en_repo, "add", "-A", stdout=None)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     message = f"[auto-sync] {stamp} - mirror source {src_short}"
@@ -261,14 +266,14 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--source-mode", choices=["head", "worktree"], default="head")
     parser.add_argument("--ref", default="HEAD", help="Git ref to export when --source-mode=head")
     parser.add_argument("--backend", default=default_backend(), choices=VALID_BACKENDS)
-    parser.add_argument("--model", default=env_value("SKILLS_TRANSLATE_MODEL", "ANTHROPIC_MODEL"))
+    parser.add_argument("--model", default=env_value("SKILLS_TRANSLATE_MODEL"))
     parser.add_argument("--base-url", default=env_value("SKILLS_TRANSLATE_BASE_URL"))
     parser.add_argument("--api-key")
     parser.add_argument("--rpm", type=int, default=40)
     parser.add_argument("--no-resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--commit", action="store_true", help="Commit changes in the English repo")
-    parser.add_argument("--branch-prefix", default=os.environ.get("SKILLS_EN_BRANCH_PREFIX", "auto-sync"))
+    parser.add_argument("--target-branch", default=os.environ.get("SKILLS_EN_TARGET_BRANCH", "main"))
     parser.add_argument("--push", action="store_true")
     parser.add_argument("--create-pr", action="store_true")
     parser.add_argument("--allow-dirty-en", action="store_true")
@@ -282,6 +287,8 @@ def main(argv: list[str]) -> int:
 
         if not args.dry_run and not args.api_key:
             args.api_key = resolve_api_key(args.backend)
+        if not args.model and args.backend == "anthropic":
+            args.model = env_value("ANTHROPIC_MODEL")
         if not args.dry_run and not args.api_key:
             print(
                 "No translation API key found; skipping English sync. "
@@ -307,6 +314,8 @@ def main(argv: list[str]) -> int:
             raise RuntimeError(f"English repository not found: {en_repo}")
         if not (en_repo / ".git").exists():
             raise RuntimeError(f"English path is not a git repository: {en_repo}")
+        if args.target_branch:
+            checkout_branch(en_repo, args.target_branch)
         if not args.allow_dirty_en:
             require_clean(en_repo, "English")
 
@@ -323,7 +332,7 @@ def main(argv: list[str]) -> int:
 
         committed = False
         if args.commit and not args.dry_run:
-            committed = commit_english_repo(en_repo, src_full, src_short, args.branch_prefix)
+            committed = commit_english_repo(en_repo, src_full, src_short)
         if args.push and committed:
             push_branch(en_repo)
         if args.create_pr and committed:
