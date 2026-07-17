@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -20,6 +21,22 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+VALID_BACKENDS = ("anthropic", "deepseek", "qwen", "glm", "moonshot", "custom")
+
+
+def claude_settings_env() -> dict[str, str]:
+    path = Path(os.environ.get("CLAUDE_SETTINGS_PATH", "~/.claude/settings.json")).expanduser()
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    env = data.get("env") if isinstance(data, dict) else None
+    if not isinstance(env, dict):
+        return {}
+    return {str(key): str(value) for key, value in env.items() if value is not None}
+
 
 def run(
     command: list[str],
@@ -28,10 +45,12 @@ def run(
     check: bool = True,
     text: bool = True,
     stdout: int | None = subprocess.PIPE,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess:
     proc = subprocess.run(
         command,
         cwd=str(cwd) if cwd else None,
+        env=env,
         text=text,
         stdout=stdout,
         stderr=subprocess.PIPE,
@@ -42,13 +61,27 @@ def run(
         err = proc.stderr if isinstance(proc.stderr, str) else ""
         raise RuntimeError(
             "command failed: {cmd}\nreturncode={rc}\nstdout={out}\nstderr={err}".format(
-                cmd=" ".join(command),
+                cmd=format_command(command),
                 rc=proc.returncode,
                 out=out[-2000:],
                 err=err[-2000:],
             )
         )
     return proc
+
+
+def format_command(command: list[str]) -> str:
+    redacted: list[str] = []
+    hide_next = False
+    for part in command:
+        if hide_next:
+            redacted.append("***")
+            hide_next = False
+            continue
+        redacted.append(part)
+        if part == "--api-key":
+            hide_next = True
+    return " ".join(redacted)
 
 
 def git(repo: Path, *args: str, check: bool = True, stdout: int | None = subprocess.PIPE) -> subprocess.CompletedProcess:
@@ -77,6 +110,42 @@ def porcelain(repo: Path) -> str:
 def git_config_bool(repo: Path, name: str) -> bool:
     proc = git(repo, "config", "--bool", "--get", name, check=False)
     return proc.returncode == 0 and proc.stdout.strip().lower() == "true"
+
+
+def env_value(*names: str) -> str | None:
+    settings_env = claude_settings_env()
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+        value = settings_env.get(name, "").strip()
+        if value:
+            return value
+    return None
+
+
+def default_backend() -> str:
+    configured = env_value("SKILLS_TRANSLATE_BACKEND")
+    if configured:
+        return configured
+    if env_value("SKILLS_TRANSLATE_BASE_URL"):
+        return "custom"
+    if env_value("DEEPSEEK_API_KEY"):
+        return "deepseek"
+    if env_value("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+        return "anthropic"
+    return "deepseek"
+
+
+def resolve_api_key(backend: str) -> str | None:
+    generic = env_value("SKILLS_TRANSLATE_API_KEY")
+    if generic:
+        return generic
+    if backend == "anthropic":
+        return env_value("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    if backend == "deepseek":
+        return env_value("DEEPSEEK_API_KEY")
+    return env_value("DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
 
 
 def require_clean(repo: Path, label: str) -> None:
@@ -119,13 +188,23 @@ def run_translation(args: argparse.Namespace, src_tree: Path, en_repo: Path) -> 
         command.extend(["--model", args.model])
     if args.base_url:
         command.extend(["--base-url", args.base_url])
-    if args.api_key:
-        command.extend(["--api-key", args.api_key])
     if args.no_resume:
         command.append("--no-resume")
     if args.dry_run:
         command.append("--dry-run")
-    run(command, cwd=src_tree, stdout=None)
+
+    env = os.environ.copy()
+    if args.api_key:
+        env["SKILLS_TRANSLATE_API_KEY"] = args.api_key
+        if args.backend == "anthropic":
+            env.setdefault("ANTHROPIC_API_KEY", args.api_key)
+        elif args.backend == "deepseek":
+            env.setdefault("DEEPSEEK_API_KEY", args.api_key)
+    if args.model:
+        env["SKILLS_TRANSLATE_MODEL"] = args.model
+    if args.base_url:
+        env["SKILLS_TRANSLATE_BASE_URL"] = args.base_url
+    run(command, cwd=src_tree, stdout=None, env=env)
 
 
 def ensure_branch(en_repo: Path, branch: str) -> None:
@@ -181,9 +260,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--en-repo", help="English mirror repository; defaults to sibling MicroPython_Skills_EN")
     parser.add_argument("--source-mode", choices=["head", "worktree"], default="head")
     parser.add_argument("--ref", default="HEAD", help="Git ref to export when --source-mode=head")
-    parser.add_argument("--backend", default=os.environ.get("SKILLS_TRANSLATE_BACKEND", "deepseek"))
-    parser.add_argument("--model")
-    parser.add_argument("--base-url")
+    parser.add_argument("--backend", default=default_backend(), choices=VALID_BACKENDS)
+    parser.add_argument("--model", default=env_value("SKILLS_TRANSLATE_MODEL", "ANTHROPIC_MODEL"))
+    parser.add_argument("--base-url", default=env_value("SKILLS_TRANSLATE_BASE_URL"))
     parser.add_argument("--api-key")
     parser.add_argument("--rpm", type=int, default=40)
     parser.add_argument("--no-resume", action="store_true")
@@ -202,15 +281,18 @@ def main(argv: list[str]) -> int:
             return 0
 
         if not args.dry_run and not args.api_key:
-            args.api_key = (
-                os.environ.get("SKILLS_TRANSLATE_API_KEY")
-                or os.environ.get("ANTHROPIC_API_KEY")
-                or os.environ.get("DEEPSEEK_API_KEY")
-            )
+            args.api_key = resolve_api_key(args.backend)
         if not args.dry_run and not args.api_key:
             print(
                 "No translation API key found; skipping English sync. "
-                "Set SKILLS_TRANSLATE_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY."
+                "Set SKILLS_TRANSLATE_API_KEY, ANTHROPIC_API_KEY, "
+                "ANTHROPIC_AUTH_TOKEN, or DEEPSEEK_API_KEY."
+            )
+            return 0
+        if not args.dry_run and args.backend == "custom" and not args.base_url:
+            print(
+                "Custom translation backend requires --base-url or "
+                "SKILLS_TRANSLATE_BASE_URL; skipping English sync."
             )
             return 0
 

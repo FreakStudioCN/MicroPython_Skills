@@ -89,6 +89,58 @@ BACKEND_CONFIG = {
     },
 }
 
+VALID_BACKENDS = ("anthropic", "deepseek", "qwen", "glm", "moonshot", "custom")
+
+
+def claude_settings_env() -> dict:
+    path = Path(os.environ.get("CLAUDE_SETTINGS_PATH", "~/.claude/settings.json")).expanduser()
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    env = data.get("env") if isinstance(data, dict) else None
+    if not isinstance(env, dict):
+        return {}
+    return {str(key): str(value) for key, value in env.items() if value is not None}
+
+
+def env_value(*names: str) -> Optional[str]:
+    settings_env = claude_settings_env()
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+        value = settings_env.get(name, "").strip()
+        if value:
+            return value
+    return None
+
+
+def default_backend() -> str:
+    configured = env_value("SKILLS_TRANSLATE_BACKEND")
+    if configured:
+        return configured
+    if env_value("SKILLS_TRANSLATE_BASE_URL"):
+        return "custom"
+    if env_value("DEEPSEEK_API_KEY"):
+        return "deepseek"
+    if env_value("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+        return "anthropic"
+    return BACKEND_DEFAULT
+
+
+def resolve_api_key(backend: str) -> Optional[str]:
+    generic = env_value("SKILLS_TRANSLATE_API_KEY")
+    if generic:
+        return generic
+    if backend == "anthropic":
+        return env_value("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    if backend == "deepseek":
+        return env_value("DEEPSEEK_API_KEY")
+    return env_value("DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+
 # Token budget
 MAX_TOKENS_SMALL = 8192
 MAX_TOKENS_LARGE = 16384
@@ -253,7 +305,10 @@ class Translator:
         # Init Anthropic client if needed
         if backend == "anthropic":
             from anthropic import Anthropic
-            self._anthropic = Anthropic(api_key=api_key)
+            client_args = {"api_key": api_key}
+            if self._base_url:
+                client_args["base_url"] = self._base_url
+            self._anthropic = Anthropic(**client_args)
         else:
             self._anthropic = None
 
@@ -596,13 +651,24 @@ def main():
     parser.add_argument("--src", required=True, help="Source root directory")
     parser.add_argument("--dst", required=True, help="Output root directory")
     parser.add_argument(
-        "--backend", default=BACKEND_DEFAULT,
-        choices=["anthropic", "deepseek", "qwen", "glm", "moonshot", "custom"],
+        "--backend", default=default_backend(),
+        choices=VALID_BACKENDS,
         help=f"API backend (default: {BACKEND_DEFAULT})",
     )
-    parser.add_argument("--base-url", help="Custom OpenAI-compatible base URL (for --backend custom)")
-    parser.add_argument("--api-key", help="API key (env: ANTHROPIC_API_KEY or DEEPSEEK_API_KEY)")
-    parser.add_argument("--model", help=f"Model name (default depends on backend)")
+    parser.add_argument(
+        "--base-url",
+        default=env_value("SKILLS_TRANSLATE_BASE_URL"),
+        help="Custom OpenAI-compatible base URL, or Anthropic-compatible base URL for --backend anthropic",
+    )
+    parser.add_argument(
+        "--api-key",
+        help="API key (env: SKILLS_TRANSLATE_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, or DEEPSEEK_API_KEY)",
+    )
+    parser.add_argument(
+        "--model",
+        default=env_value("SKILLS_TRANSLATE_MODEL", "ANTHROPIC_MODEL"),
+        help="Model name (default depends on backend)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="List files, no API calls")
     parser.add_argument("--no-resume", action="store_true", help="Ignore progress file")
     parser.add_argument("--rpm", type=int, default=REQUESTS_PER_MINUTE)
@@ -610,12 +676,23 @@ def main():
 
     args = parser.parse_args()
 
+    if not args.base_url and args.backend == "anthropic":
+        args.base_url = env_value("ANTHROPIC_BASE_URL")
+
+    if not args.dry_run and args.backend == "custom" and not args.base_url:
+        print("ERROR: --backend custom requires --base-url or SKILLS_TRANSLATE_BASE_URL", file=sys.stderr)
+        sys.exit(1)
+
     # API key — try multiple sources
     api_key = args.api_key
     if not api_key:
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+        api_key = resolve_api_key(args.backend)
     if not api_key and not args.dry_run:
-        print("ERROR: provide --api-key or set ANTHROPIC_API_KEY / DEEPSEEK_API_KEY", file=sys.stderr)
+        print(
+            "ERROR: provide --api-key or set SKILLS_TRANSLATE_API_KEY / "
+            "ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN / DEEPSEEK_API_KEY",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     src = os.path.abspath(args.src)
