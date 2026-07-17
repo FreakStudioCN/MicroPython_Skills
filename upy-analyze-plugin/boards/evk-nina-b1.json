@@ -1,0 +1,411 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "evk-nina-b1",
+  "display_name": "EVK-NINA-B1",
+  "official_board_slug": "EVK_NINA_B1",
+  "vendor": "u-blox",
+  "mcu": "NRF52832",
+  "chip_family": "nrf52832",
+  "firmware": {
+    "url": "https://micropython.org/download/EVK_NINA_B1/",
+    "port": "nrf",
+    "board_name": "EVK_NINA_B1",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/EVK_NINA_B1-20260406-v1.28.0.hex",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/EVK_NINA_B1-20260706-v1.29.0-preview.510.gf67ab9efe1.hex",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 32,
+    "adc": 8,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 3,
+    "uart": 1,
+    "pwm": 3,
+    "touch": 0,
+    "wifi": false,
+    "ble": true,
+    "usb_otg": false
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "MCU evaluation and prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 30 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": true,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "EVK-NINA-B1",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/EVK_NINA_B1.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "P8"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2": "P16"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led3": "P18"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW2",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw2": "P30"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Candidate display",
+      "type": "display",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "rx": 5,
+        "tx": 6,
+        "cts": 7,
+        "rts": 31
+      },
+      "spi0": {
+        "clk": 14,
+        "mosi": 13,
+        "miso": 12
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "A0": "P3",
+        "A1": "P2",
+        "A2": "P4",
+        "A3": "P30",
+        "A4": "P29",
+        "A5": "P28",
+        "LED1": "P8",
+        "LED2": "P16",
+        "LED3": "P18",
+        "SW2": "P30",
+        "UART1_RX": "P5",
+        "UART1_TX": "P6",
+        "UART1_CTS": "P7",
+        "UART1_RTS": "P8",
+        "SDA": "P2",
+        "SCL": "P3",
+        "NFC1": "P9",
+        "NFC2": "P10",
+        "D0": "P5",
+        "D1": "P6",
+        "D2": "P7",
+        "D3": "P31",
+        "D4": "P18",
+        "D6": "P9",
+        "D7": "P10",
+        "D9": "P8",
+        "D10": "P11",
+        "D11": "P13",
+        "D12": "P12",
+        "D13": "P14",
+        "P15": "P15",
+        "P17": "P17",
+        "P19": "P19",
+        "P20": "P20",
+        "P21": "P21",
+        "P22": "P22",
+        "P23": "P23",
+        "P24": "P24",
+        "P25": "P25",
+        "P26": "P26",
+        "P27": "P27"
+      },
+      "exposed_pins": [
+        "P3",
+        "P2",
+        "P4",
+        "P30",
+        "P29",
+        "P28",
+        "P8",
+        "P16",
+        "P18",
+        "P5",
+        "P6",
+        "P7",
+        "P9",
+        "P10",
+        "P31",
+        "P11",
+        "P13",
+        "P12",
+        "P14",
+        "P15",
+        "P17",
+        "P19",
+        "P20",
+        "P21",
+        "P22",
+        "P23",
+        "P24",
+        "P25",
+        "P26",
+        "P27"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 30 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/EVK_NINA_B1/EVK-NINA-B1_.jpg",
+    "pinout_image_url": "https://os.mbed.com/media/uploads/andreaslarsson/evk_nina_b1-pin-out_big_IX5AOPu.png",
+    "pinout_image_urls": [
+      "https://os.mbed.com/media/uploads/andreaslarsson/evk_nina_b1-pin-out_big_IX5AOPu.png"
+    ],
+    "pinout_reference_urls": [
+      "https://os.mbed.com/media/uploads/andreaslarsson/evk_nina_b1-pin-out_big_IX5AOPu.png"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\EVK_NINA_B1__pinout.png"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.u-blox.com/en/product/evk-nina-b1",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/nrf/boards/EVK_NINA_B1"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/EVK_NINA_B1/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/nrf/boards/EVK_NINA_B1",
+    "vendor_product_page": "https://www.u-blox.com/en/product/evk-nina-b1",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/EVK_NINA_B1/partitions.csv",
+    "pinout_reference": "https://os.mbed.com/media/uploads/andreaslarsson/evk_nina_b1-pin-out_big_IX5AOPu.png",
+    "pinout_references": [
+      "https://os.mbed.com/media/uploads/andreaslarsson/evk_nina_b1-pin-out_big_IX5AOPu.png"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "EVK-NINA-B1",
+    "board_json_vendor": "u-blox",
+    "board_json_mcu": "nrf52",
+    "mpconfigboard_board_name": "EVK_NINA_B1",
+    "parsed_named_pin_count": 41,
+    "parsed_onboard_peripheral_count": 4,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "m4",
+        "MCU_VARIANT": "nrf52",
+        "MCU_SUB_VARIANT": "nrf52832",
+        "SOFTDEV_VERSION": "6.1.1",
+        "LD_FILES": "boards/nrf52832_512k_64k.ld",
+        "NRF_DEFINES": "-DNRF52832_XXAA",
+        "MICROPY_VFS_LFS2": "1"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.u-blox.com/en/product/evk-nina-b1",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "display"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\EVK_NINA_B1.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\EVK_NINA_B1",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\evk-nina-b1.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

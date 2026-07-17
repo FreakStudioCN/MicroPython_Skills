@@ -1,0 +1,433 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "olimex-rt1010",
+  "display_name": "RT1010-Py",
+  "official_board_slug": "OLIMEX_RT1010",
+  "vendor": "Olimex",
+  "mcu": "MIMXRT1011DAE5A",
+  "chip_family": "mimxrt",
+  "firmware": {
+    "url": "https://micropython.org/download/OLIMEX_RT1010/",
+    "port": "mimxrt",
+    "board_name": "OLIMEX_RT1010",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/OLIMEX_RT1010-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/OLIMEX_RT1010-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 34,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "USB device experiments"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 34 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 4 entries; 1 need model review and 1 need pin mapping review. CSV notes: 按用户补充替换 pinout 图片；文件名显示 Makerdiary/iMX RT1011 Nano，后续需人工确认是否对应 OLIMEX_RT1010。 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 2 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "External Flash",
+    "USB",
+    "microSD"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "RT1010-Py",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/14",
+    "csv_pending_json": "_official_pending/OLIMEX_RT1010.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led": "GPIO_11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard microSD",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "data_in": "GPIO_03",
+        "data_in_alt": "GPIO_04"
+      },
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed SD_RX from MicroPython pins.csv.; Parsed SD_TX from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "LED1_PIN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1_pin": "GPIO_11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "Onboard microphone",
+      "type": "microphone",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Candidate button",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    },
+    {
+      "name": "Candidate display",
+      "type": "display",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {},
+    "default_bus_source": "",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        0
+      ],
+      "internal_only": [],
+      "other": [],
+      "usb_otg_pins": [
+        "GPIO_AD_00"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "D0": "GPIO_00",
+        "D1": "GPIO_01",
+        "D2": "GPIO_02",
+        "D3": "GPIO_03",
+        "D4": "GPIO_04",
+        "D5": "GPIO_05",
+        "D6": "GPIO_06",
+        "D7": "GPIO_07",
+        "D8": "GPIO_08",
+        "D9": "GPIO_SD_00",
+        "D10": "GPIO_SD_01",
+        "D11": "GPIO_SD_02",
+        "D12": "GPIO_SD_05",
+        "D13": "GPIO_SD_12",
+        "D14": "GPIO_SD_13",
+        "A0": "GPIO_AD_02",
+        "A1": "GPIO_AD_03",
+        "A2": "GPIO_AD_04",
+        "A3": "GPIO_AD_05",
+        "A4": "GPIO_AD_06",
+        "LED": "GPIO_11",
+        "SDA1": "GPIO_AD_13",
+        "SCL1": "GPIO_AD_14",
+        "SDA2": "GPIO_AD_07",
+        "SCL2": "GPIO_AD_08",
+        "SDI": "GPIO_AD_09",
+        "SDO": "GPIO_AD_10",
+        "CS0": "GPIO_AD_11",
+        "SCK": "GPIO_AD_12",
+        "USB_OTG1_PWR": "GPIO_AD_00",
+        "BT0": "GPIO_SD_04",
+        "BT1": "GPIO_SD_03",
+        "RX": "GPIO_09",
+        "TX": "GPIO_10",
+        "RELAY1": "GPIO_SD_12",
+        "RELAY2": "GPIO_SD_13",
+        "MCK": "GPIO_08",
+        "SCK_RX": "GPIO_01",
+        "WS_RX": "GPIO_02",
+        "SD_RX": "GPIO_03",
+        "SCK_TX": "GPIO_06",
+        "WS_TX": "GPIO_07",
+        "SD_TX": "GPIO_04"
+      },
+      "exposed_pins": [
+        "GPIO_00",
+        "GPIO_01",
+        "GPIO_02",
+        "GPIO_03",
+        "GPIO_04",
+        "GPIO_05",
+        "GPIO_06",
+        "GPIO_07",
+        "GPIO_08",
+        "GPIO_SD_00",
+        "GPIO_SD_01",
+        "GPIO_SD_02",
+        "GPIO_SD_05",
+        "GPIO_SD_12",
+        "GPIO_SD_13",
+        "GPIO_AD_02",
+        "GPIO_AD_03",
+        "GPIO_AD_04",
+        "GPIO_AD_05",
+        "GPIO_AD_06",
+        "GPIO_11",
+        "GPIO_AD_13",
+        "GPIO_AD_14",
+        "GPIO_AD_07",
+        "GPIO_AD_08",
+        "GPIO_AD_09",
+        "GPIO_AD_10",
+        "GPIO_AD_11",
+        "GPIO_AD_12",
+        "GPIO_AD_00",
+        "GPIO_SD_04",
+        "GPIO_SD_03",
+        "GPIO_09",
+        "GPIO_10"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 34 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 4 entries; 1 need model review and 1 need pin mapping review.",
+      "CSV notes: 按用户补充替换 pinout 图片；文件名显示 Makerdiary/iMX RT1011 Nano，后续需人工确认是否对应 OLIMEX_RT1010。"
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/OLIMEX_RT1010/OLIMEX_RT1010Py.jpg",
+    "pinout_image_url": "https://www.cnx-software.com/wp-content/uploads/2024/09/Makerdiary-iMX-RT1011-Nano-pinout.jpg",
+    "pinout_image_urls": [
+      "https://www.cnx-software.com/wp-content/uploads/2024/09/Makerdiary-iMX-RT1011-Nano-pinout.jpg"
+    ],
+    "pinout_reference_urls": [
+      "https://www.cnx-software.com/wp-content/uploads/2024/09/Makerdiary-iMX-RT1011-Nano-pinout.jpg"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\OLIMEX_RT1010__pinout.jpg"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.olimex.com/Products/MicroPython/RT1010-Py",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/mimxrt/boards/OLIMEX_RT1010"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/OLIMEX_RT1010/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/mimxrt/boards/OLIMEX_RT1010",
+    "vendor_product_page": "https://www.olimex.com/Products/MicroPython/RT1010-Py",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/mimxrt/boards/OLIMEX_RT1010/partitions.csv",
+    "pinout_reference": "https://www.cnx-software.com/wp-content/uploads/2024/09/Makerdiary-iMX-RT1011-Nano-pinout.jpg",
+    "pinout_references": [
+      "https://www.cnx-software.com/wp-content/uploads/2024/09/Makerdiary-iMX-RT1011-Nano-pinout.jpg"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "RT1010-Py",
+    "board_json_vendor": "Olimex",
+    "board_json_mcu": "mimxrt",
+    "mpconfigboard_board_name": "RT1010-Py-DevKIT",
+    "parsed_named_pin_count": 43,
+    "parsed_onboard_peripheral_count": 4,
+    "parsed_onboard_peripheral_types": [
+      "led",
+      "microphone",
+      "storage"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 3,
+    "onboard_peripherals_needing_model_count": 1,
+    "onboard_peripherals_needing_pin_mapping_count": 1,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "MIMXRT1011",
+        "MCU_VARIANT": "MIMXRT1011DAE5A",
+        "MICROPY_FLOAT_IMPL": "single",
+        "MICROPY_HW_FLASH_TYPE": "qspi_nor_flash",
+        "MICROPY_HW_FLASH_SIZE": "0x200000",
+        "MICROPY_HW_FLASH_RESERVED": "0x1000",
+        "MICROPY_HW_FLASH_CLK": "kFlexSpiSerialClk_100MHz",
+        "MICROPY_HW_FLASH_QE_CMD": "0x01",
+        "MICROPY_HW_FLASH_QE_ARG": "0x40",
+        "USE_UF2_BOOTLOADER": "1",
+        "CFLAGS": "-DMICROPY_HW_FLASH_DQS=kFlexSPIReadSampleClk_LoopbackInternally",
+        "SRC_C": "\\"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.olimex.com/Products/MicroPython/RT1010-Py",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "button",
+        "display"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": false,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\OLIMEX_RT1010.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\OLIMEX_RT1010",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\olimex-rt1010.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

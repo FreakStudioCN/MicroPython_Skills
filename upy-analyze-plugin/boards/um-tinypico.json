@@ -1,0 +1,417 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "um-tinypico",
+  "display_name": "TinyPICO",
+  "official_board_slug": "UM_TINYPICO",
+  "vendor": "Unexpected Maker",
+  "mcu": "ESP32-PICO-D4",
+  "chip_family": "esp32",
+  "firmware": {
+    "url": "https://micropython.org/download/UM_TINYPICO/",
+    "port": "esp32",
+    "board_name": "UM_TINYPICO",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/UM_TINYPICO-20260406-v1.28.0.bin",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/UM_TINYPICO-20260706-v1.29.0-preview.510.gf67ab9efe1.bin",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 34,
+    "adc": 18,
+    "dac": 2,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 16,
+    "touch": 10,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "battery-powered projects",
+    "USB device experiments",
+    "compact embedded projects",
+    "education and rapid prototyping"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "PSRAM/RAM feature is present, but size was not inferred automatically. pins.csv exposes 12 named pins; MCU GPIO count remains family-level when known. sdkconfig.board indicates PSRAM is configured, but size was not inferred. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration. sdkconfig.board parsed for flash, PSRAM, Ethernet, hostname, and console configuration. v3 onboard peripheral pass detected 5 entries; 1 need model review and 1 need pin mapping review.",
+  "features": [
+    "BLE",
+    "Battery Charging",
+    "External Flash",
+    "External RAM",
+    "RGB LED",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "TinyPICO",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/UM_TINYPICO.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "RGB_DATA",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "rgb_data": 2
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "RGB_CLK",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "rgb_clk": 12
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "RGB_PWR",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "rgb_pwr": 13
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard power management",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "vbat_sense": 35,
+        "vbat_chrg": 34
+      },
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed VBAT_SENSE from MicroPython pins.csv.; Parsed VBAT_CHRG from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard RGB LED",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 22,
+        "sda": 21
+      },
+      "spi0": {
+        "clk": 18,
+        "mosi": 23,
+        "miso": 19
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [
+        34,
+        35,
+        36,
+        39
+      ],
+      "strapping": [
+        0,
+        2,
+        4,
+        5,
+        12,
+        15
+      ],
+      "flash_psram_occupied": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "adc2_wifi_conflict": [
+        0,
+        2,
+        4,
+        12,
+        13,
+        14,
+        15,
+        25,
+        26,
+        27
+      ],
+      "reserved": [],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "I2C_SCL": 22,
+        "I2C_SDA": 21,
+        "RGB_DATA": 2,
+        "RGB_CLK": 12,
+        "RGB_PWR": 13,
+        "SPI_SS": 5,
+        "SPI_MOSI": 23,
+        "SPI_SCK": 18,
+        "SPI_MISO": 19,
+        "VBAT_SENSE": 35,
+        "VBAT_CHRG": 34,
+        "VBUS_SENSE": 9
+      },
+      "exposed_pins": [
+        22,
+        21,
+        2,
+        12,
+        13,
+        5,
+        23,
+        18,
+        19,
+        35,
+        34,
+        9
+      ]
+    },
+    "notes": [
+      "PSRAM/RAM feature is present, but size was not inferred automatically.",
+      "pins.csv exposes 12 named pins; MCU GPIO count remains family-level when known.",
+      "sdkconfig.board indicates PSRAM is configured, but size was not inferred.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration.",
+      "sdkconfig.board parsed for flash, PSRAM, Ethernet, hostname, and console configuration.",
+      "v3 onboard peripheral pass detected 5 entries; 1 need model review and 1 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/UM_TINYPICO/unexpectedmaker_tinypico.jpg",
+    "pinout_image_url": "https://www.crowdsupply.com/img/a5f9/1c063cad-187f-4749-9e29-e134554fa5f9_gallery-lg.jpg",
+    "pinout_image_urls": [
+      "https://www.crowdsupply.com/img/a5f9/1c063cad-187f-4749-9e29-e134554fa5f9_gallery-lg.jpg"
+    ],
+    "pinout_reference_urls": [
+      "https://www.crowdsupply.com/img/a5f9/1c063cad-187f-4749-9e29-e134554fa5f9_gallery-lg.jpg"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\UM_TINYPICO__pinout.jpg"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.tinypico.com/",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/UM_TINYPICO"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/UM_TINYPICO/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/UM_TINYPICO",
+    "vendor_product_page": "https://www.tinypico.com/",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_TINYPICO/partitions.csv",
+    "pinout_reference": "https://www.crowdsupply.com/img/a5f9/1c063cad-187f-4749-9e29-e134554fa5f9_gallery-lg.jpg",
+    "pinout_references": [
+      "https://www.crowdsupply.com/img/a5f9/1c063cad-187f-4749-9e29-e134554fa5f9_gallery-lg.jpg"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "cached",
+      "mpconfigboard.mk": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "sdkconfig.board": "cached"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": true,
+      "mpconfigboard.mk": false,
+      "sdkconfig.board": true
+    },
+    "board_json_product": "TinyPICO",
+    "board_json_vendor": "Unexpected Maker",
+    "board_json_mcu": "esp32",
+    "mpconfigboard_board_name": "TinyPICO",
+    "parsed_named_pin_count": 12,
+    "parsed_onboard_peripheral_count": 5,
+    "parsed_onboard_peripheral_types": [
+      "power_mgmt",
+      "rgb_led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 1,
+    "onboard_peripherals_needing_pin_mapping_count": 1,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [],
+        "freeze": [
+          "modules"
+        ],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [
+          "boards/mpconfigboard_esp32_common.cmake"
+        ],
+        "set": {
+          "MICROPY_FROZEN_MANIFEST": "${MICROPY_BOARD_DIR}/manifest.py"
+        },
+        "append": {
+          "SDKCONFIG_DEFAULTS": [
+            "boards/sdkconfig.240mhz",
+            "boards/sdkconfig.spiram_esp32",
+            "boards/sdkconfig.flash_qio_80m",
+            "boards/UM_TINYPICO/sdkconfig.board"
+          ]
+        }
+      },
+      "mpconfigboard_mk": {},
+      "sdkconfig_board": {
+        "hostname": "UMTinyPICO",
+        "flash_mb": null,
+        "psram_mb": 0,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": [
+        "CONFIG_ESP32_REV_MIN_1",
+        "CONFIG_LWIP_LOCAL_HOSTNAME",
+        "CONFIG_SPIRAM_SPEED_80M"
+      ]
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "missing",
+      "vendor_url": "https://www.tinypico.com/",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\UM_TINYPICO.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\UM_TINYPICO",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\um-tinypico.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

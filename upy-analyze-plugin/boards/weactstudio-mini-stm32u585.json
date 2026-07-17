@@ -1,0 +1,429 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "weactstudio-mini-stm32u585",
+  "display_name": "Mini STM32U585",
+  "official_board_slug": "WEACTSTUDIO_MINI_STM32U585",
+  "vendor": "WeAct Studio",
+  "mcu": "STM32U585CI",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/WEACTSTUDIO_MINI_STM32U585/",
+    "port": "stm32",
+    "board_name": "WEACTSTUDIO_MINI_STM32U585",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/WEACTSTUDIO_MINI_STM32U585-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/WEACTSTUDIO_MINI_STM32U585-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 37,
+    "adc": 0,
+    "dac": 1,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MicroPython prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 37 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review. CSV notes: 按用户补充替换 404 的 MicroPython 官方板卡图片；按用户补充替换为可访问图片直链：https://ae01.alicdn.com/kf/Sdff8405c64a14b639861e1c3bd4fecd9U.png",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Mini STM32U585",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/WEACTSTUDIO_MINI_STM32U585.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED_BLUE",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_blue": "PC13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw": "PA0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "A0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "C13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": "A9",
+        "rx": "A10"
+      },
+      "uart1": {
+        "tx": "A2",
+        "rx": "A3",
+        "rts": "A1",
+        "cts": "A0"
+      },
+      "i2c0": {
+        "scl": "B6",
+        "sda": "B7"
+      },
+      "i2c1": {
+        "scl": "B10",
+        "sda": "B14"
+      },
+      "spi0": {
+        "cs": "A4",
+        "clk": "A5",
+        "miso": "A6",
+        "mosi": "A7"
+      },
+      "spi1": {
+        "cs": "B12",
+        "clk": "B10",
+        "miso": "B14",
+        "mosi": "B15"
+      },
+      "spi2": {
+        "cs": "A15",
+        "clk": "B3",
+        "miso": "B4",
+        "mosi": "B5"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        1,
+        "FLASH_LATENCY_4"
+      ],
+      "internal_only": [],
+      "other": [],
+      "debug_port": [
+        "PA13",
+        "PA14"
+      ],
+      "usb_otg_pins": [
+        "PA11",
+        "PA12"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "A0": "PA0",
+        "A1": "PA1",
+        "A2": "PA2",
+        "A3": "PA3",
+        "A4": "PA4",
+        "A5": "PA5",
+        "A6": "PA6",
+        "A7": "PA7",
+        "A8": "PA8",
+        "A9": "PA9",
+        "A10": "PA10",
+        "A11": "PA11",
+        "A12": "PA12",
+        "A13": "PA13",
+        "A14": "PA14",
+        "A15": "PA15",
+        "B0": "PB0",
+        "B1": "PB1",
+        "B2": "PB2",
+        "B3": "PB3",
+        "B4": "PB4",
+        "B5": "PB5",
+        "B6": "PB6",
+        "B7": "PB7",
+        "B8": "PB8",
+        "B9": "PB9",
+        "B10": "PB10",
+        "B11": "PB11",
+        "B12": "PB12",
+        "B13": "PB13",
+        "B14": "PB14",
+        "B15": "PB15",
+        "C13": "PC13",
+        "C14": "PC14",
+        "C15": "PC15",
+        "LED_BLUE": "PC13",
+        "SW": "PA0",
+        "-SWDIO": "PA13",
+        "-SWCLK": "PA14",
+        "-OSC32_IN": "PH0",
+        "-OSC32_OUT": "PH1",
+        "-USB_DM": "PA11",
+        "-USB_DP": "PA12"
+      },
+      "exposed_pins": [
+        "PA0",
+        "PA1",
+        "PA2",
+        "PA3",
+        "PA4",
+        "PA5",
+        "PA6",
+        "PA7",
+        "PA8",
+        "PA9",
+        "PA10",
+        "PA11",
+        "PA12",
+        "PA13",
+        "PA14",
+        "PA15",
+        "PB0",
+        "PB1",
+        "PB2",
+        "PB3",
+        "PB4",
+        "PB5",
+        "PB6",
+        "PB7",
+        "PB8",
+        "PB9",
+        "PB10",
+        "PB11",
+        "PB12",
+        "PB13",
+        "PB14",
+        "PB15",
+        "PC13",
+        "PC14",
+        "PC15",
+        "PH0",
+        "PH1"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 37 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review.",
+      "CSV notes: 按用户补充替换 404 的 MicroPython 官方板卡图片；按用户补充替换为可访问图片直链：https://ae01.alicdn.com/kf/Sdff8405c64a14b639861e1c3bd4fecd9U.png"
+    ]
+  },
+  "media": {
+    "board_image_url": "https://ae01.alicdn.com/kf/Sdff8405c64a14b639861e1c3bd4fecd9U.png",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://github.com/WeActStudio/WeActStudio.STM32U585Cx_CoreBoard",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/WEACTSTUDIO_MINI_STM32U585/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585",
+    "vendor_product_page": "https://github.com/WeActStudio/WeActStudio.STM32U585Cx_CoreBoard",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACTSTUDIO_MINI_STM32U585/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Mini STM32U585",
+    "board_json_vendor": "WeAct Studio",
+    "board_json_mcu": "stm32u5",
+    "mpconfigboard_board_name": "WEACTSTUDIO_MINI_STM32U585",
+    "parsed_named_pin_count": 43,
+    "parsed_onboard_peripheral_count": 4,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "USE_MBOOT": "0",
+        "MCU_SERIES": "u5",
+        "CMSIS_MCU": "STM32U585xx",
+        "MICROPY_FLOAT_IMPL": "single",
+        "AF_FILE": "boards/stm32u5a5_af.csv",
+        "LD_FILES": "boards/stm32u585xi.ld boards/common_basic.ld",
+        "TEXT0_ADDR": "0x08000000"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://github.com/WeActStudio/WeActStudio.STM32U585Cx_CoreBoard",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\WEACTSTUDIO_MINI_STM32U585.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\WEACTSTUDIO_MINI_STM32U585",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\weactstudio-mini-stm32u585.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

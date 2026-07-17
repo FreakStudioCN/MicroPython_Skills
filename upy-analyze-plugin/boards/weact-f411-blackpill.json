@@ -1,0 +1,400 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "weact-f411-blackpill",
+  "display_name": "WeAct F411 'blackpill'. Default variant is v3.1 with no SPI Flash.",
+  "official_board_slug": "WEACT_F411_BLACKPILL",
+  "vendor": "WeAct Studio",
+  "mcu": "stm32f411",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/WEACT_F411_BLACKPILL/",
+    "port": "stm32",
+    "board_name": "WEACT_F411_BLACKPILL",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/WEACT_F411_BLACKPILL-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/WEACT_F411_BLACKPILL-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 13,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MicroPython prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 13 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "WeAct F411 'blackpill'. Default variant is v3.1 with no SPI Flash.",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/WEACT_F411_BLACKPILL.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED_BLUE",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_blue": "PC13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw": "PA0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "pyb_pin_SW"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "pyb_pin_LED_BLUE"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": "A9",
+        "rx": "A10"
+      },
+      "uart1": {
+        "tx": "A2",
+        "rx": "A3"
+      },
+      "i2c0": {
+        "scl": "B6",
+        "sda": "B7"
+      },
+      "i2c1": {
+        "scl": "B10",
+        "sda": "B9"
+      },
+      "i2c2": {
+        "scl": "A8",
+        "sda": "B8"
+      },
+      "spi0": {
+        "cs": "A4",
+        "clk": "A5",
+        "miso": "A6",
+        "mosi": "A7"
+      },
+      "spi1": {
+        "cs": "B12",
+        "clk": "B13",
+        "miso": "B14",
+        "mosi": "B15"
+      },
+      "spi2": {
+        "cs": "A15",
+        "clk": "B3",
+        "miso": "B4",
+        "mosi": "B5"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        "\"WEACT_F411_BLACKPILL\"",
+        "FLASH_LATENCY_3",
+        1,
+        0,
+        "pyb_pin_FLASH_CS",
+        "pyb_pin_FLASH_SCK",
+        "pyb_pin_FLASH_MOSI",
+        "pyb_pin_FLASH_MISO_V31",
+        "&spi_bdev",
+        "&spiflash_config",
+        "MICROPY_HW_SPIFLASH_SIZE_BITS / 8",
+        "MICROPY_HW_SPIFLASH_SIZE_BYTES * 8"
+      ],
+      "internal_only": [],
+      "other": [],
+      "debug_port": [
+        "PA13",
+        "PA14"
+      ],
+      "usb_otg_pins": [
+        "PA11",
+        "PA12"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "LED_BLUE": "PC13",
+        "SW": "PA0",
+        "-SWDIO": "PA13",
+        "-SWCLK": "PA14",
+        "-OSC32_IN": "PH0",
+        "-OSC32_OUT": "PH1",
+        "-USB_DM": "PA11",
+        "-USB_DP": "PA12",
+        "-FLASH_CS": "PA4",
+        "-FLASH_SCK": "PA5",
+        "-FLASH_MOSI": "PA7",
+        "-FLASH_MISO_V13": "PA6",
+        "-FLASH_MISO_V20": "PB4",
+        "-FLASH_MISO_V31": "PA6"
+      },
+      "exposed_pins": [
+        "PC13",
+        "PA0",
+        "PA13",
+        "PA14",
+        "PH0",
+        "PH1",
+        "PA11",
+        "PA12",
+        "PA4",
+        "PA5",
+        "PA7",
+        "PA6",
+        "PB4"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 13 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/WEACT_F411_BLACKPILL/WEACTV20_F411.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSrfUQt4VpUXBfnNpteJAL3F1DDCZoCSRx-GqlGyt9UUUKri-YNJMcA1Fk&s=10"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\WEACT_F411_BLACKPILL__pinout.png"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/WEACT_F411_BLACKPILL"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/WEACT_F411_BLACKPILL/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/WEACT_F411_BLACKPILL",
+    "vendor_product_page": "https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/WEACT_F411_BLACKPILL/partitions.csv",
+    "pinout_reference": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSrfUQt4VpUXBfnNpteJAL3F1DDCZoCSRx-GqlGyt9UUUKri-YNJMcA1Fk&s=10",
+    "pinout_references": [
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSrfUQt4VpUXBfnNpteJAL3F1DDCZoCSRx-GqlGyt9UUUKri-YNJMcA1Fk&s=10"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "WeAct F411 'blackpill'. Default variant is v3.1 with no SPI Flash.",
+    "board_json_vendor": "WeAct Studio",
+    "board_json_mcu": "stm32f411",
+    "mpconfigboard_board_name": "WEACT_F411_BLACKPILL",
+    "parsed_named_pin_count": 14,
+    "parsed_onboard_peripheral_count": 4,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "f4",
+        "CMSIS_MCU": "STM32F411xE",
+        "AF_FILE": "boards/stm32f411_af.csv",
+        "LD_FILES": "boards/stm32f411.ld boards/common_ifs.ld",
+        "TEXT0_ADDR": "0x08000000",
+        "TEXT1_ADDR": "0x08020000",
+        "MICROPY_VFS_LFS2": "1",
+        "BUILD": "$(BUILD)_XTAL_$(XTAL_FREQ_MHZ)M",
+        "BOARD_VERSION": "31",
+        "SPI_FLASH_SIZE_MB": "0",
+        "XTAL_FREQ_MHZ": "25",
+        "CFLAGS": "-DWEACT_F411_V$(BOARD_VERSION)=1 -DMICROPY_HW_SPIFLASH_SIZE_BYTES=\"($(SPI_FLASH_SIZE_MB) * 1024 * 1024)\" -DMICROPY_HW_HSE_SPEED_MHZ=\"($(XTAL_FREQ_MHZ))\""
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\WEACT_F411_BLACKPILL.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\WEACT_F411_BLACKPILL",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\weact-f411-blackpill.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

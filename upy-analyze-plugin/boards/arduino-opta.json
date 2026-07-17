@@ -1,0 +1,811 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "arduino-opta",
+  "display_name": "Opta WiFi",
+  "official_board_slug": "ARDUINO_OPTA",
+  "vendor": "Arduino",
+  "mcu": "STM32H747",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/ARDUINO_OPTA/",
+    "port": "stm32",
+    "board_name": "ARDUINO_OPTA",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/ARDUINO_OPTA-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/ARDUINO_OPTA-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 66,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "USB device experiments"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 66 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 19 entries; 0 need model review and 0 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "BLE",
+    "Dual-core",
+    "External Flash",
+    "USB",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": true,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Opta WiFi",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/ARDUINO_OPTA.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED_BUILTIN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_builtin": "PH11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_SYS_1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_sys_1": "PH11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_SYS_2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_sys_2": "PH12"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_SYS_3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_sys_3": "PE5"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LEDR",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "ledr": "PH11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LEDG",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "ledg": "PH12"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LEDB",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "ledb": "PE5"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "PE4",
+        "user_button_alt": "pyb_pin_USER_BUTTON"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv; mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv.; Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED_D0",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_d0": "PI0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_D1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_d1": "PI1"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_D2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_d2": "PI3"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_D3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_d3": "PH15"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RELAY1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_relay1": "PI0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RELAY2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_relay2": "PI1"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RELAY3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_relay3": "PI3"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RELAY4",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_relay4": "PH15"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard Ethernet",
+      "type": "ethernet",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "rst": "PJ15",
+        "clk": "PA1",
+        "eth_mdio": "-PA2",
+        "eth_rmii_crs_dv": "-PA7",
+        "eth_mdc": "-PC1",
+        "d0": "-PC4",
+        "d1": "-PC5",
+        "tx": "PG11",
+        "d0_alt": "PG13",
+        "d1_alt": "PG12",
+        "clk_alt": "A1"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv; mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed -ETH_RST from MicroPython pins.csv.; Parsed -ETH_RMII_REF_CLK from MicroPython pins.csv.; Parsed -ETH_MDIO from MicroPython pins.csv.; Parsed -ETH_RMII_CRS_DV from MicroPython pins.csv.; Parsed -ETH_MDC from MicroPython pins.csv.; Parsed -ETH_RMII_RXD0 from MicroPython pins.csv.; Parsed -ETH_RMII_RXD1 from MicroPython pins.csv.; Parsed -ETH_RMII_TX_EN from MicroPython pins.csv.; Parsed -ETH_RMII_TXD0 from MicroPython pins.csv.; Parsed -ETH_RMII_TXD1 from MicroPython pins.csv.; Parsed MICROPY_HW_ETH_RMII_REF_CLK from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "pyb_pin_LED_SYS_1"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2": "pyb_pin_LED_SYS_2"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "Candidate secure element",
+      "type": "secure_element",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2C",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart2": {
+        "tx": "pyb_pin_UART3_TX",
+        "rx": "pyb_pin_UART3_RX",
+        "rts": "pyb_pin_UART3_RTS",
+        "cts": "pyb_pin_UART3_CTS"
+      },
+      "uart3": {
+        "tx": "pyb_pin_BT_TXD",
+        "rx": "pyb_pin_BT_RXD",
+        "rts": "pyb_pin_BT_RTS",
+        "cts": "pyb_pin_BT_CTS"
+      },
+      "uart5": {
+        "tx": "pyb_pin_UART6_TX",
+        "rx": "pyb_pin_UART6_RX"
+      },
+      "i2c0": {
+        "scl": "pyb_pin_I2C1_SCL",
+        "sda": "pyb_pin_I2C1_SDA"
+      },
+      "i2c2": {
+        "scl": "pyb_pin_I2C3_SCL",
+        "sda": "pyb_pin_I2C3_SDA"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        "\"OPTA\"",
+        1,
+        0,
+        27,
+        "120 * 1024 * 1024",
+        "pyb_pin_QSPI2_CS",
+        "pyb_pin_QSPI2_CLK",
+        "pyb_pin_QSPI2_D0",
+        "pyb_pin_QSPI2_D1",
+        "pyb_pin_QSPI2_D2",
+        "pyb_pin_QSPI2_D3",
+        "&spi_bdev",
+        "&spiflash_config",
+        "MICROPY_HW_SPIFLASH_SIZE_BITS / 8",
+        "FLASH_LATENCY_2"
+      ],
+      "internal_only": [],
+      "other": [],
+      "usb_otg_pins": [
+        "PJ4",
+        "PE7",
+        "PG1",
+        "PA11",
+        "PA12"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "IN_1": "PA0_C",
+        "IN_2": "PC2_C",
+        "IN_3": "PF12",
+        "IN_4": "PB0",
+        "IN_5": "PF10",
+        "IN_6": "PF8",
+        "IN_7": "PF6",
+        "IN_8": "PF4",
+        "OUT_1": "PI6",
+        "OUT_2": "PI5",
+        "OUT_3": "PI7",
+        "OUT_4": "PI4",
+        "RELAY_1": "PI6",
+        "RELAY_2": "PI5",
+        "RELAY_3": "PI7",
+        "RELAY_4": "PI4",
+        "UART3_TX": "PB10",
+        "UART3_RX": "PB11",
+        "UART3_CTS": "PB13",
+        "UART3_RTS": "PB14",
+        "UART3_RE": "PB13",
+        "UART3_DE": "PB14",
+        "UART6_TX": "PG14",
+        "UART6_RX": "PC7",
+        "I2C3_SDA": "PH8",
+        "I2C3_SCL": "PH7",
+        "BUS_DETECT": "PG8",
+        "I2C1_SDA": "PB7",
+        "I2C1_SCL": "PB6",
+        "USB_PCON_DETECT": "PJ4",
+        "USB_PCON_FAULT": "PE7",
+        "USB_PCON_ENABLE": "PG1",
+        "-USB_DM": "PA11",
+        "-USB_DP": "PA12",
+        "LED_BUILTIN": "PH11",
+        "LED_SYS_1": "PH11",
+        "LED_SYS_2": "PH12",
+        "LED_SYS_3": "PE5",
+        "LEDR": "PH11",
+        "LEDG": "PH12",
+        "LEDB": "PE5",
+        "USER_BUTTON": "PE4",
+        "LED_D0": "PI0",
+        "LED_D1": "PI1",
+        "LED_D2": "PI3",
+        "LED_D3": "PH15",
+        "LED_RELAY1": "PI0",
+        "LED_RELAY2": "PI1",
+        "LED_RELAY3": "PI3",
+        "LED_RELAY4": "PH15",
+        "OSCEN": "PH1",
+        "-WL_REG_ON": "PJ1",
+        "-WL_HOST_WAKE": "PJ5",
+        "-WL_SDIO_0": "PC8",
+        "-WL_SDIO_1": "PC9",
+        "-WL_SDIO_2": "PC10",
+        "-WL_SDIO_3": "PC11",
+        "-WL_SDIO_CMD": "PD2",
+        "-WL_SDIO_CLK": "PC12",
+        "-BT_RXD": "-PH14",
+        "-BT_TXD": "PB9",
+        "-BT_CTS": "-PB15",
+        "-BT_RTS": "-PA15",
+        "-BT_REG_ON": "PJ12",
+        "-BT_HOST_WAKE": "PJ13",
+        "-BT_DEV_WAKE": "PJ14",
+        "-QSPI2_CS": "PG6",
+        "-QSPI2_CLK": "PF10",
+        "-QSPI2_D0": "PD11",
+        "-QSPI2_D1": "PD12",
+        "-QSPI2_D2": "PE2",
+        "-QSPI2_D3": "PF6",
+        "-ETH_RST": "PJ15",
+        "-ETH_RMII_REF_CLK": "PA1",
+        "-ETH_MDIO": "-PA2",
+        "-ETH_RMII_CRS_DV": "-PA7",
+        "-ETH_MDC": "-PC1",
+        "-ETH_RMII_RXD0": "-PC4",
+        "-ETH_RMII_RXD1": "-PC5",
+        "-ETH_RMII_TX_EN": "PG11",
+        "-ETH_RMII_TXD0": "PG13",
+        "-ETH_RMII_TXD1": "PG12"
+      },
+      "exposed_pins": [
+        "PA0_C",
+        "PC2_C",
+        "PF12",
+        "PB0",
+        "PF10",
+        "PF8",
+        "PF6",
+        "PF4",
+        "PI6",
+        "PI5",
+        "PI7",
+        "PI4",
+        "PB10",
+        "PB11",
+        "PB13",
+        "PB14",
+        "PG14",
+        "PC7",
+        "PH8",
+        "PH7",
+        "PG8",
+        "PB7",
+        "PB6",
+        "PJ4",
+        "PE7",
+        "PG1",
+        "PA11",
+        "PA12",
+        "PH11",
+        "PH12",
+        "PE5",
+        "PE4",
+        "PI0",
+        "PI1",
+        "PI3",
+        "PH15",
+        "PH1",
+        "PJ1",
+        "PJ5",
+        "PC8",
+        "PC9",
+        "PC10",
+        "PC11",
+        "PD2",
+        "PC12",
+        "-PH14",
+        "PB9",
+        "-PB15",
+        "-PA15",
+        "PJ12",
+        "PJ13",
+        "PJ14",
+        "PG6",
+        "PD11",
+        "PD12",
+        "PE2",
+        "PJ15",
+        "PA1",
+        "-PA2",
+        "-PA7",
+        "-PC1",
+        "-PC4",
+        "-PC5",
+        "PG11",
+        "PG13",
+        "PG12"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 66 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 19 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/ARDUINO_OPTA/AFX00002_01.iso_1000x750.jpg",
+    "pinout_image_url": "https://raw.githubusercontent.com/arduino/docs-content/main/content/hardware/07.opta/opta-family/opta/tutorials/01.user-manual/assets/user-manual-1_2.png",
+    "pinout_image_urls": [
+      "https://raw.githubusercontent.com/arduino/docs-content/main/content/hardware/07.opta/opta-family/opta/tutorials/01.user-manual/assets/user-manual-1_2.png"
+    ],
+    "pinout_reference_urls": [
+      "https://raw.githubusercontent.com/arduino/docs-content/main/content/hardware/07.opta/opta-family/opta/tutorials/01.user-manual/assets/user-manual-1_2.png"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\ARDUINO_OPTA__pinout.png"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://store.arduino.cc/products/opta-wifi",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/ARDUINO_OPTA"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ARDUINO_OPTA/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/ARDUINO_OPTA",
+    "vendor_product_page": "https://store.arduino.cc/products/opta-wifi",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/ARDUINO_OPTA/partitions.csv",
+    "pinout_reference": "https://raw.githubusercontent.com/arduino/docs-content/main/content/hardware/07.opta/opta-family/opta/tutorials/01.user-manual/assets/user-manual-1_2.png",
+    "pinout_references": [
+      "https://raw.githubusercontent.com/arduino/docs-content/main/content/hardware/07.opta/opta-family/opta/tutorials/01.user-manual/assets/user-manual-1_2.png"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Opta WiFi",
+    "board_json_vendor": "Arduino",
+    "board_json_mcu": "stm32h7",
+    "mpconfigboard_board_name": "Arduino OPTA",
+    "parsed_named_pin_count": 82,
+    "parsed_onboard_peripheral_count": 19,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "ethernet",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 19,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [
+          "bundle-networking",
+          "time",
+          "senml",
+          "logging",
+          "aioble",
+          "opta",
+          "msgpackrpc"
+        ],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "USE_MBOOT": "0",
+        "USE_PYDFU": "0",
+        "CFLAGS": "-DCORE_CM7",
+        "BOOTLOADER_DFU_USB_VID": "0x2341",
+        "BOOTLOADER_DFU_USB_PID": "0x0364",
+        "MCU_SERIES": "h7",
+        "CMSIS_MCU": "STM32H747xx",
+        "MICROPY_FLOAT_IMPL": "single",
+        "AF_FILE": "boards/stm32h743_af.csv",
+        "LD_FILES": "boards/ARDUINO_OPTA/stm32h747.ld",
+        "TEXT0_ADDR": "0x08040000",
+        "MICROPY_PY_BLUETOOTH": "1",
+        "MICROPY_BLUETOOTH_NIMBLE": "1",
+        "MICROPY_BLUETOOTH_BTSTACK": "0",
+        "MICROPY_PY_LWIP": "1",
+        "MICROPY_PY_NETWORK_CYW43": "1",
+        "MICROPY_PY_SSL": "1",
+        "MICROPY_SSL_MBEDTLS": "1",
+        "MICROPY_PY_OPENAMP": "1",
+        "MICROPY_PY_OPENAMP_REMOTEPROC": "1",
+        "ARDUINO_LIB_DIR": "lib/arduino-lib",
+        "GIT_SUBMODULES": "$(ARDUINO_LIB_DIR)",
+        "FROZEN_MANIFEST": "$(BOARD_DIR)/manifest.py",
+        "MICROPY_MANIFEST_ARDUINO_LIB_DIR": "$(TOP)/$(ARDUINO_LIB_DIR)",
+        "MBEDTLS_CONFIG_FILE": "'\"$(BOARD_DIR)/mbedtls_config_board.h\"'"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://store.arduino.cc/products/opta-wifi",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "secure_element"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\ARDUINO_OPTA.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\ARDUINO_OPTA",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\arduino-opta.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

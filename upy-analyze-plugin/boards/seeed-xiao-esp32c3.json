@@ -1,0 +1,332 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "seeed-xiao-esp32c3",
+  "display_name": "XIAO ESP32C3",
+  "official_board_slug": "SEEED_XIAO_ESP32C3",
+  "vendor": "Seeed Studio",
+  "mcu": "esp32c3",
+  "chip_family": "esp32c3",
+  "firmware": {
+    "url": "https://micropython.org/download/SEEED_XIAO_ESP32C3/",
+    "port": "esp32",
+    "board_name": "SEEED_XIAO_ESP32C3",
+    "latest_version": "v1.29.0-preview.510.gf67ab9efe1",
+    "latest_release": null,
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/SEEED_XIAO_ESP32C3-20260706-v1.29.0-preview.510.gf67ab9efe1.bin",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 22,
+    "adc": 6,
+    "dac": 0,
+    "i2c": 1,
+    "spi": 2,
+    "uart": 2,
+    "pwm": 6,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "battery-powered projects",
+    "USB device experiments",
+    "compact embedded projects"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 11 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration. v3 onboard peripheral pass detected 1 entries; 1 need model review and 1 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "BLE",
+    "WiFi",
+    "USB",
+    "USB-C",
+    "Battery Charging"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "XIAO ESP32C3",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/SEEED_XIAO_ESP32C3.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "Onboard battery charger",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Candidate display",
+      "type": "display",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 7,
+        "sda": 6
+      },
+      "spi0": {
+        "mosi": 10,
+        "miso": 9,
+        "clk": 8
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [
+        2,
+        8,
+        9
+      ],
+      "flash_psram_occupied": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "adc2_wifi_conflict": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "boot": [
+        9
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "D0": 2,
+        "D1": 3,
+        "D2": 4,
+        "D3": 5,
+        "D4": 6,
+        "D5": 7,
+        "D6": 21,
+        "D7": 20,
+        "D8": 8,
+        "D9": 9,
+        "D10": 10,
+        "A0": 2,
+        "A1": 3,
+        "A2": 4,
+        "BOOT": 9
+      },
+      "exposed_pins": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        21,
+        20,
+        8,
+        9,
+        10
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 11 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 1 entries; 1 need model review and 1 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/SEEED_XIAO_ESP32C3/seeed_xiao_esp32c3.jpg",
+    "pinout_image_url": "https://files.seeedstudio.com/wiki/microblocks/xiao-esp32c3-pinout.png",
+    "pinout_image_urls": [
+      "https://files.seeedstudio.com/wiki/microblocks/xiao-esp32c3-pinout.png"
+    ],
+    "pinout_reference_urls": [
+      "https://files.seeedstudio.com/wiki/microblocks/xiao-esp32c3-pinout.png"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\SEEED_XIAO_ESP32C3__pinout.png"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.seeedstudio.com/Seeed-XIAO-ESP32C3-p-5431.html",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/SEEED_XIAO_ESP32C3"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/SEEED_XIAO_ESP32C3/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/SEEED_XIAO_ESP32C3",
+    "vendor_product_page": "https://www.seeedstudio.com/Seeed-XIAO-ESP32C3-p-5431.html",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/SEEED_XIAO_ESP32C3/partitions.csv",
+    "pinout_reference": "https://files.seeedstudio.com/wiki/microblocks/xiao-esp32c3-pinout.png",
+    "pinout_references": [
+      "https://files.seeedstudio.com/wiki/microblocks/xiao-esp32c3-pinout.png"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "cached",
+      "mpconfigboard.mk": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": true,
+      "mpconfigboard.mk": false,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "XIAO ESP32C3",
+    "board_json_vendor": "Seeed Studio",
+    "board_json_mcu": "esp32c3",
+    "mpconfigboard_board_name": "Seeed XIAO ESP32C3",
+    "parsed_named_pin_count": 15,
+    "parsed_onboard_peripheral_count": 1,
+    "parsed_onboard_peripheral_types": [
+      "power_mgmt"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 0,
+    "onboard_peripherals_needing_model_count": 1,
+    "onboard_peripherals_needing_pin_mapping_count": 1,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [
+          "boards/mpconfigboard_esp32c3_common.cmake"
+        ],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {},
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.seeedstudio.com/Seeed-XIAO-ESP32C3-p-5431.html",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "display"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": false,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\SEEED_XIAO_ESP32C3.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\SEEED_XIAO_ESP32C3",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\seeed-xiao-esp32c3.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

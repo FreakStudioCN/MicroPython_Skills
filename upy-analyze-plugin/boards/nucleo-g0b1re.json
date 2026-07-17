@@ -1,0 +1,492 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "nucleo-g0b1re",
+  "display_name": "Nucleo G0B1RE",
+  "official_board_slug": "NUCLEO_G0B1RE",
+  "vendor": "ST Microelectronics",
+  "mcu": "STM32G0B1xE",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/NUCLEO_G0B1RE/",
+    "port": "stm32",
+    "board_name": "NUCLEO_G0B1RE",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_G0B1RE-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_G0B1RE-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 54,
+    "adc": 0,
+    "dac": 1,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MCU evaluation and prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 54 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Nucleo G0B1RE",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/NUCLEO_G0B1RE.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED_GREEN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_green": "PD13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw": "PC13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "C13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "A5"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": "A9",
+        "rx": "A10"
+      },
+      "uart1": {
+        "tx": "A2",
+        "rx": "A3"
+      },
+      "uart2": {
+        "tx": "C4",
+        "rx": "C5",
+        "rts": "B14",
+        "cts": "B13"
+      },
+      "uart3": {
+        "tx": "A0",
+        "rx": "A1"
+      },
+      "uart4": {
+        "tx": "B0",
+        "rx": "B1"
+      },
+      "uart5": {
+        "tx": "C0",
+        "rx": "C1"
+      },
+      "i2c0": {
+        "scl": "B8",
+        "sda": "B9"
+      },
+      "i2c1": {
+        "scl": "B10",
+        "sda": "B11"
+      },
+      "spi0": {
+        "cs": "A4",
+        "clk": "B3",
+        "miso": "B4",
+        "mosi": "B5"
+      },
+      "spi1": {
+        "cs": "B12",
+        "clk": "B13",
+        "miso": "B14",
+        "mosi": "B15"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        1,
+        "FLASH_LATENCY_2"
+      ],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "A0": "PA0",
+        "A1": "PA1",
+        "A2": "PA4",
+        "A3": "PB1",
+        "A4": "PB11",
+        "A5": "PB12",
+        "D0": "PC5",
+        "D1": "PC4",
+        "D10": "PB0",
+        "D11": "PA7",
+        "D12": "PA6",
+        "D13": "PA5",
+        "D14": "PB9",
+        "D15": "PB8",
+        "D2": "PA10",
+        "D3": "PB3",
+        "D4": "PB5",
+        "D5": "PB4",
+        "D6": "PB14",
+        "D7": "PA8",
+        "D8": "PA9",
+        "D9": "PC7",
+        "PA0": "PA0",
+        "PA1": "PA1",
+        "PA10": "PA10",
+        "PA11": "PA11",
+        "PA12": "PA12",
+        "PA15": "PA15",
+        "PA2": "PA2",
+        "PA3": "PA3",
+        "PA4": "PA4",
+        "PA5": "PA5",
+        "PA6": "PA6",
+        "PA7": "PA7",
+        "PA8": "PA8",
+        "PA9": "PA9",
+        "PB0": "PB0",
+        "PB1": "PB1",
+        "PB10": "PB10",
+        "PB11": "PB11",
+        "PB12": "PB12",
+        "PB13": "PB13",
+        "PB14": "PB14",
+        "PB15": "PB15",
+        "PB2": "PB2",
+        "PB3": "PB3",
+        "PB4": "PB4",
+        "PB5": "PB5",
+        "PB6": "PB6",
+        "PB7": "PB7",
+        "PB8": "PB8",
+        "PB9": "PB9",
+        "PC0": "PC0",
+        "PC1": "PC1",
+        "PC10": "PC10",
+        "PC11": "PC11",
+        "PC12": "PC12",
+        "PC13": "PC13",
+        "PC2": "PC2",
+        "PC3": "PC3",
+        "PC4": "PC4",
+        "PC5": "PC5",
+        "PC6": "PC6",
+        "PC7": "PC7",
+        "PC8": "PC8",
+        "PC9": "PC9",
+        "PD0": "PD0",
+        "PD1": "PD1",
+        "PD2": "PD2",
+        "PD3": "PD3",
+        "PD4": "PD4",
+        "PD5": "PD5",
+        "PD6": "PD6",
+        "PD8": "PD8",
+        "PD9": "PD9",
+        "PD13": "PD13",
+        "LED_GREEN": "PD13",
+        "SW": "PC13"
+      },
+      "exposed_pins": [
+        "PA0",
+        "PA1",
+        "PA4",
+        "PB1",
+        "PB11",
+        "PB12",
+        "PC5",
+        "PC4",
+        "PB0",
+        "PA7",
+        "PA6",
+        "PA5",
+        "PB9",
+        "PB8",
+        "PA10",
+        "PB3",
+        "PB5",
+        "PB4",
+        "PB14",
+        "PA8",
+        "PA9",
+        "PC7",
+        "PA11",
+        "PA12",
+        "PA15",
+        "PA2",
+        "PA3",
+        "PB10",
+        "PB13",
+        "PB15",
+        "PB2",
+        "PB6",
+        "PB7",
+        "PC0",
+        "PC1",
+        "PC10",
+        "PC11",
+        "PC12",
+        "PC13",
+        "PC2",
+        "PC3",
+        "PC6",
+        "PC8",
+        "PC9",
+        "PD0",
+        "PD1",
+        "PD2",
+        "PD3",
+        "PD4",
+        "PD5",
+        "PD6",
+        "PD8",
+        "PD9",
+        "PD13"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 54 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/NUCLEO_G0B1RE/nucleo_g0b1re.jpg",
+    "pinout_image_url": "https://preview.redd.it/nucleo-g0b1re-pinout-diagram-v0-dg9664tat6ke1.png?width=1184&format=png&auto=webp&s=cd4dd3cd48b6e7921a149a6221d2a7e7fbf85ada",
+    "pinout_image_urls": [
+      "https://preview.redd.it/nucleo-g0b1re-pinout-diagram-v0-dg9664tat6ke1.png?width=1184&format=png&auto=webp&s=cd4dd3cd48b6e7921a149a6221d2a7e7fbf85ada"
+    ],
+    "pinout_reference_urls": [
+      "https://preview.redd.it/nucleo-g0b1re-pinout-diagram-v0-dg9664tat6ke1.png?width=1184&format=png&auto=webp&s=cd4dd3cd48b6e7921a149a6221d2a7e7fbf85ada"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\NUCLEO_G0B1RE__pinout.webp"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.st.com/en/evaluation-tools/nucleo-g0b1re.html",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_G0B1RE"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/NUCLEO_G0B1RE/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_G0B1RE",
+    "vendor_product_page": "https://www.st.com/en/evaluation-tools/nucleo-g0b1re.html",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_G0B1RE/partitions.csv",
+    "pinout_reference": "https://preview.redd.it/nucleo-g0b1re-pinout-diagram-v0-dg9664tat6ke1.png?width=1184&format=png&auto=webp&s=cd4dd3cd48b6e7921a149a6221d2a7e7fbf85ada",
+    "pinout_references": [
+      "https://preview.redd.it/nucleo-g0b1re-pinout-diagram-v0-dg9664tat6ke1.png?width=1184&format=png&auto=webp&s=cd4dd3cd48b6e7921a149a6221d2a7e7fbf85ada"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Nucleo G0B1RE",
+    "board_json_vendor": "ST Microelectronics",
+    "board_json_mcu": "stm32g0",
+    "mpconfigboard_board_name": "NUCLEO-G0B1RE",
+    "parsed_named_pin_count": 78,
+    "parsed_onboard_peripheral_count": 4,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "g0",
+        "CMSIS_MCU": "STM32G0B1xx",
+        "AF_FILE": "boards/stm32g0b1_af.csv",
+        "LD_FILES": "boards/stm32g0b1xe.ld boards/common_basic.ld",
+        "TEXT0_ADDR": "0x08008000",
+        "LTO": "1",
+        "MICROPY_HW_ENABLE_ISR_UART_FLASH_FUNCS_IN_RAM": "1"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.st.com/en/evaluation-tools/nucleo-g0b1re.html",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\NUCLEO_G0B1RE.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\NUCLEO_G0B1RE",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\nucleo-g0b1re.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

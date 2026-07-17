@@ -1,0 +1,539 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "pca10059",
+  "display_name": "pca10059",
+  "official_board_slug": "PCA10059",
+  "vendor": "Nordic Semiconductor",
+  "mcu": "NRF52840",
+  "chip_family": "nrf52840",
+  "firmware": {
+    "url": "https://micropython.org/download/PCA10059/",
+    "port": "nrf",
+    "board_name": "PCA10059",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/PCA10059-20260406-v1.28.0.hex",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/PCA10059-20260706-v1.29.0-preview.510.gf67ab9efe1.hex",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 48,
+    "adc": 8,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 3,
+    "uart": 2,
+    "pwm": 4,
+    "touch": 0,
+    "wifi": false,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 31 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 10 entries; 0 need model review and 0 need pin mapping review. 2026-07-16 screenshot OCR enrichment added 0 model candidate(s) and 3 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": true,
+    "display": false,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "pca10059",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/PCA10059.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED1_GREEN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1_green": "P6"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED2_RED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2_red": "P8"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED2_BLUE",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2_blue": "P12"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SWITCH2_NRESET",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch2_nreset": "P18"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SWITCH1",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch1": "P38"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED2_GREEN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2_green": "P41"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": 6
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2": 8
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led3": 41
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED4",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led4": 12
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "Candidate ethernet",
+      "type": "ethernet",
+      "model": "",
+      "manufacturer": "",
+      "interface": "RMII/SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_description_screenshot_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 board-description screenshot OCR enrichment as a weak candidate. The type was detected from screenshots, but model and pins require verification; this entry must not be treated as a hard GPIO conflict."
+    },
+    {
+      "name": "Candidate imu",
+      "type": "imu",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2C/SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_description_screenshot_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 board-description screenshot OCR enrichment as a weak candidate. The type was detected from screenshots, but model and pins require verification; this entry must not be treated as a hard GPIO conflict."
+    },
+    {
+      "name": "Candidate neopixel",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_description_screenshot_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 board-description screenshot OCR enrichment as a weak candidate. The type was detected from screenshots, but model and pins require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "rx": 13,
+        "tx": 15,
+        "cts": 17,
+        "rts": 20
+      },
+      "spi0": {
+        "clk": 22,
+        "mosi": 32,
+        "miso": 24
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "P2": "P2",
+        "P4": "P4",
+        "LED1_GREEN": "P6",
+        "LED2_RED": "P8",
+        "P9": "P9",
+        "P10": "P10",
+        "P11": "P11",
+        "LED2_BLUE": "P12",
+        "UART1_RX": "P13",
+        "P14": "P14",
+        "UART1_TX": "P15",
+        "P16": "P16",
+        "UART1_CTS": "P17",
+        "SWITCH2_NRESET": "P18",
+        "UART1_RTS": "P20",
+        "SPI0_SCK": "P22",
+        "SPI0_MISO": "P24",
+        "P26": "P26",
+        "P29": "P29",
+        "P31": "P31",
+        "SPI0_MOSI": "P32",
+        "P33": "P33",
+        "P34": "P34",
+        "P36": "P36",
+        "SWITCH1": "P38",
+        "P39": "P39",
+        "LED2_GREEN": "P41",
+        "P42": "P42",
+        "P43": "P43",
+        "P45": "P45",
+        "P47": "P47"
+      },
+      "exposed_pins": [
+        "P2",
+        "P4",
+        "P6",
+        "P8",
+        "P9",
+        "P10",
+        "P11",
+        "P12",
+        "P13",
+        "P14",
+        "P15",
+        "P16",
+        "P17",
+        "P18",
+        "P20",
+        "P22",
+        "P24",
+        "P26",
+        "P29",
+        "P31",
+        "P32",
+        "P33",
+        "P34",
+        "P36",
+        "P38",
+        "P39",
+        "P41",
+        "P42",
+        "P43",
+        "P45",
+        "P47"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 31 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 10 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/PCA10059/pca10059.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.nordicsemi.com/Products/Development-hardware/nRF52840-Dongle",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/nrf/boards/PCA10059"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/PCA10059/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/nrf/boards/PCA10059",
+    "vendor_product_page": "https://www.nordicsemi.com/Products/Development-hardware/nRF52840-Dongle",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/PCA10059/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "pca10059",
+    "board_json_vendor": "Nordic Semiconductor",
+    "board_json_mcu": "nrf52",
+    "mpconfigboard_board_name": "PCA10059",
+    "parsed_named_pin_count": 31,
+    "parsed_onboard_peripheral_count": 10,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 10,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "m4",
+        "MCU_VARIANT": "nrf52",
+        "MCU_SUB_VARIANT": "nrf52840",
+        "SOFTDEV_VERSION": "6.1.1",
+        "DFU": "1",
+        "BOOTLOADER": "open_bootloader",
+        "BOOTLOADER_VERSION_MAJOR": "1",
+        "BOOTLOADER_VERSION_MINOR": "2",
+        "FLASHER": "nrfutil",
+        "LD_FILES": "boards/nrf52840_1M_256k.ld",
+        "NRF_DEFINES": "-DNRF52840_XXAA",
+        "MICROPY_VFS_LFS2": "1"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "http_403",
+      "vendor_url": "https://www.nordicsemi.com/Products/Development-hardware/nRF52840-Dongle",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    },
+    "board_description_screenshot_ocr_20260716": {
+      "source_dir": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\板卡描述\\PCA10059",
+      "image_count": 3,
+      "ocr_text_chars": 5982,
+      "detected_types": [
+        "button",
+        "ethernet",
+        "imu",
+        "led",
+        "neopixel"
+      ],
+      "detected_models": {},
+      "model_candidates_added": [],
+      "type_candidates_added": [
+        "ethernet",
+        "imu",
+        "neopixel"
+      ],
+      "model_conflict_candidates": []
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\PCA10059.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\PCA10059",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\pca10059.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json",
+    "board_description_screenshot_ocr_enriched_at": "2026-07-16"
+  }
+}

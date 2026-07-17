@@ -1,0 +1,400 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "um-rgbtouch-mini",
+  "display_name": "RGB Touch Mini",
+  "official_board_slug": "UM_RGBTOUCH_MINI",
+  "vendor": "Unexpected Maker",
+  "mcu": "ESP32-S3-PICO-1-N8R2",
+  "chip_family": "esp32s3",
+  "firmware": {
+    "url": "https://micropython.org/download/UM_RGBTOUCH_MINI/",
+    "port": "esp32",
+    "board_name": "UM_RGBTOUCH_MINI",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/UM_RGBTOUCH_MINI-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/UM_RGBTOUCH_MINI-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 8,
+    "psram_mb": 0,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 14,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "battery-powered projects",
+    "display and HMI projects",
+    "USB device experiments"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "PSRAM/RAM feature is present, but size was not inferred automatically. pins.csv exposes 14 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration. sdkconfig.board parsed for flash, PSRAM, Ethernet, hostname, and console configuration. v3 onboard peripheral pass detected 5 entries; 1 need model review and 1 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "BLE",
+    "Battery Charging",
+    "External Flash",
+    "External RAM",
+    "RGB LED",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": false,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "RGB Touch Mini",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/UM_RGBTOUCH_MINI.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "Onboard IMU",
+      "type": "imu",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "int": 7
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed INT_IMU from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard power management",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "vbat_sense": 18,
+        "power": 38,
+        "power_alt": 21
+      },
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed VBAT_SENSE from MicroPython pins.csv.; Parsed MATRIX_PWR from MicroPython pins.csv.; Parsed PWR_SHUTDOWN from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard audio",
+      "type": "audio_codec",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "ws": 37,
+        "clk": 36,
+        "amp_data": 35
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed AMP_LRCLK from MicroPython pins.csv.; Parsed AMP_BCLK from MicroPython pins.csv.; Parsed AMP_DATA from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard microSD",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "data_in": 34
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed AMP_SD from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard RGB LED",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Candidate battery connector",
+      "type": "battery_connector",
+      "model": "",
+      "manufacturer": "",
+      "interface": "power",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 9,
+        "sda": 8
+      },
+      "spi0": {
+        "mosi": 35,
+        "miso": 37,
+        "clk": 36
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "INT_IMU": 7,
+        "INT_ROWS": 15,
+        "INT_COLS": 16,
+        "I2C_SDA": 8,
+        "I2C_SCL": 9,
+        "VBAT_SENSE": 18,
+        "VBUS_SENSE": 48,
+        "MATRIX_PWR": 38,
+        "MATRIX_DATA": 39,
+        "AMP_LRCLK": 37,
+        "AMP_BCLK": 36,
+        "AMP_DATA": 35,
+        "AMP_SD": 34,
+        "PWR_SHUTDOWN": 21
+      },
+      "exposed_pins": [
+        7,
+        15,
+        16,
+        8,
+        9,
+        18,
+        48,
+        38,
+        39,
+        37,
+        36,
+        35,
+        34,
+        21
+      ]
+    },
+    "notes": [
+      "PSRAM/RAM feature is present, but size was not inferred automatically.",
+      "pins.csv exposes 14 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration.",
+      "sdkconfig.board parsed for flash, PSRAM, Ethernet, hostname, and console configuration.",
+      "v3 onboard peripheral pass detected 5 entries; 1 need model review and 1 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/UM_RGBTOUCH_MINI/unexpectedmaker_rgbtouch_mini.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://rgbtouch.com",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/UM_RGBTOUCH_MINI"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/UM_RGBTOUCH_MINI/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/UM_RGBTOUCH_MINI",
+    "vendor_product_page": "https://rgbtouch.com",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/UM_RGBTOUCH_MINI/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "cached",
+      "mpconfigboard.mk": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "sdkconfig.board": "cached"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": true,
+      "mpconfigboard.mk": false,
+      "sdkconfig.board": true
+    },
+    "board_json_product": "RGB Touch Mini",
+    "board_json_vendor": "Unexpected Maker",
+    "board_json_mcu": "esp32s3",
+    "mpconfigboard_board_name": "RGB Touch Mini",
+    "parsed_named_pin_count": 14,
+    "parsed_onboard_peripheral_count": 5,
+    "parsed_onboard_peripheral_types": [
+      "audio_codec",
+      "imu",
+      "power_mgmt",
+      "rgb_led",
+      "storage"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 1,
+    "onboard_peripherals_needing_pin_mapping_count": 1,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [],
+        "freeze": [
+          "modules"
+        ],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [
+          "boards/mpconfigboard_esp32s3_common.cmake"
+        ],
+        "set": {
+          "MICROPY_FROZEN_MANIFEST": "${MICROPY_BOARD_DIR}/manifest.py"
+        },
+        "append": {
+          "SDKCONFIG_DEFAULTS": [
+            "boards/sdkconfig.240mhz",
+            "boards/sdkconfig.flash_qio_80m",
+            "boards/UM_RGBTOUCH_MINI/sdkconfig.board"
+          ]
+        }
+      },
+      "mpconfigboard_mk": {},
+      "sdkconfig_board": {
+        "hostname": "UMRGBTouchMini",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": [
+        "CONFIG_ESPTOOLPY_AFTER_NORESET",
+        "CONFIG_LWIP_LOCAL_HOSTNAME",
+        "CONFIG_SPIRAM_MEMTEST"
+      ]
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://rgbtouch.com",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "battery_connector"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\UM_RGBTOUCH_MINI.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\UM_RGBTOUCH_MINI",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\um-rgbtouch-mini.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

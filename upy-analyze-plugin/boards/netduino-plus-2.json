@@ -1,0 +1,528 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "netduino-plus-2",
+  "display_name": "Netduino Plus 2",
+  "official_board_slug": "NETDUINO_PLUS_2",
+  "vendor": "Netduino",
+  "mcu": "STM32F405RG",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/NETDUINO_PLUS_2/",
+    "port": "stm32",
+    "board_name": "NETDUINO_PLUS_2",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/NETDUINO_PLUS_2-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/NETDUINO_PLUS_2-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 37,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MicroPython prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 37 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 10 entries; 0 need model review and 0 need pin mapping review. CSV notes: 未找到 pinout 图片；按用户确认，以 MicroPython source 目录为准。",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Netduino Plus 2",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/14",
+    "csv_pending_json": "_official_pending/NETDUINO_PLUS_2.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led": "PA10"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw": "PB11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard power management",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "power": "PC13",
+        "power_alt": "PB2"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed PWR_LED from MicroPython pins.csv.; Parsed PWR_HDR from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard microSD",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "data_in": "PB1"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed PWR_SD from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard Ethernet",
+      "type": "ethernet",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "power": "PC15",
+        "rst": "PD2"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed PWR_ETH from MicroPython pins.csv.; Parsed RST_ETH from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "B11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "A10"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2": "C13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led3": "A10"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED4",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led4": "C13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": "A9",
+        "rx": "A10"
+      },
+      "uart1": {
+        "tx": "A2",
+        "rx": "A3",
+        "rts": "A1",
+        "cts": "A0"
+      },
+      "uart2": {
+        "tx": "D8",
+        "rx": "D9",
+        "rts": "D12",
+        "cts": "D11"
+      },
+      "uart3": {
+        "tx": "A0",
+        "rx": "A1"
+      },
+      "uart4": {
+        "tx": "C12",
+        "rx": "D2"
+      },
+      "uart5": {
+        "tx": "C6",
+        "rx": "C7"
+      },
+      "i2c0": {
+        "scl": "B6",
+        "sda": "B7"
+      },
+      "spi1": {
+        "cs": "B12",
+        "clk": "B13",
+        "miso": "B14",
+        "mosi": "B15"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        1,
+        0,
+        "A9"
+      ],
+      "internal_only": [],
+      "other": [],
+      "usb_otg_pins": [
+        "PA11",
+        "PA12"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "D0": "PC7",
+        "D1": "PC6",
+        "D2": "PA3",
+        "D3": "PA2",
+        "D4": "PB12",
+        "D5": "PB8",
+        "D6": "PB9",
+        "D7": "PA1",
+        "D8": "PA0",
+        "D9": "PA6",
+        "D10": "PB10",
+        "D11": "PB15",
+        "D12": "PB14",
+        "D13": "PB13",
+        "SDA": "PB6",
+        "SCL": "PB7",
+        "A0": "PC0",
+        "A1": "PC1",
+        "A2": "PC2",
+        "A3": "PC3",
+        "A4": "PC4",
+        "A5": "PC5",
+        "LED": "PA10",
+        "SW": "PB11",
+        "PWR_LED": "PC13",
+        "PWR_SD": "PB1",
+        "PWR_HDR": "PB2",
+        "PWR_ETH": "PC15",
+        "RST_ETH": "PD2",
+        "UART1_TX": "PA9",
+        "UART3_TX": "PD8",
+        "UART3_RX": "PD9",
+        "UART3_RTS": "PD12",
+        "UART3_CTS": "PD11",
+        "UART5_TX": "PC12",
+        "USB_DM": "PA11",
+        "USB_DP": "PA12"
+      },
+      "exposed_pins": [
+        "PC7",
+        "PC6",
+        "PA3",
+        "PA2",
+        "PB12",
+        "PB8",
+        "PB9",
+        "PA1",
+        "PA0",
+        "PA6",
+        "PB10",
+        "PB15",
+        "PB14",
+        "PB13",
+        "PB6",
+        "PB7",
+        "PC0",
+        "PC1",
+        "PC2",
+        "PC3",
+        "PC4",
+        "PC5",
+        "PA10",
+        "PB11",
+        "PC13",
+        "PB1",
+        "PB2",
+        "PC15",
+        "PD2",
+        "PA9",
+        "PD8",
+        "PD9",
+        "PD12",
+        "PD11",
+        "PC12",
+        "PA11",
+        "PA12"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 37 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 10 entries; 0 need model review and 0 need pin mapping review.",
+      "CSV notes: 未找到 pinout 图片；按用户确认，以 MicroPython source 目录为准。"
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/NETDUINO_PLUS_2/netduino_plus_2.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [
+      "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NETDUINO_PLUS_2"
+    ],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NETDUINO_PLUS_2"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/NETDUINO_PLUS_2/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NETDUINO_PLUS_2",
+    "vendor_product_page": "",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NETDUINO_PLUS_2/partitions.csv",
+    "pinout_reference": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NETDUINO_PLUS_2",
+    "pinout_references": [
+      "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NETDUINO_PLUS_2"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Netduino Plus 2",
+    "board_json_vendor": "Netduino",
+    "board_json_mcu": "stm32f4",
+    "mpconfigboard_board_name": "NetduinoPlus2",
+    "parsed_named_pin_count": 37,
+    "parsed_onboard_peripheral_count": 10,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "ethernet",
+      "led",
+      "power_mgmt",
+      "storage"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 10,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "f4",
+        "CMSIS_MCU": "STM32F405xx",
+        "AF_FILE": "boards/stm32f405_af.csv",
+        "LD_FILES": "boards/stm32f405.ld boards/common_ifs.ld",
+        "TEXT0_ADDR": "0x08000000",
+        "TEXT1_ADDR": "0x08020000"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "skipped_non_file_url"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "not_url",
+      "vendor_url": "无",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 1
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\NETDUINO_PLUS_2.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\NETDUINO_PLUS_2",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\netduino-plus-2.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

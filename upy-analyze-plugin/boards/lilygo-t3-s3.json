@@ -1,0 +1,454 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "lilygo-t3-s3",
+  "display_name": "T3-S3",
+  "official_board_slug": "LILYGO_T3_S3",
+  "vendor": "LILYGO",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "firmware": {
+    "url": "https://micropython.org/download/LILYGO_T3_S3/",
+    "port": "esp32",
+    "board_name": "LILYGO_T3_S3",
+    "latest_version": "v1.29.0-preview.510.gf67ab9efe1",
+    "latest_release": null,
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/LILYGO_T3_S3-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 8,
+    "psram_mb": 0,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 14,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "LoRa telemetry",
+    "display and HMI projects",
+    "USB device experiments"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "PSRAM/RAM feature is present, but size was not inferred automatically. pins.csv exposes 16 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration. sdkconfig.board parsed for flash, PSRAM, Ethernet, hostname, and console configuration. v3 onboard peripheral pass detected 6 entries; 0 need model review and 0 need pin mapping review. CSV notes: 按用户补充，替换为可下载的 LILYGO T3-S3 pinout 图片。 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "BLE",
+    "Display",
+    "External Flash",
+    "External RAM",
+    "LoRa",
+    "SDCard",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": true,
+    "lora": true,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "T3-S3",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/LILYGO_T3_S3.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "SX1262 radio lora",
+      "type": "radio_lora",
+      "model": "SX1262",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "clk": 5,
+        "mosi": 6,
+        "miso": 3,
+        "cs": 7,
+        "rst": 8,
+        "dio": 33,
+        "lora_busy": 34
+      },
+      "always_used": false,
+      "model_evidence": "mpconfigboard_h_or_pins_csv; board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "model_and_pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed LORA_SCK from MicroPython pins.csv.; Parsed LORA_MOSI from MicroPython pins.csv.; Parsed LORA_MISO from MicroPython pins.csv.; Parsed LORA_CS from MicroPython pins.csv.; Parsed LORA_RST from MicroPython pins.csv.; Parsed LORA_DIO1 from MicroPython pins.csv.; Parsed LORA_BUSY from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "SSD1306 display",
+      "type": "display",
+      "model": "SSD1306",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "sda": 18,
+        "scl": 17
+      },
+      "always_used": false,
+      "model_evidence": "mpconfigboard_h_or_pins_csv; board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "model_and_pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed OLED_SDA from MicroPython pins.csv.; Parsed OLED_SCL from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard microSD",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "mosi": 11,
+        "miso": 2,
+        "clk": 14,
+        "cs": 13
+      },
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "pins_csv; mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed SD_MOSI from MicroPython pins.csv.; Parsed SD_MISO from MicroPython pins.csv.; Parsed SD_SCK from MicroPython pins.csv.; Parsed SD_CS from MicroPython pins.csv.; Parsed MICROPY_HW_SDCARD_SPI_MOSI from mpconfigboard.h.; Parsed MICROPY_HW_SDCARD_SPI_MISO from mpconfigboard.h.; Parsed MICROPY_HW_SDCARD_SPI_SCK from mpconfigboard.h.; Parsed MICROPY_HW_SDCARD_SPI_CS from mpconfigboard.h.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "LED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led": 37
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "button": 0
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard power management",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "vbat_sense": 1
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed VBAT_SENSE from MicroPython pins.csv."
+    },
+    {
+      "name": "Candidate imu",
+      "type": "imu",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2C/SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 17,
+        "sda": 18
+      },
+      "spi0": {
+        "mosi": 6,
+        "miso": 3,
+        "clk": 5
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        11,
+        2,
+        14,
+        13
+      ],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LORA_SCK": 5,
+        "LORA_MOSI": 6,
+        "LORA_MISO": 3,
+        "LORA_CS": 7,
+        "LORA_RST": 8,
+        "LORA_DIO1": 33,
+        "LORA_BUSY": 34,
+        "OLED_SDA": 18,
+        "OLED_SCL": 17,
+        "SD_MOSI": 11,
+        "SD_MISO": 2,
+        "SD_SCK": 14,
+        "SD_CS": 13,
+        "LED": 37,
+        "BUTTON": 0,
+        "VBAT_SENSE": 1
+      },
+      "exposed_pins": [
+        5,
+        6,
+        3,
+        7,
+        8,
+        33,
+        34,
+        18,
+        17,
+        11,
+        2,
+        14,
+        13,
+        37,
+        0,
+        1
+      ]
+    },
+    "notes": [
+      "PSRAM/RAM feature is present, but size was not inferred automatically.",
+      "pins.csv exposes 16 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration.",
+      "sdkconfig.board parsed for flash, PSRAM, Ethernet, hostname, and console configuration.",
+      "v3 onboard peripheral pass detected 6 entries; 0 need model review and 0 need pin mapping review.",
+      "CSV notes: 按用户补充，替换为可下载的 LILYGO T3-S3 pinout 图片。"
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/static/img/espressif.png",
+    "pinout_image_url": "https://www.espboards.dev/img/Lpxn6h8LO--1000.webp",
+    "pinout_image_urls": [
+      "https://www.espboards.dev/img/Lpxn6h8LO--1000.webp"
+    ],
+    "pinout_reference_urls": [
+      "https://www.espboards.dev/img/Lpxn6h8LO--1000.webp"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\LILYGO_T3_S3__pinout.webp"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.lilygo.cc/products/t3s3-v1-0",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/LILYGO_T3_S3"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/LILYGO_T3_S3/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/esp32/boards/LILYGO_T3_S3",
+    "vendor_product_page": "https://www.lilygo.cc/products/t3s3-v1-0",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/esp32/boards/LILYGO_T3_S3/partitions.csv",
+    "pinout_reference": "https://www.espboards.dev/img/Lpxn6h8LO--1000.webp",
+    "pinout_references": [
+      "https://www.espboards.dev/img/Lpxn6h8LO--1000.webp"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "cached",
+      "mpconfigboard.mk": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "sdkconfig.board": "cached"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": true,
+      "mpconfigboard.mk": false,
+      "sdkconfig.board": true
+    },
+    "board_json_product": "T3-S3",
+    "board_json_vendor": "LILYGO",
+    "board_json_mcu": "esp32s3",
+    "mpconfigboard_board_name": "LILYGO T3-S3",
+    "parsed_named_pin_count": 16,
+    "parsed_onboard_peripheral_count": 6,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "display",
+      "led",
+      "power_mgmt",
+      "radio_lora",
+      "storage"
+    ],
+    "onboard_peripherals_with_model_count": 2,
+    "onboard_peripherals_with_pin_mapping_count": 6,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [
+          "ssd1306",
+          "lora",
+          "lora-sx126x",
+          "lora-sync"
+        ],
+        "freeze": [
+          "modules"
+        ],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [
+          "boards/mpconfigboard_esp32s3_common.cmake"
+        ],
+        "set": {
+          "MICROPY_FROZEN_MANIFEST": "${MICROPY_BOARD_DIR}/manifest.py"
+        },
+        "append": {
+          "SDKCONFIG_DEFAULTS": [
+            "boards/sdkconfig.240mhz",
+            "boards/sdkconfig.flash_qio_80m",
+            "${MICROPY_BOARD_DIR}/sdkconfig.board"
+          ]
+        }
+      },
+      "mpconfigboard_mk": {},
+      "sdkconfig_board": {
+        "hostname": "LILYGO-T3S3",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": [
+        "CONFIG_LWIP_LOCAL_HOSTNAME"
+      ]
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.lilygo.cc/products/t3s3-v1-0",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [
+        {
+          "type": "radio_lora",
+          "candidate_model": "SX1276",
+          "existing_models": [
+            "SX1262"
+          ],
+          "reason": "same peripheral type already has source-derived model; keep as review candidate"
+        }
+      ],
+      "missing_type_candidates_added": [
+        "imu"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": true,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\LILYGO_T3_S3.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\LILYGO_T3_S3",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\lilygo-t3-s3.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

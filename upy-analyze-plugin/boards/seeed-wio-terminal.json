@@ -1,0 +1,661 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "seeed-wio-terminal",
+  "display_name": "Wio Terminal D51R",
+  "official_board_slug": "SEEED_WIO_TERMINAL",
+  "vendor": "Seeed Studio",
+  "mcu": "SAMD51P19A",
+  "chip_family": "samd51",
+  "firmware": {
+    "url": "https://micropython.org/download/SEEED_WIO_TERMINAL/",
+    "port": "samd",
+    "board_name": "SEEED_WIO_TERMINAL",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/SEEED_WIO_TERMINAL-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/SEEED_WIO_TERMINAL-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 51,
+    "adc": 16,
+    "dac": 2,
+    "i2c": 8,
+    "spi": 8,
+    "uart": 8,
+    "pwm": 24,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "IoT sensors",
+    "wireless prototypes",
+    "battery-powered projects",
+    "display and HMI projects",
+    "USB device experiments"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 15 entries; 1 need model review and 1 need pin mapping review.",
+  "features": [
+    "BLE",
+    "Display",
+    "External Flash",
+    "JST-PH",
+    "SDCard",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Wio Terminal D51R",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/SEEED_WIO_TERMINAL.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "SWITCH_X",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch_x": "PD08"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SWITCH_Y",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch_y": "PD09"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SWITCH_Z",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch_z": "PD10"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SWITCH_B",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch_b": "PD12"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SWITCH_U",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "switch_u": "PD20"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "BUTTON_1",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "button_1": "PC26"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "BUTTON_2",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "button_2": "PC27"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "BUTTON_3",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "button_3": "PC28"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard microSD",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "mosi": "PC16",
+        "miso": "PC18",
+        "clk": "PC17",
+        "cs": "PC19",
+        "detect": "PD21"
+      },
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed SD_MOSI from MicroPython pins.csv.; Parsed SD_MISO from MicroPython pins.csv.; Parsed SD_SCK from MicroPython pins.csv.; Parsed SD_CS from MicroPython pins.csv.; Parsed SD_DET from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard audio",
+      "type": "audio_codec",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "ws": "PA20",
+        "i2s_sdin": "PA21",
+        "i2s_sdout": "PA22",
+        "clk": "PB16"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed I2S_LRCLK from MicroPython pins.csv.; Parsed I2S_SDIN from MicroPython pins.csv.; Parsed I2S_SDOUT from MicroPython pins.csv.; Parsed I2S_BCLK from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard display",
+      "type": "display",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "miso": "PB18",
+        "mosi": "PB19",
+        "clk": "PB20",
+        "cs": "PB21",
+        "backlight": "PC05",
+        "dc": "PC06",
+        "rst": "PC07",
+        "lcd_xl": "PC10",
+        "lcd_yu": "PC11",
+        "lcd_xr": "PC12",
+        "lcd_yd": "PC13"
+      },
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed LCD_MISO from MicroPython pins.csv.; Parsed LCD_MOSI from MicroPython pins.csv.; Parsed LCD_SCK from MicroPython pins.csv.; Parsed LCD_CS from MicroPython pins.csv.; Parsed LCD_BACKLIGHT from MicroPython pins.csv.; Parsed LCD_D_C from MicroPython pins.csv.; Parsed LCD_RESET from MicroPython pins.csv.; Parsed LCD_XL from MicroPython pins.csv.; Parsed LCD_YU from MicroPython pins.csv.; Parsed LCD_XR from MicroPython pins.csv.; Parsed LCD_YD from MicroPython pins.csv.; Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard microphone",
+      "type": "microphone",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "mic": "PC30"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed MIC from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_BLUE",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_blue": "PA15"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_LCD",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_lcd": "PC05"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard battery connector",
+      "type": "battery_connector",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {},
+    "default_bus_source": "",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        "W25Q32JV_IQ"
+      ],
+      "internal_only": [],
+      "other": [],
+      "usb_otg_pins": [
+        "PA24",
+        "PA25",
+        "PA23"
+      ],
+      "debug_port": [
+        "PA30",
+        "PA31"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "A0_D0": "PB08",
+        "A1_D1": "PB09",
+        "A2_D2": "PA07",
+        "A3_D3": "PB04",
+        "A4_D4": "PB05",
+        "A5_D5": "PB06",
+        "A6_D6": "PA04",
+        "A7_D7": "PB07",
+        "A8_D8": "PA06",
+        "SWITCH_X": "PD08",
+        "SWITCH_Y": "PD09",
+        "SWITCH_Z": "PD10",
+        "SWITCH_B": "PD12",
+        "SWITCH_U": "PD20",
+        "BUTTON_1": "PC26",
+        "BUTTON_2": "PC27",
+        "BUTTON_3": "PC28",
+        "ENABLE_5V": "PC14",
+        "ENABLE_3V3": "PC15",
+        "TX": "PB26",
+        "RX": "PB27",
+        "SDA": "PA13",
+        "SCL": "PA12",
+        "SDA0": "PA13",
+        "SCL0": "PA12",
+        "SDA1": "PA17",
+        "SCL1": "PA16",
+        "MOSI": "PB02",
+        "MISO": "PB00",
+        "SCK": "PB03",
+        "CS": "PB01",
+        "GPCLK0": "PB15",
+        "GPCLK1": "PB12",
+        "GPCLK2": "PB13",
+        "SD_MOSI": "PC16",
+        "SD_MISO": "PC18",
+        "SD_SCK": "PC17",
+        "SD_CS": "PC19",
+        "SD_DET": "PD21",
+        "I2S_LRCLK": "PA20",
+        "I2S_SDIN": "PA21",
+        "I2S_SDOUT": "PA22",
+        "I2S_BCLK": "PB16",
+        "LCD_MISO": "PB18",
+        "LCD_MOSI": "PB19",
+        "LCD_SCK": "PB20",
+        "LCD_CS": "PB21",
+        "LCD_BACKLIGHT": "PC05",
+        "LCD_D_C": "PC06",
+        "LCD_RESET": "PC07",
+        "LCD_XL": "PC10",
+        "LCD_YU": "PC11",
+        "LCD_XR": "PC12",
+        "LCD_YD": "PC13",
+        "MIC": "PC30",
+        "BUZZER": "PD11",
+        "QSPI_CS": "PB11",
+        "QSPI_SCK": "PB10",
+        "QSPI_D0": "PA08",
+        "QSPI_D1": "PA09",
+        "QSPI_D2": "PA10",
+        "QSPI_D3": "PA11",
+        "LED_BLUE": "PA15",
+        "LED_LCD": "PC05",
+        "USB_DM": "PA24",
+        "USB_DP": "PA25",
+        "USB_SOF": "PA23",
+        "SWCLK": "PA30",
+        "SWDIO": "PA31"
+      },
+      "exposed_pins": [
+        "PB08",
+        "PB09",
+        "PA07",
+        "PB04",
+        "PB05",
+        "PB06",
+        "PA04",
+        "PB07",
+        "PA06",
+        "PD08",
+        "PD09",
+        "PD10",
+        "PD12",
+        "PD20",
+        "PC26",
+        "PC27",
+        "PC28",
+        "PC14",
+        "PC15",
+        "PB26",
+        "PB27",
+        "PA13",
+        "PA12",
+        "PA17",
+        "PA16",
+        "PB02",
+        "PB00",
+        "PB03",
+        "PB01",
+        "PB15",
+        "PB12",
+        "PB13",
+        "PC16",
+        "PC18",
+        "PC17",
+        "PC19",
+        "PD21",
+        "PA20",
+        "PA21",
+        "PA22",
+        "PB16",
+        "PB18",
+        "PB19",
+        "PB20",
+        "PB21",
+        "PC05",
+        "PC06",
+        "PC07",
+        "PC10",
+        "PC11",
+        "PC12",
+        "PC13",
+        "PC30",
+        "PD11",
+        "PB11",
+        "PB10",
+        "PA08",
+        "PA09",
+        "PA10",
+        "PA11",
+        "PA15",
+        "PA24",
+        "PA25",
+        "PA23",
+        "PA30",
+        "PA31"
+      ]
+    },
+    "notes": [
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 15 entries; 1 need model review and 1 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/SEEED_WIO_TERMINAL/wio-terminal.jpg",
+    "pinout_image_url": "https://scruss.com/wordpress/wp-content/uploads/2020/09/Wio-Terminal-Pinout-1024x513.jpg",
+    "pinout_image_urls": [
+      "https://scruss.com/wordpress/wp-content/uploads/2020/09/Wio-Terminal-Pinout-1024x513.jpg"
+    ],
+    "pinout_reference_urls": [
+      "https://scruss.com/wordpress/wp-content/uploads/2020/09/Wio-Terminal-Pinout-1024x513.jpg"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\SEEED_WIO_TERMINAL__pinout.jpg"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.seeedstudio.com/Wio-Terminal-p-4509.html",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/samd/boards/SEEED_WIO_TERMINAL"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/SEEED_WIO_TERMINAL/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/samd/boards/SEEED_WIO_TERMINAL",
+    "vendor_product_page": "https://www.seeedstudio.com/Wio-Terminal-p-4509.html",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_WIO_TERMINAL/partitions.csv",
+    "pinout_reference": "https://scruss.com/wordpress/wp-content/uploads/2020/09/Wio-Terminal-Pinout-1024x513.jpg",
+    "pinout_references": [
+      "https://scruss.com/wordpress/wp-content/uploads/2020/09/Wio-Terminal-Pinout-1024x513.jpg"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Wio Terminal D51R",
+    "board_json_vendor": "Seeed Studio",
+    "board_json_mcu": "samd51",
+    "mpconfigboard_board_name": "Wio Terminal D51R",
+    "parsed_named_pin_count": 69,
+    "parsed_onboard_peripheral_count": 15,
+    "parsed_onboard_peripheral_types": [
+      "audio_codec",
+      "battery_connector",
+      "button",
+      "display",
+      "led",
+      "microphone",
+      "storage"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 14,
+    "onboard_peripherals_needing_model_count": 1,
+    "onboard_peripherals_needing_pin_mapping_count": 1,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "SAMD51",
+        "CMSIS_MCU": "SAMD51P19A",
+        "LD_FILES": "boards/samd51x19a.ld sections.ld",
+        "TEXT0": "0x4000",
+        "MICROPY_HW_CODESIZE": "432K"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.seeedstudio.com/Wio-Terminal-p-4509.html",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": false,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\SEEED_WIO_TERMINAL.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\SEEED_WIO_TERMINAL",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\seeed-wio-terminal.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

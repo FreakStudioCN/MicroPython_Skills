@@ -1,0 +1,324 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "seeed-xiao-samd21",
+  "display_name": "XIAO SAMD21",
+  "official_board_slug": "SEEED_XIAO_SAMD21",
+  "vendor": "Seeed Studio",
+  "mcu": "SAMD21G18A",
+  "chip_family": "samd21",
+  "firmware": {
+    "url": "https://micropython.org/download/SEEED_XIAO_SAMD21/",
+    "port": "samd",
+    "board_name": "SEEED_XIAO_SAMD21",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/SEEED_XIAO_SAMD21-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/SEEED_XIAO_SAMD21-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 38,
+    "adc": 14,
+    "dac": 1,
+    "i2c": 6,
+    "spi": 6,
+    "uart": 6,
+    "pwm": 12,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "USB device experiments",
+    "compact embedded projects"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 18 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 2 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "USB-C"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "XIAO SAMD21",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/SEEED_XIAO_SAMD21.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "Candidate display",
+      "type": "display",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    },
+    {
+      "name": "Candidate ethernet",
+      "type": "ethernet",
+      "model": "",
+      "manufacturer": "",
+      "interface": "RMII/SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {},
+    "default_bus_source": "",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "usb_otg_pins": [
+        "PA24",
+        "PA25"
+      ],
+      "debug_port": [
+        "PA30",
+        "PA31"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "RX": "PB09",
+        "TX": "PB08",
+        "SCL": "PA09",
+        "SDA": "PA08",
+        "MOSI": "PA06",
+        "MISO": "PA05",
+        "SCK": "PA07",
+        "A0_D0": "PA02",
+        "A1_D1": "PA04",
+        "A2_D2": "PA10",
+        "A3_D3": "PA11",
+        "A4_D4": "PA08",
+        "A5_D5": "PA09",
+        "A6_D6": "PB08",
+        "A7_D7": "PB09",
+        "A8_D8": "PA07",
+        "A9_D9": "PA05",
+        "A10_D10": "PA06",
+        "USER_LED": "PA17",
+        "RX_LED": "PA18",
+        "TX_LED": "PA19",
+        "USB_DM": "PA24",
+        "USB_DP": "PA25",
+        "SWCLK": "PA30",
+        "SWDIO": "PA31"
+      },
+      "exposed_pins": [
+        "PB09",
+        "PB08",
+        "PA09",
+        "PA08",
+        "PA06",
+        "PA05",
+        "PA07",
+        "PA02",
+        "PA04",
+        "PA10",
+        "PA11",
+        "PA17",
+        "PA18",
+        "PA19",
+        "PA24",
+        "PA25",
+        "PA30",
+        "PA31"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 18 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/SEEED_XIAO_SAMD21/seeeduino-xiao.jpg",
+    "pinout_image_url": "https://files.seeedstudio.com/wiki/Seeeduino-XIAO/img/XIAO_SAMD21_front_pinout.png",
+    "pinout_image_urls": [
+      "https://files.seeedstudio.com/wiki/Seeeduino-XIAO/img/XIAO_SAMD21_front_pinout.png"
+    ],
+    "pinout_reference_urls": [
+      "https://files.seeedstudio.com/wiki/Seeeduino-XIAO/img/XIAO_SAMD21_front_pinout.png"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\SEEED_XIAO_SAMD21__pinout.png"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.seeedstudio.com/Seeeduino-XIAO-Arduino-Microcontroller-SAMD21-Cortex-M0+-p-4426.html",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/samd/boards/SEEED_XIAO_SAMD21"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/SEEED_XIAO_SAMD21/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/samd/boards/SEEED_XIAO_SAMD21",
+    "vendor_product_page": "https://www.seeedstudio.com/Seeeduino-XIAO-Arduino-Microcontroller-SAMD21-Cortex-M0+-p-4426.html",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/samd/boards/SEEED_XIAO_SAMD21/partitions.csv",
+    "pinout_reference": "https://files.seeedstudio.com/wiki/Seeeduino-XIAO/img/XIAO_SAMD21_front_pinout.png",
+    "pinout_references": [
+      "https://files.seeedstudio.com/wiki/Seeeduino-XIAO/img/XIAO_SAMD21_front_pinout.png"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "XIAO SAMD21",
+    "board_json_vendor": "Seeed Studio",
+    "board_json_mcu": "samd21",
+    "mpconfigboard_board_name": "Seeed Xiao",
+    "parsed_named_pin_count": 25,
+    "parsed_onboard_peripheral_count": 0,
+    "parsed_onboard_peripheral_types": [],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 0,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "SAMD21",
+        "CMSIS_MCU": "SAMD21G18A",
+        "LD_FILES": "boards/samd21x18a.ld sections.ld",
+        "TEXT0": "0x2000"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.seeedstudio.com/Seeeduino-XIAO-Arduino-Microcontroller-SAMD21-Cortex-M0+-p-4426.html",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "display",
+        "ethernet"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": false,
+    "restricted_gpio_verified": false,
+    "onboard_peripherals_detected": false,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": false,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\SEEED_XIAO_SAMD21.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\SEEED_XIAO_SAMD21",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\seeed-xiao-samd21.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

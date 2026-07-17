@@ -1,0 +1,507 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "nucleo-l452re",
+  "display_name": "Nucleo L452RE",
+  "official_board_slug": "NUCLEO_L452RE",
+  "vendor": "ST Microelectronics",
+  "mcu": "STM32L452RE",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/NUCLEO_L452RE/",
+    "port": "stm32",
+    "board_name": "NUCLEO_L452RE",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_L452RE-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_L452RE-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 52,
+    "adc": 0,
+    "dac": 1,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MCU evaluation and prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 52 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 3 entries; 0 need model review and 0 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Nucleo L452RE",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/NUCLEO_L452RE.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED_GREEN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_green": "PA5"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "C13"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "A5"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "Candidate ethernet",
+      "type": "ethernet",
+      "model": "",
+      "manufacturer": "",
+      "interface": "RMII/SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": "B6",
+        "rx": "B7"
+      },
+      "uart1": {
+        "tx": "A2",
+        "rx": "A3"
+      },
+      "uart2": {
+        "tx": "C10",
+        "rx": "C11"
+      },
+      "uart3": {
+        "tx": "A0",
+        "rx": "A1"
+      },
+      "i2c0": {
+        "scl": "B8",
+        "sda": "B9"
+      },
+      "i2c1": {
+        "scl": "B10",
+        "sda": "B11"
+      },
+      "i2c2": {
+        "scl": "A7",
+        "sda": "B4"
+      },
+      "i2c3": {
+        "scl": "C0",
+        "sda": "C1"
+      },
+      "spi0": {
+        "cs": "A15",
+        "clk": "A5",
+        "miso": "A6",
+        "mosi": "A7"
+      },
+      "spi1": {
+        "cs": "B12",
+        "clk": "B13",
+        "miso": "B14",
+        "mosi": "B15"
+      },
+      "spi2": {
+        "cs": "A4",
+        "clk": "C10",
+        "miso": "C11",
+        "mosi": "C12"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        "FLASH_LATENCY_4"
+      ],
+      "internal_only": [],
+      "other": [],
+      "boot": [
+        "PH3"
+      ],
+      "debug_port": [
+        "PA13",
+        "PA14"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "CN9_D0": "PA3",
+        "CN9_D1": "PA2",
+        "CN9_D2": "PA10",
+        "CN9_D3": "PB3",
+        "CN9_D4": "PB5",
+        "CN9_D5": "PB4",
+        "CN9_D6": "PB10",
+        "CN9_D7": "PA8",
+        "CN5_D8": "PA9",
+        "CN5_D9": "PC7",
+        "CN5_D10": "PB6",
+        "CN5_D11": "PA7",
+        "CN5_D12": "PA6",
+        "CN5_D13": "PA5",
+        "CN5_D14": "PB9",
+        "CN5_D15": "PB8",
+        "CN8_A0": "PA0",
+        "CN8_A1": "PA1",
+        "CN8_A2": "PA4",
+        "CN8_A3": "PB0",
+        "CN8_A4": "PC1",
+        "CN8_A5": "PC0",
+        "CN9_RX": "PA3",
+        "CN9_TX": "PA2",
+        "CN5_SCL": "PB8",
+        "CN5_SDA": "PB9",
+        "CN5_SCK": "PA5",
+        "CN5_MISO": "PA6",
+        "CN5_MOSI": "PA7",
+        "CN5_CS": "PB6",
+        "CN7_28": "PA0",
+        "CN7_30": "PA1",
+        "CN10_35": "PA2",
+        "CN10_37": "PA3",
+        "CN7_32": "PA4",
+        "CN10_11": "PA5",
+        "CN10_13": "PA6",
+        "CN10_15": "PA7",
+        "CN10_23": "PA8",
+        "CN10_21": "PA9",
+        "CN10_33": "PA10",
+        "CN10_14": "PA11",
+        "CN10_12": "PA12",
+        "CN7_13": "PA13",
+        "CN7_15": "PA14",
+        "CN7_17": "PA15",
+        "CN7_34": "PB0",
+        "CN10_24": "PB1",
+        "CN10_22": "PB2",
+        "CN10_31": "PB3",
+        "CN10_27": "PB4",
+        "CN10_29": "PB5",
+        "CN10_17": "PB6",
+        "CN7_21": "PB7",
+        "CN10_3": "PB8",
+        "CN10_5": "PB9",
+        "CN10_25": "PB10",
+        "CN10_18": "PB11",
+        "CN10_16": "PB12",
+        "CN10_30": "PB13",
+        "CN10_28": "PB14",
+        "CN10_26": "PB15",
+        "CN7_38": "PC0",
+        "CN7_36": "PC1",
+        "CN7_35": "PC2",
+        "CN7_37": "PC3",
+        "CN10_34": "PC4",
+        "CN10_6": "PC5",
+        "CN10_4": "PC6",
+        "CN10_19": "PC7",
+        "CN10_2": "PC8",
+        "CN10_1": "PC9",
+        "CN7_1": "PC10",
+        "CN7_2": "PC11",
+        "CN7_3": "PC12",
+        "CN7_23": "PC13",
+        "CN7_25": "PC14",
+        "CN7_27": "PC15",
+        "CN7_4": "PD2",
+        "CN7_29": "PH0",
+        "CN7_31": "PH1",
+        "BOOT0": "PH3",
+        "SWDIO": "PA13",
+        "SWCLK": "PA14",
+        "USER_B1": "PC13",
+        "LED_GREEN": "PA5"
+      },
+      "exposed_pins": [
+        "PA3",
+        "PA2",
+        "PA10",
+        "PB3",
+        "PB5",
+        "PB4",
+        "PB10",
+        "PA8",
+        "PA9",
+        "PC7",
+        "PB6",
+        "PA7",
+        "PA6",
+        "PA5",
+        "PB9",
+        "PB8",
+        "PA0",
+        "PA1",
+        "PA4",
+        "PB0",
+        "PC1",
+        "PC0",
+        "PA11",
+        "PA12",
+        "PA13",
+        "PA14",
+        "PA15",
+        "PB1",
+        "PB2",
+        "PB7",
+        "PB11",
+        "PB12",
+        "PB13",
+        "PB14",
+        "PB15",
+        "PC2",
+        "PC3",
+        "PC4",
+        "PC5",
+        "PC6",
+        "PC8",
+        "PC9",
+        "PC10",
+        "PC11",
+        "PC12",
+        "PC13",
+        "PC14",
+        "PC15",
+        "PD2",
+        "PH0",
+        "PH1",
+        "PH3"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 52 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 3 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/NUCLEO_L452RE/nucleo_l452re.jpg",
+    "pinout_image_url": "https://docs.zephyrproject.org/latest/_images/nucleo_l452re_pinout.jpg",
+    "pinout_image_urls": [
+      "https://docs.zephyrproject.org/latest/_images/nucleo_l452re_pinout.jpg"
+    ],
+    "pinout_reference_urls": [
+      "https://docs.zephyrproject.org/latest/_images/nucleo_l452re_pinout.jpg"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\NUCLEO_L452RE__pinout.jpg"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_L452RE"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/NUCLEO_L452RE/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_L452RE",
+    "vendor_product_page": "",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_L452RE/partitions.csv",
+    "pinout_reference": "https://docs.zephyrproject.org/latest/_images/nucleo_l452re_pinout.jpg",
+    "pinout_references": [
+      "https://docs.zephyrproject.org/latest/_images/nucleo_l452re_pinout.jpg"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Nucleo L452RE",
+    "board_json_vendor": "ST Microelectronics",
+    "board_json_mcu": "stm32l4",
+    "mpconfigboard_board_name": "NUCLEO-L452RE",
+    "parsed_named_pin_count": 86,
+    "parsed_onboard_peripheral_count": 3,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 3,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "l4",
+        "CMSIS_MCU": "STM32L452xx",
+        "AF_FILE": "boards/stm32l452_af.csv",
+        "LD_FILES": "boards/stm32l452xe.ld boards/common_basic.ld",
+        "OPENOCD_CONFIG": "boards/openocd_stm32l4.cfg",
+        "MICROPY_HW_ENABLE_ISR_UART_FLASH_FUNCS_IN_RAM": "1"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "not_url",
+      "vendor_url": "无",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "ethernet"
+      ],
+      "pinout_image_issue_count": 1
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\NUCLEO_L452RE.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\NUCLEO_L452RE",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\nucleo-l452re.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

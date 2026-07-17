@@ -1,0 +1,508 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "weactstudio-rp2350b-core",
+  "display_name": "RP2350B Core",
+  "official_board_slug": "WEACTSTUDIO_RP2350B_CORE",
+  "vendor": "WeAct Studio",
+  "mcu": "rp2350",
+  "chip_family": "rp2350b",
+  "firmware": {
+    "url": "https://micropython.org/download/WEACTSTUDIO_RP2350B_CORE/",
+    "port": "rp2",
+    "board_name": "WEACTSTUDIO_RP2350B_CORE",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/WEACTSTUDIO_RP2350B_CORE-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/WEACTSTUDIO_RP2350B_CORE-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 48,
+    "adc": 8,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 2,
+    "uart": 2,
+    "pwm": 24,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "USB device experiments",
+    "education and rapid prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "PSRAM/RAM feature is present, but size was not inferred automatically. pins.csv exposes 47 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration. v3 onboard peripheral pass detected 2 entries; 0 need model review and 0 need pin mapping review.",
+  "features": [
+    "Dual-core",
+    "External Flash",
+    "External RAM",
+    "USB-C"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "RP2350B Core",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/WEACTSTUDIO_RP2350B_CORE.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led": 25
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "PSRAM_CS",
+      "type": "psram",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "psram_cs": 0
+      },
+      "always_used": true,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": 16,
+        "rx": 17,
+        "cts": "-1",
+        "rts": "-1"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [
+        0
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        "16 * 1024 * 1024"
+      ],
+      "internal_only": [],
+      "other": [],
+      "adc_only": [
+        26,
+        27,
+        28
+      ]
+    },
+    "pin_options": {
+      "i2c0_sda": [
+        0,
+        4,
+        8,
+        12,
+        16,
+        20
+      ],
+      "i2c0_scl": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21
+      ],
+      "i2c1_sda": [
+        2,
+        6,
+        10,
+        14,
+        18,
+        26
+      ],
+      "i2c1_scl": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        27
+      ],
+      "spi0_mosi": [
+        3,
+        7,
+        11,
+        15,
+        19
+      ],
+      "spi0_miso": [
+        0,
+        4,
+        8,
+        12,
+        16,
+        20
+      ],
+      "spi0_clk": [
+        2,
+        6,
+        10,
+        14,
+        18,
+        22
+      ],
+      "spi0_cs": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21
+      ],
+      "spi1_mosi": [
+        11,
+        15,
+        19,
+        27
+      ],
+      "spi1_miso": [
+        8,
+        12,
+        16,
+        20
+      ],
+      "spi1_clk": [
+        10,
+        14,
+        18,
+        22,
+        26
+      ],
+      "spi1_cs": [
+        9,
+        13,
+        17,
+        21
+      ],
+      "uart0_tx": [
+        0,
+        12,
+        16,
+        28
+      ],
+      "uart0_rx": [
+        1,
+        13,
+        17,
+        29
+      ],
+      "uart1_tx": [
+        4,
+        8,
+        20
+      ],
+      "uart1_rx": [
+        5,
+        9,
+        21
+      ],
+      "named_pins": {
+        "GP0": 0,
+        "GP1": 1,
+        "GP2": 2,
+        "GP3": 3,
+        "GP4": 4,
+        "GP5": 5,
+        "GP6": 6,
+        "GP7": 7,
+        "GP8": 8,
+        "GP9": 9,
+        "GP10": 10,
+        "GP11": 11,
+        "GP12": 12,
+        "GP13": 13,
+        "GP14": 14,
+        "GP15": 15,
+        "GP16": 16,
+        "GP17": 17,
+        "GP18": 18,
+        "GP19": 19,
+        "GP20": 20,
+        "GP21": 21,
+        "GP22": 22,
+        "GP25": 25,
+        "GP26": 26,
+        "GP27": 27,
+        "GP28": 28,
+        "GP29": 29,
+        "GP30": 30,
+        "GP31": 31,
+        "GP32": 32,
+        "GP33": 33,
+        "GP34": 34,
+        "GP35": 35,
+        "GP36": 36,
+        "GP37": 37,
+        "GP38": 38,
+        "GP39": 39,
+        "GP40": 40,
+        "GP41": 41,
+        "GP42": 42,
+        "GP43": 43,
+        "GP44": 44,
+        "GP45": 45,
+        "GP46": 46,
+        "GP47": 47,
+        "KEY": 23,
+        "LED": 25
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        23
+      ]
+    },
+    "notes": [
+      "PSRAM/RAM feature is present, but size was not inferred automatically.",
+      "pins.csv exposes 47 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 2 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/WEACTSTUDIO_RP2350B_CORE/weactstudio_rp2350_core.png",
+    "pinout_image_url": "https://www.cnx-software.com/wp-content/uploads/2025/02/WeAct-RP2350B-Core-Board-pinout-diagram.webp",
+    "pinout_image_urls": [
+      "https://www.cnx-software.com/wp-content/uploads/2025/02/WeAct-RP2350B-Core-Board-pinout-diagram.webp"
+    ],
+    "pinout_reference_urls": [
+      "https://www.cnx-software.com/wp-content/uploads/2025/02/WeAct-RP2350B-Core-Board-pinout-diagram.webp"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\WEACTSTUDIO_RP2350B_CORE__pinout.webp"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://github.com/WeActStudio/WeActStudio.RP2350BCoreBoard",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/WEACTSTUDIO_RP2350B_CORE/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE",
+    "vendor_product_page": "https://github.com/WeActStudio/WeActStudio.RP2350BCoreBoard",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/WEACTSTUDIO_RP2350B_CORE/partitions.csv",
+    "pinout_reference": "https://www.cnx-software.com/wp-content/uploads/2025/02/WeAct-RP2350B-Core-Board-pinout-diagram.webp",
+    "pinout_references": [
+      "https://www.cnx-software.com/wp-content/uploads/2025/02/WeAct-RP2350B-Core-Board-pinout-diagram.webp"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "cached",
+      "mpconfigboard.mk": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": true,
+      "mpconfigboard.mk": false,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "RP2350B Core",
+    "board_json_vendor": "WeAct Studio",
+    "board_json_mcu": "rp2350",
+    "mpconfigboard_board_name": "WeAct Studio RP2350B Core",
+    "parsed_named_pin_count": 48,
+    "parsed_onboard_peripheral_count": 2,
+    "parsed_onboard_peripheral_types": [
+      "led",
+      "psram"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 2,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [],
+        "freeze": [
+          "modules"
+        ],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {
+          "PICO_NUM_GPIOS": "48",
+          "PICO_BOARD": "\"weact_studio_rp2350b_core\"",
+          "MICROPY_FROZEN_MANIFEST": "${MICROPY_BOARD_DIR}/manifest.py",
+          "MICROPY_HW_FLASH_STORAGE_BYTES": "14680064"
+        },
+        "append": {}
+      },
+      "mpconfigboard_mk": {},
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://github.com/WeActStudio/WeActStudio.RP2350BCoreBoard",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\WEACTSTUDIO_RP2350B_CORE.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\WEACTSTUDIO_RP2350B_CORE",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\weactstudio-rp2350b-core.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

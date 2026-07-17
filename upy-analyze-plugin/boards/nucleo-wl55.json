@@ -1,0 +1,481 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "nucleo-wl55",
+  "display_name": "Nucleo WL55",
+  "official_board_slug": "NUCLEO_WL55",
+  "vendor": "ST Microelectronics",
+  "mcu": "STM32WL55JCI7",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/NUCLEO_WL55/",
+    "port": "stm32",
+    "board_name": "NUCLEO_WL55",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_WL55-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/NUCLEO_WL55-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 9,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MCU evaluation and prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 9 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 11 entries; 0 need model review and 0 need pin mapping review.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Nucleo WL55",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/14",
+    "csv_pending_json": "_official_pending/NUCLEO_WL55.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "SW",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw": "PA0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW1",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw1": "PA0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW2",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw2": "PA1"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "SW3",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "sw3": "PC6"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_GREEN",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_green": "PB9"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_red": "PB11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_BLUE",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_blue": "PB15"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "USER_BUTTON",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "user_button": "A0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED1",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led1": "B15"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED2",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led2": "B9"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "LED3",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led3": "B11"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "tx": "B6",
+        "rx": "B7"
+      },
+      "i2c0": {
+        "scl": "A12",
+        "sda": "A11"
+      },
+      "i2c2": {
+        "scl": "B13",
+        "sda": "B14"
+      },
+      "spi0": {
+        "cs": "A4",
+        "clk": "A5",
+        "miso": "A6",
+        "mosi": "A7"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        1
+      ],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "FE_CTRL3": "PC3",
+        "FE_CTRL1": "PC4",
+        "FE_CTRL2": "PC5",
+        "SW": "PA0",
+        "SW1": "PA0",
+        "SW2": "PA1",
+        "SW3": "PC6",
+        "LED_GREEN": "PB9",
+        "LED_RED": "PB11",
+        "LED_BLUE": "PB15"
+      },
+      "exposed_pins": [
+        "PC3",
+        "PC4",
+        "PC5",
+        "PA0",
+        "PA1",
+        "PC6",
+        "PB9",
+        "PB11",
+        "PB15"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 9 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 11 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/NUCLEO_WL55/nucleo_wl55.jpg",
+    "pinout_image_url": "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_left_2021_2_1.png",
+    "pinout_image_urls": [
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_left_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_right_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_morpho_left_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_morpho_right_2021_2_1.png"
+    ],
+    "pinout_reference_urls": [
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_left_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_right_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_morpho_left_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_morpho_right_2021_2_1.png"
+    ],
+    "pinout_local_files": [
+      "pinout_images_2026-07-13\\NUCLEO_WL55__pinout.png",
+      "pinout_images_2026-07-13\\NUCLEO_WL55__pinout_2.png",
+      "pinout_images_2026-07-13\\NUCLEO_WL55__pinout_3.png",
+      "pinout_images_2026-07-13\\NUCLEO_WL55__pinout_4.png"
+    ],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.st.com/en/evaluation-tools/nucleo-wl55jc.html",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_WL55"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/NUCLEO_WL55/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/NUCLEO_WL55",
+    "vendor_product_page": "https://www.st.com/en/evaluation-tools/nucleo-wl55jc.html",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/NUCLEO_WL55/partitions.csv",
+    "pinout_reference": "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_left_2021_2_1.png",
+    "pinout_references": [
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_left_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_arduino_right_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_morpho_left_2021_2_1.png",
+      "https://os.mbed.com/media/uploads/jeanmarcr/nucleo_wl55jc_morpho_right_2021_2_1.png"
+    ],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Nucleo WL55",
+    "board_json_vendor": "ST Microelectronics",
+    "board_json_mcu": "stm32wl",
+    "mpconfigboard_board_name": "NUCLEO-WL55",
+    "parsed_named_pin_count": 10,
+    "parsed_onboard_peripheral_count": 11,
+    "parsed_onboard_peripheral_types": [
+      "button",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 11,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [
+          "lora-sync",
+          "lora-stm32wl5"
+        ],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "wl",
+        "CMSIS_MCU": "STM32WL55xx",
+        "AF_FILE": "boards/stm32wl55_af.csv",
+        "STARTUP_FILE": "$(STM32LIB_CMSIS_BASE)/Source/Templates/gcc/startup_stm32wl55xx_cm4.o",
+        "LD_FILES": "boards/stm32wl55xc.ld boards/common_basic.ld",
+        "TEXT0_ADDR": "0x08000000",
+        "MICROPY_VFS_FAT": "0",
+        "MICROPY_VFS_LFS2": "1",
+        "MICROPY_HW_ENABLE_ISR_UART_FLASH_FUNCS_IN_RAM": "1",
+        "FROZEN_MANIFEST": "$(BOARD_DIR)/manifest.py"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [
+      "downloaded"
+    ],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.st.com/en/evaluation-tools/nucleo-wl55jc.html",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": true,
+    "pinout_local_archive_available": true,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\NUCLEO_WL55.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\NUCLEO_WL55",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\nucleo-wl55.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

@@ -1,0 +1,286 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "wt51822-s4at",
+  "display_name": "WT51822-S4AT",
+  "official_board_slug": "WT51822_S4AT",
+  "vendor": "Wireless-Tag",
+  "mcu": "NRF51822",
+  "chip_family": "nrf",
+  "firmware": {
+    "url": "https://micropython.org/download/WT51822_S4AT/",
+    "port": "nrf",
+    "board_name": "WT51822_S4AT",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/WT51822_S4AT-20260406-v1.28.0.hex",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/WT51822_S4AT-20260706-v1.29.0-preview.510.gf67ab9efe1.hex",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 7,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": false
+  },
+  "typical_use_cases": [
+    "MicroPython prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 7 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. 2026-07-16 screenshot OCR enrichment added 0 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "WT51822-S4AT",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/WT51822_S4AT.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "Candidate led",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_description_screenshot_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 board-description screenshot OCR enrichment as a weak candidate. The type was detected from screenshots, but model and pins require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart0": {
+        "rx": 1,
+        "tx": 2
+      },
+      "spi0": {
+        "clk": 9,
+        "mosi": 10,
+        "miso": 13
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "P1": "P1",
+        "P2": "P2",
+        "P3": "P3",
+        "P4": "P4",
+        "P9": "P9",
+        "P10": "P10",
+        "P13": "P13"
+      },
+      "exposed_pins": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P9",
+        "P10",
+        "P13"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 7 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/WT51822_S4AT/WT51822-S4AT.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://shop.wireless-tag.com/products/esp32-c3-mini-1-10pcs-espressif-esp32-c3-mini-1-4mb-flash-pcb-antenna-15-gpios-wifi-ble-5-module-esp32-c3-module-on-esp32-c3-chip",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/nrf/boards/WT51822_S4AT"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/WT51822_S4AT/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/nrf/boards/WT51822_S4AT",
+    "vendor_product_page": "https://shop.wireless-tag.com/products/esp32-c3-mini-1-10pcs-espressif-esp32-c3-mini-1-4mb-flash-pcb-antenna-15-gpios-wifi-ble-5-module-esp32-c3-module-on-esp32-c3-chip",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/nrf/boards/WT51822_S4AT/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "WT51822-S4AT",
+    "board_json_vendor": "Wireless-Tag",
+    "board_json_mcu": "nrf51",
+    "mpconfigboard_board_name": "WT51822-S4AT",
+    "parsed_named_pin_count": 7,
+    "parsed_onboard_peripheral_count": 0,
+    "parsed_onboard_peripheral_types": [],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 0,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "m0",
+        "MCU_VARIANT": "nrf51",
+        "MCU_SUB_VARIANT": "nrf51822",
+        "SOFTDEV_VERSION": "8.0.0",
+        "LD_FILES": "boards/nrf51x22_256k_16k.ld",
+        "CFLAGS": "-DBLUETOOTH_LFCLK_RC",
+        "FROZEN_MANIFEST": "",
+        "MICROPY_VFS_LFS2": "1"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "missing",
+      "vendor_url": "https://shop.wireless-tag.com/products/esp32-c3-mini-1-10pcs-espressif-esp32-c3-mini-1-4mb-flash-pcb-antenna-15-gpios-wifi-ble-5-module-esp32-c3-module-on-esp32-c3-chip",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    },
+    "board_description_screenshot_ocr_20260716": {
+      "source_dir": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\板卡描述\\WT51822_S4AT",
+      "image_count": 2,
+      "ocr_text_chars": 430,
+      "detected_types": [
+        "led"
+      ],
+      "detected_models": {},
+      "model_candidates_added": [],
+      "type_candidates_added": [
+        "led"
+      ],
+      "model_conflict_candidates": []
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": false,
+    "onboard_peripherals_detected": false,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": false,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\WT51822_S4AT.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\WT51822_S4AT",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\wt51822-s4at.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json",
+    "board_description_screenshot_ocr_enriched_at": "2026-07-16"
+  }
+}

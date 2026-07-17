@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-07-17T13:55:45",
+  "reason": "Raw assets are no longer retained in _official_pending; source URLs and parsed summaries are retained in the official source index CSV and formal board JSON files.",
+  "csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料源索引.csv",
+  "csv_update": {
+    "rows": 222,
+    "changed_rows": 222,
+    "local_file_fields_replaced": 152,
+    "screenshot_evidence_fields_replaced": 34
+  },
+  "removed": [
+    {
+      "path": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\_archive_20260717\\pinout_images_2026-07-13.zip",
+      "kind": "file",
+      "files": 1,
+      "bytes": 85378756
+    },
+    {
+      "path": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\_archive_20260717\\board_description_screenshots_20260716.zip",
+      "kind": "file",
+      "files": 1,
+      "bytes": 26074257
+    },
+    {
+      "path": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\_archive_20260717\\official_pending_json_v1_and_snapshots_20260712.zip",
+      "kind": "file",
+      "files": 1,
+      "bytes": 279024
+    },
+    {
+      "path": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\_archive_20260717\\csv_history_20260713_20260714.zip",
+      "kind": "file",
+      "files": 1,
+      "bytes": 139271
+    },
+    {
+      "path": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\_archive_20260717\\reports",
+      "kind": "dir",
+      "files": 5,
+      "bytes": 181915
+    }
+  ],
+  "removed_bytes": 112053223,
+  "retained_archive_files": [
+    {
+      "path": "official_pending_cleanup_manifest_20260717.json",
+      "bytes": 10142
+    },
+    {
+      "path": "reports_20260717.zip",
+      "bytes": 51666
+    }
+  ]
+}

@@ -1,0 +1,413 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "alif-ensemble",
+  "display_name": "Ensemble E7 DevKit",
+  "official_board_slug": "ALIF_ENSEMBLE",
+  "vendor": "Alif Semiconductor",
+  "mcu": "AE722F80F55D5XX",
+  "chip_family": "alif",
+  "firmware": {
+    "url": "https://micropython.org/download/ALIF_ENSEMBLE/",
+    "port": "alif",
+    "board_name": "ALIF_ENSEMBLE",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/ALIF_ENSEMBLE-20260406-v1.28.0.zip",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/ALIF_ENSEMBLE-20260706-v1.29.0-preview.510.gf67ab9efe1.zip",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 29,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": false
+  },
+  "typical_use_cases": [
+    "MCU evaluation and prototyping"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 29 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 3 entries; 1 need model review and 1 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 0 model candidate(s) and 2 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "Ethernet"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": true,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Ensemble E7 DevKit",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/ALIF_ENSEMBLE.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED_BLUE",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_blue": "P12.0"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_red": "P12.3"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard Ethernet",
+      "type": "ethernet",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Candidate camera",
+      "type": "camera",
+      "model": "",
+      "manufacturer": "",
+      "interface": "camera_bus",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    },
+    {
+      "name": "Candidate imu",
+      "type": "imu",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2C/SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": "P3.7",
+        "sda": "P3.6"
+      },
+      "i2c1": {
+        "scl": "P5.1",
+        "sda": "P5.0"
+      },
+      "i2c2": {
+        "scl": "P1.1",
+        "sda": "P1.0"
+      },
+      "spi0": {
+        "miso": "P2.4",
+        "mosi": "P2.5",
+        "clk": "P2.6"
+      },
+      "spi1": {
+        "miso": "P4.2",
+        "mosi": "P4.3",
+        "clk": "P4.4"
+      },
+      "spi2": {
+        "miso": "P12.4",
+        "mosi": "P12.5",
+        "clk": "P12.6"
+      },
+      "uart0": {
+        "tx": "P0.5",
+        "rx": "P0.4",
+        "rts": "P0.7",
+        "cts": "P0.6"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        0,
+        "32 * 1024 * 1024",
+        "16 * 1024 * 1024"
+      ],
+      "internal_only": [],
+      "other": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "OSPI1_RESET": "P15.7",
+        "OSPI1_CS": "P5.7",
+        "OSPI1_SCLK": "P5.5",
+        "OSPI1_D0": "P9.5",
+        "OSPI1_D1": "P9.6",
+        "OSPI1_D2": "P9.7",
+        "OSPI1_D3": "P10.0",
+        "OSPI1_D4": "P10.1",
+        "OSPI1_D5": "P10.2",
+        "OSPI1_D6": "P10.3",
+        "OSPI1_D7": "P10.4",
+        "OSPI1_RXDS": "P10.7",
+        "LED_BLUE": "P12.0",
+        "LED_RED": "P12.3",
+        "JOY_LEFT": "P15.0",
+        "JOY_RIGHT": "P15.1",
+        "JOY_DOWN": "P15.2",
+        "JOY_UP": "P15.3",
+        "JOY_SW": "P15.4",
+        "UART0_TX": "P0.1",
+        "UART0_RX": "P0.0",
+        "UART0_RTS": "P0.3",
+        "UART0_CTS": "P0.2",
+        "UART1_TX": "P0.5",
+        "UART1_RX": "P0.4",
+        "UART1_RTS": "P0.7",
+        "UART1_CTS": "P0.6",
+        "REPL_UART_TX": "P12.2",
+        "REPL_UART_RX": "P12.1"
+      },
+      "exposed_pins": [
+        "P15.7",
+        "P5.7",
+        "P5.5",
+        "P9.5",
+        "P9.6",
+        "P9.7",
+        "P10.0",
+        "P10.1",
+        "P10.2",
+        "P10.3",
+        "P10.4",
+        "P10.7",
+        "P12.0",
+        "P12.3",
+        "P15.0",
+        "P15.1",
+        "P15.2",
+        "P15.3",
+        "P15.4",
+        "P0.1",
+        "P0.0",
+        "P0.3",
+        "P0.2",
+        "P0.5",
+        "P0.4",
+        "P0.7",
+        "P0.6",
+        "P12.2",
+        "P12.1"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 29 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 3 entries; 1 need model review and 1 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/ALIF_ENSEMBLE/ensemble-devkit-gen-2.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://alifsemi.com/support/kits/ensemble-devkit/",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/alif/boards/ALIF_ENSEMBLE"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ALIF_ENSEMBLE/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/alif/boards/ALIF_ENSEMBLE",
+    "vendor_product_page": "https://alifsemi.com/support/kits/ensemble-devkit/",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/alif/boards/ALIF_ENSEMBLE/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": false,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Ensemble E7 DevKit",
+    "board_json_vendor": "Alif Semiconductor",
+    "board_json_mcu": "AE722F80F55D5XX",
+    "mpconfigboard_board_name": "Alif Ensemble DevKit",
+    "parsed_named_pin_count": 29,
+    "parsed_onboard_peripheral_count": 3,
+    "parsed_onboard_peripheral_types": [
+      "ethernet",
+      "led"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 2,
+    "onboard_peripherals_needing_model_count": 1,
+    "onboard_peripherals_needing_pin_mapping_count": 1,
+    "build_sources": {
+      "manifest_py": {
+        "include": [],
+        "require": [],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "E7",
+        "MCU_VARIANT": "AE722F80F55D5XX",
+        "JLINK_DEV": "AE722F80F55D5_HP",
+        "LD_FILE": "boards/ALIF_ENSEMBLE/board.ld.S",
+        "ALIF_TOOLKIT_CFG_PART": "AE722F80F55D5LS",
+        "ALIF_TOOLKIT_CFG_FILE": "\\\"app-device-config-ae7.json\\\"",
+        "MICROPY_FLOAT_IMPL": "float",
+        "MICROPY_PY_OPENAMP": "1",
+        "MICROPY_PY_OPENAMP_REMOTEPROC": "1"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://alifsemi.com/support/kits/ensemble-devkit/",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [
+        "camera",
+        "imu"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\ALIF_ENSEMBLE.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\ALIF_ENSEMBLE",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\alif-ensemble.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

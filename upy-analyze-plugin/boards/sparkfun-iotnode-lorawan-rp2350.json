@@ -1,0 +1,663 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "sparkfun-iotnode-lorawan-rp2350",
+  "display_name": "IoT Node LoRaWAN RP2350",
+  "official_board_slug": "SPARKFUN_IOTNODE_LORAWAN_RP2350",
+  "vendor": "SparkFun",
+  "mcu": "rp2350",
+  "chip_family": "rp2350",
+  "firmware": {
+    "url": "https://micropython.org/download/SPARKFUN_IOTNODE_LORAWAN_RP2350/",
+    "port": "rp2",
+    "board_name": "SPARKFUN_IOTNODE_LORAWAN_RP2350",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/SPARKFUN_IOTNODE_LORAWAN_RP2350-20260406-v1.28.0.uf2",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/SPARKFUN_IOTNODE_LORAWAN_RP2350-20260706-v1.29.0-preview.510.gf67ab9efe1.uf2",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 30,
+    "adc": 4,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 2,
+    "uart": 2,
+    "pwm": 24,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "battery-powered projects",
+    "LoRa telemetry",
+    "USB device experiments",
+    "education and rapid prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "PSRAM/RAM feature is present, but size was not inferred automatically. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration. v3 onboard peripheral pass detected 11 entries; 6 need model review and 6 need pin mapping review. 2026-07-16 HTML/OCR enrichment added 1 model candidate(s) and 1 type candidate(s); unresolved pins remain non-hard constraints.",
+  "features": [
+    "Battery Charging",
+    "Dual-core",
+    "External Flash",
+    "External RAM",
+    "JST-SH",
+    "LoRa",
+    "RGB LED",
+    "USB-C",
+    "microSD"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": true,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "IoT Node LoRaWAN RP2350",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/SPARKFUN_IOTNODE_LORAWAN_RP2350.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "LED",
+      "type": "led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led": 25
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "LED_RGB",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "led_rgb": 25
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "RGB_LED",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "rgb_led": 25
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "NEOPIXEL",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "neopixel": 25
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "PSRAM_CS",
+      "type": "psram",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "psram_cs": 0
+      },
+      "always_used": true,
+      "model_evidence": "",
+      "pin_evidence": "mpconfigboard_h_macro",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from mpconfigboard.h."
+    },
+    {
+      "name": "Onboard microphone",
+      "type": "microphone",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard microSD",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard LoRa radio",
+      "type": "radio_lora",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard battery charger",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard battery connector",
+      "type": "battery_connector",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "Onboard RGB LED",
+      "type": "rgb_led",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "board_json_feature",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Detected from MicroPython board.json features; model and pin mapping require review."
+    },
+    {
+      "name": "MAX17048 power mgmt",
+      "type": "power_mgmt",
+      "model": "MAX17048",
+      "manufacturer": "",
+      "interface": "I2C/GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_model",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment. Model was detected in vendor HTML or pinout OCR; pin mapping still requires source/pinout confirmation."
+    },
+    {
+      "name": "Candidate button",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_product_page_or_pinout_ocr_keyword",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_model_and_pin_mapping",
+      "driver": {},
+      "notes": "Added by 2026-07-16 HTML/OCR enrichment as a weak candidate. The type was detected from vendor HTML or pinout OCR, but model and pins still require verification; this entry must not be treated as a hard GPIO conflict."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "sda": 6,
+        "scl": 7
+      },
+      "spi0": {
+        "clk": 14,
+        "mosi": 15,
+        "miso": 12
+      },
+      "uart0": {
+        "tx": 4,
+        "rx": 5,
+        "cts": 6,
+        "rts": 7
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [
+        0
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": [
+        26,
+        27,
+        28
+      ]
+    },
+    "pin_options": {
+      "i2c0_sda": [
+        0,
+        4,
+        8,
+        12,
+        16,
+        20
+      ],
+      "i2c0_scl": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21
+      ],
+      "i2c1_sda": [
+        2,
+        6,
+        10,
+        14,
+        18,
+        26
+      ],
+      "i2c1_scl": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        27
+      ],
+      "spi0_mosi": [
+        3,
+        7,
+        11,
+        15,
+        19
+      ],
+      "spi0_miso": [
+        0,
+        4,
+        8,
+        12,
+        16,
+        20
+      ],
+      "spi0_clk": [
+        2,
+        6,
+        10,
+        14,
+        18,
+        22
+      ],
+      "spi0_cs": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21
+      ],
+      "spi1_mosi": [
+        11,
+        15,
+        19,
+        27
+      ],
+      "spi1_miso": [
+        8,
+        12,
+        16,
+        20
+      ],
+      "spi1_clk": [
+        10,
+        14,
+        18,
+        22,
+        26
+      ],
+      "spi1_cs": [
+        9,
+        13,
+        17,
+        21
+      ],
+      "uart0_tx": [
+        0,
+        12,
+        16,
+        28
+      ],
+      "uart0_rx": [
+        1,
+        13,
+        17,
+        29
+      ],
+      "uart1_tx": [
+        4,
+        8,
+        20
+      ],
+      "uart1_rx": [
+        5,
+        9,
+        21
+      ],
+      "named_pins": {
+        "GP0": 0,
+        "GP1": 1,
+        "GP2": 2,
+        "GP3": 3,
+        "GP4": 4,
+        "GP5": 5,
+        "GP6": 6,
+        "GP7": 7,
+        "GP8": 8,
+        "GP9": 9,
+        "GP10": 10,
+        "GP11": 11,
+        "GP12": 12,
+        "GP13": 13,
+        "GP14": 14,
+        "GP15": 15,
+        "GP16": 16,
+        "GP17": 17,
+        "GP18": 18,
+        "GP19": 19,
+        "GP20": 20,
+        "GP21": 21,
+        "GP22": 22,
+        "GP23": 23,
+        "GP24": 24,
+        "GP25": 25,
+        "GP26": 26,
+        "GP27": 27,
+        "GP28": 28,
+        "GP29": 29,
+        "LED": 25,
+        "LED_RGB": 25,
+        "RGB_LED": 25,
+        "NEOPIXEL": 25
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    "notes": [
+      "PSRAM/RAM feature is present, but size was not inferred automatically.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.cmake parsed for SDK defaults and frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 11 entries; 6 need model review and 6 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/26060-IoT-Node-LoRaWAN-Feature-new.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.sparkfun.com/products/26060",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/SPARKFUN_IOTNODE_LORAWAN_RP2350/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350",
+    "vendor_product_page": "https://www.sparkfun.com/products/26060",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/rp2/boards/SPARKFUN_IOTNODE_LORAWAN_RP2350/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "cached",
+      "mpconfigboard.mk": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": true,
+      "mpconfigboard.mk": false,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "IoT Node LoRaWAN RP2350",
+    "board_json_vendor": "SparkFun",
+    "board_json_mcu": "rp2350",
+    "mpconfigboard_board_name": "SparkFun IoT Node LoRaWAN",
+    "parsed_named_pin_count": 34,
+    "parsed_onboard_peripheral_count": 11,
+    "parsed_onboard_peripheral_types": [
+      "battery_connector",
+      "led",
+      "microphone",
+      "power_mgmt",
+      "psram",
+      "radio_lora",
+      "rgb_led",
+      "storage"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 5,
+    "onboard_peripherals_needing_model_count": 6,
+    "onboard_peripherals_needing_pin_mapping_count": 6,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [
+          "sdcard"
+        ],
+        "freeze": [],
+        "module": []
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {
+          "PICO_BOARD_HEADER_DIRS": "${MICROPY_PORT_DIR}/boards/${MICROPY_BOARD}",
+          "PICO_BOARD": "\"sparkfun_iotnode_lorawan_rp2350\"",
+          "PICO_PLATFORM": "\"rp2350\"",
+          "MICROPY_FROZEN_MANIFEST": "${MICROPY_BOARD_DIR}/manifest.py",
+          "MICROPY_HW_FLASH_STORAGE_BYTES": "14680064"
+        },
+        "append": {}
+      },
+      "mpconfigboard_mk": {},
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "fetched",
+      "vendor_url": "https://www.sparkfun.com/products/26060",
+      "ocr_available": true,
+      "missing_model_candidates_added": [
+        {
+          "type": "power_mgmt",
+          "model": "MAX17048"
+        }
+      ],
+      "model_conflict_candidates": [
+        {
+          "type": "power_mgmt",
+          "candidate_model": "MCP73831",
+          "existing_models": [
+            "MAX17048"
+          ],
+          "reason": "same peripheral type already has source-derived model; keep as review candidate"
+        }
+      ],
+      "missing_type_candidates_added": [
+        "button"
+      ],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": false,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\SPARKFUN_IOTNODE_LORAWAN_RP2350.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\SPARKFUN_IOTNODE_LORAWAN_RP2350",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\sparkfun-iotnode-lorawan-rp2350.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}

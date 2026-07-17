@@ -1,0 +1,516 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.official_source_import.v3",
+  "id": "lego-hub-no6",
+  "display_name": "Hub No.6",
+  "official_board_slug": "LEGO_HUB_NO6",
+  "vendor": "LEGO",
+  "mcu": "STM32F413",
+  "chip_family": "stm32",
+  "firmware": {
+    "url": "https://micropython.org/download/LEGO_HUB_NO6/",
+    "port": "stm32",
+    "board_name": "LEGO_HUB_NO6",
+    "latest_version": "v1.28.0",
+    "latest_release": {
+      "date": "2026-04-06",
+      "url": "https://micropython.org/resources/firmware/LEGO_HUB_NO6-20260406-v1.28.0.dfu",
+      "version": "v1.28.0"
+    },
+    "latest_preview": {
+      "date": "2026-07-06",
+      "url": "https://micropython.org/resources/firmware/LEGO_HUB_NO6-20260706-v1.29.0-preview.510.gf67ab9efe1.dfu",
+      "version": "v1.29.0-preview.510.gf67ab9efe1"
+    }
+  },
+  "specs": {
+    "flash_mb": 0,
+    "psram_mb": 0,
+    "gpio": 64,
+    "adc": 0,
+    "dac": 1,
+    "i2c": 0,
+    "spi": 0,
+    "uart": 0,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "MicroPython prototyping"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "pins.csv exposes 64 named pins; MCU GPIO count remains family-level when known. board.json parsed for vendor/product/mcu/features. mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals. pins.csv parsed for named pins and exposed pin aliases. manifest.py parsed for frozen manifest and onboard driver/model clues. mpconfigboard.mk parsed for MCU/build/frozen manifest configuration. v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review.",
+  "features": [],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": true,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true
+  },
+  "official_collection": {
+    "status": "待人工核验",
+    "specific_model": "Hub No.6",
+    "generic_target": false,
+    "csv_last_updated": "2026/7/13",
+    "csv_pending_json": "_official_pending/LEGO_HUB_NO6.json"
+  },
+  "onboard_peripherals": [
+    {
+      "name": "Onboard power management",
+      "type": "power_mgmt",
+      "model": "",
+      "manufacturer": "",
+      "interface": "unknown",
+      "occupied_pins": {
+        "chg_iset_pwm": "PA0",
+        "chg_imon_adc": "PA3",
+        "enable": "PA13",
+        "bat_ntc": "PB0",
+        "bat_imon_adc": "PC0",
+        "bat_vmon_adc": "PC1"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed CHG_ISET_PWM from MicroPython pins.csv.; Parsed CHG_IMON_ADC from MicroPython pins.csv.; Parsed BAT_PWR_EN from MicroPython pins.csv.; Parsed BAT_NTC from MicroPython pins.csv.; Parsed BAT_IMON_ADC from MicroPython pins.csv.; Parsed BAT_VMON_ADC from MicroPython pins.csv."
+    },
+    {
+      "name": "BUTTONS_ADC",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "buttons_adc": "PA1"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    },
+    {
+      "name": "Onboard audio",
+      "type": "audio_codec",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "snd_dac": "PA4",
+        "enable": "PC10"
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed SND_DAC from MicroPython pins.csv.; Parsed SND_AMP_EN from MicroPython pins.csv."
+    },
+    {
+      "name": "CHGOK_CENBTN_3V3OK_ADC",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "chgok_cenbtn_3v3ok_adc": "PC4"
+      },
+      "always_used": false,
+      "model_evidence": "",
+      "pin_evidence": "pins_csv",
+      "verification": "pin_mapping_verified",
+      "driver": {},
+      "notes": "Parsed from MicroPython pins.csv."
+    }
+  ],
+  "pin_layout": {
+    "model": "source_parsed_pending_human_review",
+    "default_bus_pins": {
+      "uart1": {
+        "cts": "pyb_pin_BT_CTS",
+        "rts": "pyb_pin_BT_RTS",
+        "tx": "pyb_pin_BT_TX",
+        "rx": "pyb_pin_BT_RX"
+      },
+      "uart3": {
+        "tx": "pyb_pin_PORTB_TX",
+        "rx": "pyb_pin_PORTB_RX"
+      },
+      "uart4": {
+        "tx": "pyb_pin_PORTD_TX",
+        "rx": "pyb_pin_PORTD_RX"
+      },
+      "uart6": {
+        "tx": "pyb_pin_PORTA_TX",
+        "rx": "pyb_pin_PORTA_RX"
+      },
+      "uart7": {
+        "tx": "pyb_pin_PORTC_TX",
+        "rx": "pyb_pin_PORTC_RX"
+      },
+      "uart8": {
+        "tx": "pyb_pin_PORTF_TX",
+        "rx": "pyb_pin_PORTF_RX"
+      },
+      "uart9": {
+        "tx": "pyb_pin_PORTE_TX",
+        "rx": "pyb_pin_PORTE_RX"
+      },
+      "spi0": {
+        "clk": "pyb_pin_TLC_SCLK",
+        "miso": "pyb_pin_TLC_SOUT",
+        "mosi": "pyb_pin_TLC_SIN"
+      },
+      "spi1": {
+        "cs": "pyb_pin_FLASH_NSS",
+        "clk": "pyb_pin_FLASH_SCK",
+        "miso": "pyb_pin_FLASH_MISO",
+        "mosi": "pyb_pin_FLASH_MOSI"
+      }
+    },
+    "default_bus_source": "mpconfigboard.h",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [
+        1,
+        0,
+        "\"HUB_NO6\"",
+        "FLASH_LATENCY_3",
+        "pyb_pin_USB_VBUS",
+        "1024 * 1024",
+        "256 * 1024 * 1024 - MICROPY_HW_SPIFLASH_OFFSET_BYTES * 8",
+        "MICROPY_HW_SPI2_NSS",
+        "MICROPY_HW_SPI2_SCK",
+        "MICROPY_HW_SPI2_MISO",
+        "MICROPY_HW_SPI2_MOSI",
+        "0x80000000",
+        "32 * 1024 * 1024",
+        "\"/0x80000000/8192*4Kg\"",
+        "&board_mboot_spiflash",
+        "&board_mboot_spiflash_config"
+      ],
+      "internal_only": [],
+      "other": [],
+      "usb_otg_pins": [
+        "PA9",
+        "PA11",
+        "PA12"
+      ]
+    },
+    "pin_options": {
+      "named_pins": {
+        "CHG_ISET_PWM": "PA0",
+        "BUTTONS_ADC": "PA1",
+        "BT_ENABLE": "PA2",
+        "CHG_IMON_ADC": "PA3",
+        "SND_DAC": "PA4",
+        "TLC_SCLK": "PA5",
+        "TLC_SOUT": "PA6",
+        "TLC_SIN": "PA7",
+        "PORTB_EN": "PA8",
+        "USB_VBUS": "PA9",
+        "PORTA_EN": "PA10",
+        "USB_DM": "PA11",
+        "USB_DP": "PA12",
+        "BAT_PWR_EN": "PA13",
+        "PORT_3V3_EN": "PA14",
+        "TLC_LAT": "PA15",
+        "BAT_NTC": "PB0",
+        "PORTF_M2": "PB1",
+        "PORTD_EN": "PB2",
+        "LSM6_SDA": "PB3",
+        "LSM6_INT1": "PB4",
+        "PORTE_EN": "PB5",
+        "PORTC_M1": "PB6",
+        "PORTC_M2": "PB7",
+        "PORTD_M1": "PB8",
+        "PORTD_M2": "PB9",
+        "LSM6_SCL": "PB10",
+        "FLASH_NSS": "PB12",
+        "FLASH_SCK": "PB13",
+        "TLC_GS_CLK": "PB15",
+        "BAT_IMON_ADC": "PC0",
+        "BAT_VMON_ADC": "PC1",
+        "FLASH_MISO": "PC2",
+        "FLASH_MOSI": "PC3",
+        "CHGOK_CENBTN_3V3OK_ADC": "PC4",
+        "PORTF_EN": "PC5",
+        "PORTE_M1": "PC6",
+        "PORTE_M2": "PC7",
+        "PORTF_M1": "PC8",
+        "BT_SLOWCLK": "PC9",
+        "SND_AMP_EN": "PC10",
+        "PORTD_TX": "PC12",
+        "PORTB_RX": "PD0",
+        "PORTB_TX": "PD1",
+        "PORTD_RX": "PD2",
+        "BT_CTS": "PD3",
+        "BT_RTS": "PD4",
+        "BT_TX": "PD5",
+        "BT_RX": "PD6",
+        "PORTF_RX": "PD14",
+        "PORTF_TX": "PD15",
+        "PORTC_RX": "PE0",
+        "PORTC_TX": "PE1",
+        "PORTE_RX": "PE2",
+        "PORTE_TX": "PE3",
+        "PORTC_EN": "PE5",
+        "PORTA_RX": "PE7",
+        "PORTA_TX": "PE8",
+        "PORTA_M1": "PE9",
+        "PORTE_RTS": "PE10",
+        "PORTA_M2": "PE11",
+        "PORTB_M1": "PE13",
+        "PORTB_M2": "PE14",
+        "PORTF_RTS": "PE15"
+      },
+      "exposed_pins": [
+        "PA0",
+        "PA1",
+        "PA2",
+        "PA3",
+        "PA4",
+        "PA5",
+        "PA6",
+        "PA7",
+        "PA8",
+        "PA9",
+        "PA10",
+        "PA11",
+        "PA12",
+        "PA13",
+        "PA14",
+        "PA15",
+        "PB0",
+        "PB1",
+        "PB2",
+        "PB3",
+        "PB4",
+        "PB5",
+        "PB6",
+        "PB7",
+        "PB8",
+        "PB9",
+        "PB10",
+        "PB12",
+        "PB13",
+        "PB15",
+        "PC0",
+        "PC1",
+        "PC2",
+        "PC3",
+        "PC4",
+        "PC5",
+        "PC6",
+        "PC7",
+        "PC8",
+        "PC9",
+        "PC10",
+        "PC12",
+        "PD0",
+        "PD1",
+        "PD2",
+        "PD3",
+        "PD4",
+        "PD5",
+        "PD6",
+        "PD14",
+        "PD15",
+        "PE0",
+        "PE1",
+        "PE2",
+        "PE3",
+        "PE5",
+        "PE7",
+        "PE8",
+        "PE9",
+        "PE10",
+        "PE11",
+        "PE13",
+        "PE14",
+        "PE15"
+      ]
+    },
+    "notes": [
+      "pins.csv exposes 64 named pins; MCU GPIO count remains family-level when known.",
+      "board.json parsed for vendor/product/mcu/features.",
+      "mpconfigboard.h parsed for board name, MCU name, buses, and onboard peripherals.",
+      "pins.csv parsed for named pins and exposed pin aliases.",
+      "manifest.py parsed for frozen manifest and onboard driver/model clues.",
+      "mpconfigboard.mk parsed for MCU/build/frozen manifest configuration.",
+      "v3 onboard peripheral pass detected 4 entries; 0 need model review and 0 need pin mapping review."
+    ]
+  },
+  "media": {
+    "board_image_url": "https://micropython.org/resources/micropython-media/boards/LEGO_HUB_NO6/lego_hub_6.jpg",
+    "pinout_image_url": "",
+    "pinout_image_urls": [],
+    "pinout_reference_urls": [],
+    "pinout_local_files": [],
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "",
+    "source_url": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/LEGO_HUB_NO6"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/LEGO_HUB_NO6/",
+    "micropython_source": "https://github.com/micropython/micropython/tree/master/ports/stm32/boards/LEGO_HUB_NO6",
+    "vendor_product_page": "",
+    "board_json": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/board.json",
+    "mpconfigboard_h": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/mpconfigboard.h",
+    "mpconfigboard_mk": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/mpconfigboard.mk",
+    "mpconfigboard_cmake": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/mpconfigboard.cmake",
+    "pins_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/pins.csv",
+    "manifest_py": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/manifest.py",
+    "sdkconfig_board": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/sdkconfig.board",
+    "partitions_csv": "https://raw.githubusercontent.com/micropython/micropython/master/ports/stm32/boards/LEGO_HUB_NO6/partitions.csv",
+    "pinout_reference": "",
+    "pinout_references": [],
+    "schematic": [],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "fetch_status": {
+      "board.json": "cached",
+      "mpconfigboard.h": "cached",
+      "pins.csv": "cached",
+      "manifest.py": "cached",
+      "mpconfigboard.cmake": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>",
+      "mpconfigboard.mk": "cached",
+      "sdkconfig.board": "error: URLError: <urlopen error [WinError 10061] 由于目标计算机积极拒绝，无法连接。>"
+    },
+    "presence": {
+      "board.json": true,
+      "mpconfigboard.h": true,
+      "pins.csv": true,
+      "manifest.py": true,
+      "mpconfigboard.cmake": false,
+      "mpconfigboard.mk": true,
+      "sdkconfig.board": false
+    },
+    "board_json_product": "Hub No.6",
+    "board_json_vendor": "LEGO",
+    "board_json_mcu": "stm32f4",
+    "mpconfigboard_board_name": "LEGO Technic Hub No.6",
+    "parsed_named_pin_count": 64,
+    "parsed_onboard_peripheral_count": 4,
+    "parsed_onboard_peripheral_types": [
+      "audio_codec",
+      "button",
+      "power_mgmt"
+    ],
+    "onboard_peripherals_with_model_count": 0,
+    "onboard_peripherals_with_pin_mapping_count": 4,
+    "onboard_peripherals_needing_model_count": 0,
+    "onboard_peripherals_needing_pin_mapping_count": 0,
+    "build_sources": {
+      "manifest_py": {
+        "include": [
+          "$(PORT_DIR)/boards/manifest.py"
+        ],
+        "require": [],
+        "freeze": [],
+        "module": [
+          "fwupdate.py",
+          "appupdate.py"
+        ]
+      },
+      "mpconfigboard_cmake": {
+        "include": [],
+        "set": {},
+        "append": {}
+      },
+      "mpconfigboard_mk": {
+        "MCU_SERIES": "f4",
+        "CMSIS_MCU": "STM32F413xx",
+        "AF_FILE": "boards/stm32f413_af.csv",
+        "LD_FILES": "boards/LEGO_HUB_NO6/stm32f413xg.ld boards/common_bl.ld",
+        "TEXT0_ADDR": "0x08010000",
+        "BOOTLOADER_DFU_USB_VID": "0x0694",
+        "BOOTLOADER_DFU_USB_PID": "0x0008",
+        "MICROPY_PY_BLUETOOTH": "1",
+        "MICROPY_BLUETOOTH_NIMBLE": "0",
+        "MICROPY_BLUETOOTH_BTSTACK": "1",
+        "MICROPY_VFS_LFS2": "1",
+        "FROZEN_MANIFEST": "$(BOARD_DIR)/manifest.py",
+        "LIB_SRC_C": "lib/btstack/chipset/cc256x/btstack_chipset_cc256x.c",
+        "MBOOT_TEXT0_ADDR": "0x08008000",
+        "MBOOT_LD_FILES": "../boards/LEGO_HUB_NO6/mboot_memory.ld stm32_sections.ld",
+        "HUB_FIRMWARE": "lego_hub_firmware.dfu",
+        "HUB_FIRMWARE_ADDR": "$(MBOOT_TEXT0_ADDR)",
+        "HUB_FIRMWARE_SIZE": "0xf8000"
+      },
+      "sdkconfig_board": {
+        "hostname": "",
+        "flash_mb": null,
+        "psram_mb": null,
+        "partition_table": "",
+        "ethernet_rmii": false,
+        "ethernet_rmii_clk_out_gpio": "",
+        "ethernet_rmii_clk_in_gpio": "",
+        "console_uart_tx_gpio": "",
+        "console_uart_rx_gpio": ""
+      },
+      "sdkconfig_raw_keys": []
+    },
+    "manual_board_conflicts": [],
+    "pinout_archive_statuses": [],
+    "html_pinout_ocr_audit_20260716": {
+      "html_status": "not_url",
+      "vendor_url": "无",
+      "ocr_available": true,
+      "missing_model_candidates_added": [],
+      "model_conflict_candidates": [],
+      "missing_type_candidates_added": [],
+      "pinout_image_issue_count": 0
+    }
+  },
+  "verification": {
+    "draft_from_official_sources": true,
+    "source_files_content_reviewed": true,
+    "board_json_parsed": true,
+    "mpconfigboard_h_parsed": true,
+    "pins_csv_parsed": true,
+    "pinout_source_available": true,
+    "pinout_image_available": false,
+    "pinout_local_archive_available": false,
+    "default_bus_pins_verified": true,
+    "restricted_gpio_verified": true,
+    "onboard_peripherals_detected": true,
+    "onboard_peripherals_verified": true,
+    "onboard_peripheral_pin_mappings_verified": true,
+    "onboard_peripheral_models_verified": false,
+    "specs_source": "mcu_fact_table_plus_source_features",
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  },
+  "generation": {
+    "generated_at": "2026-07-15",
+    "generator": "scripts/generate_official_board_jsons_v3_20260715.py",
+    "input_csv": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\MicroPython官方板卡资料收集Excel模板-2026-07-12(1).csv",
+    "pending_json": "G:\\MicroPython_Skills\\upy-analyze-plugin\\boards\\_official_pending\\LEGO_HUB_NO6.json",
+    "source_cache_dir": "G:\\blockless-plugin-course(1)\\_tmp_mpy_board_source_cache_20260715\\LEGO_HUB_NO6",
+    "output_file": "G:\\blockless-plugin-course(1)\\_tmp_official_board_json_v3_20260715\\lego-hub-no6.json",
+    "output_reason": "overwrite_previous_generated",
+    "html_pinout_ocr_enriched_at": "2026-07-16",
+    "html_pinout_ocr_enrichment_source": "G:\\blockless-plugin-course(1)\\official-board-json-v3-html-pinout-audit-v2-2026-07-15.json"
+  }
+}
