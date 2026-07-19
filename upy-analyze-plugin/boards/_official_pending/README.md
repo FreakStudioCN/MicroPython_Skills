@@ -7,7 +7,7 @@
 
 ## Active Files
 
-- `MicroPython官方板卡资料源索引.csv`: 222 块 MicroPython 官方板卡的资料源索引。保留官方页、GitHub source、厂商页、板卡图片 URL、pinout URL/source、正式 JSON、firmware、source 文件解析状态、HTML/OCR 摘要和人工复核项。
+- `MicroPython官方板卡资料源索引.csv`: 223 块 MicroPython 官方板卡的资料源索引。保留官方页、GitHub source、厂商页、板卡图片 URL、pinout URL/source、正式 JSON、firmware、source 文件解析状态、HTML/OCR 摘要和人工复核项。
 - `_archive_20260717/official_pending_cleanup_manifest_20260717.json`: 2026-07-17 初次归档清单。
 - `_archive_20260717/raw_asset_condense_manifest_20260717.json`: 原始素材精简清单。
 - `_archive_20260717/reports_20260717.zip`: HTML 失败清单、截图 OCR 摘要、正式发布报告和最终增强报告。
