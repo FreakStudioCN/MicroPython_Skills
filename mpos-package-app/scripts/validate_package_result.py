@@ -16,6 +16,7 @@ PHASE = "package"
 RESULTS = {"success", "partial", "failed"}
 HANDOFF_SKILLS = {None, "mpos-publish-app", "mpos-deploy-app", "mpos-test-app", "mpos-plan-app"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+MPK_RELEASE_RE = re.compile(r"^(?P<fullname>[A-Za-z0-9_.-]+)_r(?P<revision>[1-9][0-9]*)\.mpk$")
 
 
 def load_json(path: str | None) -> Any:
@@ -101,6 +102,19 @@ def validate(root: Any) -> list[str]:
 
     package = require_object(obj.get("package"), "package", errors)
     check_string(package.get("mpk_path"), "package.mpk_path", errors)
+    revision = package.get("revision")
+    if not isinstance(revision, int) or revision < 1:
+        errors.append("package.revision must be a positive integer")
+    if package.get("filename_policy") != "upystore-release-revision":
+        errors.append("package.filename_policy must be 'upystore-release-revision'")
+    mpk_name = Path(str(package.get("mpk_path", ""))).name
+    match = MPK_RELEASE_RE.fullmatch(mpk_name)
+    if not match:
+        errors.append("package.mpk_path filename must use <fullname>_rN.mpk")
+    elif app.get("fullname") and match.group("fullname") != app.get("fullname"):
+        errors.append("package.mpk_path fullname must match app.fullname")
+    elif isinstance(revision, int) and int(match.group("revision")) != revision:
+        errors.append("package.mpk_path revision must match package.revision")
     if package.get("compression") not in {"stored", "deflated"}:
         errors.append("package.compression must be 'stored' or 'deflated'")
     if not isinstance(package.get("size_bytes"), int) or package.get("size_bytes") <= 0:
@@ -112,6 +126,8 @@ def validate(root: Any) -> list[str]:
     entry = require_object(obj.get("app_index_entry"), "app_index_entry", errors)
     for key in ("path", "base_url", "download_url", "icon_url"):
         check_string(entry.get(key), f"app_index_entry.{key}", errors)
+    if not isinstance(entry.get("revision"), int) or entry.get("revision") < 1:
+        errors.append("app_index_entry.revision must be a positive integer")
 
     validate_checks(obj, errors)
     require_array(obj.get("warnings", []), "warnings", errors)

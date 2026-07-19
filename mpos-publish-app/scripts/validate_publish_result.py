@@ -24,6 +24,8 @@ VERSION_STATUSES = {
     "unknown_unverified",
 }
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+MPK_RELEASE_RE = re.compile(r"^(?P<fullname>[A-Za-z0-9_.-]+)_r(?P<revision>[1-9][0-9]*)\.mpk$")
+SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
 
 def load_json(path: str | None) -> Any:
@@ -112,6 +114,17 @@ def validate(root: Any) -> list[str]:
     artifacts = require_object(obj.get("release_artifacts"), "release_artifacts", errors)
     check_string(artifacts.get("mpk_path"), "release_artifacts.mpk_path", errors)
     check_string(artifacts.get("app_index_entry"), "release_artifacts.app_index_entry", errors)
+    revision = artifacts.get("revision")
+    if not isinstance(revision, int) or revision < 1:
+        errors.append("release_artifacts.revision must be a positive integer")
+    mpk_name = Path(str(artifacts.get("mpk_path", ""))).name
+    match = MPK_RELEASE_RE.fullmatch(mpk_name)
+    if not match:
+        errors.append("release_artifacts.mpk_path filename must use <fullname>_rN.mpk")
+    elif app.get("fullname") and match.group("fullname") != app.get("fullname"):
+        errors.append("release_artifacts.mpk_path fullname must match app.fullname")
+    elif isinstance(revision, int) and int(match.group("revision")) != revision:
+        errors.append("release_artifacts.mpk_path revision must match release_artifacts.revision")
     sha256 = artifacts.get("mpk_sha256")
     if not isinstance(sha256, str) or not SHA256_RE.match(sha256):
         errors.append("release_artifacts.mpk_sha256 must be a lowercase sha256 hex digest")
@@ -131,6 +144,11 @@ def validate(root: Any) -> list[str]:
         check_string(shot.get("path"), f"store_metadata.screenshots[{idx}].path", errors)
         if not isinstance(shot.get("exists"), bool):
             errors.append(f"store_metadata.screenshots[{idx}].exists must be boolean")
+        path_value = shot.get("path")
+        if isinstance(path_value, str) and Path(path_value).suffix.lower() not in SCREENSHOT_EXTENSIONS:
+            errors.append(f"store_metadata.screenshots[{idx}].path must be PNG, JPEG, or WebP")
+        if not isinstance(shot.get("publish_format_ok"), bool):
+            errors.append(f"store_metadata.screenshots[{idx}].publish_format_ok must be boolean")
     require_array(metadata.get("missing_fields", []), "store_metadata.missing_fields", errors)
     if metadata.get("min_os_version") is not None:
         check_string(metadata.get("min_os_version"), "store_metadata.min_os_version", errors)

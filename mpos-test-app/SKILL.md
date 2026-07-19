@@ -11,6 +11,10 @@ description: Test a specific MicroPythonOS App after mpos-gen-app using MicroPyt
 
 静态门禁属于 `mpos-gen-app`：`make lint`、manifest、CPython/mpy syntax、MicroPython import、flake8、pylint 必须在生成/修复后立即执行。本 skill 只复核 `generation_result.json` 中这些门禁已记录通过；不要重复定义或替代它们。
 
+## 用户可见语言
+
+遵守 `mpos-dev` 的语言连续性规则：当前 workflow 从中文开始，测试摘要、失败归因和下一步建议继续用中文；从英文开始则继续用英文。代码、命令、路径、API 名和 JSON 字段名保持英文。
+
 ## 统一项目日志
 
 完成 runtime smoke 或可选 Web Port 验证并产出 `app_test_result.json` 后，必须登记到项目状态目录：
@@ -51,6 +55,23 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 `prepare_desktop_tooling.py` 不编辑 OS 源码；它只创建临时 build shim：用 fake `pkg-config` 指向用户态静态 `libffi.a`，并在缺 `libv4l2.a` 时提供仅供 desktop link 的空静态库，然后调用现有 `<repo-root>/scripts/build_mpos.sh unix`。运行结束后临时 shim 会随临时目录删除；构建产物仍由原 build 脚本生成。
 
+如果用户要打开完整桌面模拟器，优先在隔离 clone/worktree 中使用 release ELF 快速路径：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/prepare_desktop_binary.py \
+  --repo <repo-root> \
+  --run-app <fullname>
+```
+
+`prepare_desktop_binary.py` 从 `https://api.github.com/repos/MicroPythonOS/MicroPythonOS/releases/latest` 选择最新 Linux amd64 `.elf`，写入 `<repo-root>/lvgl_micropython/build/lvgl_micropy_unix` 并加执行位，然后可选调用 `scripts/run_desktop.sh <fullname>`。如果必须严格匹配本地源码，保留本地 build 路径：
+
+```bash
+cd <repo-root>
+scripts/build_mpos.sh unix
+scripts/run_desktop.sh <fullname>
+```
+
 ## 默认测试
 
 默认运行目标 App 桌面模拟器冒烟测试，分两层：
@@ -89,7 +110,7 @@ wait_for_render()
 - `AppManager.start_app()` 结果和 traceback。
 - 可见文本 `get_visible_text()`。
 - widget tree 摘要 `get_widget_tree()`。
-- 可选 screenshot BMP。
+- 可选 screenshot：保留 BMP raw artifact，并默认转换出 PNG publish-ready artifact。
 
 如果用户给出期望文本，用 `--expected-text "<text>"` 增加强断言。没有期望文本时，只要 App 能启动且 runtime 没抛异常即可通过；空文本不能自动判失败，因为游戏、Canvas、图像类 App 可能没有 label 文本。
 
@@ -151,6 +172,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - stdout/stderr/traceback 关键片段。
 - 可见文本和 widget tree 摘要。
 - screenshot 路径（如果生成成功）。
+- `manual_preview_commands`：release ELF 快速桌面命令、本地 build 桌面命令、可选 Web Port 命令。
 - 涉及的 App 文件和是否允许修复。
 
 只把 App 自身启动/渲染/交互失败交给 `mpos-gen-app repair`。如果失败原因是缺少 `lvgl_micropy_unix`、`mpos.main` boot 失败、缺少 `_webrepl`、缺少本地 web tooling、缺少 Emscripten、缺少 web build 产物、全量 OS tests 失败、硬件不可用或外部服务不可达，标记为外部阻塞或 warning，不让 `mpos-gen-app` 修改无关 OS 文件，也不要直接改 OS 源码。
@@ -173,3 +195,4 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - `checks[]` 至少包含 `generation_result_static_gates`、`desktop_runner_launch` 和 `desktop_smoke`。
 - 如果运行 `--web-port-check`，`checks[]` 追加 `web_port`，且 `required` 必须为 `false`。
 - `handoff.next_skill` 为 `null`，或用户要继续修复时为 `"mpos-gen-app"`。
+- `artifacts[]` 中发布截图优先使用 PNG；BMP 只能作为 `screenshot_raw`。

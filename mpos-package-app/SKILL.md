@@ -11,6 +11,10 @@ description: Package and validate a single MicroPythonOS App as an MPK release a
 
 优先在 `mpos-gen-app` 静态门禁完成、`mpos-test-app` runtime smoke 完成后使用本 skill。若测试结果缺失或失败，仍允许继续打包，但必须在 `package_result.json` 中记录 warning。
 
+## 用户可见语言
+
+遵守 `mpos-dev` 的语言连续性规则：当前 workflow 从中文开始，打包摘要、warning、失败原因和下一步建议继续用中文；从英文开始则继续用英文。代码、命令、路径、API 名和 JSON 字段名保持英文。
+
 ## 统一项目日志
 
 完成打包并产出 `package_result.json` 后，必须登记到项目状态目录：
@@ -28,7 +32,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   --event "Packaged App as MPK and app_index_entry"
 ```
 
-缺失或失败的 generation/test 结果仍可让打包继续并标 warning，但项目状态要保留这些 warning，便于 `mpos-plan-app` 决定是否能继续到 deploy/publish。
+缺失或失败的 generation/test 结果仍可让打包继续并标 warning，但项目状态要保留这些 warning，便于 `mpos-plan-app` 决定是否能继续到 deploy/publish。发布链路中，成功或 partial 的打包结果默认交给 `mpos-deploy-app` 产出 `deploy_result.json`，再交给 `mpos-publish-app`。
 
 ## 必读上下文
 
@@ -49,7 +53,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - 不下载第三方依赖；依赖准备回到 `mpos-prepare-deps`。
 - 不跑 desktop simulator、Web Port 或设备交互；运行测试回到 `mpos-test-app`。
 - 不安装到真实 `/apps`，不覆盖真实 `internal_filesystem/apps`。
-- 不登录、不上传、不保存 upystore 凭据；发布上传归用户或未来 `mpos-publish-app`。
+- 不登录、不上传、不保存 upystore 凭据；发布交接归 `mpos-publish-app`，上传仍由用户手动完成。
 - 不修改 MicroPythonOS OS/build 源码。
 
 ## App 布局策略
@@ -97,6 +101,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   /home/leeqingshui/MicroPython_Skills/mpos-package-app/scripts/package_mpos_app.py \
   --repo <repo-root> \
   --app-fullname <fullname> \
+  --revision 1 \
   --compression stored
 ```
 
@@ -113,6 +118,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   /home/leeqingshui/MicroPython_Skills/mpos-package-app/scripts/package_mpos_app.py \
   --repo <repo-root> \
   --app-fullname <fullname> \
+  --revision 1 \
   --compression stored \
   --install-check
 ```
@@ -130,6 +136,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 必须由脚本保证：
 
 - `.mpk` 是 ZIP archive。
+- MPK 文件名必须使用 upystore release revision 格式：`<fullname>_rN.mpk`，例如 `<fullname>_r1.mpk`。Manifest `version` 仍保留 App 语义版本；文件名不用 `<version>`。
 - 第一条 local file header 必须是 `<fullname>/` 目录 entry。
 - 只能有一个 top-level directory。
 - 所有 entry 必须在 `<fullname>/` 下。
@@ -146,7 +153,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 ```text
 <base_url>/apps/<fullname>/icons/<fullname>_<version>_64x64.png
-<base_url>/apps/<fullname>/mpks/<fullname>_<version>.mpk
+<base_url>/apps/<fullname>/mpks/<fullname>_r<revision>.mpk
 ```
 
 默认 base URL 是 `https://apps.micropythonos.com`。如果目标是 upystore 上传，仍只准备本地 metadata 和 MPK，不上传。
@@ -160,8 +167,9 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - `result` 为 `success`、`partial` 或 `failed`。
 - `checks[]` 至少包含 `app_validation`、`generation_result`、`app_test_result`、`mpk_validation`、`app_index_entry`。
 - 请求 `--install-check` 时追加 `temporary_install_validation`。
+- `package.revision` 必须是正整数，`package.filename_policy` 必须是 `upystore-release-revision`，`package.mpk_path` 必须匹配 `<fullname>_rN.mpk`。
 - 缺失/失败的 generation/test 结果只记 warning，不能让 package 失败。
-- `handoff.next_skill` 通常为 `mpos-publish-app` 或 `null`。
+- `handoff.next_skill` 通常为 `mpos-deploy-app` 或 `null`；只有已有匹配的 `deploy_result.json` 且用户明确只要发布交接时，才交给 `mpos-publish-app`。
 
 ## 失败处理
 

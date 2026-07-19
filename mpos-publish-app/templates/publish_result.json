@@ -18,7 +18,8 @@
     "deploy_result": "tmp/mpos-deploy-app/com.micropythonos.example/deploy_result.json"
   },
   "release_artifacts": {
-    "mpk_path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_1.0.0.mpk",
+    "mpk_path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_r1.mpk",
+    "revision": 1,
     "mpk_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "mpk_size_bytes": 1234,
     "app_index_entry": "tmp/mpos-package-app/com.micropythonos.example/app_index_entry.json"
@@ -40,8 +41,10 @@
     },
     "screenshots": [
       {
-        "path": "tmp/mpos-test-app/com.micropythonos.example.bmp",
-        "exists": true
+        "path": "tmp/mpos-test-app/com.micropythonos.example.png",
+        "exists": true,
+        "format": "png",
+        "publish_format_ok": true
       }
     ],
     "release_notes": "Initial release.",

@@ -19,11 +19,12 @@
     "port": "/dev/ttyACM0",
     "device_id": null,
     "confirmed": true,
+    "hardware_available": true,
     "install_url": null,
     "web_url": null
   },
   "command": {
-    "primary": "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python /home/leeqingshui/MicroPythonOS/scripts/mpos_controller.py --serial-port /dev/ttyACM0 installapp /home/leeqingshui/MicroPythonOS/internal_filesystem/apps/com.micropythonos.example",
+    "primary": "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python <repo-root>/scripts/mpos_controller.py --serial-port /dev/ttyACM0 installapp <repo-root>/internal_filesystem/apps/com.micropythonos.example",
     "secondary": []
   },
   "checks": [
@@ -69,8 +70,8 @@
     }
   ],
   "handoff": {
-    "next_skill": "mpos-test-app",
-    "next_step": "Run mpos-test-app if you want a runtime smoke check after deployment.",
-    "reason": "The app was deployed and the registry was refreshed."
+    "next_skill": "mpos-publish-app",
+    "next_step": "Prepare the manual upystore publishing handoff.",
+    "reason": "The app was deployed or previewed and the publish-chain deploy record is available."
   }
 }

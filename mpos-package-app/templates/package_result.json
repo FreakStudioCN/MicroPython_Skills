@@ -18,7 +18,9 @@
     "test_policy": "warn_only"
   },
   "package": {
-    "mpk_path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_1.0.0.mpk",
+    "mpk_path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_r1.mpk",
+    "revision": 1,
+    "filename_policy": "upystore-release-revision",
     "compression": "stored",
     "size_bytes": 1234,
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
@@ -26,8 +28,9 @@
   "app_index_entry": {
     "path": "tmp/mpos-package-app/com.micropythonos.example/app_index_entry.json",
     "base_url": "https://apps.micropythonos.com",
-    "download_url": "https://apps.micropythonos.com/apps/com.micropythonos.example/mpks/com.micropythonos.example_1.0.0.mpk",
-    "icon_url": "https://apps.micropythonos.com/apps/com.micropythonos.example/icons/com.micropythonos.example_1.0.0_64x64.png"
+    "download_url": "https://apps.micropythonos.com/apps/com.micropythonos.example/mpks/com.micropythonos.example_r1.mpk",
+    "icon_url": "https://apps.micropythonos.com/apps/com.micropythonos.example/icons/com.micropythonos.example_1.0.0_64x64.png",
+    "revision": 1
   },
   "checks": [
     {
@@ -83,7 +86,7 @@
   "artifacts": [
     {
       "kind": "mpk",
-      "path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_1.0.0.mpk"
+      "path": "tmp/mpos-package-app/com.micropythonos.example/com.micropythonos.example_r1.mpk"
     },
     {
       "kind": "app_index_entry",
@@ -91,7 +94,7 @@
     }
   ],
   "handoff": {
-    "next_skill": "mpos-publish-app",
-    "reason": "MPK and app_index entry were generated and validated; upload is a separate publishing step."
+    "next_skill": "mpos-deploy-app",
+    "reason": "MPK and app_index entry were generated and validated; record a deploy or preview result before publishing."
   }
 }

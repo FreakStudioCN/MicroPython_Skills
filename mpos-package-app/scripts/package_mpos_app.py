@@ -51,6 +51,16 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be >= 1")
+    return parsed
+
+
 def _is_excluded(path: Path, app_dir: Path) -> bool:
     rel = path.relative_to(app_dir)
     parts = rel.parts
@@ -216,7 +226,8 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
     warnings.extend(gen_warnings)
     warnings.extend(test_warnings)
 
-    mpk_path = output_dir / f"{fullname}_{version or 'unknown'}.mpk"
+    revision = args.revision
+    mpk_path = output_dir / f"{fullname}_r{revision}.mpk"
     app_index_path = output_dir / "app_index_entry.json"
     mpk_validation: dict[str, Any] = {
         "ok": False,
@@ -232,6 +243,7 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
             app_dir,
             fullname,
             args.base_url,
+            revision,
         )
         warnings.extend(index_warnings)
         errors.extend(index_errors)
@@ -281,6 +293,8 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
 
     package_info = {
         "mpk_path": _display_path(mpk_path, repo),
+        "revision": revision,
+        "filename_policy": "upystore-release-revision",
         "compression": args.compression,
         "size_bytes": mpk_path.stat().st_size if mpk_path.is_file() else 0,
         "sha256": _sha256(mpk_path) if mpk_path.is_file() else "0" * 64,
@@ -290,6 +304,7 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
         "base_url": args.base_url.rstrip("/"),
         "download_url": app_index_entry.get("download_url") if app_index_entry else "",
         "icon_url": app_index_entry.get("icon_url") if app_index_entry else "",
+        "revision": revision,
     }
 
     required_failed = any(check["required"] and not check["ok"] for check in checks)
@@ -324,9 +339,9 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
             {"kind": "package_result", "path": _display_path(output_dir / "package_result.json", repo)},
         ],
         "handoff": {
-            "next_skill": "mpos-publish-app" if result in {"success", "partial"} else "mpos-gen-app",
+            "next_skill": "mpos-deploy-app" if result in {"success", "partial"} else "mpos-gen-app",
             "reason": (
-                "MPK and app_index entry were generated and validated; upload is a separate publishing step."
+                "MPK and app_index entry were generated and validated; record a deploy or preview result before publishing."
                 if result in {"success", "partial"}
                 else "Package required checks failed; repair the App or package script before publishing."
             ),
@@ -344,6 +359,7 @@ def main() -> int:
     parser.add_argument("--output-dir", help="Package output directory")
     parser.add_argument("--compression", choices=sorted(COMPRESSION_TYPES), default="stored", help="MPK compression")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Base AppStore URL for app_index_entry.json")
+    parser.add_argument("--revision", type=positive_int, default=1, help="Positive upystore release revision for _rN MPK naming")
     parser.add_argument("--generation-result", help="Optional generation_result.json")
     parser.add_argument("--app-test-result", help="Optional app_test_result.json")
     parser.add_argument("--install-check", action="store_true", help="Temporarily extract MPK and validate installed tree")

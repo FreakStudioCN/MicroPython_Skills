@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +20,8 @@ APP_INDEX_URL = "https://upystore.io/app_index.json"
 API_APPS_URL = "https://upystore.io/api/v1/apps"
 DEVELOPER_CONSOLE_URL = "https://upystore.io/developer"
 USER_AGENT = "Mozilla/5.0 (mpos-publish-app)"
+ALLOWED_SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+MPK_RELEASE_RE = re.compile(r"^(?P<fullname>[A-Za-z0-9_.-]+)_r(?P<revision>[1-9][0-9]*)\.mpk$")
 
 
 def utc_now() -> str:
@@ -257,8 +260,9 @@ def normalize_hardware_tags(value: str | None, app_index_entry: dict[str, Any]) 
     return {"required": [], "optional": []}, warnings
 
 
-def collect_metadata(args: argparse.Namespace, repo: Path, app_index_entry: dict[str, Any]) -> tuple[dict[str, Any], list[str], list[str]]:
+def collect_metadata(args: argparse.Namespace, repo: Path, app_index_entry: dict[str, Any]) -> tuple[dict[str, Any], list[str], list[str], list[str]]:
     warnings: list[str] = []
+    errors: list[str] = []
     missing: list[str] = []
     hardware_tags, hardware_warnings = normalize_hardware_tags(args.hardware_tags_json, app_index_entry)
     warnings.extend(hardware_warnings)
@@ -267,9 +271,16 @@ def collect_metadata(args: argparse.Namespace, repo: Path, app_index_entry: dict
     for value in args.screenshot or []:
         path = Path(value)
         exists = path.is_file() or (repo / path).is_file()
-        screenshots.append({"path": display_path(path, repo), "exists": exists})
+        suffix = path.suffix.lower()
+        format_name = suffix[1:] if suffix else ""
+        publish_format_ok = suffix in ALLOWED_SCREENSHOT_EXTENSIONS
+        screenshots.append({"path": display_path(path, repo), "exists": exists, "format": format_name, "publish_format_ok": publish_format_ok})
         if not exists:
             warnings.append(f"screenshot not found: {value}")
+        if not publish_format_ok:
+            errors.append(
+                f"screenshot format is not supported by upystore: {value}; use PNG, JPEG, or WebP"
+            )
 
     metadata = {
         "short_description": args.short_description or app_index_entry.get("short_description") or "",
@@ -290,7 +301,7 @@ def collect_metadata(args: argparse.Namespace, repo: Path, app_index_entry: dict
         warnings.append("no screenshots were provided for upystore metadata")
     if not hardware_tags.get("required") and not hardware_tags.get("optional"):
         warnings.append("hardware_tags are empty")
-    return metadata, missing, warnings
+    return metadata, missing, warnings, errors
 
 
 def app_from_results(package_result: dict[str, Any], app_test_result: dict[str, Any], deploy_result: dict[str, Any]) -> tuple[dict[str, Any], list[str], list[str]]:
@@ -323,16 +334,29 @@ def artifact_info(repo: Path, package_result: dict[str, Any]) -> tuple[dict[str,
     errors: list[str] = []
     package = package_result.get("package") if isinstance(package_result.get("package"), dict) else {}
     entry = package_result.get("app_index_entry") if isinstance(package_result.get("app_index_entry"), dict) else {}
+    package_app = package_result.get("app") if isinstance(package_result.get("app"), dict) else {}
     mpk_path_text = package.get("mpk_path")
     mpk_path = resolve_repo_path(repo, mpk_path_text)
     if mpk_path is None or not mpk_path.is_file():
         errors.append(f"MPK file is missing: {mpk_path_text}")
+    mpk_name = Path(str(mpk_path_text or "")).name
+    match = MPK_RELEASE_RE.fullmatch(mpk_name)
+    if not match:
+        errors.append(f"MPK filename must use <fullname>_rN.mpk for upystore: {mpk_path_text}")
+    else:
+        fullname = package_app.get("fullname")
+        revision = package.get("revision")
+        if fullname and match.group("fullname") != fullname:
+            errors.append("MPK filename fullname does not match package_result.app.fullname")
+        if isinstance(revision, int) and int(match.group("revision")) != revision:
+            errors.append("MPK filename revision does not match package_result.package.revision")
     app_index_path_text = entry.get("path")
     app_index_path = resolve_repo_path(repo, app_index_path_text)
     if app_index_path is None or not app_index_path.is_file():
         errors.append(f"app_index_entry file is missing: {app_index_path_text}")
     return {
         "mpk_path": mpk_path_text or "",
+        "revision": package.get("revision"),
         "mpk_sha256": package.get("sha256") or "0" * 64,
         "mpk_size_bytes": package.get("size_bytes") or 0,
         "app_index_entry": app_index_path_text or "",
@@ -349,6 +373,8 @@ def choose_handoff(errors: list[str]) -> tuple[str | None, str, str]:
         return "mpos-test-app", "Rerun runtime smoke tests before publishing.", "Test result is not publish-ready."
     if "deploy_result" in joined:
         return "mpos-deploy-app", "Rerun the deployment or preview handoff before publishing.", "Deploy result is not publish-ready."
+    if "screenshot" in joined:
+        return "mpos-test-app", "Provide or regenerate a PNG, JPEG, or WebP screenshot before publishing.", "Store screenshot metadata is not publish-ready."
     return "mpos-gen-app", "Repair App metadata or release fields before publishing.", "Release metadata is not publish-ready."
 
 
@@ -390,7 +416,7 @@ def prepare_publish(args: argparse.Namespace) -> dict[str, Any]:
 
     app_index_entry, index_warnings = read_app_index_entry(repo, package_result)
     warnings.extend(index_warnings)
-    metadata, missing_metadata, metadata_warnings = collect_metadata(args, repo, app_index_entry)
+    metadata, missing_metadata, metadata_warnings, metadata_format_errors = collect_metadata(args, repo, app_index_entry)
     warnings.extend(metadata_warnings)
 
     upystore = query_upystore(app.get("fullname", ""), args.network_timeout, args.skip_network)
@@ -423,6 +449,7 @@ def prepare_publish(args: argparse.Namespace) -> dict[str, Any]:
     metadata_errors: list[str] = []
     if missing_metadata:
         metadata_errors.append("missing required store metadata: " + ", ".join(missing_metadata))
+    metadata_errors.extend(metadata_format_errors)
     checks.append(
         make_check(
             "store_metadata",

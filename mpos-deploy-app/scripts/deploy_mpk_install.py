@@ -10,10 +10,8 @@ import subprocess
 from pathlib import Path
 
 from _deploy_common import (
-    DEFAULT_REPO,
     board_matches,
     controller_command,
-    default_output_dir,
     inspect_mpk,
     load_app_metadata,
     installed_apps_code,
@@ -23,6 +21,8 @@ from _deploy_common import (
     query_device_info,
     query_installed_apps,
     resolve_app_dir,
+    resolve_output_dir,
+    resolve_repo_arg,
     run_mpremote,
     safe_fullname,
     write_json,
@@ -31,7 +31,7 @@ from _deploy_common import (
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root")
     parser.add_argument("--app-fullname", required=True, help="App fullname")
     parser.add_argument("--mpk-path", required=True, help="Path to the MPK file")
     parser.add_argument("--board", required=True, help="Confirmed target board")
@@ -42,11 +42,11 @@ def main() -> int:
     parser.add_argument("--output-dir", help="Output directory for deploy_result.json")
     args = parser.parse_args()
 
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     fullname = safe_fullname(args.app_fullname)
     app_dir = resolve_app_dir(repo, fullname)
     mpk_path = Path(args.mpk_path).resolve()
-    output_dir = Path(args.output_dir).resolve() if args.output_dir else default_output_dir(repo, fullname)
+    output_dir = resolve_output_dir(repo, fullname, args.output_dir)
     output_path = output_dir / "deploy_result.json"
 
     warnings: list[str] = []
@@ -174,6 +174,7 @@ def main() -> int:
             "port": args.serial_port,
             "device_id": machine,
             "confirmed": True,
+            "hardware_available": True,
             "install_url": None,
             "web_url": None,
         },
@@ -240,9 +241,17 @@ def main() -> int:
         "errors": errors,
         "artifacts": [{"kind": "deploy_result", "path": str(output_path)}],
         "handoff": {
-            "next_skill": "mpos-test-app" if result != "failed" else "mpos-package-app",
-            "next_step": "Run mpos-test-app if you want a runtime smoke check after the MPK install.",
-            "reason": "The MPK was installed on the target device and the registry was refreshed.",
+            "next_skill": "mpos-publish-app" if result in {"success", "partial"} else "mpos-deploy-app",
+            "next_step": (
+                "Prepare the manual upystore publishing handoff."
+                if result in {"success", "partial"}
+                else "Retry MPK install after checking the package, board, port, and device state."
+            ),
+            "reason": (
+                "The MPK was installed on the target device and the publish-chain deploy record is available."
+                if result in {"success", "partial"}
+                else "MPK install did not produce a usable deploy record."
+            ),
         },
     }
     write_json(output_path, deploy_result)

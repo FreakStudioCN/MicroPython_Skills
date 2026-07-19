@@ -11,6 +11,10 @@ description: Prepare application-layer dependencies for MicroPythonOS Apps after
 
 本 skill 可以真实下载文件到 App 目录，但只下载运行时需要的纯 Python/MPY 依赖文件。搜索结果、README、example、package metadata 和候选仓库证据写入缓存目录，不写入 skill 目录。
 
+## 用户可见语言
+
+遵守 `mpos-dev` 的语言连续性规则：当前 workflow 从中文开始，依赖摘要、风险、确认问题和交接说明继续用中文；从英文开始则继续用英文。代码、命令、路径、API 名和 JSON 字段名保持英文。
+
 ## 统一项目日志
 
 完成依赖准备并产出 `dependency_handoff.json` 后，必须登记到项目状态目录：

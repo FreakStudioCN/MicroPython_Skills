@@ -65,7 +65,7 @@
       },
       {
         "name": "make_lint",
-        "command": "make lint",
+        "command": "/home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/prepare_lint_tooling.py --repo <repo-root>",
         "returncode": 0,
         "required": true
       },

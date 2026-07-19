@@ -8,10 +8,10 @@
     "app_dir": "internal_filesystem/apps/com.micropythonos.example"
   },
   "environment": {
-    "repo": "/home/leeqingshui/MicroPythonOS",
+    "repo": "<repo-root>",
     "backend": "process",
     "runner": "scripts/mpos_controller.py",
-    "binary": "/home/leeqingshui/MicroPythonOS/lvgl_micropython/build/lvgl_micropy_unix",
+    "binary": "<repo-root>/lvgl_micropython/build/lvgl_micropy_unix",
     "heapsize": "32M"
   },
   "checks": [
@@ -29,8 +29,8 @@
       "required": true,
       "ok": true,
       "status": "launched_until_timeout",
-      "command": "/home/leeqingshui/MicroPythonOS/scripts/run_desktop.sh com.micropythonos.example",
-      "cwd": "/home/leeqingshui/MicroPythonOS",
+      "command": "<repo-root>/scripts/run_desktop.sh com.micropythonos.example",
+      "cwd": "<repo-root>",
       "timeout_seconds": 20,
       "timed_out": true,
       "warnings": [
@@ -44,7 +44,7 @@
       "ok": true,
       "status": "passed",
       "command": "MPOSController(process).exec(AppManager.start_app)",
-      "cwd": "/home/leeqingshui/MicroPythonOS/internal_filesystem",
+      "cwd": "<repo-root>/internal_filesystem",
       "boot": {
         "ok": true,
         "modules": [
@@ -76,8 +76,8 @@
       "required": false,
       "ok": true,
       "status": "passed_http",
-      "tool": "/home/leeqingshui/MicroPythonOS/scripts/run_web.sh",
-      "command": "PORT=49152 /home/leeqingshui/MicroPythonOS/scripts/run_web.sh --no-build",
+      "tool": "<repo-root>/scripts/run_web.sh",
+      "command": "PORT=49152 <repo-root>/scripts/run_web.sh --no-build",
       "url": "http://127.0.0.1:49152/",
       "artifacts": {
         "web/index.html": true,
@@ -108,11 +108,32 @@
   ],
   "artifacts": [
     {
-      "kind": "screenshot",
+      "kind": "screenshot_raw",
       "path": "tmp/mpos-test-app/com.micropythonos.example.bmp",
       "format": "bmp"
+    },
+    {
+      "kind": "screenshot",
+      "path": "tmp/mpos-test-app/com.micropythonos.example.png",
+      "format": "png",
+      "publish_ready": true
     }
   ],
+  "manual_preview_commands": {
+    "release_elf_desktop": [
+      "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/prepare_desktop_binary.py --repo <repo-root> --run-app com.micropythonos.example"
+    ],
+    "local_build_desktop": [
+      "cd <repo-root>",
+      "scripts/build_mpos.sh unix",
+      "scripts/run_desktop.sh com.micropythonos.example"
+    ],
+    "web_port_optional": [
+      "cd <repo-root>",
+      "scripts/build_mpos.sh web",
+      "scripts/run_web.sh"
+    ]
+  },
   "blocking_questions": [],
   "handoff": {
     "next_skill": null,

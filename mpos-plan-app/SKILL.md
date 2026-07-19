@@ -21,6 +21,10 @@ Do not do downstream work directly. Use the phase skills:
 
 `mpos-gen-app` remains strictly two-phase. This skill must not bypass its write confirmation.
 
+## User-Facing Language
+
+Follow `mpos-dev` language continuity: if the workflow starts in Chinese, keep user-facing planning, questions, and summaries in Chinese; if it starts in English, keep them in English. Keep code, commands, paths, API names, and JSON keys in English.
+
 ## Unified Project Log
 
 Before writing any artifact, determine the active MicroPythonOS repository root:
@@ -28,7 +32,7 @@ Before writing any artifact, determine the active MicroPythonOS repository root:
 - If the user gives a repository path, use that path as `<repo-root>`.
 - Otherwise, use the current working directory when it contains `internal_filesystem/apps` and `scripts`.
 - Never fall back to `/home/leeqingshui/MicroPythonOS` when the user is testing in an isolated clone, worktree, or temporary copy.
-- For build, simulator, desktop-preview, or web-preview operations, prefer an isolated clone/worktree. Do not mutate the user's main MicroPythonOS checkout unless the user explicitly allows it.
+- For build, simulator, desktop-preview, web-preview, or integration-test operations, prefer an isolated clone/worktree/temporary copy. Do not mutate the user's main MicroPythonOS checkout unless the user explicitly allows it.
 
 Every MPOS app project uses:
 
@@ -89,7 +93,7 @@ Default goal is from request to upystore publishing handoff:
 8. `mpos-deploy-app`
 9. `mpos-publish-app`
 
-If no physical board exists, a `desktop-preview` or `web-preview` `deploy_result.json` is enough to satisfy the publish-chain deployment record. Device copy or MPK install is preferred when hardware is available.
+Before step 8, ask whether a physical device and serial port are available. If yes, route deploy toward `mpk-install` for release verification unless the user chooses another device mode. If no physical board exists, a `desktop-preview` or `web-preview` `deploy_result.json` is enough to satisfy the publish-chain deployment record, and the result must record `hardware_available=false`.
 
 ## Resumption
 
@@ -144,7 +148,7 @@ After the user confirms, rerun the command with `--confirmed` and continue to th
 - Runtime smoke failed from App code: `mpos-gen-app repair`.
 - Runtime smoke blocked by OS/tooling: report blocked; do not ask `mpos-gen-app` to edit App code.
 - Test success and publish goal active: `mpos-package-app`.
-- Package success or partial with warnings: `mpos-deploy-app` for preview/deploy record.
+- Package success or partial with warnings: ask the physical device/serial-port question, then route to `mpos-deploy-app` for preview/deploy record.
 - Deploy preview or device install result available and publish goal active: `mpos-publish-app`.
 - User only asks to deploy, package, test, or publish: route directly to the named phase but still update `plan_state.json`.
 

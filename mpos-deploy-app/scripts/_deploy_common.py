@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_REPO = Path("/home/leeqingshui/MicroPythonOS")
 DEFAULT_OUTPUT_ROOT = Path("tmp/mpos-deploy-app")
 DEFAULT_INSTALL_URL = "https://install.micropythonos.com/"
 DEFAULT_WEB_URL = "http://127.0.0.1:8080/"
@@ -29,12 +28,47 @@ VALID_MODES = {
     "local-flash",
 }
 VALID_TRANSPORTS = {"desktop", "http", "serial", "usb", "browser"}
-VALID_NEXT_SKILLS = {None, "mpos-test-app", "mpos-gen-app", "mpos-package-app", "mpos-plan-app", "mpos-publish-app"}
+VALID_NEXT_SKILLS = {
+    None,
+    "mpos-test-app",
+    "mpos-gen-app",
+    "mpos-package-app",
+    "mpos-plan-app",
+    "mpos-deploy-app",
+    "mpos-publish-app",
+}
 FULLNAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def is_repo_root(path: Path) -> bool:
+    return (path / "internal_filesystem" / "apps").is_dir() and (path / "scripts").is_dir()
+
+
+def default_repo() -> Path | None:
+    env_repo = os.environ.get("MPOS_REPO")
+    if env_repo:
+        return Path(env_repo)
+    cwd = Path.cwd()
+    if is_repo_root(cwd):
+        return cwd
+    return None
+
+
+def resolve_repo_arg(value: str | None) -> Path:
+    repo = Path(value).expanduser() if value else default_repo()
+    if repo is None:
+        raise SystemExit(
+            "ERROR: --repo is required when the current directory is not a MicroPythonOS repo "
+            "and MPOS_REPO is unset"
+        )
+    repo = repo.resolve()
+    if not is_repo_root(repo):
+        raise SystemExit(f"ERROR: not a MicroPythonOS repo root: {repo}")
+    return repo
 
 
 def safe_fullname(value: str) -> str:
@@ -69,6 +103,15 @@ def resolve_app_dir(repo: Path, fullname: str) -> Path:
 
 def default_output_dir(repo: Path, fullname: str) -> Path:
     return repo / DEFAULT_OUTPUT_ROOT / safe_fullname(fullname)
+
+
+def resolve_output_dir(repo: Path, fullname: str, value: str | None, output_name: str = "deploy_result.json") -> Path:
+    if value:
+        output_dir = Path(value).expanduser()
+        if output_dir.name == output_name or output_dir.suffix.lower() == ".json":
+            raise SystemExit(f"ERROR: --output-dir must be a directory, not a JSON file path: {output_dir}")
+        return output_dir.resolve()
+    return default_output_dir(repo, fullname)
 
 
 def find_manifest_path(app_dir: Path) -> tuple[Path, str]:
@@ -439,6 +482,7 @@ def build_result(
     port: str | None,
     device_id: str | None = None,
     confirmed: bool = False,
+    hardware_available: bool | None = None,
     install_url: str | None = None,
     web_url: str | None = None,
     command: dict[str, Any] | None = None,
@@ -464,6 +508,7 @@ def build_result(
             "port": port,
             "device_id": device_id,
             "confirmed": confirmed,
+            "hardware_available": bool(hardware_available) if hardware_available is not None else mode not in {"desktop-preview", "web-preview"},
             "install_url": install_url,
             "web_url": web_url,
         },

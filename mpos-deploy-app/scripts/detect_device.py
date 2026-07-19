@@ -5,15 +5,14 @@ from __future__ import annotations
 
 import argparse
 import shlex
-from pathlib import Path
 
 from _deploy_common import (
-    DEFAULT_REPO,
     controller_command,
-    default_output_dir,
     device_probe_code,
     make_check,
     query_device_info,
+    resolve_output_dir,
+    resolve_repo_arg,
     utc_now,
     write_json,
 )
@@ -21,7 +20,7 @@ from _deploy_common import (
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root")
     parser.add_argument("--serial-port", required=True, help="Serial port for the device")
     parser.add_argument("--baudrate", type=int, default=115200, help="Serial baudrate")
     parser.add_argument("--no-reset", action="store_true", help="Do not reset the device on connect")
@@ -29,8 +28,8 @@ def main() -> int:
     parser.add_argument("--output-dir", help="Output directory for device_info.json")
     args = parser.parse_args()
 
-    repo = Path(args.repo).resolve()
-    output_dir = Path(args.output_dir).resolve() if args.output_dir else default_output_dir(repo, "device-info")
+    repo = resolve_repo_arg(args.repo)
+    output_dir = resolve_output_dir(repo, "device-info", args.output_dir, output_name="device_info.json")
     output_path = output_dir / "device_info.json"
 
     probe = query_device_info(

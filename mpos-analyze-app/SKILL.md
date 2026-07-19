@@ -14,6 +14,10 @@ description: Analyze MicroPythonOS App ideas directly or when invoked by mpos-pl
 
 本 skill 只做分析和交接，不写代码、不下载驱动、不打包、不安装 App、不烧录固件、不上传 upystore。
 
+## 用户可见语言
+
+遵守 `mpos-dev` 的语言连续性规则：当前 workflow 从中文开始，分析、问题和总结继续用中文；从英文开始则继续用英文。代码、命令、路径、API 名和 JSON 字段名保持英文。
+
 ## 统一项目日志
 
 完成分析并产出 `analysis_result.json` 后，必须登记到项目状态目录：

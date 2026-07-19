@@ -130,6 +130,11 @@ def validate(root: Any) -> list[str]:
         require_string(deploy.get("web_url"), "deploy.web_url", allow_empty=False)
 
     require(isinstance(deploy.get("confirmed"), bool), "deploy.confirmed must be boolean")
+    require(isinstance(deploy.get("hardware_available"), bool), "deploy.hardware_available must be boolean")
+    if mode in {"device-copy", "mpk-install", "install-site", "local-flash"} and deploy.get("hardware_available") is not True:
+        errors.append("deploy.hardware_available must be true for hardware or flash modes")
+    if mode in {"desktop-preview", "web-preview"} and deploy.get("hardware_available") is not False:
+        errors.append("deploy.hardware_available must be false for preview-only modes")
 
     command = require_object(root.get("command"), "command")
     require_string(command.get("primary"), "command.primary")

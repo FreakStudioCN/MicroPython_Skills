@@ -14,6 +14,10 @@ description: 'Generate, update, and repeatedly repair MicroPythonOS App code aft
 
 如果用户直接给自然语言想法但没有 `mpos-analyze-app` 结果，先路由到 `mpos-analyze-app`。如果需要外部纯 Python 驱动但没有 `mpos-prepare-deps` handoff，先路由到 `mpos-prepare-deps`。
 
+## 用户可见语言
+
+遵守 `mpos-dev` 的语言连续性规则：当前 workflow 从中文开始，生成计划、确认问题、校验摘要和修复说明继续用中文；从英文开始则继续用英文。代码、命令、路径、API 名和 JSON 字段名保持英文。
+
 ## 统一项目日志
 
 plan/create/update/repair 每次产出 `generation_result.json` 或确认计划后，都必须登记到项目状态目录：
@@ -32,6 +36,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 ```
 
 用户修改需求时，不要自己决定直接覆盖旧产物；先让 `mpos-plan-app` 列出将失效的 artifact 清单并等用户确认。两阶段确认仍强制执行，`mpos-plan-app` 不能替用户确认写文件。
+
+`mpos-plan-app` 的路由、恢复或状态记录不等于用户确认写文件；必须由用户在 `mpos-gen-app` 计划之后明确确认，才能进入 create/update/repair 执行阶段。
 
 ## 必读上下文
 
@@ -191,6 +197,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   --app-fullname <fullname>
 ```
 
+`check_app_syntax.py` 默认会在缺少 `<repo-root>/lvgl_micropython/lib/micropython/mpy-cross/build/mpy-cross` 时尝试构建 `mpy-cross`。如果子模块缺失或构建失败，标记为 external/tooling blocked；不要把 MicroPython bytecode 编译门禁静默跳过。
+
 3. MicroPython import 风险：
 
 ```bash
@@ -202,8 +210,12 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 4. 项目 lint：
 
 ```bash
-make lint
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/prepare_lint_tooling.py \
+  --repo <repo-root>
 ```
+
+该 helper 先运行 `make lint`。如果失败原因是 `uv` 缺失，使用当前 Python 环境安装 `uv`，把该环境的 `bin/` 放到 `PATH` 前面，然后重跑 `make lint`。如果 `uv` 安装失败、`ruff` 运行失败或 lint 超时，记录为 blocked；不要跳过。
 
 5. flake8：
 

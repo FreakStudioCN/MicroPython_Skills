@@ -14,13 +14,13 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from _deploy_common import (
-    DEFAULT_REPO,
-    default_output_dir,
     load_app_metadata,
     normalize_app_metadata,
     make_check,
     run,
     resolve_app_dir,
+    resolve_output_dir,
+    resolve_repo_arg,
     safe_fullname,
     write_json,
 )
@@ -55,7 +55,7 @@ def check_http(url: str, timeout: int) -> tuple[bool, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root")
     parser.add_argument("--app-fullname", required=True, help="App fullname")
     parser.add_argument("--port", type=int, default=8080, help="HTTP port")
     parser.add_argument("--timeout", type=int, default=30, help="HTTP readiness timeout in seconds")
@@ -63,10 +63,10 @@ def main() -> int:
     parser.add_argument("--output-dir", help="Output directory for deploy_result.json")
     args = parser.parse_args()
 
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     fullname = safe_fullname(args.app_fullname)
     app_dir = resolve_app_dir(repo, fullname)
-    output_dir = Path(args.output_dir).resolve() if args.output_dir else default_output_dir(repo, fullname)
+    output_dir = resolve_output_dir(repo, fullname, args.output_dir)
     output_path = output_dir / "deploy_result.json"
     log_path = output_dir / "web_preview.log"
     web_url = f"http://127.0.0.1:{args.port}/"
@@ -171,6 +171,7 @@ def main() -> int:
             "port": str(args.port),
             "device_id": None,
             "confirmed": True,
+            "hardware_available": False,
             "install_url": None,
             "web_url": web_url,
         },
@@ -221,9 +222,17 @@ def main() -> int:
             {"kind": "web_preview_log", "path": str(log_path)},
         ],
         "handoff": {
-            "next_skill": None,
-            "next_step": f"Open {web_url} in a browser.",
-            "reason": "Web preview artifacts were prepared.",
+            "next_skill": "mpos-publish-app" if result in {"success", "partial"} else "mpos-deploy-app",
+            "next_step": (
+                "Prepare the manual upystore publishing handoff."
+                if result in {"success", "partial"}
+                else "Retry web preview after building artifacts or changing the preview target."
+            ),
+            "reason": (
+                "Web preview deploy record is available."
+                if result in {"success", "partial"}
+                else "Web preview did not produce a usable deploy record."
+            ),
         },
     }
     write_json(output_path, deploy_result)

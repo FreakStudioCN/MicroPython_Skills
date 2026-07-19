@@ -9,6 +9,10 @@ description: MicroPythonOS 基础开发知识库。提供代码架构、App/MPK 
 
 这是 mpos-* skill 家族的共享基础层。不要直接调用此 skill——请使用 `mpos-plan-app`（对话编排）、`mpos-analyze-app`（需求分析）、`mpos-prepare-deps`（依赖准备）、`mpos-gen-app`（生成 App）、`mpos-debug-app`（调试 App）、`mpos-test-app`（测试 App）、`mpos-package-app`（打包）、`mpos-deploy-app`（部署/仿真/安装/烧录）、`mpos-publish-app`（发布指导）。
 
+## 用户语言连续性
+
+所有 mpos-* skill 的用户可见输出应延续当前 workflow 的起始语言：如果用户先用中文描述需求，后续解释、计划、确认和总结继续用中文；如果用户先用英文描述需求，后续继续用英文。代码、命令、路径、API 名、JSON 字段名和 manifest 字段名保持英文。
+
 ## 统一项目日志
 
 先确定当前 MicroPythonOS 仓库根目录 `<repo-root>`：
@@ -262,6 +266,8 @@ prog.v20x_program(firmware, progress_callback)
 - **不硬编码屏幕分辨率**，使用 `lv.pct(100)`
 - **不绕过框架 API**：持久化用 SharedPreferences，不要直接操作 json 文件
 - **不修改 AGENTS.md 或 ruff.toml**
+- **不污染主仓库**：除新增/修改目标 App 或用户明确允许外，不修改 `/home/leeqingshui/MicroPythonOS` 的 OS/build 源码；build、simulator、desktop-preview、web-preview、联调测试默认使用隔离 clone/worktree/临时副本
+- **用户可见输出延续起始语言**：中文开始就继续中文，英文开始就继续英文；代码、命令、路径、API 名和 JSON 字段名保持英文
 - **临时文件放 tmp/，不放 /tmp**
 - **杀死进程用 killall，不用 pkill -f**
 - **遵循 ruff.toml 的代码格式**（双引号）
