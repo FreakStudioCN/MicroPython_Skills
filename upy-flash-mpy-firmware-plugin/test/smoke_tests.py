@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import importlib.util
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -114,6 +115,7 @@ def skill_text_matches_protocol() -> None:
         "pico_uf2_drag_drop",
         "manual_firmware_flash_confirm",
         "scripts/firmware_page_resolve.py",
+        "scripts/firmware_source_resolve.py",
         "scripts/firmware_download.py",
         "scripts/list_serial_ports.py",
         "scripts/find_uf2_mount.py",
@@ -129,6 +131,9 @@ def skill_text_matches_protocol() -> None:
         "/dev/cu.usbmodem1101",
         "/Volumes/RPI-RP2",
         "/media/$USER/RPI-RP2",
+        "github_release_zip",
+        "vendor_direct",
+        "resolve_firmware_source",
     ]
     missing = [item for item in required if item not in text]
     if missing:
@@ -456,6 +461,184 @@ def firmware_download_accepts_out_json_alias() -> None:
         assert data["status"] == "planned"
         assert data["downloaded_artifact_path"] == "firmware/test.bin"
         assert output.is_file()
+
+
+def firmware_source_resolves_wiznet_github_release_zip() -> None:
+    with tempfile.TemporaryDirectory(prefix="flash-source-release-") as temp_dir:
+        temp_path = Path(temp_dir)
+        release = temp_path / "release.json"
+        release.write_text(
+            json.dumps(
+                {
+                    "tag_name": "v1.27.0-WIZnet-timeout",
+                    "published_at": "2026-06-17T00:00:00Z",
+                    "assets": [
+                        {
+                            "name": "LWIP_build-W5500_EVB_PICO2.zip",
+                            "browser_download_url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases/download/v1.27.0-WIZnet-timeout/LWIP_build-W5500_EVB_PICO2.zip",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = run_json(
+            [
+                sys.executable,
+                str(SCRIPTS / "firmware_source_resolve.py"),
+                "--board-json",
+                str(ROOT.parent / "upy-analyze-plugin" / "boards" / "w5500-evb-pico2.json"),
+                "--release-json-file",
+                str(release),
+            ]
+        )
+    assert data["status"] == "success"
+    assert data["source"] == "github_release_zip"
+    assert data["family"] == "pico"
+    assert data["latest"]["filename"] == "LWIP_build-W5500_EVB_PICO2.zip"
+    assert data["latest"]["archive_member"] == "LWIP_build-W5500_EVB_PICO2/firmware.uf2"
+    assert data["latest"]["extracted_file_type"] == "uf2"
+    assert data["install"]["tool_hint"] == "uf2-drag-drop"
+
+
+def firmware_source_resolves_wiznet_vendor_direct_hex() -> None:
+    data = run_json(
+        [
+            sys.executable,
+            str(SCRIPTS / "firmware_source_resolve.py"),
+            "--board-json",
+            str(ROOT.parent / "upy-analyze-plugin" / "boards" / "w55mh32l-evb.json"),
+        ]
+    )
+    assert data["status"] == "success"
+    assert data["source"] == "vendor_direct"
+    assert data["latest"]["filename"] == "w55mh32_1_27_mpy_260617.hex"
+    assert data["latest"]["file_type"] == "hex"
+    assert data["install"]["tool_hint"] == "wizlink-drag-drop"
+
+
+def firmware_download_extracts_zip_member() -> None:
+    with tempfile.TemporaryDirectory(prefix="flash-fw-zip-") as temp_dir:
+        temp_path = Path(temp_dir)
+        archive = temp_path / "LWIP_build-W5500_EVB_PICO2.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("LWIP_build-W5500_EVB_PICO2/firmware.uf2", b"UF2DATA")
+            zf.writestr("LWIP_build-W5500_EVB_PICO2/firmware.bin", b"BINDATA")
+        resolved = temp_path / "resolved.json"
+        output = temp_path / "firmware_download.json"
+        resolved.write_text(
+            json.dumps(
+                {
+                    "latest": {
+                        "url": archive.as_uri(),
+                        "filename": archive.name,
+                        "file_type": "zip",
+                        "container_type": "zip",
+                        "archive_member": "LWIP_build-W5500_EVB_PICO2/firmware.uf2",
+                        "extracted_file_type": "uf2",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = run_json(
+            [
+                sys.executable,
+                str(SCRIPTS / "firmware_download.py"),
+                "--resolved-json",
+                str(resolved),
+                "--out-dir",
+                str(temp_path / "firmware"),
+                "--artifact-root",
+                str(temp_path),
+                "--output-json",
+                str(output),
+            ]
+        )
+        assert data["status"] == "success"
+        assert data["downloaded"] is True
+        assert data["filename"] == "firmware.uf2"
+        assert data["file_type"] == "uf2"
+        assert data["archive_artifact_path"] == "firmware/LWIP_build-W5500_EVB_PICO2.zip"
+        assert data["downloaded_artifact_path"] == "firmware/firmware.uf2"
+        assert (temp_path / "firmware" / "firmware.uf2").read_bytes() == b"UF2DATA"
+        assert output.is_file()
+
+
+def firmware_download_rejects_missing_archive_member() -> None:
+    with tempfile.TemporaryDirectory(prefix="flash-fw-zip-missing-") as temp_dir:
+        temp_path = Path(temp_dir)
+        archive = temp_path / "firmware.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("other/firmware.uf2", b"UF2DATA")
+        resolved = temp_path / "resolved.json"
+        resolved.write_text(
+            json.dumps(
+                {
+                    "latest": {
+                        "url": archive.as_uri(),
+                        "filename": archive.name,
+                        "file_type": "zip",
+                        "container_type": "zip",
+                        "archive_member": "missing/firmware.uf2",
+                        "extracted_file_type": "uf2",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        proc = run(
+            [
+                sys.executable,
+                str(SCRIPTS / "firmware_download.py"),
+                "--resolved-json",
+                str(resolved),
+                "--out-dir",
+                str(temp_path / "firmware"),
+            ]
+        )
+    if proc.returncode == 0:
+        raise AssertionError("missing archive member should fail")
+    data = json.loads(proc.stdout)
+    assert data["status"] == "failed"
+    assert data["error"]["code"] == "archive_member_not_found"
+
+
+def firmware_download_rejects_unsafe_archive_member_in_plan() -> None:
+    with tempfile.TemporaryDirectory(prefix="flash-fw-zip-unsafe-") as temp_dir:
+        temp_path = Path(temp_dir)
+        resolved = temp_path / "resolved.json"
+        resolved.write_text(
+            json.dumps(
+                {
+                    "latest": {
+                        "url": "https://github.com/example/firmware.zip",
+                        "filename": "firmware.zip",
+                        "file_type": "zip",
+                        "container_type": "zip",
+                        "archive_member": "../firmware.uf2",
+                        "extracted_file_type": "uf2",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        proc = run(
+            [
+                sys.executable,
+                str(SCRIPTS / "firmware_download.py"),
+                "--resolved-json",
+                str(resolved),
+                "--out-dir",
+                str(temp_path / "firmware"),
+                "--no-download",
+            ]
+        )
+    if proc.returncode == 0:
+        raise AssertionError("unsafe archive member should fail in plan mode")
+    data = json.loads(proc.stdout)
+    assert data["status"] == "failed"
+    assert data["error"]["code"] == "archive_extract_failed"
 
 
 def mock_serial_port_is_mock_mode_only() -> None:
@@ -965,6 +1148,11 @@ def main() -> int:
         firmware_page_resolves_pybd_sf2_manual_instructions,
         firmware_download_plan_writes_manifest,
         firmware_download_accepts_out_json_alias,
+        firmware_source_resolves_wiznet_github_release_zip,
+        firmware_source_resolves_wiznet_vendor_direct_hex,
+        firmware_download_extracts_zip_member,
+        firmware_download_rejects_missing_archive_member,
+        firmware_download_rejects_unsafe_archive_member_in_plan,
         mock_serial_port_is_mock_mode_only,
         list_serial_ports_accepts_out_json_alias,
         list_serial_ports_posix_fallback_deduplicates_candidates,

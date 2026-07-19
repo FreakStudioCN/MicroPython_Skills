@@ -77,6 +77,9 @@ def check_skill_path_contract() -> None:
         "用户确认前不得输出 `phase_complete(result=success)`",
         "pin_decisions 与 deviation",
         "如果 `reason_code=onboard_occupied`",
+        'physical_source="board_onboard"',
+        "onboard_peripheral_ref",
+        'driver.source="cold-driver"',
         "当 `pinout.gpio` 为 `GND`、`3V3`、`5V` 时",
         "不要把 `VDD`、`3V3`、`GND` 伪装成普通 MCU GPIO",
         "普通供电脚/地脚",
@@ -177,6 +180,99 @@ def check_cold_driver_status_normalization() -> None:
         raise AssertionError(f"source/status mismatch should not rewrite source: {mismatched}")
     if not any("keeping source unchanged" in item for item in mismatched.get("warnings", [])):
         raise AssertionError(f"source/status mismatch should warn: {mismatched}")
+
+
+def check_onboard_peripheral_resolution() -> None:
+    draft = {
+        "protocol_version": "1.0",
+        "session_id": "onboard-test",
+        "source_phase": "analyze",
+        "upstream_manifest": {
+            "schema_version": "1.0",
+            "phase": "analyze",
+            "created_at": "2026-07-19T00:00:00Z",
+            "project_name": "onboard_display_test",
+            "requirements": {
+                "description": "Use the selected board onboard OLED display to show status.",
+                "existing_hardware": [],
+                "mcu_specified": None,
+                "output": ["display_oled"],
+                "special_requirements": ["none"],
+                "network": "none",
+            },
+            "devices": [
+                {
+                    "name": "Status display",
+                    "type": "display",
+                    "interface": "I2C",
+                    "source": "system_recommended",
+                    "driver": {"source": "none"},
+                }
+            ],
+        },
+        "selected_board": {
+            "id": "lolin-s2-pico",
+            "display_name": "S2 pico",
+            "mcu": "ESP32-S2FN4R2",
+            "firmware": {
+                "url": "https://micropython.org/download/LOLIN_S2_PICO/",
+                "board_name": "LOLIN_S2_PICO",
+            },
+        },
+        "hardware_plan": {
+            "mcu": {
+                "model": "ESP32-S2FN4R2",
+                "board_id": "lolin-s2-pico",
+                "display_name": "S2 pico",
+                "firmware_url": "https://micropython.org/download/LOLIN_S2_PICO/",
+                "firmware_board_name": "LOLIN_S2_PICO",
+                "flash_tool": "uf2-drag-drop",
+            },
+            "pinout": [
+                {"device": "power", "pin_name": "3V3", "gpio": "3V3", "type": "power_3v3", "source": "power"},
+                {"device": "power", "pin_name": "GND", "gpio": "GND", "type": "gnd", "source": "power"},
+            ],
+            "pin_decisions": [],
+            "pin_review": {
+                "confirmed": True,
+                "approval_id": "pin_plan_review",
+                "confirmed_by": "user_confirmed",
+                "confirmed_at": "2026-07-19T00:00:00Z",
+                "source": "user_confirmed",
+            },
+            "bom": [{"name": "S2 pico", "model": "LOLIN_S2_PICO", "quantity": 1, "unit_price_yuan": 0}],
+            "estimated_total_yuan": 0,
+        },
+    }
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(draft, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"onboard peripheral draft should validate:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    if result.get("status") != "ok":
+        raise AssertionError(f"onboard peripheral validation did not return ok: {result}")
+    device = result["manifest"]["devices"][0]
+    if device.get("source") != "system_recommended":
+        raise AssertionError(f"onboard reuse must preserve devices[].source: {device}")
+    if device.get("physical_source") != "board_onboard":
+        raise AssertionError(f"onboard device physical_source missing: {device}")
+    ref = device.get("onboard_peripheral_ref", {})
+    if ref.get("board_id") != "lolin-s2-pico" or ref.get("model") != "SSD1306":
+        raise AssertionError(f"onboard peripheral ref not populated from board JSON: {device}")
+    driver = device.get("driver", {})
+    if driver.get("source") != "upypi" or driver.get("package_name") != "ssd1306":
+        raise AssertionError(f"SSD1306 should use the verified onboard driver map: {device}")
+    resolution = result["manifest"].get("board_onboard_device_resolution", {})
+    if resolution.get("onboard_device_count_enriched") != 1:
+        raise AssertionError(f"onboard resolution summary missing: {result}")
 
 
 def check_formatted_output_validation() -> None:
@@ -858,6 +954,7 @@ def main() -> int:
         ("skill path contract", check_skill_path_contract),
         ("manifest validation", check_manifest_validation),
         ("cold-driver status normalization", check_cold_driver_status_normalization),
+        ("onboard peripheral resolution", check_onboard_peripheral_resolution),
         ("formatted output validation", check_formatted_output_validation),
         ("board unavailable sample", check_board_unavailable_sample),
         ("pin plan revise response sample", check_pin_plan_revise_response_sample),

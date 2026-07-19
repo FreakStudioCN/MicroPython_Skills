@@ -1,6 +1,6 @@
 ---
 name: upy-flash-mpy-firmware-plugin
-description: 插件化工作流版 MicroPython 固件解析、下载、烧录或手动确认。用于 Codex 收到 next_phase=upy-flash-mpy-firmware-plugin 的 phase_complete(select-hw) 时；消费 select-hw manifest_content，从 micropython.org/download 解析最新固件，协助 ESP32 esptool 烧录，引导 Pico UF2 复制，或为其他板卡提供手动烧录链接，最后输出 next_phase=upy-scaffold-plugin。
+description: 插件化工作流版 MicroPython 固件解析、下载、烧录或手动确认。用于 Codex 收到 next_phase=upy-flash-mpy-firmware-plugin 的 phase_complete(select-hw) 时；消费 select-hw manifest_content，从 micropython.org/download 或受信任 vendor source 解析固件，协助 ESP32 esptool 烧录，引导 Pico/RP2 UF2 复制，或为其他板卡提供手动烧录链接，最后输出 next_phase=upy-scaffold-plugin。
 ---
 
 # MicroPython 固件烧录阶段
@@ -26,8 +26,9 @@ phase_complete(payload.phase="upy-flash-mpy-firmware-plugin", payload.next_phase
 | 分支 | 条件 | 行为 |
 | --- | --- | --- |
 | ESP32 | `firmware_board_name` 以 `ESP32_` 开头、`firmware.port == "esp32"`，或 `chip_family` 以 `esp32` 开头 | 解析最新 `.bin`，从 MicroPython 板卡页面解析安装命令，扫描/选择真实串口，并且只在用户确认后运行 `esp32_flash.py`。 |
-| Pico | `firmware_board_name` 以 `RPI_PICO` 开头 | 解析最新 `.uf2`，提示用户按住 BOOTSEL 并复制 UF2，然后等待用户确认。 |
-| Manual | 其他 MicroPython 板卡 | 解析 MicroPython 下载/安装链接并展示手动烧录说明。不要执行 `dfu-util`、`teensy-loader`、ESP8266 esptool 或其他工具，只等待用户确认。 |
+| Pico/RP2 | `firmware.port == "rp2"`、`firmware_board_name` 以 `RPI_PICO` 开头，或 `chip_family` 为 `rp2`/`rp2040`/`rp2350` | 解析最新 `.uf2`；如果来源是 GitHub release ZIP，先抽取 `firmware.uf2`；提示用户按住 BOOTSEL 并复制 UF2，然后等待用户确认。 |
+| Vendor direct/manual | `firmware.source == "vendor_direct"` 或其他非 ESP32/Pico 板卡 | 下载/展示受信任 vendor 固件并展示手动烧录说明，例如 W55MH32L-EVB `.hex` 复制到 `WIZLINK`。不要执行 `dfu-util`、`teensy-loader`、ESP8266 esptool 或其他工具，只等待用户确认。 |
+| Manual MicroPython | 其他 MicroPython 官方板卡 | 解析 MicroPython 下载/安装链接并展示手动烧录说明。不要执行 `dfu-util`、`teensy-loader`、ESP8266 esptool 或其他工具，只等待用户确认。 |
 
 Only mock/sample tests may use a fixed `serial_port="COM3"` to validate JSON and command planning. Claude Code live use and real plugin use must scan real serial ports and require user selection. 上面这两个英文短语是本地测试契约；含义是只有 mock/sample 测试可用固定串口（例如 Windows `COM3`、Linux `/dev/ttyUSB0` 或 macOS `/dev/cu.usbmodem1101`），真实 Claude Code 或插件运行必须扫描真实串口并由用户选择。
 
@@ -62,7 +63,7 @@ Only mock/sample tests may use a fixed `serial_port="COM3"` to validate JSON and
       "file_operation": true,
       "network_access": {
         "allowed": true,
-        "domains": ["micropython.org", "docs.micropython.org"]
+        "domains": ["micropython.org", "docs.micropython.org", "github.com", "api.github.com", "objects.githubusercontent.com", "github-releases.githubusercontent.com", "wiznet.io", "docs.w5500.com"]
       },
       "web_search": true,
       "serial_port_scan": true,
@@ -87,7 +88,7 @@ Only mock/sample tests may use a fixed `serial_port="COM3"` to validate JSON and
 | `runtime_context.session_root` | 是 | 相对会话目录，通常是 `sessions/<session_id>`。 |
 | `runtime_context.resource_root` | 是 | 已安装技能/资源所在根目录；用它定位本技能脚本。 |
 | `capabilities.script_run` | 是 | 宿主可运行白名单技能脚本。 |
-| `capabilities.network_access` | 是 | 宿主可访问 MicroPython 下载页面。 |
+| `capabilities.network_access` | 是 | 宿主可访问 MicroPython 下载页面，或受信任 vendor 固件来源。 |
 | `capabilities.serial_port_scan` | ESP32 真实烧录时必填 | 宿主可枚举串口。 |
 | `capabilities.device_flash` | ESP32 真实烧录时必填 | 宿主允许用户确认后执行擦除/写入。 |
 | `firmware_action` | 可选 | `download_and_flash`、`download_only`、`already_flashed`、`use_local_firmware`、`save_partial` 或 `cancel`。 |
@@ -117,18 +118,28 @@ payload.manifest_content.phase == "select-hw"
 | --- | --- | --- |
 | 固件 URL | `hardware_selection.selected_board.firmware.url` | `mcu.firmware_url`；如果都缺失，才用固件板卡名到 MicroPython 下载索引匹配真实下载页。 |
 | 固件板卡名 | `hardware_selection.selected_board.firmware.board_name` | `mcu.firmware_board_name` |
+| 固件来源 | `hardware_selection.selected_board.firmware.source` | 默认为 `micropython_latest` |
 | 固件 port | `hardware_selection.selected_board.firmware.port` | 从板卡名推断 |
 | 芯片族 | `hardware_selection.selected_board.chip_family` | `mcu.chip_family` |
 | 烧录工具提示 | `mcu.flash_tool` | 从板卡族推断 |
 | 展示名称 | `hardware_selection.selected_board.display_name` | `mcu.display_name` |
 
-不要信任缓存的 `latest_version`。运行时必须优先使用上游 `hardware_selection.selected_board.firmware.url`，其次使用 `mcu.firmware_url`，访问该 MicroPython 官方板卡页解析真实 `(latest)` 固件和安装说明。只有当上游 URL 缺失或无效时，才使用 `firmware_board_name` 到 `https://micropython.org/download/` 首页匹配真实下载页 slug。不要用 `display_name`、`board_id` 或 MCU 型号直接拼 URL。
+不要信任缓存的 `latest_version`。当 `firmware.source` 缺失或等于 `micropython_latest` 时，运行时必须优先使用上游 `hardware_selection.selected_board.firmware.url`，其次使用 `mcu.firmware_url`，访问该 MicroPython 官方板卡页解析真实 `(latest)` 固件和安装说明。只有当上游 URL 缺失或无效时，才使用 `firmware_board_name` 到 `https://micropython.org/download/` 首页匹配真实下载页 slug。不要用 `display_name`、`board_id` 或 MCU 型号直接拼 URL。
+
+当 `firmware.source == "github_release_zip"` 时，不要把 `firmware.url` 当成 MicroPython 下载页。必须读取同一 `firmware` 对象里的 `repo`、`release_tag`、`asset_pattern`、`archive_member`、`container_type` 和 `file_type`，通过 `scripts/firmware_source_resolve.py` 解析 GitHub release asset，再由 `scripts/firmware_download.py` 下载 ZIP 并抽取最终固件文件。WIZnet Pico2 系列的最终文件是 ZIP 内的 `firmware.uf2`，不是 ZIP 本身。
+
+当 `firmware.source == "vendor_direct"` 时，`firmware.url` 是受信任 vendor 固件直链。W55MH32L-EVB 当前使用 `.hex`，烧录方式是把文件复制到 `WIZLINK`/DAPLINK 盘符；该分支只能在用户确认后输出 `manual_confirmed`，不要伪装成自动烧录。
 
 固件页相关字段含义：
 
 | 字段 | 用途 |
 | --- | --- |
 | `firmware.url` / `mcu.firmware_url` | MicroPython 官方固件页 URL，正常主路径。 |
+| `firmware.source` | 固件来源。当前支持 `micropython_latest`、`github_release_zip`、`vendor_direct`。 |
+| `firmware.repo` | `github_release_zip` 使用的 GitHub 仓库，例如 `WIZnet-ioNIC/WIZnet-EVB-Pico-micropython`。 |
+| `firmware.release_tag` | `github_release_zip` 使用的 release tag；可由后续策略扩展为 `latest`。 |
+| `firmware.asset_pattern` | `github_release_zip` 的 asset 匹配模式，例如 `LWIP_build-W5500_EVB_PICO2.zip`。 |
+| `firmware.archive_member` | ZIP 内最终固件路径，例如 `LWIP_build-W5500_EVB_PICO2/firmware.uf2`。 |
 | `firmware.board_name` / `mcu.firmware_board_name` | MicroPython 固件板卡名，用于展示和 URL 缺失时的兜底匹配。 |
 | `display_name` | 给用户看的板卡名，不用于拼下载 URL。 |
 | `board_id` | 本地板卡库 ID，不用于拼下载 URL。 |
@@ -154,8 +165,8 @@ payload.manifest_content.phase == "select-hw"
 4. 如果缺少 `firmware_action`，发送 `approval_request(firmware_action_select)` 并等待用户输入。
 5. 如果用户选择 `already_flashed`，输出 `success`，并设置 `firmware.status="skipped_user_confirmed"`。
 6. 如果用户选择 `save_partial`、超时或取消，输出带 checkpoint 的 `partial`。
-7. 使用 `scripts/firmware_page_resolve.py` 解析 MicroPython 板卡页面；正常从上游固件 URL 传 `--board-url`，只有 URL 缺失时才用 `--download-index-url` 和 `--board-name` 兜底匹配下载页。
-8. 除非提供 `firmware_override.local_path` 或分支是 manual-only，否则用 `scripts/firmware_download.py` 下载固件。
+7. 如果 `firmware.source` 是 `github_release_zip` 或 `vendor_direct`，使用 `scripts/firmware_source_resolve.py --board-json <board.json>` 解析 vendor 固件；否则使用 `scripts/firmware_page_resolve.py` 解析 MicroPython 板卡页面。官方页流程正常从上游固件 URL 传 `--board-url`，只有 URL 缺失时才用 `--download-index-url` 和 `--board-name` 兜底匹配下载页。
+8. 除非提供 `firmware_override.local_path` 或分支是 manual-only，否则用 `scripts/firmware_download.py` 下载固件；当解析结果是 ZIP 时，必须同时保存 ZIP 并抽取 `latest.archive_member` 指向的最终固件。
 9. 进入选定板卡分支。
 10. 使用 `scripts/flash_mpy_firmware_manifest.py` 校验阶段输出。
 11. 输出最终 `phase_complete`。
@@ -356,7 +367,8 @@ V0 中，用户确认 `copied_uf2` 即可视为成功。
 | 脚本 | 用途 |
 | --- | --- |
 | `scripts/firmware_page_resolve.py` | 解析 MicroPython 下载页、最新固件 URL 和安装说明；支持 `--html-file` 用于 mock 测试。 |
-| `scripts/firmware_download.py` | 下载已解析的固件产物，或输出不下载的计划。 |
+| `scripts/firmware_source_resolve.py` | 解析 board JSON 中声明的 vendor 固件来源；支持 `github_release_zip` 和 `vendor_direct`。 |
+| `scripts/firmware_download.py` | 下载已解析的固件产物，或输出不下载的计划；当解析结果为 ZIP 时，保存原始 ZIP 并抽取最终固件文件。 |
 | `scripts/list_serial_ports.py` | 为 ESP32 真实/插件模式枚举串口；优先使用 pyserial，失败时在 Windows/macOS/Linux 使用平台兜底。 |
 | `scripts/find_uf2_mount.py` | 可选发现 Pico/RP2040 UF2 挂载点；只报告 `RPI-RP2` 等候选路径，不自动复制固件。 |
 | `scripts/bootstrap_esptool.py` | 创建/检查技能内 `.venv-esptool`，并在获得许可后安装固定版本 esptool。 |
@@ -380,7 +392,8 @@ flash_mpy_firmware_manifest.py --validate-phase-complete --input <phase_complete
 | 脚本 | 必填输入 | 输出参数 |
 | --- | --- | --- |
 | `firmware_page_resolve.py` | `--board-name`、`--board-family`，通常还要 `--board-url` | `--out-json`；也兼容 `--output-json`。 |
-| `firmware_download.py` | `--resolved-json`、`--out-dir` | `--output-json`；也兼容 `--out-json`；建议传 `--artifact-root` 以输出相对 `downloaded_artifact_path`。 |
+| `firmware_source_resolve.py` | `--board-json`；mock 测试可加 `--release-json-file` | `--out-json`；也兼容 `--output-json`。 |
+| `firmware_download.py` | `--resolved-json`、`--out-dir` | `--output-json`；也兼容 `--out-json`；建议传 `--artifact-root` 以输出相对 `downloaded_artifact_path`。ZIP 分支还会输出 `archive_artifact_path`。 |
 | `list_serial_ports.py` | 无；mock 测试可加 `--mode mock --mock-port COM3`、`--mock-port /dev/ttyUSB0` 或 `--mock-port /dev/cu.usbmodem1101` | `--output-json`；也兼容 `--out-json`。 |
 | `find_uf2_mount.py` | 可选；默认查找 `RPI-RP2`，测试可加 `--candidate <path>` | `--output-json`；也兼容 `--out-json`。 |
 | `bootstrap_esptool.py` | 无；需要安装时加 `--install` | `--output-json`；也兼容 `--out-json`。 |
@@ -395,6 +408,7 @@ flash_mpy_firmware_manifest.py --validate-phase-complete --input <phase_complete
 ```text
 flash_mpy_firmware_state.json
 firmware_page_resolved.json
+firmware_source_resolved.json
 firmware_download.json
 firmware/<downloaded-file>
 serial_ports.json
@@ -492,6 +506,7 @@ checkpoint 结构：
 load_upstream_select_hw
 select_firmware_action
 resolve_firmware_page
+resolve_firmware_source
 download_firmware
 scan_serial_ports
 confirm_esp32_flash
@@ -520,6 +535,12 @@ invalid_upstream_phase
 missing_firmware_url
 firmware_page_lookup_failed
 latest_firmware_not_found
+unsupported_firmware_source
+github_release_lookup_failed
+firmware_asset_not_found
+archive_member_not_found
+archive_extract_failed
+vendor_firmware_url_untrusted
 download_failed
 user_saved_partial
 user_cancelled

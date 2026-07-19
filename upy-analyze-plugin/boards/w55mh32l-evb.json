@@ -1,0 +1,151 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "w55mh32l-evb",
+  "display_name": "W55MH32L-EVB",
+  "vendor": "WIZnet",
+  "mcu": "w55mh32l",
+  "chip_family": "w55mh32",
+  "firmware": {
+    "source": "vendor_direct",
+    "url": "https://docs.w5500.com/_downloads/b5a22ff93da1c95258252f94478720f5/w55mh32_1_27_mpy_260617.hex",
+    "port": "w55mh32",
+    "board_name": "W55MH32L_EVB",
+    "file_type": "hex",
+    "flash_method": "wizlink-drag-drop",
+    "latest_version": "v1.27.0",
+    "latest_release": {
+      "date": "2026-06-17",
+      "url": "https://docs.w5500.com/_downloads/b5a22ff93da1c95258252f94478720f5/w55mh32_1_27_mpy_260617.hex",
+      "version": "v1.27.0"
+    }
+  },
+  "specs": {
+    "flash_mb": 1,
+    "psram_mb": 0,
+    "gpio": 70,
+    "adc": 0,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 3,
+    "uart": 4,
+    "pwm": 0,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "WIZnet Ethernet MCU prototyping",
+    "Vendor MicroPython firmware validation"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Vendor firmware is a .hex file copied to the WIZLINK/DAPLINK mass-storage drive. This board uses string-style MCU pins such as PA9/PB12; scaffold/generate must not silently fall back to ESP32 numeric GPIO defaults.",
+  "features": [
+    "Ethernet",
+    "USB",
+    "External Flash",
+    "MicroSD"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": true,
+    "microphone": false,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "onboard_peripherals": [
+    {
+      "name": "W55MH32L Ethernet",
+      "type": "ethernet",
+      "model": "W55MH32L",
+      "manufacturer": "WIZnet",
+      "interface": "unknown",
+      "occupied_pins": {},
+      "always_used": true,
+      "model_evidence": "vendor_product_page",
+      "pin_evidence": "integrated_mcu",
+      "verification": "model_verified",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "network",
+        "status": "ready"
+      },
+      "notes": "Ethernet is integrated into the WIZnet MCU family rather than an external SPI module."
+    },
+    {
+      "name": "TF card socket",
+      "type": "storage",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI/SDIO",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_docs",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_pin_mapping",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "status": "unverified"
+      },
+      "notes": "Board documentation shows removable storage support; exact pins require schematic review."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_string_pins_pending_human_review",
+    "default_bus_pins": {
+      "uart1": {"tx": "PA9", "rx": "PA10"}
+    },
+    "default_bus_source": "vendor_docs_repl_uart",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": ["WIZLINK", "USB", "Ethernet MAC/PHY integrated pins"],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "UART1_TX": "PA9",
+        "UART1_RX": "PA10"
+      },
+      "exposed_pins": []
+    },
+    "notes": [
+      "Only REPL UART pins are captured from vendor docs at this stage.",
+      "External peripheral pin assignment for this board requires human review until a full pinout table is imported.",
+      "String pin names must be preserved as strings; do not coerce PAx/PBx pins to numeric GPIO."
+    ]
+  },
+  "media": {
+    "product_page_url": "https://wiznet.io/products/mcu-chips/w55mh32",
+    "source_url": "https://docs.w5500.com/"
+  },
+  "source_refs": {
+    "vendor_product_page": "https://wiznet.io/products/mcu-chips/w55mh32",
+    "vendor_docs": "https://docs.w5500.com/",
+    "firmware_hex": "https://docs.w5500.com/_downloads/b5a22ff93da1c95258252f94478720f5/w55mh32_1_27_mpy_260617.hex"
+  },
+  "verification": {
+    "draft_from_vendor_sources": true,
+    "firmware_asset_verified": true,
+    "pinout_source_available": false,
+    "default_bus_pins_verified": false,
+    "onboard_peripherals_detected": true,
+    "onboard_peripheral_pin_mappings_verified": false,
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  }
+}

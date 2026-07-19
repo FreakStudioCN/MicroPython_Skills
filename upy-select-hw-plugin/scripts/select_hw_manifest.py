@@ -334,6 +334,65 @@ BOM_LINK_TEMPLATE_FIELDS = (
     "sku",
 )
 BOM_LINK_INDEX_TEMPLATE = SKILL_DIR / "references" / "bom_item_link_index.template.json"
+ONBOARD_DRIVER_MAP_PATH = SKILL_DIR / "references" / "onboard_driver_map.json"
+
+ONBOARD_DRIVERLESS_TYPES = {
+    "battery_connector",
+    "psram",
+    "usb_uart",
+}
+ONBOARD_BUILTIN_TYPES = {
+    "button": "machine.Pin",
+    "led": "machine.Pin",
+    "rgb_led": "neopixel",
+    "touch": "machine.TouchPad",
+    "wifi_module": "network",
+}
+ONBOARD_DRIVER_REQUIRED_TYPES = {
+    "audio_codec",
+    "camera",
+    "display",
+    "environment_sensor",
+    "ethernet",
+    "imu",
+    "microphone",
+    "power_mgmt",
+    "radio_lora",
+    "secure_element",
+    "speaker",
+    "storage",
+}
+ONBOARD_TYPE_INTERFACE_DEFAULTS = {
+    "button": "GPIO",
+    "led": "GPIO",
+    "rgb_led": "GPIO",
+    "touch": "GPIO",
+    "display": "I2C",
+    "environment_sensor": "I2C",
+    "imu": "I2C",
+    "power_mgmt": "I2C",
+    "secure_element": "I2C",
+    "ethernet": "SPI",
+    "radio_lora": "SPI",
+    "storage": "SPI",
+    "microphone": "I2S",
+    "speaker": "I2S",
+    "audio_codec": "I2S",
+}
+ONBOARD_REQUIREMENT_KEYWORDS = {
+    "display": {"display", "screen", "oled", "lcd", "eink", "epaper", "显示", "屏幕", "墨水屏"},
+    "imu": {"imu", "accelerometer", "gyro", "motion", "gesture", "姿态", "加速度", "陀螺"},
+    "microphone": {"microphone", "mic", "voice", "audio input", "麦克风", "语音", "录音"},
+    "speaker": {"speaker", "audio output", "play audio", "喇叭", "扬声器", "播放声音"},
+    "camera": {"camera", "vision", "image", "摄像头", "相机", "图像"},
+    "storage": {"sd", "sdcard", "storage", "log file", "local_file", "存储", "日志", "文件"},
+    "radio_lora": {"lora"},
+    "ethernet": {"ethernet", "以太网"},
+    "power_mgmt": {"battery", "battery_monitor", "fuel gauge", "电池", "电量"},
+    "button": {"button", "key", "按键", "按钮"},
+    "led": {"led", "light", "灯"},
+    "rgb_led": {"rgb", "neopixel", "ws2812", "彩灯"},
+}
 
 
 def utc_now() -> str:
@@ -501,6 +560,382 @@ def normalize_bom_items(bom: Any) -> list[Any]:
             item.setdefault(field, "")
         normalized.append(item)
     return normalized
+
+
+def load_onboard_driver_map() -> dict[str, Any]:
+    try:
+        with open(ONBOARD_DRIVER_MAP_PATH, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except Exception:  # noqa: BLE001
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def map_lookup_by_model(driver_map: dict[str, Any], model: Any) -> dict[str, Any]:
+    model_key = normalized_label(model)
+    if not model_key:
+        return {}
+    raw_models = driver_map.get("models")
+    if not isinstance(raw_models, dict):
+        return {}
+    for key, value in raw_models.items():
+        if normalized_label(key) == model_key and isinstance(value, dict):
+            return value
+    return {}
+
+
+def infer_onboard_interface(peripheral: dict[str, Any], mapping: dict[str, Any] | None = None) -> str | None:
+    if isinstance(mapping, dict):
+        mapped_interface = mapping.get("interface")
+        if mapped_interface in VALID_DEVICE_INTERFACES:
+            return str(mapped_interface)
+
+    interface = peripheral.get("interface")
+    if interface in VALID_DEVICE_INTERFACES:
+        return str(interface)
+
+    pins = peripheral.get("occupied_pins")
+    pin_names = {normalized_label(name) for name in pins} if isinstance(pins, dict) else set()
+    if pin_names.intersection({"sda", "scl", "i2cdata", "i2cclock"}):
+        return "I2C"
+    if pin_names.intersection({"mosi", "miso", "sck", "clk", "cs", "spi"}):
+        return "SPI"
+    if pin_names.intersection({"tx", "rx", "uarttx", "uartrx"}):
+        return "UART"
+    if pin_names.intersection({"bck", "ws", "din", "dout", "data", "i2sbck", "i2sws"}):
+        return "I2S"
+    if pins:
+        return "GPIO"
+
+    ptype = str(peripheral.get("type") or "").strip().lower()
+    return ONBOARD_TYPE_INTERFACE_DEFAULTS.get(ptype)
+
+
+def onboard_builtin_driver(module: str) -> dict[str, Any]:
+    return {
+        "source": "builtin_runtime",
+        "module": module,
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": False,
+    }
+
+
+def onboard_cold_driver(peripheral: dict[str, Any]) -> dict[str, Any]:
+    model = str(peripheral.get("model") or peripheral.get("name") or peripheral.get("type") or "onboard_peripheral")
+    driver_id = normalized_label(model).replace("-", "_") or "onboard_peripheral"
+    return {
+        "source": "cold-driver",
+        "status": DRIVER_STATUS_COLD_REQUIRED,
+        "driver_id": driver_id,
+        "query": f"{model} MicroPython driver",
+        "notes": "No verified onboard driver mapping is available; run upy-gen-driver-plugin before generate.",
+    }
+
+
+def onboard_driver_for(peripheral: dict[str, Any], driver_map: dict[str, Any]) -> dict[str, Any]:
+    existing = peripheral.get("driver")
+    if isinstance(existing, dict) and existing.get("source"):
+        return copy.deepcopy(existing)
+
+    mapping = map_lookup_by_model(driver_map, peripheral.get("model"))
+    mapped_driver = mapping.get("driver") if isinstance(mapping, dict) else None
+    if isinstance(mapped_driver, dict) and mapped_driver.get("source"):
+        return copy.deepcopy(mapped_driver)
+
+    ptype = str(peripheral.get("type") or "").strip().lower()
+    if ptype in ONBOARD_BUILTIN_TYPES:
+        return onboard_builtin_driver(ONBOARD_BUILTIN_TYPES[ptype])
+    if ptype in ONBOARD_DRIVERLESS_TYPES:
+        return {"source": "none"}
+    if ptype in ONBOARD_DRIVER_REQUIRED_TYPES:
+        return onboard_cold_driver(peripheral)
+    return {"source": "none"}
+
+
+def onboard_i2c_addresses(peripheral: dict[str, Any], mapping: dict[str, Any]) -> list[str]:
+    candidates = []
+    for key in ("i2c_addr", "i2c_addrs", "addresses", "known_addresses"):
+        value = peripheral.get(key)
+        if value is None and isinstance(mapping, dict):
+            value = mapping.get(key)
+        if isinstance(value, list):
+            candidates.extend(str(item) for item in value)
+        elif isinstance(value, str):
+            candidates.append(value)
+    normalized: list[str] = []
+    for value in candidates:
+        text = value.strip()
+        if not text:
+            continue
+        if text.lower().startswith("0x") and len(text) == 4:
+            normalized.append("0x" + text[2:].upper())
+    return sorted(set(normalized))
+
+
+def peripheral_ref(board: dict[str, Any], peripheral: dict[str, Any], index: int) -> dict[str, Any]:
+    return {
+        "board_id": board.get("id") or board.get("board_id"),
+        "index": index,
+        "name": peripheral.get("name", ""),
+        "type": peripheral.get("type", ""),
+        "model": peripheral.get("model", ""),
+        "occupied_pins": copy.deepcopy(peripheral.get("occupied_pins", {})),
+        "always_used": bool(peripheral.get("always_used")),
+        "verification": peripheral.get("verification", ""),
+        "pin_evidence": peripheral.get("pin_evidence", ""),
+    }
+
+
+def append_note(existing: Any, note: str) -> str:
+    if isinstance(existing, str) and existing.strip():
+        if note in existing:
+            return existing
+        return f"{existing.rstrip()} {note}"
+    return note
+
+
+def device_driver_is_replaceable(driver: Any) -> bool:
+    if not isinstance(driver, dict):
+        return True
+    source = str(driver.get("source") or "").strip()
+    status = str(driver.get("status") or driver.get("driver_status") or "").strip()
+    return source in {"", "none", "manual", "cold-driver"} or status == DRIVER_STATUS_COLD_REQUIRED
+
+
+def device_matches_peripheral(device: dict[str, Any], peripheral: dict[str, Any]) -> bool:
+    device_tokens = set()
+    for field in ("name", "model", "selected_model", "type"):
+        value = device.get(field)
+        if value:
+            device_tokens.add(normalized_label(value))
+    aliases = device.get("aliases")
+    if isinstance(aliases, list):
+        device_tokens.update(normalized_label(value) for value in aliases if value)
+
+    peripheral_tokens = set()
+    for field in ("name", "model", "type"):
+        value = peripheral.get(field)
+        if value:
+            peripheral_tokens.add(normalized_label(value))
+
+    if device_tokens.intersection(peripheral_tokens):
+        return True
+
+    device_type = normalized_label(device.get("type"))
+    peripheral_type = normalized_label(peripheral.get("type"))
+    if device_type and peripheral_type and device_type == peripheral_type:
+        return True
+    if device_type == "led" and peripheral_type == "rgbled":
+        return True
+    if device_type in {"speaker", "microphone"} and peripheral_type == "audiocodec":
+        return True
+    return False
+
+
+def enrich_device_from_peripheral(
+    device: dict[str, Any],
+    board: dict[str, Any],
+    peripheral: dict[str, Any],
+    index: int,
+    driver_map: dict[str, Any],
+) -> bool:
+    changed = False
+    if device.get("physical_source") != "board_onboard":
+        device["physical_source"] = "board_onboard"
+        changed = True
+    ref = peripheral_ref(board, peripheral, index)
+    if device.get("onboard_peripheral_ref") != ref:
+        device["onboard_peripheral_ref"] = ref
+        changed = True
+
+    model = peripheral.get("model")
+    if model and not device.get("model"):
+        device["model"] = model
+        changed = True
+
+    mapping = map_lookup_by_model(driver_map, model)
+    interface = infer_onboard_interface(peripheral, mapping)
+    if interface and not device.get("interface"):
+        device["interface"] = interface
+        changed = True
+
+    if interface == "I2C" and not device.get("i2c_addr"):
+        addresses = onboard_i2c_addresses(peripheral, mapping)
+        if addresses:
+            device["i2c_addr"] = addresses
+            changed = True
+
+    mapped_driver = onboard_driver_for(peripheral, driver_map)
+    if mapped_driver and device_driver_is_replaceable(device.get("driver")):
+        device["driver"] = mapped_driver
+        changed = True
+
+    note = "Physical device is the selected board's onboard peripheral; do not add it to external BOM."
+    if not ref.get("occupied_pins"):
+        note += " Onboard pin mapping is not verified; it must not be treated as a hard pin constraint."
+    updated_note = append_note(device.get("notes"), note)
+    if updated_note != device.get("notes"):
+        device["notes"] = updated_note
+        changed = True
+    return changed
+
+
+def requirement_requested_onboard_types(requirements: dict[str, Any]) -> set[str]:
+    requested: set[str] = set()
+    output = requirements.get("output")
+    if isinstance(output, list):
+        for item in output:
+            text = str(item).lower()
+            if text.startswith("display_"):
+                requested.add("display")
+            if text == "led":
+                requested.add("led")
+            if text == "led_rgb":
+                requested.add("rgb_led")
+            if text == "local_file":
+                requested.add("storage")
+
+    network = str(requirements.get("network") or "").lower()
+    if network == "lora":
+        requested.add("radio_lora")
+    if network == "ethernet":
+        requested.add("ethernet")
+
+    special = requirements.get("special_requirements")
+    if isinstance(special, list):
+        lowered = {str(item).lower() for item in special}
+        if "voice_control" in lowered:
+            requested.update({"microphone", "audio_codec", "speaker"})
+        if "battery_monitor" in lowered:
+            requested.add("power_mgmt")
+        if "button_control" in lowered:
+            requested.add("button")
+        if "error_led" in lowered:
+            requested.add("led")
+
+    text_parts: list[str] = []
+    for key in ("description", "description_en", "scene", "network"):
+        value = requirements.get(key)
+        if value not in (None, ""):
+            text_parts.append(str(value))
+    for key in ("output", "special_requirements", "existing_hardware"):
+        value = requirements.get(key)
+        if isinstance(value, list):
+            text_parts.extend(str(item) for item in value)
+    text = " ".join(text_parts).lower()
+    compact = normalized_label(text)
+    for ptype, keywords in ONBOARD_REQUIREMENT_KEYWORDS.items():
+        if any(keyword.lower() in text or normalized_label(keyword) in compact for keyword in keywords):
+            requested.add(ptype)
+    return requested
+
+
+def create_device_from_peripheral(
+    board: dict[str, Any],
+    peripheral: dict[str, Any],
+    index: int,
+    driver_map: dict[str, Any],
+) -> dict[str, Any] | None:
+    ptype = str(peripheral.get("type") or "").strip().lower()
+    if not ptype:
+        return None
+    mapping = map_lookup_by_model(driver_map, peripheral.get("model"))
+    interface = infer_onboard_interface(peripheral, mapping)
+    if interface not in VALID_DEVICE_INTERFACES:
+        return None
+    name = str(peripheral.get("model") or peripheral.get("name") or ptype)
+    device = {
+        "name": name,
+        "type": ptype,
+        "interface": interface,
+        "source": "system_recommended",
+        "quantity": 1,
+        "physical_source": "board_onboard",
+        "onboard_peripheral_ref": peripheral_ref(board, peripheral, index),
+        "driver": onboard_driver_for(peripheral, driver_map),
+        "notes": "Auto-added from selected board onboard_peripherals because the user requirement can use it.",
+    }
+    if peripheral.get("model"):
+        device["model"] = peripheral.get("model")
+    if interface == "I2C":
+        addresses = onboard_i2c_addresses(peripheral, mapping)
+        if addresses:
+            device["i2c_addr"] = addresses
+    if not device["onboard_peripheral_ref"]["occupied_pins"]:
+        device["notes"] = append_note(
+            device["notes"],
+            "Onboard pin mapping is not verified; it must not be treated as a hard pin constraint.",
+        )
+    return device
+
+
+def merge_onboard_devices_into_upstream(
+    upstream_manifest: Any,
+    board: dict[str, Any] | None,
+    warnings: list[str],
+) -> dict[str, Any]:
+    upstream = copy.deepcopy(upstream_manifest) if isinstance(upstream_manifest, dict) else {}
+    if not isinstance(board, dict):
+        return upstream
+
+    peripherals = board.get("onboard_peripherals")
+    if not isinstance(peripherals, list) or not peripherals:
+        return upstream
+
+    devices = upstream.get("devices")
+    if not isinstance(devices, list):
+        return upstream
+
+    driver_map = load_onboard_driver_map()
+    used_peripherals: set[int] = set()
+    enriched = 0
+    added = 0
+
+    for device in devices:
+        if not isinstance(device, dict):
+            continue
+        for index, peripheral in enumerate(peripherals):
+            if index in used_peripherals or not isinstance(peripheral, dict):
+                continue
+            if device_matches_peripheral(device, peripheral):
+                if enrich_device_from_peripheral(device, board, peripheral, index, driver_map):
+                    enriched += 1
+                used_peripherals.add(index)
+                break
+
+    requirements = upstream.get("requirements") if isinstance(upstream.get("requirements"), dict) else {}
+    requested_types = requirement_requested_onboard_types(requirements)
+    existing_types = {str(device.get("type") or "").strip().lower() for device in devices if isinstance(device, dict)}
+    for index, peripheral in enumerate(peripherals):
+        if index in used_peripherals or not isinstance(peripheral, dict):
+            continue
+        ptype = str(peripheral.get("type") or "").strip().lower()
+        if ptype not in requested_types:
+            continue
+        if ptype in existing_types:
+            continue
+        device = create_device_from_peripheral(board, peripheral, index, driver_map)
+        if device is None:
+            warnings.append(
+                f"board onboard peripheral '{peripheral.get('name') or ptype}' matched requirements but lacks a valid interface; not added to devices"
+            )
+            continue
+        devices.append(device)
+        existing_types.add(ptype)
+        used_peripherals.add(index)
+        added += 1
+
+    if enriched or added:
+        upstream["devices"] = devices
+        upstream["board_onboard_device_resolution"] = {
+            "board_id": board.get("id") or board.get("board_id"),
+            "physical_source_field": "physical_source",
+            "onboard_device_count_enriched": enriched,
+            "onboard_device_count_added": added,
+            "rule": "devices[].source keeps user_specified/system_recommended; physical_source=board_onboard records board integration",
+        }
+        warnings.append(f"board onboard device resolution enriched {enriched} device(s), added {added} device(s)")
+    return upstream
 
 
 def validate_device_consistency(
@@ -1146,8 +1581,8 @@ def validate_pin_review(
                 errors.append("hardware_plan.pin_review.confirmed_at must be the actual approval time, not a date-only placeholder")
 
 
-def normalize_manifest(draft: dict[str, Any]) -> dict[str, Any]:
-    upstream = copy.deepcopy(draft["upstream_manifest"])
+def normalize_manifest(draft: dict[str, Any], effective_upstream: dict[str, Any] | None = None) -> dict[str, Any]:
+    upstream = copy.deepcopy(effective_upstream if effective_upstream is not None else draft["upstream_manifest"])
     plan = copy.deepcopy(draft["hardware_plan"])
     mcu = copy.deepcopy(plan["mcu"])
     estimated_total = plan.get("estimated_total_yuan")
@@ -1180,6 +1615,8 @@ def normalize_manifest(draft: dict[str, Any]) -> dict[str, Any]:
         "estimated_total_yuan": estimated_total,
         "final_status": "hardware_selected",
     }
+    if upstream.get("board_onboard_device_resolution"):
+        manifest["board_onboard_device_resolution"] = copy.deepcopy(upstream["board_onboard_device_resolution"])
     return manifest
 
 
@@ -1218,10 +1655,14 @@ def validate_draft(
     if mcu_obj is not None:
         board_definition = load_board_definition(board_root, mcu_obj.get("board_id"), errors)
         validate_selected_board_against_definition(selected_board, mcu_obj, board_definition, errors)
+    effective_upstream = draft.get("upstream_manifest")
+    if isinstance(effective_upstream, dict):
+        effective_upstream = merge_onboard_devices_into_upstream(effective_upstream, board_definition, warnings)
+
     if plan is not None:
         validate_mcu(plan.get("mcu"), errors)
         validate_pinout(plan.get("pinout"), errors, warnings)
-        requirements = draft.get("upstream_manifest", {}).get("requirements")
+        requirements = effective_upstream.get("requirements") if isinstance(effective_upstream, dict) else {}
         if not isinstance(requirements, dict):
             requirements = {}
         validate_pinout_against_board(
@@ -1245,7 +1686,7 @@ def validate_draft(
             require_confirmed=require_pin_review_confirmed,
             phase_timestamp=phase_timestamp,
         )
-        validate_device_consistency(draft.get("upstream_manifest"), plan, selected_board, errors, warnings)
+        validate_device_consistency(effective_upstream, plan, selected_board, errors, warnings)
         total = validate_bom(plan.get("bom"), errors)
         declared_total = plan.get("estimated_total_yuan")
         if declared_total is None:
@@ -1260,7 +1701,7 @@ def validate_draft(
 
     if errors:
         return errors, warnings, None
-    return errors, warnings, normalize_manifest(draft)
+    return errors, warnings, normalize_manifest(draft, effective_upstream if isinstance(effective_upstream, dict) else None)
 
 
 def phase_payload(data: dict[str, Any]) -> dict[str, Any]:

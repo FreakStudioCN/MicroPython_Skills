@@ -19,6 +19,7 @@ RESUME_STEPS = {
     "load_upstream_select_hw",
     "select_firmware_action",
     "resolve_firmware_page",
+    "resolve_firmware_source",
     "download_firmware",
     "scan_serial_ports",
     "confirm_esp32_flash",
@@ -169,7 +170,7 @@ def board_facts_from_upstream(data: dict[str, Any]) -> dict[str, Any]:
     flash_tool = mcu.get("flash_tool")
     if str(board_name or "").upper().startswith("ESP32_") or port == "esp32" or str(chip_family or "").lower().startswith("esp32"):
         family = "esp32"
-    elif str(board_name or "").upper().startswith("RPI_PICO"):
+    elif port == "rp2" or str(board_name or "").upper().startswith("RPI_PICO") or str(chip_family or "").lower() in {"rp2", "rp2040", "rp2350"}:
         family = "pico"
     else:
         family = "manual"
