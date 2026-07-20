@@ -2,25 +2,42 @@
 set -u
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+log_file="$(git -C "$repo_root" rev-parse --git-path english-sync.log 2>/dev/null || printf '%s/.git/english-sync.log' "$repo_root")"
+case "$log_file" in
+    /*) ;;
+    *) log_file="$repo_root/$log_file" ;;
+esac
 
-if [ "${SKILLS_SKIP_EN_SYNC:-}" = "1" ]; then
-    echo "SKILLS_SKIP_EN_SYNC=1; skipping English sync."
-    exit 0
-fi
+short_head="$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || printf unknown)"
+stamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date)"
 
-if command -v python3 >/dev/null 2>&1; then
-    py=python3
-elif command -v python >/dev/null 2>&1; then
-    py=python
-else
-    echo "No python interpreter found; skipping English sync."
-    exit 0
-fi
+{
+    echo
+    echo "===== English sync hook: $stamp source=$short_head ====="
+    echo "repo_root=$repo_root"
 
-"$py" "$repo_root/scripts/sync_english_repo.py" \
-    --src-repo "$repo_root" \
-    --source-mode head \
-    --commit \
-    --from-hook
+    if [ "${SKILLS_SKIP_EN_SYNC:-}" = "1" ]; then
+        echo "SKILLS_SKIP_EN_SYNC=1; skipping English sync."
+        exit 0
+    fi
 
+    if command -v python3 >/dev/null 2>&1; then
+        py=python3
+    elif command -v python >/dev/null 2>&1; then
+        py=python
+    else
+        echo "No python interpreter found; skipping English sync."
+        exit 0
+    fi
+
+    "$py" "$repo_root/scripts/sync_english_repo.py" \
+        --src-repo "$repo_root" \
+        --source-mode head \
+        --commit \
+        --from-hook
+
+    echo "sync_command_exit=$?"
+} >>"$log_file" 2>&1
+
+echo "English sync hook finished; log: $log_file"
 exit 0

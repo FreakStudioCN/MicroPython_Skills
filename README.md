@@ -126,6 +126,7 @@ GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规
 
 - [当前 Skill / Plugin 全量导览](#当前-skill--plugin-全量导览)
 - [安装方法](#安装方法)
+- [维护者：英文仓库自动同步](#维护者英文仓库自动同步)
 - [MicroPythonOS App / MPK / upystore 工作流](#micropythonos-app--mpk--upystore-工作流)
 - [一句话造硬件 — AI 嵌入式代码生成流水线](#一句话造硬件--ai-嵌入式代码生成流水线)
 - [驱动开发规范化 Skill 列表](#skill-列表)
@@ -249,6 +250,131 @@ for skill in mpos-dev mpos-plan-app mpos-analyze-app mpos-prepare-deps mpos-gen-
              mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app; do
   npx skillfish add FreakStudioCN/MicroPython_Skills $skill
 done
+```
+
+---
+
+## 维护者：英文仓库自动同步
+
+本仓库的中文内容是 source of truth，英文仓库位于：
+
+```text
+/home/leeqingshui/MicroPython_Skills_EN
+```
+
+在 Linux 主机上，自动同步不是 Git 默认能力，必须先安装本仓库提供的 post-commit hook。安装后，每次在 `/home/leeqingshui/MicroPython_Skills` 中执行 `git commit`，Git 会自动运行：
+
+```text
+.githooks/post-commit
+  -> scripts/sync_english_repo.py
+     -> scripts/translate_to_english.py
+     -> /home/leeqingshui/MicroPython_Skills_EN
+     -> git add/commit
+     -> git push
+```
+
+### 安装或修复 hook
+
+在中文仓库根目录执行：
+
+```bash
+cd /home/leeqingshui/MicroPython_Skills
+python3 scripts/install_git_hooks.py \
+  --repo . \
+  --english-repo /home/leeqingshui/MicroPython_Skills_EN
+```
+
+脚本会写入这些本地 Git 配置：
+
+```bash
+git config core.hooksPath .githooks
+git config skills.englishRepo /home/leeqingshui/MicroPython_Skills_EN
+git config skills.englishPush true
+```
+
+检查是否安装成功：
+
+```bash
+git config --get core.hooksPath
+git config --get skills.englishRepo
+git config --bool --get skills.englishPush
+test -x .githooks/post-commit
+```
+
+期望输出分别包含：
+
+```text
+.githooks
+/home/leeqingshui/MicroPython_Skills_EN
+true
+```
+
+### API key 和模型
+
+hook 触发后会调用 LLM 翻译，所以必须能读到翻译 API key。可以放在 shell 环境变量，也可以放在 `~/.claude/settings.json` 的 `env` 中。
+
+常用配置方式：
+
+```bash
+export DEEPSEEK_API_KEY=sk-...
+export SKILLS_TRANSLATE_BACKEND=deepseek
+export SKILLS_TRANSLATE_MODEL=deepseek-chat
+```
+
+如果使用 Anthropic 兼容网关：
+
+```bash
+export ANTHROPIC_AUTH_TOKEN=sk-...
+export ANTHROPIC_BASE_URL=https://example.com
+export SKILLS_TRANSLATE_BACKEND=anthropic
+export SKILLS_TRANSLATE_MODEL=deepseek-v4-pro
+```
+
+没有 API key 时，hook 会正常退出但不会同步英文仓库；这是为了不让中文仓库的 commit 失败。
+
+### 查看 hook 日志
+
+post-commit hook 的完整输出会写入本仓库的 Git 目录：
+
+```bash
+cd /home/leeqingshui/MicroPython_Skills
+tail -n 120 "$(git rev-parse --git-path english-sync.log)"
+```
+
+如果提交后英文仓库没有变化，优先看这个日志。常见原因：
+
+- `core.hooksPath` 没有设置为 `.githooks`
+- 没有翻译 API key
+- `/home/leeqingshui/MicroPython_Skills_EN` 有未提交改动，脚本为避免覆盖会停止
+- 英文仓库 push 权限或网络失败
+- 翻译接口模型、base URL 或额度异常
+
+临时跳过某一次英文同步：
+
+```bash
+SKILLS_SKIP_EN_SYNC=1 git commit -m "your message"
+```
+
+手动补同步当前 HEAD：
+
+```bash
+cd /home/leeqingshui/MicroPython_Skills
+python3 scripts/sync_english_repo.py \
+  --src-repo /home/leeqingshui/MicroPython_Skills \
+  --en-repo /home/leeqingshui/MicroPython_Skills_EN \
+  --source-mode head \
+  --commit \
+  --push
+```
+
+如果只想看哪些文件会翻译，不调用 API、不改英文仓库：
+
+```bash
+python3 scripts/sync_english_repo.py \
+  --src-repo /home/leeqingshui/MicroPython_Skills \
+  --en-repo /home/leeqingshui/MicroPython_Skills_EN \
+  --source-mode head \
+  --dry-run
 ```
 
 ---

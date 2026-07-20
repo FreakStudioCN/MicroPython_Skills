@@ -163,7 +163,10 @@ def require_clean(repo: Path, label: str) -> None:
 def export_head(src_repo: Path, ref: str, out_dir: Path) -> None:
     proc = git(src_repo, "archive", "--format=tar", ref, text=False)
     with tarfile.open(fileobj=io.BytesIO(proc.stdout), mode="r:") as archive:
-        archive.extractall(out_dir)
+        try:
+            archive.extractall(out_dir, filter="data")
+        except TypeError:
+            archive.extractall(out_dir)
 
 
 def current_commit(src_repo: Path) -> tuple[str, str]:
@@ -289,6 +292,8 @@ def main(argv: list[str]) -> int:
             args.api_key = resolve_api_key(args.backend)
         if not args.model and args.backend == "anthropic":
             args.model = env_value("ANTHROPIC_MODEL")
+        if not args.base_url and args.backend == "anthropic":
+            args.base_url = env_value("ANTHROPIC_BASE_URL")
         if not args.dry_run and not args.api_key:
             print(
                 "No translation API key found; skipping English sync. "
@@ -309,6 +314,8 @@ def main(argv: list[str]) -> int:
             args.push = True
         if not args.create_pr and git_config_bool(src_repo, "skills.englishCreatePr"):
             args.create_pr = True
+        if args.commit and not args.push and args.from_hook:
+            print("English push is disabled; set skills.englishPush=true or pass --push to enable it.")
 
         if not en_repo.is_dir():
             raise RuntimeError(f"English repository not found: {en_repo}")
@@ -320,6 +327,11 @@ def main(argv: list[str]) -> int:
             require_clean(en_repo, "English")
 
         src_full, src_short = current_commit(src_repo)
+        print(f"Source commit: {src_short} ({src_full})", flush=True)
+        print(f"English repo : {en_repo}", flush=True)
+        print(f"Target branch: {args.target_branch or '(current)'}", flush=True)
+        print(f"Commit EN    : {'yes' if args.commit and not args.dry_run else 'no'}", flush=True)
+        print(f"Push EN      : {'yes' if args.push and not args.dry_run else 'no'}", flush=True)
 
         if args.source_mode == "worktree":
             src_tree = src_repo

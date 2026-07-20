@@ -26,10 +26,24 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Install MicroPython_Skills git hooks")
     parser.add_argument("--repo", default=".")
     parser.add_argument("--english-repo", help="Path to MicroPython_Skills_EN")
-    parser.add_argument("--push", action="store_true", help="Configure hook to push the English sync branch")
+    parser.add_argument(
+        "--push",
+        dest="push",
+        action="store_true",
+        default=True,
+        help="Configure hook to push the English sync branch (default)",
+    )
+    parser.add_argument(
+        "--no-push",
+        dest="push",
+        action="store_false",
+        help="Commit the English sync locally but do not push it",
+    )
     parser.add_argument("--create-pr", action="store_true", help="Configure hook to create a PR with gh after push")
     parser.add_argument("--unset", action="store_true", help="Remove core.hooksPath from this repository")
     args = parser.parse_args(argv)
+    if args.create_pr and not args.push:
+        parser.error("--create-pr requires push to be enabled")
 
     root = repo_root(Path(args.repo).resolve())
     if args.unset:
@@ -61,17 +75,27 @@ def main(argv: list[str]) -> int:
         proc = run(["git", "config", "skills.englishRepo", str(en_repo)], root)
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr.strip())
-    if args.push:
-        proc = run(["git", "config", "skills.englishPush", "true"], root)
-        if proc.returncode != 0:
-            raise RuntimeError(proc.stderr.strip())
+    proc = run(["git", "config", "skills.englishPush", "true" if args.push else "false"], root)
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip())
     if args.create_pr:
         proc = run(["git", "config", "skills.englishCreatePr", "true"], root)
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr.strip())
+    else:
+        proc = run(["git", "config", "skills.englishCreatePr", "false"], root)
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr.strip())
 
     print(f"Installed hooks for {root}")
     print("post-commit will run scripts/sync_english_repo.py after each source commit.")
+    print("The English sync will commit changes and push them to origin." if args.push else "The English sync will commit locally but will not push.")
+    log_proc = run(["git", "rev-parse", "--git-path", "english-sync.log"], root)
+    if log_proc.returncode == 0:
+        log_path = Path(log_proc.stdout.strip())
+        if not log_path.is_absolute():
+            log_path = root / log_path
+        print(f"Hook log: {log_path.resolve()}")
     print("Set SKILLS_SKIP_EN_SYNC=1 to skip one commit, or run with no API key to make it a no-op.")
     return 0
 
