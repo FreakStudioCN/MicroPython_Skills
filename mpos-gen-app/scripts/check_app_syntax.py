@@ -19,10 +19,11 @@ def collect_files(app_dir: Path) -> list[Path]:
     return sorted(path for path in app_dir.rglob("*.py") if "__pycache__" not in path.parts)
 
 
-def cpython_compile(files: list[Path]) -> tuple[list[dict], list[dict]]:
+def cpython_compile(files: list[Path], temp_root: Path) -> tuple[list[dict], list[dict]]:
     ok: list[dict] = []
     errors: list[dict] = []
-    with tempfile.TemporaryDirectory(prefix="mpos-gen-pyc-") as tmp:
+    temp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="pyc-", dir=temp_root) as tmp:
         tmp_dir = Path(tmp)
         for index, path in enumerate(files):
             cfile = tmp_dir / f"{index}.pyc"
@@ -80,7 +81,7 @@ def ensure_mpy_cross(mpy_cross: Path, build: bool, timeout: int) -> tuple[bool, 
     return True, warnings, errors
 
 
-def mpy_cross_compile(files: list[Path], mpy_cross: Path, build: bool, timeout: int) -> tuple[list[dict], list[dict], list[dict]]:
+def mpy_cross_compile(files: list[Path], mpy_cross: Path, build: bool, timeout: int, temp_root: Path) -> tuple[list[dict], list[dict], list[dict]]:
     ok: list[dict] = []
     errors: list[dict] = []
     warnings: list[dict] = []
@@ -89,7 +90,8 @@ def mpy_cross_compile(files: list[Path], mpy_cross: Path, build: bool, timeout: 
     errors.extend(build_errors)
     if not available:
         return ok, errors, warnings
-    with tempfile.TemporaryDirectory(prefix="mpos-gen-mpy-") as tmp:
+    temp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="mpy-", dir=temp_root) as tmp:
         tmp_dir = Path(tmp)
         for index, path in enumerate(files):
             out = tmp_dir / f"{index}.mpy"
@@ -135,9 +137,10 @@ def main(argv: list[str]) -> int:
         return 2
 
     mpy_cross = Path(args.mpy_cross) if args.mpy_cross else repo / "lvgl_micropython" / "lib" / "micropython" / "mpy-cross" / "build" / "mpy-cross"
+    temp_root = repo / "tmp" / "mpos-gen-app" / "syntax-temp"
     files = collect_files(app_dir)
-    cpy_ok, cpy_errors = cpython_compile(files)
-    mpy_ok, mpy_errors, warnings = mpy_cross_compile(files, mpy_cross, not args.no_build_mpy_cross, args.mpy_cross_build_timeout)
+    cpy_ok, cpy_errors = cpython_compile(files, temp_root)
+    mpy_ok, mpy_errors, warnings = mpy_cross_compile(files, mpy_cross, not args.no_build_mpy_cross, args.mpy_cross_build_timeout, temp_root)
     result = {
         "ok": not cpy_errors and not mpy_errors,
         "app_dir": str(app_dir),

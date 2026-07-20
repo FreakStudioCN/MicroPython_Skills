@@ -67,6 +67,8 @@ PORT=9000 scripts/run_web.sh
 
 构建需要 Emscripten SDK。如果环境按 docs 配置，build 可以自动激活附近的 `emsdk` checkout。
 
+如果 Web build/link 报 `machine_timer_type` 等底层符号错误，先归类为 Web port、MicroPythonOS 或工具链问题。处理顺序是确认 Emscripten/emsdk、submodule 和当前 OS Web target 状态；不要把它写成目标 App 的 Python 依赖缺失，也不要在普通 App 生成/修复阶段修改 OS/build 源码。
+
 ## 集成说明
 
 Web port 自包含在主 MicroPythonOS 仓库中。web target 需要的 submodule 修改存放在 `scripts/web_port/`，构建时自动应用。除非任务明确要求修改这些项目，否则不要在嵌套的 `lvgl_micropython`、`micropython` 或 `lvgl` 中留下持久改动。

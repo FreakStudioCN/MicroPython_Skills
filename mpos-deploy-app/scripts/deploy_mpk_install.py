@@ -7,6 +7,7 @@ import argparse
 import datetime
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 from _deploy_common import (
@@ -60,6 +61,7 @@ def main() -> int:
         app_info = {
             "fullname": fullname,
             "name": fullname,
+            "publisher": "",
             "version": "unknown",
             "app_dir": str(app_dir),
             "manifest": str(app_dir / "MANIFEST.JSON"),
@@ -83,6 +85,7 @@ def main() -> int:
     machine = device.get("machine")
     if not device_probe.get("ok"):
         errors.append("device probe failed")
+        warnings.append("MPK install requires MPOS runtime probe/AppManager; use deploy_app_copy.py for direct mpremote filesystem copy if probe fails")
     if not board_matches(args.board, machine):
         errors.append(f"target board mismatch: expected {args.board!r}, got {machine!r}")
     if not device.get("has_mpos"):
@@ -99,6 +102,17 @@ def main() -> int:
         f"AppManager.install_mpk({remote_temp_path!r}, {dest_folder!r})"
     )
     mpremote_path = str(mpremote_script(repo))
+    mkdir_command = [sys.executable, mpremote_path, "connect", args.serial_port, "fs", "mkdir", ":/tmp"]
+    copy_command = [
+        sys.executable,
+        mpremote_path,
+        "connect",
+        args.serial_port,
+        "fs",
+        "cp",
+        str(mpk_path),
+        f":{remote_temp_path}",
+    ]
     install_command = controller_command(
         repo,
         "exec",
@@ -109,13 +123,19 @@ def main() -> int:
     )
     install_proc = None
     if not errors:
-        mkdir_proc = run_mpremote(repo, ["fs", "mkdir", ":/tmp"], timeout=min(args.timeout, 60))
+        mkdir_proc = run_mpremote(
+            repo,
+            ["fs", "mkdir", ":/tmp"],
+            serial_port=args.serial_port,
+            timeout=min(args.timeout, 60),
+        )
         if mkdir_proc.returncode != 0:
             if mkdir_proc.stdout:
                 warnings.append(mkdir_proc.stdout.strip()[-1000:])
         copy_proc = run_mpremote(
             repo,
             ["fs", "cp", str(mpk_path), f":{remote_temp_path}"],
+            serial_port=args.serial_port,
             timeout=min(args.timeout, 120),
         )
         if copy_proc.returncode != 0:
@@ -157,6 +177,8 @@ def main() -> int:
 
     if not app_info.get("name"):
         warnings.append("manifest name is missing")
+    if not app_info.get("publisher"):
+        errors.append("manifest publisher is missing")
     if not app_info.get("version"):
         warnings.append("manifest version is missing")
 
@@ -181,8 +203,8 @@ def main() -> int:
         "command": {
             "primary": " && ".join(
                 [
-                    shlex.join([mpremote_path, "fs", "mkdir", ":/tmp"]),
-                    shlex.join([mpremote_path, "fs", "cp", str(mpk_path), f":{remote_temp_path}"]),
+                    shlex.join(mkdir_command),
+                    shlex.join(copy_command),
                     shlex.join(install_command),
                 ]
             ),

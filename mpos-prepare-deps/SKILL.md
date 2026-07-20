@@ -42,8 +42,10 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - 系统 manager、TaskManager、DownloadManager、WebServer、Service：`mpos-dev/reference/docs-frameworks.md`
 - 打包校验和 manifest 约束：`mpos-dev/reference/docs-packaging.md`
 - MPOS API 精确索引：`mpos-dev/reference/mpos_api_summary.json`
+- LVGL API 精确索引：`mpos-dev/reference/lvgl_api_summary.json`
 
 如果输入来自 `mpos-analyze-app`，读取其 JSON。若没有 JSON，先从用户需求中整理等价的 `app.fullname`、目标功能、硬件/协议和依赖项。
+`mpos_api_summary.json` 和 `lvgl_api_summary.json` 必须完整读取，用来确认内置 API 是否已经覆盖需求；不能因为任务看起来只是“找依赖”而省略。
 
 可复用 `upy-pkg-guide` 的 upypi / awesome-micropython 搜索流程，但必须在它的基础上追加 async 搜索策略，不能只按同步驱动搜索。
 

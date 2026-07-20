@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from validate_mpos_app import SCHEMA_VERSION as APP_VALIDATION_SCHEMA
+from validate_mpos_app import resolve_repo_arg
 from validate_mpos_app import validate_app
 
 
@@ -259,14 +260,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mpk_path", help="MPK path")
     parser.add_argument("--fullname", required=True, help="Expected app fullname")
-    parser.add_argument("--repo", default="/home/leeqingshui/MicroPythonOS", help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="Optional MicroPythonOS repository root for display paths and install checks")
     parser.add_argument("--output", help="Write validation JSON to this path")
     parser.add_argument("--install-check", action="store_true", help="Extract to a temporary install dir and validate app layout")
     parser.add_argument("--install-root", help="Temporary install root")
     parser.add_argument("--quiet", action="store_true", help="Only print errors")
     args = parser.parse_args()
 
-    repo = Path(args.repo).resolve() if args.repo else None
+    repo = resolve_repo_arg(args.repo) if args.repo else None
     install_root = Path(args.install_root).resolve() if args.install_root else None
     result = validate_mpk(Path(args.mpk_path).resolve(), args.fullname, repo, args.install_check, install_root)
 

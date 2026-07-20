@@ -123,6 +123,7 @@ Service 用于无 UI 的长期运行任务或启动时任务。Service 有 `onCr
 - 新 label 不能保留默认 `"Text"`。
 - setter 前必须先 `style = lv.style_t(); style.init()`。
 - LVGL object wrapper 不接受任意 Python 属性；使用 closure 或并行状态结构。
+- `lv.buttonmatrix.set_map()` 参数是 `list[str]`；行分隔使用单独的 `"\n"` 元素，末尾使用 `""` 终止符，例如 `["1", "2", "\n", "3", "4", ""]`。
 - `lv.buttonmatrix.set_map()` 可能异步触发 value-changed；按时间 debounce。
 - SDL keyboard 没有 key-up event；长按用 timeout 建模。
 

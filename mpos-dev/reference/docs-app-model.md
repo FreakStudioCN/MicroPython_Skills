@@ -46,6 +46,7 @@ internal_filesystem/apps/<fullname>/
 
 - `fullname`：必须和目录名一致。
 - `name`：显示名称。
+- `publisher`：发布者/组织标识，必须是非空字符串；默认可从 `fullname` 前缀派生，例如 `com.example.app` -> `com.example`。
 - `version`：规范的整数点号版本，例如 `1.0.0`，不要写成 `01.0` 或 `1.0-beta`。
 - `activities`：可选列表，但每个条目都必须有存在的 `.py` entrypoint，并且源码中必须包含对应 classname。
 - `services`：可选列表，entrypoint/classname 校验规则相同。

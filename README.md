@@ -1,10 +1,12 @@
 # MicroPython Skills for GraftSense
 
-GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两大体系： 
+GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规范化和 MicroPythonOS App 发布三类 Skill 资产：
 
 **A. 一句话造硬件 — AI 嵌入式代码生成流水线（10 个 skill）**：从自然语言需求出发，自动完成硬件选型、代码生成、PC 仿真、烧录部署、错误修复的完整闭环。
 
 **B. 驱动开发规范化（15 个 skill）**：基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行），覆盖驱动规范化、测试文件生成、README 生成、性能优化、内存优化、打包、设备部署。
+
+**C. MicroPythonOS App / MPK / upystore 流水线（9 个 mpos skill）**：面向 [MicroPythonOS](https://docs.micropythonos.com/) App 开发，覆盖需求分析、依赖准备、App 生成、桌面测试、MPK 打包、真机/预览部署、upystore 发布准备。该体系不包含 `mpos-debug-app`。
 
 > **当前 source of truth（2026-07）**：本仓库已经完成 VS Code 插件版 8 流程 Skill/plugin。若下游仓库的 submodule 只看到 6 个 plugin，说明下游 pinned commit 落后，应 bump/sync 到本仓库最新 commit，而不是认为 wiring/diagram 缺失。
 
@@ -78,6 +80,20 @@ GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两�
 | `mpremote-file-transfer` | 本地与设备之间复制文件、管理设备文件系统 |
 | `mpremote-live-session` | 长连接和输出监控，适合 asyncio/aiorepl 或长时间运行场景 |
 
+### MicroPythonOS App / MPK / upystore Skill
+
+| Skill | 类型 | 说明 |
+|---|---|---|
+| `mpos-dev` | 共享基础层 | MicroPythonOS 架构、App/MPK 约束、MPOS/LVGL API reference、部署目标和 Web Port reference |
+| `mpos-plan-app` | 编排入口 | 从自然语言需求到发布交接的状态机，维护 `tmp/mpos-plan-app/<fullname>/plan_state.json` |
+| `mpos-analyze-app` | 需求分析 | 生成 App 身份、manifest 草案、API/依赖/测试/部署计划 |
+| `mpos-prepare-deps` | 依赖准备 | 准备 App 层纯 Python/MPY 依赖，标记同步依赖适配要求 |
+| `mpos-gen-app` | 代码生成 | 两阶段生成/修复 `internal_filesystem/apps/<fullname>/`，运行静态门禁 |
+| `mpos-test-app` | 运行测试 | Linux SDL desktop runtime smoke、可选 Web Port 检查、截图和 widget tree |
+| `mpos-package-app` | MPK 打包 | 校验 manifest/icon/entrypoint，生成 `<fullname>_rN.mpk` 和 `app_index_entry.json` |
+| `mpos-deploy-app` | 部署/预览 | desktop/web preview、`device-copy`、`mpk-install`、installer/flash 指导 |
+| `mpos-publish-app` | 发布准备 | 同时读取 package/test/deploy 结果，准备 upystore 手工上传交接 |
+
 ### 支撑目录
 
 | 目录 | 说明 |
@@ -110,6 +126,7 @@ GraftSense MicroPython Skill 集合，包含 **25 个专用 Skill**，分为两�
 
 - [当前 Skill / Plugin 全量导览](#当前-skill--plugin-全量导览)
 - [安装方法](#安装方法)
+- [MicroPythonOS App / MPK / upystore 工作流](#micropythonos-app--mpk--upystore-工作流)
 - [一句话造硬件 — AI 嵌入式代码生成流水线](#一句话造硬件--ai-嵌入式代码生成流水线)
 - [驱动开发规范化 Skill 列表](#skill-列表)
   - [upy-norm-driver](#upy-norm-driver--驱动文件规范化)
@@ -171,7 +188,9 @@ for skill in upy-analyze upy-select-hw upy-scaffold upy-generate upy-simulate \
              upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
              upy-gen-pkg upy-norm-pkg upy-opt-driver upy-slim-driver upy-pack-driver \
              upy-pkg-guide fetch-doc upy-project review \
-             mpremote-device-interaction mpremote-file-transfer mpremote-live-session; do
+             mpremote-device-interaction mpremote-file-transfer mpremote-live-session \
+             mpos-dev mpos-plan-app mpos-analyze-app mpos-prepare-deps mpos-gen-app \
+             mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app; do
   cp -r $skill ~/.claude/skills/
 done
 ```
@@ -188,7 +207,9 @@ $skills = @("upy-analyze","upy-select-hw","upy-scaffold","upy-generate","upy-sim
             "upy-norm-driver","upy-norm-main","upy-gen-main","upy-gen-readme",
             "upy-gen-pkg","upy-norm-pkg","upy-opt-driver","upy-slim-driver","upy-pack-driver",
             "upy-pkg-guide","fetch-doc","upy-project","review",
-            "mpremote-device-interaction","mpremote-file-transfer","mpremote-live-session")
+            "mpremote-device-interaction","mpremote-file-transfer","mpremote-live-session",
+            "mpos-dev","mpos-plan-app","mpos-analyze-app","mpos-prepare-deps","mpos-gen-app",
+            "mpos-test-app","mpos-package-app","mpos-deploy-app","mpos-publish-app")
 foreach ($skill in $skills) {
   Copy-Item -Recurse $skill $env:USERPROFILE\.claude\skills\
 }
@@ -220,6 +241,253 @@ for skill in upy-norm-driver upy-norm-main upy-gen-main upy-gen-readme \
   npx skillfish add FreakStudioCN/MicroPython_Skills $skill
 done
 ```
+
+MicroPythonOS 相关 skill 推荐本地安装，确保 `mpos-dev/reference/` 和 `scripts/` 一起复制。如果需要在线安装，可逐个添加：
+
+```bash
+for skill in mpos-dev mpos-plan-app mpos-analyze-app mpos-prepare-deps mpos-gen-app \
+             mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app; do
+  npx skillfish add FreakStudioCN/MicroPython_Skills $skill
+done
+```
+
+---
+
+## MicroPythonOS App / MPK / upystore 工作流
+
+MicroPythonOS skill 是独立于普通 `upy-*` 硬件项目的 App 开发链路。它的目标是在 MicroPythonOS 仓库内生成、测试、打包和发布一个 App，也就是这个目录：
+
+```text
+<MicroPythonOS repo>/internal_filesystem/apps/<fullname>/
+  MANIFEST.JSON
+  icon_64x64.png
+  assets/main.py
+```
+
+它不用于普通 MicroPython 裸机脚本，也不用于随手修改 MicroPythonOS OS/framework/build 源码。简单理解：
+
+- 想做一个 MicroPythonOS 上能打开的 App：用 `mpos-*`。
+- 想写普通 ESP32 / Pico 的 `main.py`：用 `upy-*`。
+- 想修 MicroPythonOS 系统本身、LVGL binding、Web build、固件构建：这不是默认 App 流程，必须明确告诉 AI “允许修 OS”。
+
+### 新手快速开始
+
+1. 确认 skill 已安装到 Claude Code：
+
+```bash
+ls ~/.claude/skills/mpos-plan-app
+ls ~/.claude/skills/mpos-gen-app
+ls ~/.claude/skills/mpos-test-app
+```
+
+2. 准备一个 MicroPythonOS 仓库。建议先用隔离测试仓库，不要直接在主仓库 `/home/leeqingshui/MicroPythonOS` 里试：
+
+```bash
+cd /home/leeqingshui/tmp/mpos-skill-cc-test-20260717
+test -d internal_filesystem/apps
+test -d scripts
+```
+
+3. 建议先用 `cc-switch` 切换 Claude Code 使用的模型。MicroPythonOS App 生成会读大量 API、JSON 和日志，模型能力差异会影响稳定性；建议在 `cc-switch` 里把 Claude Code 的 provider/model 切到 DeepSeek 系列模型，例如 `deepseek-chat` 或 `deepseek-reasoner`。具体模型名以你本机 `cc-switch` 界面中可选项为准。
+
+```bash
+cc-switch
+```
+
+打开界面后选择 Claude Code 对应配置，切到 DeepSeek 后再启动 Claude Code。
+
+4. 在 MicroPythonOS 仓库根目录启动 Claude Code：
+
+```bash
+cd /home/leeqingshui/tmp/mpos-skill-cc-test-20260717
+claude
+```
+
+5. 在 Claude Code 对话里输入 slash command。格式固定是：
+
+```text
+/skill-name 你的需求描述
+```
+
+注意 `/skill-name` 不是 shell 命令，不是在终端里执行；它是在 Claude Code 的聊天输入框里发给 AI 的。
+
+推荐从总入口开始：
+
+```text
+/mpos-plan-app 在 /home/leeqingshui/tmp/mpos-skill-cc-test-20260717 中创建一个四则运算计算器 App，fullname 用 com.example.cc_skill_smoke，走分析、生成、测试、打包、部署记录和 upystore 发布准备
+```
+
+如果只想测试已有 App：
+
+```text
+/mpos-test-app 在 /home/leeqingshui/tmp/mpos-skill-cc-test-20260717 中测试 com.example.cc_skill_smoke，读取 tmp/mpos-plan-app/com.example.cc_skill_smoke/generation_result.json，运行桌面 smoke，生成 PNG 截图，并给出完整模拟器打开命令
+```
+
+如果上一步失败，把失败信息继续喂给对应 skill，而不是重新从头开始：
+
+```text
+/mpos-gen-app 修复 com.example.cc_skill_smoke。下面是 mpos-test-app 的失败输出和 app_test_result.json 路径：...
+```
+
+### 9 个 mpos skill 怎么分工
+
+一般新手只需要记住：**完整流程用 `/mpos-plan-app`，单独某阶段出问题再用对应阶段 skill**。
+
+| 阶段 | 该用哪个 | 它内部会做什么 |
+|---|---|---|
+| 总入口/继续任务 | `/mpos-plan-app` | 找到当前 App，读取 `plan_state.json`，决定下一步该走分析、生成、测试、打包、部署还是发布 |
+| 需求分析 | `/mpos-analyze-app` | 把自然语言需求变成 App 名、`fullname`、`publisher`、manifest 草案、API 计划、测试计划、部署计划 |
+| 外部依赖 | `/mpos-prepare-deps` | 只准备 App 层纯 Python/MPY 依赖，判断同步库是否需要 adapter，不改 OS |
+| 生成/修复 App | `/mpos-gen-app` | 创建或修改 `internal_filesystem/apps/<fullname>/`，然后跑 manifest、语法、API、lint、App-only 等静态门禁 |
+| 运行测试 | `/mpos-test-app` | 用 Linux desktop runtime 和 `mpos_controller.py` 启动 App，检查启动、可见文本、widget tree、截图 |
+| 打包 MPK | `/mpos-package-app` | 校验 manifest/icon/entrypoint，生成 `<fullname>_rN.mpk` 和 `app_index_entry.json` |
+| 预览/真机部署 | `/mpos-deploy-app` | 做 desktop preview、web preview、`device-copy` 或 `mpk-install` 记录 |
+| 发布准备 | `/mpos-publish-app` | 同时读取 package/test/deploy 三份结果，检查 upystore 版本和发布元数据，只给手工上传指导 |
+| 共享知识库 | `mpos-dev` | 其他 skill 自动读取它；用户通常不要直接调用 |
+
+### 内部逻辑
+
+每个 App 都会有一个项目状态目录：
+
+```text
+<repo-root>/tmp/mpos-plan-app/<fullname>/
+  plan_state.json
+  activity_log.jsonl
+```
+
+`plan_state.json` 记录当前走到哪一步、有哪些 artifact、下一步应该调用哪个 skill。`activity_log.jsonl` 是流水日志。不要手写这两个文件，skill 会通过 `update_plan_state.py` 自动维护。
+
+常见 artifact 路径：
+
+```text
+tmp/mpos-plan-app/<fullname>/analysis_result.json
+tmp/mpos-plan-app/<fullname>/generation_result.json
+tmp/mpos-test-app/<fullname>/app_test_result.json
+tmp/mpos-package-app/<fullname>/package_result.json
+tmp/mpos-package-app/<fullname>/<fullname>_r1.mpk
+tmp/mpos-deploy-app/<fullname>/deploy_result.json
+tmp/mpos-publish-app/<fullname>/publish_result.json
+```
+
+如果你中断后想继续，直接告诉 Claude Code：
+
+```text
+/mpos-plan-app 继续 com.example.cc_skill_smoke，读取已有 plan_state.json 和各阶段 artifact，不要从头开始
+```
+
+### 强制使用要求
+
+- 必须在 MicroPythonOS repo 中运行，仓库根目录应包含 `internal_filesystem/apps` 和 `scripts`。
+- build、desktop simulator、Web preview、联调测试默认应放在隔离 clone/worktree/临时副本中；不要直接污染 `/home/leeqingshui/MicroPythonOS` 主仓库。
+- mpos 相关 skill 必须完整读取 `mpos-dev/reference/mpos_api_summary.json` 和 `mpos-dev/reference/lvgl_api_summary.json`，不能因为任务简单而省略。
+- 只能修改目标 App 目录 `internal_filesystem/apps/<fullname>/` 和 `tmp/mpos-*` artifact。不要修改 MicroPythonOS OS/build/framework/已有 App 代码，除非用户明确要求修 OS。
+- 生成阶段必须跑 API 交叉校验和 App-only 变更检查。未知 `lv.*` / `mpos.*` API、缺 `buttonmatrix.set_map()` 终止符、误改目标 App 外文件，都应先返回给 AI 修复。
+- manifest 必须包含非空 `publisher`，例如 `com.example`。MPK 文件名必须使用 upystore revision 格式：`<fullname>_rN.mpk`。
+- 目前不需要、也不应使用 `mpos-debug-app`。
+
+### 生成 App 时怎么描述需求
+
+描述越具体，AI 越不容易跑偏。建议至少包含：
+
+- 仓库路径：例如 `/home/leeqingshui/tmp/mpos-skill-cc-test-20260717`。
+- App fullname：例如 `com.example.cc_skill_smoke`。
+- App 目标：一句话说明做什么。
+- UI 需求：有哪些按钮、文本、列表、输入框。
+- 是否需要真机：没有真机就说“只做 desktop-preview”；有真机就给板卡和串口。
+- 是否发布 upystore：要发布就需要 `publisher`、截图、短描述、长描述、release notes。
+
+示例：
+
+```text
+/mpos-plan-app 在 /home/leeqingshui/tmp/mpos-skill-cc-test-20260717 中创建 com.example.cc_skill_smoke。
+App 是一个极简四则运算计算器，publisher 用 com.example，版本 1.0.0。
+UI 需要显示输入框、结果文本、数字按钮和 +-*/=C 按钮。
+先做 Linux desktop smoke 和 PNG 截图；我目前没有物理设备，所以 deploy record 可以用 desktop-preview。
+最后准备 upystore 手工上传材料，但不要真正上传。
+```
+
+### 测试与运行命令
+
+Linux 桌面 smoke 推荐使用 `mpos-test-app`：
+
+```bash
+cd <repo-root>
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/run_app_smoke.py \
+  --repo <repo-root> \
+  --app-fullname <fullname> \
+  --generation-result <generation_result.json> \
+  --screenshot
+```
+
+打开完整 Linux SDL 模拟器：
+
+```bash
+cd <repo-root>
+scripts/run_desktop.sh <fullname>
+```
+
+这会打开完整 Linux SDL 模拟器，适合人工看 UI 是否正常。自动化 smoke 仍应使用 `/mpos-test-app` 或 `run_app_smoke.py`。
+
+真机部署前必须先确认：
+
+- 是否有物理设备。
+- 板卡型号和串口，例如 ESP32-S3、`/dev/ttyACM0`。
+- 设备是否已经安装 MicroPythonOS；未安装或不确定时先用 `https://install.micropythonos.com/`。
+
+设备部署有两条路径：
+
+- `device-copy`：用 `mpremote connect <port> fs cp -r <app_dir> :/apps/` 直接复制 App。适合 AIOREPL/`mpos_controller.py` 探针失败但文件系统可访问的情况。
+- `mpk-install`：上传 MPK 后调用 `AppManager.install_mpk()`。这是发布验证优先路径，但要求目标设备已经能 import `mpos`。
+
+`device-copy` 的本质是“把 App 目录复制到设备文件系统”，不能证明 AppManager 成功安装 MPK；`mpk-install` 更接近发布后的真实安装路径，但更依赖设备上的 MicroPythonOS runtime 状态。
+
+### Web Preview 状态
+
+Web preview 只是可选浏览器预览，不是默认 gate，也不能替代 Linux desktop smoke 或真实硬件验证。
+
+本地 Web 命令：
+
+```bash
+cd <repo-root>
+scripts/build_mpos.sh web
+scripts/run_web.sh
+```
+
+当前 Web preview / Web build 可能遇到 OS/Web port 工具链问题，例如 `machine_timer_type` 链接错误、Emscripten/emsdk 缺失、`web/micropython.wasm` 或 `web/micropython.data` 产物缺失。这类问题应归类为 MicroPythonOS Web target 或工具链问题，不要让 `mpos-gen-app` 修改目标 App，也不要误判为普通 Python 依赖缺失。
+
+因此，新手建议先跑 Linux desktop smoke；Web preview 只在你明确想看浏览器效果或验证 WebAssembly 行为时再跑。
+
+### 报错反馈与逐步修复
+
+LLM 模型能力参差，第一次生成或修复可能漏读 API、误判工具链、或没有覆盖所有运行路径。使用时不要只告诉 AI “失败了”，应把完整报错和 artifact 路径返回给 AI，让它按阶段逐步修。
+
+建议反馈格式：
+
+```text
+我在 <repo-root> 运行 <command> 失败。
+目标 App：<fullname>
+失败阶段：analysis / generation / test / package / deploy / publish
+returncode：<code>
+关键 stdout/stderr/traceback：
+<粘贴最后 100-200 行>
+相关 artifact：
+- tmp/mpos-plan-app/<fullname>/plan_state.json
+- tmp/mpos-plan-app/<fullname>/generation_result.json
+- tmp/mpos-test-app/<fullname>/app_test_result.json
+- tmp/mpos-package-app/<fullname>/package_result.json
+- tmp/mpos-deploy-app/<fullname>/deploy_result.json
+请只修目标 App 或对应 skill artifact，不要改 MicroPythonOS OS/framework/build 代码。
+```
+
+常见处理原则：
+
+- App 自身 traceback、缺 API、UI 崩溃：返回 `/mpos-gen-app` repair。
+- `uv`、`ruff`、`mpy-cross`、Emscripten、desktop binary 缺失：记录为工具链问题，把完整安装/构建错误交给 AI 判断下一步。
+- `deploy_result.json` 是 failed：先看是 `device-copy` 失败、`mpk-install` 探针失败，还是用户确认无硬件后应使用 `desktop-preview`/`web-preview` 记录。
+- 截图上传只支持 PNG、JPEG、WebP；BMP 只是 raw smoke artifact，不能作为 upystore 发布截图。
+
+如果 AI 修复一次后又失败，把新的错误继续贴回同一个阶段，不要手动大范围改代码。mpos skill 的设计就是“生成 → 测试 → 带日志修复 → 再测试”的循环。
 
 ---
 
@@ -835,6 +1103,7 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.7.0 | 2026-06-03 | leezisheng | upy-cold-driver 重命名为 upy-gen-driver，定位为独立可调用 skill（非仅异常路径）。upy-gen-driver 流程落地：调试版驱动 → mpremote 硬件验证循环 → 脱调试 → 规范化。upy-wiring + upy-diagram 新增 HTML 输出（自包含浏览器页面，Mermaid.js CDN + Tab 切换），--format all 现在输出 md + svg + png + html 全部四种格式。全部 25 个 skill 补全 .skillfish.json。 |
 | v1.7.1 | 2026-06-03 | leezisheng | README.md 安装脚本补充 upy-deploy-test + review skill。功能规划.md 修复：模块四可视化方案（Pillow→Mermaid）、模块七 gen-driver 流程补充硬件验证环、triage.py 行数修正、项目架构脚本名刷新、/cold-driver→/gen-driver。 |
 | v1.8.0 | 2026-07-05 | leezisheng | README.md 新增当前 Skill / Plugin 全量导览，明确插件版 8 流程：`upy-analyze-plugin`、`upy-select-hw-plugin`、`upy-flash-mpy-firmware-plugin`、`upy-scaffold-plugin`、`upy-generate-plugin`、`upy-deploy-plugin`、`upy-wiring-plugin`、`upy-diagram-plugin`；补充 `upy-gen-driver-plugin` 为缺失硬件驱动分支，并区分插件版 Skill/plugin 与 Classic Skill。 |
+| v1.9.0 | 2026-07-20 | leezisheng | README.md 新增 MicroPythonOS App / MPK / upystore 独立章节，补充 9 个 `mpos-*` skill 的职责、Claude Code slash command 用法、新手快速开始、`cc-switch` 切换 DeepSeek 模型建议、内部 artifact/plan_state 逻辑、API 全量读取要求、App-only 修改边界、Web preview 已知问题、报错反馈模板和逐步修复流程；安装脚本同步加入 `mpos-*`，明确不再需要 `mpos-debug-app`。 |
 
 ---
 
@@ -849,4 +1118,3 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-

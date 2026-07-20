@@ -94135,7 +94135,11 @@
       "returns": "None",
       "description": null,
       "description_source": null,
-      "notes": [],
+      "notes": [
+        "Map is a list of str labels; use a standalone '\\n' item to separate rows.",
+        "Standalone buttonmatrix maps must end with an empty string terminator ''.",
+        "Do not pass bytes labels; prefer ASCII labels unless the target font/input path is verified."
+      ],
       "examples": [],
       "source_path": "/home/leeqingshui/lvgl_micropython/lvgl.pyi",
       "source_line": 15357,

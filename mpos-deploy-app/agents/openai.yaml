@@ -1,4 +1,4 @@
 interface:
   display_name: "MPOS Deploy App"
   short_description: "Deploy MPOS apps to devices, web, or firmware"
-  default_prompt: "Use -deploy-app to deploy or preview a MicroPythonOS app on desktop, web, or a confirmed device target."
+  default_prompt: "Use $mpos-deploy-app to deploy or preview a MicroPythonOS app on desktop, web, or a confirmed device target."

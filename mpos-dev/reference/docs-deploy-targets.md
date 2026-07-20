@@ -72,6 +72,8 @@ controller/debug 脚本写到仓库 `tmp/` 下。
 ./scripts/install.sh com.micropythonos.appname
 ```
 
+开始真机 App 安装前先确认设备已安装 MicroPythonOS、目标板型号和串口。如果设备未安装 OS 或状态不明，先使用 `https://install.micropythonos.com/` 安装/确认固件。
+
 安装后：
 
 ```python
@@ -86,6 +88,16 @@ AppManager.refresh_apps()
 ```bash
 python3 lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py cp local.py :/remote.py
 ```
+
+如果 `mpos_controller.py` / AIOREPL 探针失败，但串口文件系统可访问，可以用直接 App 目录拷贝作为 `device-copy` 记录：
+
+```bash
+python3 lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py connect /dev/ttyACM0 fs mkdir :/apps
+python3 lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py connect /dev/ttyACM0 fs cp -r internal_filesystem/apps/<fullname> :/apps/
+python3 lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py connect /dev/ttyACM0 fs ls :/apps/<fullname>
+```
+
+这只能证明文件已复制到设备；发布验证仍应优先使用可调用 `AppManager.install_mpk()` 的 MPK install 路径。
 
 然后使用 `machine.reset()` 并等待启动。
 

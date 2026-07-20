@@ -50,6 +50,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - MPK、AppStore、upystore：`mpos-dev/reference/docs-packaging.md`
 
 API 判断优先用 JSON。LVGL `type_aliases[]` 只解释签名类型，不是可生成的 runtime API。
+`mpos_api_summary.json` 和 `lvgl_api_summary.json` 必须完整读取并用于判断；不能因为需求简单、UI 简单或只做修复而省略。
 
 ## 固定资源入口
 
@@ -65,12 +66,12 @@ API 判断优先用 JSON。LVGL `type_aliases[]` 只解释签名类型，不是�
 ## 工作流
 
 1. 读取用户需求和已有上下文，保留用户明确指定的 App 名、功能、目标设备、硬件、发布意图。
-2. 生成默认 App 身份。缺少 `fullname` 时按功能名建议 `com.micropythonos.<slug>`；缺少 `name`、`category`、`version` 时给合理默认值，不因此阻塞。
+2. 生成默认 App 身份。缺少 `fullname` 时按功能名建议 `com.micropythonos.<slug>`；缺少 `name`、`category`、`version`、`publisher` 时给合理默认值，不因此阻塞。`publisher` 默认从 `fullname` 组织前缀派生，例如 `com.example.calc` -> `com.example`。
 3. 拆分功能边界：MVP、后续功能、非目标、风险点。
 4. 判断 App 结构：需要哪些 Activity，是否需要 Service，是否需要 `boot_completed`、Intent、持久化、后台任务。
 5. 判断内置 API 是否足够：优先使用 MPOS managers/frameworks 和 LVGL MicroPython API；只标记是否需要外部驱动，不在本阶段搜索或生成驱动实现。
-6. 产出测试计划：语法、manifest、普通 unittest、GraphicalTestCase、桌面仿真、Web smoke、设备硬件验证。
-7. 产出部署/运行计划：桌面优先；Web 可预览；真机前确认 OS 是否已安装；安装 App 与烧录固件分开。
+6. 产出测试计划：语法、manifest、API 交叉校验、App-only 变更检查、普通 unittest、GraphicalTestCase、Linux SDL 桌面仿真、可选 Web smoke、设备硬件验证。
+7. 产出部署/运行计划：桌面优先；Web 可预览；真机前确认设备、串口和 MicroPythonOS 是否已安装；安装 App 与烧录固件分开。
 8. 只问阻塞问题。分析阶段可以用默认值继续；只有马上进入代码生成且缺少必要身份、硬件或目标限制时才阻塞。
 9. 输出 Markdown 摘要和强制 JSON。JSON 应匹配 `templates/analysis_result.json`，并可用 `scripts/validate_analysis_json.py` 校验。
 
@@ -95,6 +96,7 @@ API 判断优先用 JSON。LVGL `type_aliases[]` 只解释签名类型，不是�
 - `result` 使用 `"success"`、`"partial"` 或 `"failed"`。
 - `resource_links[]` 必须包含四个固定 URL。
 - `app.fullname` 可为建议值；不知道时仍给可用默认，不因缺用户确认而为空。
+- `app.publisher` 和 `manifest_draft.publisher` 必须是非空字符串；默认从 `fullname` 组织前缀派生。
 - `manifest_draft.activities[]` 和 `services[]` 使用完整对象：`classname`、`entrypoint`、`intent_filters`。
 - `entrypoint` 必须带 `.py`，建议使用 `assets/main.py` 或 `assets/service.py`。
 - `app_structure.manifest` 新 App 默认使用根目录 `MANIFEST.JSON`。

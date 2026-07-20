@@ -7,6 +7,7 @@
   "app": {
     "fullname": "com.micropythonos.example",
     "name": "Example",
+    "publisher": "com.micropythonos",
     "app_dir": "internal_filesystem/apps/com.micropythonos.example",
     "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
     "assets_dir": "internal_filesystem/apps/com.micropythonos.example/assets"
@@ -64,6 +65,12 @@
         "required": true
       },
       {
+        "name": "api_usage",
+        "command": "check_app_api_usage.py --repo <repo-root> --app-fullname com.micropythonos.example",
+        "returncode": 0,
+        "required": true
+      },
+      {
         "name": "make_lint",
         "command": "/home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/prepare_lint_tooling.py --repo <repo-root>",
         "returncode": 0,
@@ -81,6 +88,12 @@
         "returncode": 0,
         "required": true,
         "policy": "fail_on_fatal_error_usage"
+      },
+      {
+        "name": "app_only_changes",
+        "command": "check_app_only_changes.py --repo <repo-root> --app-fullname com.micropythonos.example",
+        "returncode": 0,
+        "required": true
       }
     ],
     "warnings": []

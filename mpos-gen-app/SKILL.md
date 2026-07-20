@@ -57,6 +57,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - `<repo-root>/tests/test_apps_manifest.py`
 - `<repo-root>/internal_filesystem/lib/mpos/content/app_manager.py`
 
+`mpos_api_summary.json` 和 `lvgl_api_summary.json` 是强制输入，必须完整读取并用于生成计划和代码校验；不能因为 App 很简单就省略。计划阶段必须列出将使用的 `mpos.*` / `lv.*` API，并说明是否有仓库内现有 App 用例可参考。
+
 ## 模式
 
 ### plan
@@ -66,13 +68,16 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 必须输出：
 
 - 目标 App：`fullname`、`name`、`category`、`version`。
+- 发布者：manifest `publisher`，默认用 `fullname` 的组织前缀，例如 `com.example` 或 `com.micropythonos`。
 - 操作类型：`create`、`update` 或 `repair`。
 - 文件计划：要创建/修改/保留的文件。
 - Activity/Service 计划。
 - 依赖计划：是否消费 `mpos-prepare-deps`，是否要生成同步适配层。
 - 图标计划：用 `scripts/generate_icon.py` 根据用户功能说明生成根目录 `icon_64x64.png`。
 - 版本策略：新 App `1.0.0`；功能修改 bump patch；测试失败修复不 bump。
-- 校验计划：列出执行阶段要跑的门禁。
+- API 风险：逐项列出 `lv.*`、`mpos.*` 和 LVGL widget method 调用；任何不在 summary 中的 API 必须在计划阶段警告并换方案。
+- 零参考 widget 风险：如果某个 LVGL widget 在仓库现有 App 中没有用例，必须 warning 并给出更简单替代方案。
+- 校验计划：列出执行阶段要跑的门禁，必须包含 `api_usage` 和 `app_only_changes`。
 - 需要确认的问题；没有阻塞问题时也必须询问“确认后我再写文件”。
 
 ### create
@@ -90,9 +95,19 @@ internal_filesystem/apps/<fullname>/
 
 ```json
 {
-  "classname": "ExampleActivity",
-  "entrypoint": "assets/main.py",
-  "intent_filters": [{"action": "main", "category": "launcher"}]
+  "fullname": "com.example.app",
+  "name": "Example App",
+  "publisher": "com.example",
+  "version": "1.0.0",
+  "category": "utilities",
+  "activities": [
+    {
+      "classname": "ExampleActivity",
+      "entrypoint": "assets/main.py",
+      "intent_filters": [{"action": "main", "category": "launcher"}]
+    }
+  ],
+  "services": []
 }
 ```
 
@@ -115,6 +130,7 @@ repair 不 bump version，除非用户明确要求把修复作为发布版本。
 写文件前必须确认这些内容：
 
 - `fullname` 是否可接受，目录是否为 `internal_filesystem/apps/<fullname>`。
+- `publisher` 是否可接受；缺失时默认从 `fullname` 前缀派生，例如 `com.example.cc_skill_smoke` -> `com.example`。
 - App 可见行为和 MVP 范围。
 - Activity/Service 数量和入口文件。
 - 是否要接入 `mpos-prepare-deps` 的 runtime 文件、imports、adapter requirements。
@@ -161,6 +177,8 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/generate_icon.
 
 - 新代码优先从根 `mpos` 模块导入：`from mpos import Activity, TaskManager, SharedPreferences`。
 - UI 代码必须 `import lvgl as lv` 并遵守 `mpos-dev` 的 LVGL 规则。
+- 所有 `lv.*` / `mpos.*` / LVGL widget method 调用必须能通过 `check_app_api_usage.py`，禁止猜测不在 summary 中的 API，例如未列出的 `set_style_row_gap()`。
+- `lv.buttonmatrix.set_map()` map 必须使用 `"\n"` 分隔行，并以 `""` 终止；动态 map 必须在 warning 中说明已人工复核。
 - 不硬编码屏幕分辨率，使用 `lv.pct(100)`、flex、align。
 - 新 label 立即 `set_text("")` 或设置最终文本。
 - `lv.style_t()` 后必须 `init()` 再 setter。
@@ -207,7 +225,18 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   --app-dir internal_filesystem/apps/<fullname>
 ```
 
-4. 项目 lint：
+4. API 交叉校验：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/check_app_api_usage.py \
+  --repo <repo-root> \
+  --app-fullname <fullname>
+```
+
+该 gate 必须在写完代码后、进入 runtime 测试前执行。未知 API 是失败；`buttonmatrix.set_map()` 缺 `"\n"` 行分隔或末尾 `""` 终止符是失败；零参考 widget 是 warning，必须在 `generation_result.validation.warnings` 记录替代方案或复核理由。
+
+5. 项目 lint：
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
@@ -217,7 +246,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 该 helper 先运行 `make lint`。如果失败原因是 `uv` 缺失，使用当前 Python 环境安装 `uv`，把该环境的 `bin/` 放到 `PATH` 前面，然后重跑 `make lint`。如果 `uv` 安装失败、`ruff` 运行失败或 lint 超时，记录为 blocked；不要跳过。
 
-5. flake8：
+6. flake8：
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python -m flake8 \
@@ -227,7 +256,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python -m flake8 \
 
 使用固定模板 `templates/flake8-mpos-app.ini`。该模板按当前全部真实 App 基线校准：只选 `E9,F63,F7,F82`，补充 MicroPython/native/viper/RP2 PIO 指令内建名，不全局忽略 `F821`；仅对 `rp2_*.py`、`*_pio.py` 做文件级 `F821` 忽略，避免 PIO 汇编伪操作数污染普通 Python 检查。如果新生成 App 出现未定义名，修代码，不要临时放宽模板。
 
-6. pylint。使用固定 MicroPython-aware rcfile，不要改仓库配置：
+7. pylint。使用固定 MicroPython-aware rcfile，不要改仓库配置：
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python -m pylint \
@@ -238,13 +267,24 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python -m pylint \
 
 使用固定模板 `templates/pylintrc-mpos-app`。该模板按当前全部真实 App 基线校准：忽略 MicroPython/MPOS 导入、LVGL 动态成员、docstring、命名和历史风格噪声；保留 fatal/error/usage 类问题，例如 `undefined-variable`、`used-before-assignment`、`function-redefined`、`no-method-argument`。不要把 `x`、`y`、`pin` 这类普通变量名加入全局 builtins；若确实生成 RP2 PIO helper，只允许在该 helper 文件头局部声明 `# pylint: disable=undefined-variable` 并在 `generation_result.validation.warnings` 记录原因。Pylint exit code 是 bitmask：fatal(1)、error(2)、usage(32) 是强失败；warning(4)、refactor(8)、convention(16) 只记录 warning，除非用户要求严格模式。
 
-7. 清理缓存产物：
+8. 清理缓存产物：
 
 ```bash
-find internal_filesystem/apps/<fullname> -name __pycache__ -o -name '*.pyc' -print
+find internal_filesystem/apps/<fullname> \( -name __pycache__ -o -name '*.pyc' \) -print
 ```
 
 如果有输出，删除后重跑相关门禁。不要把 `__pycache__/` 或 `.pyc` 写入交接 JSON。
+
+9. App-only 变更检查：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-dev/scripts/check_app_only_changes.py \
+  --repo <repo-root> \
+  --app-fullname <fullname>
+```
+
+该 gate 只允许 `internal_filesystem/apps/<fullname>/` 和 `tmp/mpos-*` 下的变化。若发现 OS/build/framework/已有 App 文件变化，必须标记 failed/blocked，不能擅自回滚用户改动，也不能继续让发布链路视为成功。
 
 ## 输出 JSON
 
@@ -263,6 +303,7 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/validate_gener
 - icon 生成结果
 - 依赖和同步 adapter 结果
 - 所有校验门禁及 returncode
+- `api_usage` 与 `app_only_changes` gate 必须存在且通过
 - `handoff.next_skill: "mpos-test-app"`
 
 plan 阶段 `confirmed_by_user` 必须是 `false`，并且 `handoff.next_skill` 仍指向 `mpos-gen-app`。

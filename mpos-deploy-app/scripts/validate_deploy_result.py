@@ -49,7 +49,7 @@ def require_string(value: Any, name: str, *, allow_empty: bool = False) -> None:
         require(bool(value.strip()), f"{name} must not be empty")
 
 
-def validate_checks(root: dict[str, Any], mode: str) -> None:
+def validate_checks(root: dict[str, Any], mode: str, result: str | None) -> None:
     checks = require_array(root.get("checks"), "checks")
     by_name: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(checks):
@@ -75,6 +75,9 @@ def validate_checks(root: dict[str, Any], mode: str) -> None:
 
     missing = sorted(required - set(by_name))
     require(not missing, "checks missing required check names: " + ", ".join(missing))
+    if result in {"success", "partial"}:
+        failed = sorted(name for name in required if by_name[name].get("ok") is not True)
+        require(not failed, "required checks must pass for success or partial result: " + ", ".join(failed))
 
 
 def validate(root: Any) -> list[str]:
@@ -86,12 +89,13 @@ def validate(root: Any) -> list[str]:
         errors.append(f"schema_version must be {SCHEMA_VERSION!r}")
     if root.get("phase") != PHASE:
         errors.append(f"phase must be {PHASE!r}")
-    if root.get("result") not in VALID_RESULTS:
+    result = root.get("result")
+    if result not in VALID_RESULTS:
         errors.append(f"result must be one of {sorted(VALID_RESULTS)}")
     require_string(root.get("created_at_utc"), "created_at_utc")
 
     app = require_object(root.get("app"), "app")
-    for key in ("fullname", "name", "version", "app_dir", "manifest", "layout"):
+    for key in ("fullname", "name", "publisher", "version", "app_dir", "manifest", "layout"):
         require_string(app.get(key), f"app.{key}")
     if app.get("icon") is not None:
         require_string(app.get("icon"), "app.icon")
@@ -142,7 +146,7 @@ def validate(root: Any) -> list[str]:
     for index, value in enumerate(secondary):
         require_string(value, f"command.secondary[{index}]")
 
-    validate_checks(root, mode)
+    validate_checks(root, mode, result if isinstance(result, str) else None)
 
     require_array(root.get("warnings", []), "warnings")
     require_array(root.get("errors", []), "errors")

@@ -55,6 +55,7 @@ def main() -> int:
         app_info = {
             "fullname": fullname,
             "name": fullname,
+            "publisher": "",
             "version": "unknown",
             "app_dir": str(app_dir),
             "manifest": str(app_dir / "MANIFEST.JSON"),
@@ -62,6 +63,8 @@ def main() -> int:
             "layout": "missing",
         }
         errors.append(str(exc))
+    if not app_info.get("publisher"):
+        errors.append("manifest publisher is missing")
 
     if not binary.is_file():
         warnings.append("desktop binary is missing; the launch may fail")

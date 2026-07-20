@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -13,7 +14,33 @@ from typing import Any
 
 SCHEMA_VERSION = "mpos-app-validation-v1"
 VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)*$")
-DEFAULT_REPO = Path("/home/leeqingshui/MicroPythonOS")
+
+
+def is_repo_root(path: Path) -> bool:
+    return (path / "internal_filesystem" / "apps").is_dir() and (path / "scripts").is_dir()
+
+
+def default_repo() -> Path | None:
+    env_repo = os.environ.get("MPOS_REPO")
+    if env_repo:
+        return Path(env_repo)
+    cwd = Path.cwd()
+    if is_repo_root(cwd):
+        return cwd
+    return None
+
+
+def resolve_repo_arg(value: str | None) -> Path:
+    repo = Path(value).expanduser() if value else default_repo()
+    if repo is None:
+        raise SystemExit(
+            "ERROR: --repo is required when the current directory is not a MicroPythonOS repo "
+            "and MPOS_REPO is unset"
+        )
+    repo = repo.resolve()
+    if not is_repo_root(repo):
+        raise SystemExit(f"ERROR: not a MicroPythonOS repo root: {repo}")
+    return repo
 
 
 def _display_path(path: Path, repo: Path | None = None) -> str:
@@ -198,6 +225,10 @@ def validate_app(repo: Path | None, app_dir: Path, app_fullname: str | None = No
     if not isinstance(name, str) or not name:
         errors.append("Manifest missing non-empty name")
 
+    publisher = manifest_data.get("publisher") if manifest_data else None
+    if not isinstance(publisher, str) or not publisher.strip():
+        errors.append("Manifest missing non-empty publisher")
+
     version = _validate_version(manifest_data.get("version"), errors) if manifest_data else None
 
     activities = manifest_data.get("activities", []) if manifest_data else []
@@ -237,6 +268,7 @@ def validate_app(repo: Path | None, app_dir: Path, app_fullname: str | None = No
     app_info = {
         "fullname": fullname if isinstance(fullname, str) else app_fullname,
         "name": name,
+        "publisher": publisher,
         "version": version,
         "app_dir": _display_path(app_dir, repo),
         "manifest": _display_path(manifest_path, repo) if manifest_path else None,
@@ -256,14 +288,14 @@ def validate_app(repo: Path | None, app_dir: Path, app_fullname: str | None = No
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     parser.add_argument("--app-fullname", help="App fullname, e.g. com.micropythonos.helloworld")
     parser.add_argument("--app-dir", help="Explicit App directory")
     parser.add_argument("--output", help="Write validation JSON to this path")
     parser.add_argument("--quiet", action="store_true", help="Only print errors")
     args = parser.parse_args()
 
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     try:
         app_dir = resolve_app_dir(repo, args.app_fullname, args.app_dir).resolve()
     except ValueError as exc:

@@ -18,7 +18,7 @@ DEFAULT_OUTPUT_ROOT = Path("tmp/mpos-deploy-app")
 DEFAULT_INSTALL_URL = "https://install.micropythonos.com/"
 DEFAULT_WEB_URL = "http://127.0.0.1:8080/"
 
-VALID_RESULTS = {"success", "partial", "failed"}
+VALID_RESULTS = {"success", "partial", "failed", "blocked"}
 VALID_MODES = {
     "desktop-preview",
     "web-preview",
@@ -143,6 +143,7 @@ def load_app_metadata(app_dir: Path, repo: Path | None = None) -> dict[str, Any]
     return {
         "fullname": manifest.get("fullname", app_dir.name),
         "name": manifest.get("name"),
+        "publisher": manifest.get("publisher"),
         "version": manifest.get("version"),
         "app_dir": display_path(app_dir, repo),
         "manifest": display_path(manifest_path, repo),
@@ -157,6 +158,7 @@ def normalize_app_metadata(app_info: dict[str, Any], app_dir: Path, fullname: st
     normalized = dict(app_info)
     normalized["fullname"] = str(normalized.get("fullname") or fullname)
     normalized["name"] = str(normalized.get("name") or fullname)
+    normalized["publisher"] = str(normalized.get("publisher") or "")
     normalized["version"] = str(normalized.get("version") or "unknown")
     normalized["app_dir"] = str(normalized.get("app_dir") or app_dir)
     normalized["manifest"] = str(normalized.get("manifest") or (app_dir / "MANIFEST.JSON"))
@@ -280,8 +282,17 @@ def mpremote_command(repo: Path, args: list[str]) -> list[str]:
     return [sys.executable, str(mpremote_script(repo))] + args
 
 
-def run_mpremote(repo: Path, args: list[str], *, timeout: int = 120) -> subprocess.CompletedProcess[str]:
-    return run(mpremote_command(repo, args), cwd=str(repo), timeout=timeout)
+def run_mpremote(
+    repo: Path,
+    args: list[str],
+    *,
+    serial_port: str | None = None,
+    timeout: int = 120,
+) -> subprocess.CompletedProcess[str]:
+    command_args = list(args)
+    if serial_port:
+        command_args = ["connect", serial_port] + command_args
+    return run(mpremote_command(repo, command_args), cwd=str(repo), timeout=timeout)
 
 
 def inspect_mpk(mpk_path: Path, fullname: str) -> dict[str, Any]:

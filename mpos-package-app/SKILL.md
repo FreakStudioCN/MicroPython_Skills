@@ -38,6 +38,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 先加载 `mpos-dev`，并读取：
 
+- MPOS API 精确索引：`mpos-dev/reference/mpos_api_summary.json`
+- LVGL API 精确索引：`mpos-dev/reference/lvgl_api_summary.json`
 - 打包、manifest、MPK、AppStore/upystore 约束：`mpos-dev/reference/docs-packaging.md`
 - 本地强约束：`<repo-root>/AGENTS.md`
 - 当前 manifest 测试事实：`<repo-root>/tests/test_apps_manifest.py`
@@ -45,6 +47,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - 当前 installer 事实：`<repo-root>/internal_filesystem/lib/mpos/content/streaming_unzip.py`
 
 当旧分析文档或 docs 与当前仓库冲突时，优先当前仓库和测试。
+API summary JSON 必须完整读取，不能因为本阶段“不写业务代码”而省略；它们用于确认 AppManager/package 相关 MPOS API 和避免 stale manifest/API 假设。
 
 ## 边界
 
@@ -81,7 +84,7 @@ internal_filesystem/apps/<fullname>/
 ## 工作流
 
 1. 确定 `fullname` 和 App 目录，默认 `<repo-root>/internal_filesystem/apps/<fullname>`。
-2. 读取可选 `generation_result.json` 和 `app_test_result.json`。缺失或失败只产生 warning，不阻塞打包。
+2. 读取上游 `generation_result.json` 和 `app_test_result.json`。优先从 `<repo-root>/tmp/mpos-plan-app/<fullname>/plan_state.json` 的 artifact 路径获得；读不到时要求用户显式提供 `--generation-result` / `--app-test-result`，或在 `package_result.json` 中记录 `not_provided` warning。
    - 缺失、路径不存在、JSON 无法解析、schema/phase 不匹配、`result != "success"` 都按 warning 处理。
    - 上游 generation/test warning 必须同步输出到终端和 `package_result.json`。
    - 只要 App 目录、manifest、icon、entrypoint、MPK 结构校验还能通过，就继续生成 `.mpk` 和 `app_index_entry.json`。
@@ -135,6 +138,7 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 必须由脚本保证：
 
+- manifest 必须含非空 `publisher`；缺失时停止并交回 `mpos-gen-app repair`，不要等到 upystore 上传时报 `MISSING_FIELD`。
 - `.mpk` 是 ZIP archive。
 - MPK 文件名必须使用 upystore release revision 格式：`<fullname>_rN.mpk`，例如 `<fullname>_r1.mpk`。Manifest `version` 仍保留 App 语义版本；文件名不用 `<version>`。
 - 第一条 local file header 必须是 `<fullname>/` 目录 entry。

@@ -9,7 +9,7 @@ description: Test a specific MicroPythonOS App after mpos-gen-app using MicroPyt
 
 对 `mpos-gen-app` 已生成的目标 App 做 MPOS runtime 级冒烟测试和轻量交互测试。默认只测目标 App，不跑全量 OS tests。
 
-静态门禁属于 `mpos-gen-app`：`make lint`、manifest、CPython/mpy syntax、MicroPython import、flake8、pylint 必须在生成/修复后立即执行。本 skill 只复核 `generation_result.json` 中这些门禁已记录通过；不要重复定义或替代它们。
+静态门禁属于 `mpos-gen-app`：`make lint`、manifest、CPython/mpy syntax、MicroPython import、API 交叉校验、flake8、pylint、App-only 变更检查必须在生成/修复后立即执行。本 skill 只复核 `generation_result.json` 中这些门禁已记录通过；不要重复定义或替代它们。
 
 ## 用户可见语言
 
@@ -36,13 +36,17 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 必须使用 MicroPythonOS 仓库内置工具：
 
+- `mpos-dev/reference/mpos_api_summary.json`
+- `mpos-dev/reference/lvgl_api_summary.json`
 - `<repo-root>/scripts/mpos_controller.py`
 - `<repo-root>/scripts/run_desktop.sh`
 - `<repo-root>/tests/unittest.sh`
 - `<repo-root>/internal_filesystem/lib/mpos/ui/testing.py`
 - `<repo-root>/internal_filesystem/lib/mpos/testing/`
 
-不要把 `mpos-debug-app` 作为前置或参考；设备调试、串口日志和硬件排障不属于本 skill 默认范围。
+先完整读取两个 API summary JSON，再读取测试工具源码。测试阶段即使不改 App，也要用它们判断 traceback 是否来自不存在/变更的 MPOS 或 LVGL API。
+
+设备调试、串口日志和硬件排障不属于本 skill 默认范围。
 
 不要直接修改 MicroPythonOS OS/build 源码来修测试环境。遇到缺 `_webrepl`、缺 desktop binary、缺 `libffi-dev`、缺 `libv4l-dev` 等本机 simulator/tooling 问题时，默认只标记 external/tooling blocking。只有用户明确要求修本机 simulator 时，才运行本 skill 的 helper：
 
@@ -70,6 +74,26 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 cd <repo-root>
 scripts/build_mpos.sh unix
 scripts/run_desktop.sh <fullname>
+```
+
+每次用户可见测试总结都必须给出人工复现命令，至少包括：
+
+```bash
+cd <repo-root>
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/run_app_smoke.py \
+  --repo <repo-root> \
+  --app-fullname <fullname> \
+  --generation-result <generation_result.json> \
+  --screenshot
+
+scripts/run_desktop.sh <fullname>
+```
+
+如果用户通过 Claude Code 测试，应提示使用 slash command 形态，例如：
+
+```text
+/mpos-test-app 在 /home/leeqingshui/tmp/mpos-skill-cc-test-20260717 中测试 com.example.cc_skill_smoke，读取 generation_result.json，运行桌面 smoke，并给出 PNG 截图和完整模拟器打开命令
 ```
 
 ## 默认测试
@@ -141,6 +165,7 @@ Web Port 只作为可选浏览器验证，不是默认 gate：
 - 如果 `web/index.html`、`web/micropython.js`、`web/micropython.wasm` 或 `web/micropython.data` 不存在，记录为 `skipped_missing_web_artifacts`；不要自动 rebuild，除非用户另行要求。
 - `scripts/run_web.sh` 默认会先执行 `scripts/build_mpos.sh web`，需要 Emscripten `emcc` 或可自动 source 的 `../emsdk`/`../../emsdk`。
 - 如果 `emcc` 不可用，记录为 `skipped_missing_emscripten`，不要把它当 App 失败。
+- 如果 Web build/link 报 `machine_timer_type` 等符号或工具链错误，归类为 OS/Web port tooling 问题；先提示安装或修复 Web build 依赖/工具链，不要让 `mpos-gen-app` 修改目标 App，也不要把它误判为普通 Python 依赖缺失。
 - 只有用户明确要求浏览器自动化时加 `--web-port-browser-check`；Chrome/Chromium 缺失、headless 启动失败或超时只记录 skipped/warning，不让目标 App 失败。
 - 不用 Web Port 代替 `scripts/mpos_controller.py` desktop smoke。
 
@@ -159,6 +184,14 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   --repo <repo-root> \
   --app-fullname <fullname> \
   --web-port-check
+```
+
+每次用户可见测试总结都必须把 Web Port 明确标为“可选”，并给出本地命令：
+
+```bash
+cd <repo-root>
+scripts/build_mpos.sh web
+scripts/run_web.sh
 ```
 
 `scripts/build_mpos.sh web` 会把 `internal_filesystem` staging 到 `web/.preload_internal_filesystem`，注入 web-only `_thread`、`socket`、`aiorepl`、`_webrepl`、`websocket`、`aiohttp`、`machine.Timer` 等 shim，并输出 `web/micropython.{html,js,wasm,data}` 与 `web/index.html`。这验证的是浏览器/WASM 端兼容性；默认 App smoke 仍优先用本地 desktop simulator。

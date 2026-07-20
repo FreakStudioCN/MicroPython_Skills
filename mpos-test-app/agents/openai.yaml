@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Test App"
+  short_description: "Smoke-test MPOS apps in runtime"
+  default_prompt: "Use $mpos-test-app to run a MicroPythonOS app runtime smoke test with desktop simulator and controller tools."

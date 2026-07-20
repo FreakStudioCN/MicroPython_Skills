@@ -330,6 +330,9 @@
 
 - `__init__(self, parent: "obj", /) -> "buttonmatrix"`
 - `set_map(self, map: List[str], /) -> None`
+  - Note: Map is a list of str labels; use a standalone '\n' item to separate rows.
+  - Note: Standalone buttonmatrix maps must end with an empty string terminator ''.
+  - Note: Do not pass bytes labels; prefer ASCII labels unless the target font/input path is verified.
 - `set_ctrl_map(self, ctrl_map: List["buttonmatrix"], /) -> None`
 - `set_selected_button(self, delay_ms: int, /) -> None`
 - `set_button_ctrl(self, btn_id: int, ctrl: "buttonmatrix", /) -> None`
@@ -3552,4 +3555,3 @@
 | `lv.version_minor() -> int` | `int` |
 | `lv.version_patch() -> int` | `int` |
 | `lv.zalloc(size: int, /) -> Any` | `Any` |
-

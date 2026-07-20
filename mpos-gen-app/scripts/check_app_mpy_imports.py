@@ -18,7 +18,7 @@ MPY_ALLOWED = {
     "select", "uselect", "socket", "usocket", "ssl", "ussl", "array", "uarray",
     "machine", "micropython", "network", "bluetooth", "framebuf", "uctypes",
     "deflate", "neopixel", "esp", "esp32", "espnow", "rp2", "zephyr", "_thread",
-    "uasyncio", "lvgl", "mpos", "webcam", "pdm_mic", "adc_mic", "qrdecode",
+    "uasyncio", "lvgl", "mpos", "webcam", "pdm_mic", "adc_mic", "qrdecode", "rvswd",
 }
 
 CPYTHON_RISKY = {

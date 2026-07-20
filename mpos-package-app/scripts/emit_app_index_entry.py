@@ -9,10 +9,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from validate_mpos_app import resolve_app_dir, validate_app
+from validate_mpos_app import resolve_app_dir, resolve_repo_arg, validate_app
 
 
-DEFAULT_REPO = Path("/home/leeqingshui/MicroPythonOS")
 DEFAULT_BASE_URL = "https://apps.micropythonos.com"
 
 
@@ -48,7 +47,7 @@ def emit_entry(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     parser.add_argument("--app-fullname", help="App fullname")
     parser.add_argument("--app-dir", help="Explicit App directory")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Base AppStore URL")
@@ -56,7 +55,7 @@ def main() -> int:
     parser.add_argument("--output", required=True, help="Output app_index_entry.json path")
     args = parser.parse_args()
 
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     if args.revision < 1:
         print("ERROR: --revision must be >= 1", file=sys.stderr)
         return 2

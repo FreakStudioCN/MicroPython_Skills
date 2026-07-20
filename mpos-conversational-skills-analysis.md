@@ -19,7 +19,7 @@ MicroPythonOS 的对话式开发不适合做成一个超大的 skill。正确形
 3. 一个共享基础 skill/reference 层，沉淀 MicroPythonOS、LVGL、MPK、mpremote、仿真器等项目事实。
 4. 把高确定性、易出错、重复执行的动作做成脚本，例如 API 提取、manifest 校验、单 app MPK 打包、MPK 结构验证、设备端安装检查。
 
-建议的拆分已经落地为 8 个用户可感知阶段 skill + 1 个共享基础 skill，另保留 `mpos-debug-app` 作为运行时排障辅助：
+建议的拆分已经落地为 8 个用户可感知阶段 skill + 1 个共享基础 skill：
 
 | 建议 skill | 类型 | 主要职责 | 现状 |
 |---|---|---|---|
@@ -142,7 +142,7 @@ internal_filesystem/apps/com.example.app/
 - `mpos-dev` 保留 API 提取脚本和四个 reference，不再把大段 API 表塞进 `SKILL.md`。
 - `mpos-analyze-app` 使用 API JSON 判断是否已有 manager/framework 能满足需求，避免过早进入驱动下载。
 - `mpos-gen-app` 生成前必须读取或查询四个 API reference，尤其是 LVGL enum/member，避免生成旧式 `lv.OBJ_FLAG.*`、`lv.EVENT_VALUE_CHANGED`、`lv.scr_act()`、`lv.display_render_mode_t` 之类错误代码。
-- `mpos-test-app` 与 `mpos-debug-app` 可用 API JSON 做错误修复的候选 API 检索，但不能把 JSON 里的类型注解当运行时属性。
+- `mpos-test-app` 可用 API JSON 做错误归因的候选 API 检索，但不能把 JSON 里的类型注解当运行时属性。
 
 ### lvgl_micropython 事实
 
@@ -479,7 +479,7 @@ internal_filesystem/apps/<fullname>/
 
 - 不运行 `make lint`、flake8、pylint、manifest 校验；这些属于 `mpos-gen-app`。
 - 不默认修 `_webrepl`、desktop binary、libffi/libv4l 等 OS/tooling 问题；只标 external/tooling blocked。用户明确要求时可用 helper 脚本准备本机 desktop tooling，但不编辑 OS 源码。
-- 不参考 `mpos-debug-app` 作为默认前置。
+- 设备调试、串口日志和硬件排障不属于默认 runtime smoke 范围。
 
 ### 7. `mpos-package-app`：App 打包
 
@@ -596,7 +596,6 @@ mpos-package-app/
 - `mpos-package-app`
 - `mpos-deploy-app`
 - `mpos-publish-app`
-- `mpos-debug-app`
 
 维护重点：
 

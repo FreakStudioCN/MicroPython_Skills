@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Generate App"
+  short_description: "Generate and repair MPOS app code"
+  default_prompt: "Use $mpos-gen-app to plan, generate, update, or repair a MicroPythonOS app after requirements are confirmed."

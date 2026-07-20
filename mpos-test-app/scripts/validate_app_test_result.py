@@ -27,7 +27,7 @@ def validate(path: Path) -> None:
     require(isinstance(data, dict), "top-level JSON must be an object")
     require(data.get("schema_version") == "mpos-test-app-v1", "schema_version must be mpos-test-app-v1")
     require(data.get("phase") == "test-app", "phase must be test-app")
-    require(data.get("result") in {"success", "partial", "failed"}, "result must be success, partial, or failed")
+    require(data.get("result") in {"success", "partial", "failed", "blocked"}, "result must be success, partial, failed, or blocked")
 
     app = data.get("app")
     require(isinstance(app, dict), "app must be an object")

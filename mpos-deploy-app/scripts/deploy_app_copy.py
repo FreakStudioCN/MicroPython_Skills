@@ -6,21 +6,20 @@ from __future__ import annotations
 import argparse
 import datetime
 import shlex
-import subprocess
+import sys
 from pathlib import Path
 
 from _deploy_common import (
     board_matches,
-    controller_command,
-    installed_apps_code,
     load_app_metadata,
+    mpremote_script,
     normalize_app_metadata,
     make_check,
     query_device_info,
-    query_installed_apps,
     resolve_app_dir,
     resolve_output_dir,
     resolve_repo_arg,
+    run_mpremote,
     safe_fullname,
     write_json,
 )
@@ -55,6 +54,7 @@ def main() -> int:
         app_info = {
             "fullname": fullname,
             "name": fullname,
+            "publisher": "",
             "version": "unknown",
             "app_dir": str(app_dir),
             "manifest": str(app_dir / "MANIFEST.JSON"),
@@ -73,74 +73,91 @@ def main() -> int:
     device = device_probe.get("device", {}) if isinstance(device_probe.get("device"), dict) else {}
     machine = device.get("machine")
     if not device_probe.get("ok"):
-        errors.append("device probe failed")
-    if not board_matches(args.board, machine):
+        warnings.append("MPOS runtime probe failed; continuing with direct mpremote filesystem copy")
+    if machine and not board_matches(args.board, machine):
         errors.append(f"target board mismatch: expected {args.board!r}, got {machine!r}")
     if not device.get("has_mpos"):
-        errors.append("mpos is not available on the target")
+        warnings.append("mpos runtime was not verified on the target; direct copy only proves filesystem deployment")
     warnings.extend(device_probe.get("warnings", []))
-    errors.extend(device_probe.get("errors", []))
+    if device_probe.get("errors"):
+        warnings.extend(device_probe.get("errors", []))
 
-    install_command = controller_command(
-        repo,
-        "installapp",
-        [str(app_dir)],
-        serial_port=args.serial_port,
-        baudrate=args.baudrate,
-        no_reset=args.no_reset,
-    )
+    mpremote_path = str(mpremote_script(repo))
+    mkdir_command = [sys.executable, mpremote_path, "connect", args.serial_port, "fs", "mkdir", ":/apps"]
+    install_command = [
+        sys.executable,
+        mpremote_path,
+        "connect",
+        args.serial_port,
+        "fs",
+        "cp",
+        "-r",
+        str(app_dir),
+        ":/apps/",
+    ]
+    verify_command = [sys.executable, mpremote_path, "connect", args.serial_port, "fs", "ls", f":/apps/{fullname}"]
+    preflight_proc = None
+    mkdir_proc = None
     install_proc = None
+    verify_proc = None
+
     if not errors:
-        install_proc = subprocess.run(
-            install_command,
-            cwd=str(repo),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+        preflight_proc = run_mpremote(
+            repo,
+            ["fs", "ls", ":/"],
+            serial_port=args.serial_port,
+            timeout=min(args.timeout, 60),
+        )
+        if preflight_proc.returncode != 0:
+            errors.append(f"mpremote filesystem preflight failed with {preflight_proc.returncode}")
+            if preflight_proc.stdout:
+                warnings.append(preflight_proc.stdout.strip()[-1000:])
+
+    if not errors:
+        mkdir_proc = run_mpremote(
+            repo,
+            ["fs", "mkdir", ":/apps"],
+            serial_port=args.serial_port,
+            timeout=min(args.timeout, 60),
+        )
+        if mkdir_proc.returncode != 0 and mkdir_proc.stdout:
+            warnings.append("mpremote mkdir :/apps returned non-zero; continuing because the directory may already exist: " + mkdir_proc.stdout.strip()[-500:])
+
+        install_proc = run_mpremote(
+            repo,
+            ["fs", "cp", "-r", str(app_dir), ":/apps/"],
+            serial_port=args.serial_port,
             timeout=args.timeout,
-            check=False,
         )
         if install_proc.returncode != 0:
-            errors.append(f"installapp exited with {install_proc.returncode}")
+            errors.append(f"mpremote app copy exited with {install_proc.returncode}")
             if install_proc.stdout:
                 warnings.append(install_proc.stdout.strip()[-1000:])
 
-    installed_apps = []
     if not errors:
-        verify = query_installed_apps(
+        verify_proc = run_mpremote(
             repo,
-            args.serial_port,
-            baudrate=args.baudrate,
-            no_reset=True,
-            timeout=min(args.timeout, 120),
+            ["fs", "ls", f":/apps/{fullname}"],
+            serial_port=args.serial_port,
+            timeout=min(args.timeout, 60),
         )
-        warnings.extend(verify.get("warnings", []))
-        errors.extend(verify.get("errors", []))
-        if not verify.get("ok"):
-            errors.append("installed app verification failed")
-        else:
-            installed_apps = verify.get("apps", [])
-            if fullname not in installed_apps:
-                errors.append(f"{fullname} not found after install")
+        if verify_proc.returncode != 0:
+            errors.append(f"mpremote verification failed: /apps/{fullname} not listed")
+            if verify_proc.stdout:
+                warnings.append(verify_proc.stdout.strip()[-1000:])
 
     if not app_info.get("name"):
         errors.append("manifest name is missing")
+    if not app_info.get("publisher"):
+        errors.append("manifest publisher is missing")
     if not app_info.get("version"):
         errors.append("manifest version is missing")
 
     result = "failed" if errors else ("partial" if warnings else "success")
-    command_secondary = [
-        shlex.join(
-            controller_command(
-                repo,
-                "exec",
-                [installed_apps_code()],
-                serial_port=args.serial_port,
-                baudrate=args.baudrate,
-                no_reset=True,
-            )
-        )
-    ]
+    target_ok = bool(args.board) and (not machine or board_matches(args.board, machine))
+    preflight_ok = preflight_proc is not None and preflight_proc.returncode == 0
+    deploy_ok = install_proc is not None and install_proc.returncode == 0
+    verify_ok = verify_proc is not None and verify_proc.returncode == 0
     deploy_result = {
         "schema_version": "mpos-deploy-app-v1",
         "phase": "deploy",
@@ -159,46 +176,47 @@ def main() -> int:
             "web_url": None,
         },
         "command": {
-            "primary": shlex.join(install_command),
-            "secondary": command_secondary,
+            "primary": shlex.join(mkdir_command) + " && " + shlex.join(install_command),
+            "secondary": [shlex.join(verify_command)],
         },
         "checks": [
             make_check(
                 "target_confirmation",
                 True,
-                board_matches(args.board, machine),
-                "confirmed" if board_matches(args.board, machine) else "failed",
-                warnings=[],
-                errors=[] if board_matches(args.board, machine) else [f"expected {args.board!r}, got {machine!r}"],
+                target_ok,
+                "confirmed" if machine else "user_confirmed_unverified",
+                warnings=[] if machine else ["board was confirmed by user but could not be probed from os.uname().machine"],
+                errors=[] if target_ok else [f"expected {args.board!r}, got {machine!r}"],
                 expected_board=args.board,
                 observed_board=machine,
             ),
             make_check(
                 "preflight",
                 True,
-                device_probe.get("ok", False) and device.get("has_mpos", False),
-                "passed" if device_probe.get("ok") and device.get("has_mpos") else "failed",
+                preflight_ok,
+                "passed" if preflight_ok else "failed",
                 warnings=device_probe.get("warnings", []),
-                errors=device_probe.get("errors", []),
+                errors=[] if preflight_ok else ["mpremote could not list target root filesystem"],
                 machine=machine,
+                has_mpos=bool(device.get("has_mpos")),
                 app_count=device.get("app_count"),
             ),
             make_check(
                 "deployment_action",
                 True,
-                install_proc is not None and install_proc.returncode == 0,
-                "passed" if install_proc is not None and install_proc.returncode == 0 else "failed",
-                warnings=[install_proc.stdout.strip()] if install_proc and install_proc.stdout and install_proc.returncode != 0 else [],
-                errors=[] if install_proc is not None and install_proc.returncode == 0 else ["installapp did not complete successfully"],
-                installed_path=str(app_dir),
+                deploy_ok,
+                "passed" if deploy_ok else "failed",
+                warnings=[] if mkdir_proc is None or mkdir_proc.returncode == 0 else ["mkdir :/apps returned non-zero; copy was still attempted"],
+                errors=[] if deploy_ok else ["mpremote app copy did not complete successfully"],
+                installed_path=f"/apps/{fullname}",
             ),
             make_check(
                 "post_deploy_refresh",
                 True,
-                fullname in installed_apps,
-                "passed" if fullname in installed_apps else "failed",
-                warnings=[],
-                errors=[] if fullname in installed_apps else [f"{fullname} was not visible after refresh"],
+                verify_ok,
+                "filesystem_verified" if verify_ok else "failed",
+                warnings=[] if verify_ok else ["AppManager refresh was not used for direct-copy mode"],
+                errors=[] if verify_ok else [f"{fullname} was not visible at /apps/{fullname} after copy"],
             ),
         ],
         "warnings": warnings,
@@ -211,12 +229,12 @@ def main() -> int:
             "next_step": (
                 "Prepare the manual upystore publishing handoff."
                 if result in {"success", "partial"}
-                else "Retry deployment after checking the board, port, and device state."
+                else "Retry deployment after checking the board, port, filesystem, and MicroPythonOS install state."
             ),
             "reason": (
-                "The app was copied to the target device and the publish-chain deploy record is available."
+                "The app directory was copied to /apps with direct mpremote filesystem copy."
                 if result in {"success", "partial"}
-                else "Device copy did not produce a usable deploy record."
+                else "Direct mpremote copy did not produce a usable deploy record."
             ),
         },
     }

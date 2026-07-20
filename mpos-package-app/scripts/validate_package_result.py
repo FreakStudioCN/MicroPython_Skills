@@ -93,7 +93,7 @@ def validate(root: Any) -> list[str]:
     check_string(obj.get("created_at_utc"), "created_at_utc", errors)
 
     app = require_object(obj.get("app"), "app", errors)
-    for key in ("fullname", "name", "version", "app_dir", "manifest", "icon", "layout"):
+    for key in ("fullname", "name", "publisher", "version", "app_dir", "manifest", "icon", "layout"):
         check_string(app.get(key), f"app.{key}", errors)
 
     inputs = require_object(obj.get("inputs"), "inputs", errors)

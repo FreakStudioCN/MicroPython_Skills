@@ -6,6 +6,7 @@
   "app": {
     "fullname": "com.micropythonos.example",
     "name": "Example",
+    "publisher": "com.micropythonos",
     "version": "1.0.0",
     "app_dir": "internal_filesystem/apps/com.micropythonos.example",
     "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",
@@ -24,7 +25,7 @@
     "web_url": null
   },
   "command": {
-    "primary": "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python <repo-root>/scripts/mpos_controller.py --serial-port /dev/ttyACM0 installapp <repo-root>/internal_filesystem/apps/com.micropythonos.example",
+    "primary": "PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python <repo-root>/lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py connect /dev/ttyACM0 fs cp -r <repo-root>/internal_filesystem/apps/com.micropythonos.example :/apps/",
     "secondary": []
   },
   "checks": [

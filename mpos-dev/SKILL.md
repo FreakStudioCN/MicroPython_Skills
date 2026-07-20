@@ -1,13 +1,13 @@
 ---
 name: mpos-dev
-description: MicroPythonOS 基础开发知识库。提供代码架构、App/MPK 约束、LVGL 编程约定、MPY API reference、官方 docs 专题 reference、AGENTS 本地强约束。mpos-plan-app / mpos-analyze-app / mpos-prepare-deps / mpos-gen-app / mpos-debug-app / mpos-test-app / mpos-package-app / mpos-deploy-app / mpos-publish-app 均依赖此 skill。
+description: MicroPythonOS 基础开发知识库。提供代码架构、App/MPK 约束、LVGL 编程约定、MPY API reference、官方 docs 专题 reference、AGENTS 本地强约束。mpos-plan-app / mpos-analyze-app / mpos-prepare-deps / mpos-gen-app / mpos-test-app / mpos-package-app / mpos-deploy-app / mpos-publish-app 均依赖此 skill。
 ---
 
 # MicroPythonOS 基础开发知识库
 
 ## 角色定位
 
-这是 mpos-* skill 家族的共享基础层。不要直接调用此 skill——请使用 `mpos-plan-app`（对话编排）、`mpos-analyze-app`（需求分析）、`mpos-prepare-deps`（依赖准备）、`mpos-gen-app`（生成 App）、`mpos-debug-app`（调试 App）、`mpos-test-app`（测试 App）、`mpos-package-app`（打包）、`mpos-deploy-app`（部署/仿真/安装/烧录）、`mpos-publish-app`（发布指导）。
+这是 mpos-* skill 家族的共享基础层。不要直接调用此 skill——请使用 `mpos-plan-app`（对话编排）、`mpos-analyze-app`（需求分析）、`mpos-prepare-deps`（依赖准备）、`mpos-gen-app`（生成 App）、`mpos-test-app`（测试 App）、`mpos-package-app`（打包）、`mpos-deploy-app`（部署/仿真/安装/烧录）、`mpos-publish-app`（发布指导）。
 
 ## 用户语言连续性
 
@@ -82,7 +82,7 @@ MicroPythonOS/
 
 ## 参考文件路由（按需查阅）
 
-在编写任何 MicroPythonOS 代码前，**必须先查阅**以下 API 参考文件了解可用 API：
+在编写任何 MicroPythonOS App 代码前，**必须全量查阅并使用**以下 API 参考文件了解可用 API；不能因为任务看起来简单而省略其中任一项：
 
 | 参考文件 | 内容 | 生成方式 |
 |---------|------|---------|
@@ -100,6 +100,9 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-dev/scripts/extract_lvgl_api.p
 
 ### API reference 使用规则
 
+- 每个 `lv.X`、`lv.X.Y`、`obj.method()`、`mpos.X` 调用都必须能在 `mpos_api_summary.json` / `lvgl_api_summary.json` 中找到，或有当前仓库源码证据。`description` 为空不代表可自由猜测；必须继续看 docs/reference、仓库现有 App 或源码。
+- 生成/修改 App 后必须运行 `mpos-gen-app/scripts/check_app_api_usage.py`，把结果记录到 `generation_result.validation.gates[]` 的 `api_usage`。
+- 如果某个 LVGL widget 在当前仓库 `internal_filesystem/apps` 和 `internal_filesystem/builtin/apps` 中没有任何用例，必须把它列为 warning，并优先考虑普通 `lv.button` + flex/grid 等有先例的替代实现。
 - MPOS API reference 只表示 MicroPython 用户可 import/call 的接口。native 模块只按 `adc_mic`、`pdm_mic`、`qrdecode`、`rvswd`、`webcam` 的 MPY 调用形态使用，不从 `c_mpos` 推断 C 函数。
 - LVGL 代码生成以 `lvgl_api_summary.json` 的 `symbols[]` 为主，优先使用 `kind == "enum"`、`kind == "enum_member"`、`kind == "widget"`、`kind == "function"` 的符号。
 - `type_aliases[]` 只解释签名类型。`runtime_api: false` 表示不能生成 `lv.<alias>`；有 `runtime_enum` 时生成对应 enum class member，例如 `event_code_t -> lv.EVENT.CLICKED`、`display_render_mode_t -> lv.DISPLAY_RENDER_MODE.PARTIAL`、`grad_dir_t -> lv.GRAD_DIR.VER`、`fs_whence_t -> lv.FS_SEEK.SET`。
@@ -133,6 +136,7 @@ internal_filesystem/apps/<fullname>/
 
 - 旧 `META-INF/MANIFEST.JSON` 和 `res/mipmap-mdpi/icon_64x64.png` 仅作为兼容布局保留；新生成 App 不使用旧布局。
 - App 目录名必须等于 manifest 的 `fullname`。
+- `publisher` 是必填字段，必须是非空字符串；默认可用 `fullname` 的组织前缀，例如 `com.example`，不要等到 upystore 上传时报 `MISSING_FIELD`。
 - `version` 必须是规范整数点号字符串，例如 `1.0.0`。
 - activity/service 的 `entrypoint` 必须以 `.py` 结尾、文件必须存在，并且源码中必须包含对应 `classname`。
 - 新生成的 activity/service metadata 使用完整对象：`classname`、`entrypoint`、`intent_filters`；不要使用 storefront seed 数据里的字符串型 `activities`。
@@ -174,8 +178,9 @@ internal_filesystem/apps/<fullname>/
 - label: `label.set_long_mode(lv.label.LONG_MODE.WRAP)` 不是 `lv.label.LONG.WRAP`
 - msgbox: `msgbox = lv.msgbox()` 然后 `msgbox.add_title("title")`
 - buttonmatrix: `lv.buttonmatrix.CTRL.CHECKABLE` / `lv.buttonmatrix.CTRL.CHECKED`
+- buttonmatrix: `set_map()` 的参数必须是 `list[str]`，行与行用单独的 `"\n"` 元素分隔，末尾必须有 `""` 终止符，例如 `["7", "8", "9", "\n", "4", "5", "6", ""]`
 - buttonmatrix: `set_map()` 会异步触发 `LV_EVENT_VALUE_CHANGED`，需用时间防抖 `time.ticks_diff(now, last_ts) < 50`
-- buttonmatrix: 没有 `set_button_text()` / `set_button_ctrl()`，更新文本需重建 map
+- buttonmatrix: 不存在 `set_button_text()`；更新文本需重建 map。`set_button_ctrl()` / `clear_button_ctrl()` 是否可用和签名必须以 `lvgl_api_summary.json` 为准
 - dropdown: 使用 `lv.dropdown(lst, lv.DROPDOWN.DIR.BOTTOM)`（大写 DIR）
 - anim: `lv.anim_t.path_ease_in_out` 不是 `lv.anim_path_ease_in_out`
 - 无 `get_child_by_type()`，用全局变量保存子对象引用
@@ -259,6 +264,8 @@ prog.v20x_program(firmware, progress_callback)
 ## 强约束
 
 - **优先查阅 API 参考文件**：人读用 `reference/mpos-api-reference.md` / `reference/lvgl-api-reference.md`，机器检索用 `reference/mpos_api_summary.json` / `reference/lvgl_api_summary.json`；信息不足或过期时运行提取脚本
+- **API 参考必须全量读取**：mpos 相关 skill 生成、分析、测试、打包、部署、发布 App 时，不能因为任务简单跳过 `mpos_api_summary.json` 或 `lvgl_api_summary.json`
+- **只改目标 App**：除 `internal_filesystem/apps/<fullname>/` 和 `tmp/mpos-*` artifact 外，不修改 MPOS OS/build/framework/已有 App 代码；每次 App 代码生成或修复后运行 `scripts/check_app_only_changes.py`
 - **所有 LVGL 代码必须遵守上文 LVGL 编程约定**，逐条对照
 - **Activity.__init__ 必须调用 super().__init__()**
 - **新 label 必须显式 set_text("")**
@@ -266,7 +273,8 @@ prog.v20x_program(firmware, progress_callback)
 - **不硬编码屏幕分辨率**，使用 `lv.pct(100)`
 - **不绕过框架 API**：持久化用 SharedPreferences，不要直接操作 json 文件
 - **不修改 AGENTS.md 或 ruff.toml**
-- **不污染主仓库**：除新增/修改目标 App 或用户明确允许外，不修改 `/home/leeqingshui/MicroPythonOS` 的 OS/build 源码；build、simulator、desktop-preview、web-preview、联调测试默认使用隔离 clone/worktree/临时副本
+- **不污染主仓库**：除新增/修改目标 App 或用户明确允许外，不修改 `/home/leeqingshui/MicroPythonOS` 的 OS/build 源码；build、simulator、desktop-preview、web-preview、web build、联调测试默认使用隔离 clone/worktree/临时副本
+- **真机前确认 OS 状态**：涉及物理设备运行、安装或发布验证时，先确认设备是否已经安装 MicroPythonOS；未安装或不确定时提示 `https://install.micropythonos.com/`
 - **用户可见输出延续起始语言**：中文开始就继续中文，英文开始就继续英文；代码、命令、路径、API 名和 JSON 字段名保持英文
 - **临时文件放 tmp/，不放 /tmp**
 - **杀死进程用 killall，不用 pkill -f**

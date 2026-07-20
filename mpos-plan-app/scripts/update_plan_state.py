@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 
-FALLBACK_REPO = Path("/home/leeqingshui/MicroPythonOS")
 STATE_ROOT = Path("tmp/mpos-plan-app")
 SCHEMA_VERSION = "mpos-plan-app-v1"
 ARTIFACT_BY_SCHEMA = {
@@ -40,14 +39,31 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def default_repo() -> Path:
+def is_repo_root(path: Path) -> bool:
+    return (path / "internal_filesystem" / "apps").is_dir() and (path / "scripts").is_dir()
+
+
+def default_repo() -> Path | None:
     env_repo = os.environ.get("MPOS_REPO")
     if env_repo:
         return Path(env_repo)
     cwd = Path.cwd()
-    if (cwd / "internal_filesystem" / "apps").is_dir() and (cwd / "scripts").is_dir():
+    if is_repo_root(cwd):
         return cwd
-    return FALLBACK_REPO
+    return None
+
+
+def resolve_repo_arg(value: str | None) -> Path:
+    repo = Path(value).expanduser() if value else default_repo()
+    if repo is None:
+        raise SystemExit(
+            "ERROR: --repo is required when the current directory is not a MicroPythonOS repo "
+            "and MPOS_REPO is unset"
+        )
+    repo = repo.resolve()
+    if not is_repo_root(repo):
+        raise SystemExit(f"ERROR: not a MicroPythonOS repo root: {repo}")
+    return repo
 
 
 def load_json(path: Path) -> Any:
@@ -267,7 +283,7 @@ def parse_artifact_arg(value: str) -> tuple[str | None, str]:
 
 
 def record(args: argparse.Namespace) -> dict[str, Any]:
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     fullname = infer_fullname(repo, args)
     state = load_state(repo, fullname)
     event_artifacts: dict[str, str] = {}
@@ -336,7 +352,7 @@ def record(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def invalidate(args: argparse.Namespace) -> dict[str, Any]:
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     fullname = infer_fullname(repo, args)
     state = load_state(repo, fullname)
     scopes = list(args.scope or [])
@@ -388,7 +404,7 @@ def invalidate(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def cmd_discover(args: argparse.Namespace) -> dict[str, Any]:
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     result = discover_fullname(repo)
     selected = result.get("selected_fullname")
     if selected:
@@ -402,10 +418,10 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     discover_parser = subparsers.add_parser("discover", help="Discover the most recent MPOS App project")
-    discover_parser.add_argument("--repo", default=str(default_repo()))
+    discover_parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
 
     record_parser = subparsers.add_parser("record", help="Record a skill event and update plan_state.json")
-    record_parser.add_argument("--repo", default=str(default_repo()))
+    record_parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     record_parser.add_argument("--fullname")
     record_parser.add_argument("--auto-fullname", action="store_true")
     record_parser.add_argument("--skill", required=True)
@@ -418,7 +434,7 @@ def main() -> int:
     record_parser.add_argument("--blocking-question", action="append")
 
     invalidate_parser = subparsers.add_parser("invalidate", help="Record proposed or confirmed artifact invalidation")
-    invalidate_parser.add_argument("--repo", default=str(default_repo()))
+    invalidate_parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     invalidate_parser.add_argument("--fullname")
     invalidate_parser.add_argument("--auto-fullname", action="store_true")
     invalidate_parser.add_argument("--reason", required=True)

@@ -14,11 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from emit_app_index_entry import DEFAULT_BASE_URL, emit_entry
-from validate_mpos_app import resolve_app_dir, validate_app
+from validate_mpos_app import resolve_app_dir, resolve_repo_arg, validate_app
 from validate_mpk import validate_mpk
 
 
-DEFAULT_REPO = Path("/home/leeqingshui/MicroPythonOS")
 FIXED_ZIP_TIME = (2025, 1, 1, 0, 0, 0)
 COMPRESSION_TYPES = {
     "stored": zipfile.ZIP_STORED,
@@ -185,7 +184,7 @@ def _check_from_validation(name: str, validation: dict[str, Any], required: bool
 
 
 def package_app(args: argparse.Namespace) -> dict[str, Any]:
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     app_dir = resolve_app_dir(repo, args.app_fullname, args.app_dir).resolve()
     output_dir = Path(args.output_dir).resolve() if args.output_dir else (
         repo / "tmp" / "mpos-package-app" / (args.app_fullname or app_dir.name)
@@ -207,6 +206,7 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
     fullname = app_info.get("fullname") or args.app_fullname or app_dir.name
     version = app_info.get("version")
     name = app_info.get("name")
+    publisher = app_info.get("publisher")
 
     gen_check, gen_warnings = _load_optional_result(
         args.generation_result,
@@ -317,6 +317,7 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
         "app": {
             "fullname": fullname,
             "name": name,
+            "publisher": publisher,
             "version": version,
             "app_dir": _display_path(app_dir, repo),
             "manifest": app_info.get("manifest"),
@@ -353,7 +354,7 @@ def package_app(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     parser.add_argument("--app-fullname", help="App fullname")
     parser.add_argument("--app-dir", help="Explicit App directory")
     parser.add_argument("--output-dir", help="Package output directory")
@@ -377,8 +378,9 @@ def main() -> int:
     for error in result.get("errors", []):
         print(f"ERROR: {error}", file=sys.stderr)
 
-    package_result_path = Path(args.output_dir).resolve() / "package_result.json" if args.output_dir else (
-        Path(args.repo).resolve() / "tmp" / "mpos-package-app" / (args.app_fullname or result["app"]["fullname"]) / "package_result.json"
+    package_result_path = next(
+        (artifact["path"] for artifact in result.get("artifacts", []) if artifact.get("kind") == "package_result"),
+        "package_result.json",
     )
     print(f"{result['result'].upper()}: {package_result_path}")
     return 0 if result["result"] in {"success", "partial"} else 1

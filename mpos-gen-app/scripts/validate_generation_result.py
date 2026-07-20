@@ -13,11 +13,14 @@ REQUIRED_GATES_FOR_SUCCESS = {
     "cpython_syntax",
     "mpy_syntax",
     "mpy_imports",
+    "api_usage",
     "make_lint",
     "flake8",
     "pylint",
+    "app_only_changes",
 }
 PYLINT_STRONG_FAIL_BITS = 1 | 2 | 32
+RESULTS = {"planned", "success", "partial", "failed", "blocked"}
 
 
 def fail(message: str) -> None:
@@ -58,10 +61,10 @@ def _gate_errors(data: dict) -> list[str]:
         if not isinstance(returncode, int):
             errors.append(f"{name}: returncode must be an integer")
             continue
-        if name == "pylint":
+        if data.get("result") == "success" and name == "pylint":
             if returncode & PYLINT_STRONG_FAIL_BITS:
                 errors.append(f"{name}: fatal/error/usage pylint bits are set in returncode {returncode}")
-        elif gate.get("required", True) and returncode != 0:
+        elif data.get("result") == "success" and gate.get("required", True) and returncode != 0:
             errors.append(f"{name}: required gate failed with returncode {returncode}")
 
     if data.get("result") == "success" and data.get("mode") != "plan":
@@ -76,11 +79,14 @@ def validate(path: Path) -> None:
     require(data.get("schema_version") == "mpos-gen-app-v1", "schema_version must be mpos-gen-app-v1")
     require(data.get("phase") == "generate", "phase must be generate")
     require(data.get("mode") in {"plan", "create", "update", "repair"}, "mode must be plan, create, update, or repair")
-    require(data.get("result") in {"success", "partial", "failed"}, "result must be success, partial, or failed")
+    require(data.get("result") in RESULTS, "result must be planned, success, partial, failed, or blocked")
     require(isinstance(data.get("confirmed_by_user"), bool), "confirmed_by_user must be boolean")
 
     if data["mode"] == "plan":
         require(data["confirmed_by_user"] is False, "plan mode must not be confirmed_by_user=true")
+        require(data["result"] in {"planned", "partial", "failed", "blocked"}, "plan mode must not use result=success")
+    elif data["result"] == "planned":
+        require(False, "result=planned is only valid in plan mode")
     elif data["result"] == "success":
         require(data["confirmed_by_user"] is True, "successful write modes require confirmed_by_user=true")
 
@@ -88,6 +94,8 @@ def validate(path: Path) -> None:
     require(isinstance(app, dict), "app must be an object")
     fullname = app.get("fullname")
     require(isinstance(fullname, str) and fullname, "app.fullname is required")
+    publisher = app.get("publisher")
+    require(isinstance(publisher, str) and publisher.strip(), "app.publisher is required")
     app_dir = app.get("app_dir")
     require(isinstance(app_dir, str) and app_dir.endswith(fullname), "app.app_dir must end with app.fullname")
     manifest = app.get("manifest")

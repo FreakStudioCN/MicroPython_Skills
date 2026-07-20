@@ -34,6 +34,8 @@ For publish flow without physical hardware, `desktop-preview` or `web-preview` i
 
 ## Read first
 
+- `mpos-dev/reference/mpos_api_summary.json`
+- `mpos-dev/reference/lvgl_api_summary.json`
 - `mpos-dev/reference/docs-deploy-targets.md`
 - `mpos-dev/reference/docs-web-port.md`
 - `mpos-dev/reference/docs-packaging.md`
@@ -46,16 +48,20 @@ For publish flow without physical hardware, `desktop-preview` or `web-preview` i
 - `<repo-root>/scripts/flash_over_usb.sh`
 - `<repo-root>/scripts/mpos_controller.py`
 
+Read the two API summary JSON files completely even for preview/deploy-only work. They are required shared context for MPOS App identity, AppManager/install semantics, and avoiding stale API assumptions.
+
 ## Default flow
 
 1. Before every deploy run, ask whether a physical device and serial port are available. Do not silently choose desktop or web preview.
 2. Confirm the target mode first. Do not assume desktop, web, device copy, MPK install, install-site guidance, or local flash.
-3. For any device or flash path, explicitly confirm the board model and serial port before doing anything. Do not reuse stale board state.
-4. If the user wants firmware install or erase, route them to `https://install.micropythonos.com/` by default. That site can identify supported boards itself; local flash is only allowed when the user explicitly says `允许本机执行 flash`.
+3. For any device or flash path, explicitly confirm the board model, serial port, and whether MicroPythonOS is already installed. Do not reuse stale board state.
+4. If MicroPythonOS is not installed or the user is unsure, route them to `https://install.micropythonos.com/` first. That site can identify supported ESP32/ESP32-S3 boards itself; local flash is only allowed when the user explicitly says `允许本机执行 flash`.
 5. Desktop launch is preview only. Do not treat it as a smoke-test gate or a replacement for `mpos-test-app`.
    Use `scripts/launch_desktop_preview.py` or `scripts/run_desktop.sh` for the manual launch path.
 6. Web preview should serve existing `web/` artifacts with `scripts/run_web.sh --no-build`. If artifacts are missing, pause and ask whether to build.
-7. Device install has two paths: direct app copy with `mpremote` or `mpos_controller.py installapp`, or MPK install by uploading the MPK to the device and calling `AppManager.install_mpk()`. Prefer MPK install for release verification.
+7. Device install has two paths:
+   - `device-copy`: primary recovery/iteration path. Use direct `mpremote connect <port> fs cp -r <app_dir> :/apps/` and verify `:/apps/<fullname>`. This path can succeed even when `mpos_controller.py` / AIOREPL probing fails, but it only proves filesystem deployment unless MPOS runtime is later verified.
+   - `mpk-install`: release-verification path. Upload the MPK and call `AppManager.install_mpk()` only after the target can import `mpos` and the runtime probe succeeds.
 8. Always write `deploy_result.json` and validate it before handing off. Use `--output-dir` only for directories; never pass a `deploy_result.json` file path as `--output-dir`.
 9. In the publish chain, successful or partial deploy/preview records normally hand off to `mpos-publish-app`; do not send the user back to `mpos-test-app` unless they explicitly ask for another runtime smoke check.
 
@@ -77,6 +83,29 @@ For publish flow without physical hardware, `desktop-preview` or `web-preview` i
 - `scripts/serve_web_preview.py`
 - `scripts/validate_deploy_result.py`
 
+Typical physical App copy command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-deploy-app/scripts/deploy_app_copy.py \
+  --repo <repo-root> \
+  --app-fullname <fullname> \
+  --board <board> \
+  --serial-port <port>
+```
+
+Typical MPK install command, only when MicroPythonOS runtime probing succeeds:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-deploy-app/scripts/deploy_mpk_install.py \
+  --repo <repo-root> \
+  --app-fullname <fullname> \
+  --mpk-path <repo-root>/tmp/mpos-package-app/<fullname>/<fullname>_r1.mpk \
+  --board <board> \
+  --serial-port <port>
+```
+
 ## Output
 
 Use `templates/deploy_result.json` as the shape. Record the chosen mode, `hardware_available`, board, port, command, result, warnings, artifacts, and next step. For preview-only modes set `hardware_available=false`; for device or flash modes set it to `true`.
@@ -96,4 +125,5 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - Do not login or upload anywhere.
 - Do not auto-build web artifacts unless the user confirms.
 - Do not local-flash or erase unless the user explicitly allowed it.
+- Do not accept `desktop-preview` or `web-preview` as the deploy record until the user confirms no physical device/serial port is available.
 - Use the built-in MicroPythonOS tools only.

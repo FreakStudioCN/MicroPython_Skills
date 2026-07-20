@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -14,7 +15,6 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-DEFAULT_REPO = Path("/home/leeqingshui/MicroPythonOS")
 DEFAULT_OUTPUT_ROOT = Path("tmp/mpos-publish-app")
 APP_INDEX_URL = "https://upystore.io/app_index.json"
 API_APPS_URL = "https://upystore.io/api/v1/apps"
@@ -26,6 +26,33 @@ MPK_RELEASE_RE = re.compile(r"^(?P<fullname>[A-Za-z0-9_.-]+)_r(?P<revision>[1-9]
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def is_repo_root(path: Path) -> bool:
+    return (path / "internal_filesystem" / "apps").is_dir() and (path / "scripts").is_dir()
+
+
+def default_repo() -> Path | None:
+    env_repo = os.environ.get("MPOS_REPO")
+    if env_repo:
+        return Path(env_repo)
+    cwd = Path.cwd()
+    if is_repo_root(cwd):
+        return cwd
+    return None
+
+
+def resolve_repo_arg(value: str | None) -> Path:
+    repo = Path(value).expanduser() if value else default_repo()
+    if repo is None:
+        raise SystemExit(
+            "ERROR: --repo is required when the current directory is not a MicroPythonOS repo "
+            "and MPOS_REPO is unset"
+        )
+    repo = repo.resolve()
+    if not is_repo_root(repo):
+        raise SystemExit(f"ERROR: not a MicroPythonOS repo root: {repo}")
+    return repo
 
 
 def load_json(path: str | Path) -> Any:
@@ -210,8 +237,25 @@ def load_required_result(path_text: str, expected_schema: str, expected_phase: s
         warnings.append(f"{path} result is partial; publishing continues with warning")
     elif result != "success":
         errors.append(f"{path} result is {result!r}")
+    errors.extend(required_check_failures(data, name))
     status = "passed" if not errors and not warnings else ("warning" if not errors else "failed")
     return data, make_check(name, True, not errors, status, warnings, errors, path=path_text)
+
+
+def required_check_failures(data: dict[str, Any], input_name: str) -> list[str]:
+    errors: list[str] = []
+    checks = data.get("checks", [])
+    if not isinstance(checks, list):
+        return [f"{input_name}.checks must be a list"]
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict):
+            errors.append(f"{input_name}.checks[{index}] must be an object")
+            continue
+        if check.get("required") is True and check.get("ok") is not True:
+            check_name = check.get("name") or f"checks[{index}]"
+            status = check.get("status")
+            errors.append(f"{input_name}.{check_name} required check did not pass (status={status!r})")
+    return errors
 
 
 def read_app_index_entry(repo: Path, package_result: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
@@ -317,13 +361,14 @@ def app_from_results(package_result: dict[str, Any], app_test_result: dict[str, 
     app = {
         "fullname": fullname or "",
         "name": package_app.get("name") or deploy_app.get("name") or fullname or "",
+        "publisher": package_app.get("publisher") or deploy_app.get("publisher") or "",
         "version": package_app.get("version") or deploy_app.get("version") or "",
         "app_dir": package_app.get("app_dir") or deploy_app.get("app_dir") or test_app.get("app_dir") or "",
         "manifest": package_app.get("manifest") or deploy_app.get("manifest") or "",
         "icon": package_app.get("icon") or deploy_app.get("icon") or "",
         "layout": package_app.get("layout") or deploy_app.get("layout") or "unknown",
     }
-    for key in ("fullname", "name", "version", "app_dir", "manifest", "icon"):
+    for key in ("fullname", "name", "publisher", "version", "app_dir", "manifest", "icon"):
         if not app.get(key):
             errors.append(f"app.{key} is missing from upstream results")
     return app, warnings, errors
@@ -379,7 +424,7 @@ def choose_handoff(errors: list[str]) -> tuple[str | None, str, str]:
 
 
 def prepare_publish(args: argparse.Namespace) -> dict[str, Any]:
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     package_result, package_check = load_required_result(args.package_result, "mpos-package-app-v1", "package", "package_result")
     app_test_result, test_check = load_required_result(args.app_test_result, "mpos-test-app-v1", "test-app", "app_test_result")
     deploy_result, deploy_check = load_required_result(args.deploy_result, "mpos-deploy-app-v1", "deploy", "deploy_result")
@@ -513,7 +558,7 @@ def prepare_publish(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", default=str(DEFAULT_REPO), help="MicroPythonOS repository root")
+    parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     parser.add_argument("--package-result", required=True, help="mpos-package-app package_result.json")
     parser.add_argument("--app-test-result", required=True, help="mpos-test-app app_test_result.json")
     parser.add_argument("--deploy-result", required=True, help="mpos-deploy-app deploy_result.json")

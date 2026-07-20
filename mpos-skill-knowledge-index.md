@@ -1,7 +1,7 @@
 # MicroPythonOS Skill 知识索引
 
 生成日期：2026-07-14
-最近更新：2026-07-17
+最近更新：2026-07-20
 
 这个文件是本次对话中形成的 MicroPythonOS / LVGL / mpos-* skill 知识总入口。它不是某一个具体 skill 的执行说明，而是给后续维护者和 Codex 快速定位资料用的索引：哪些目录是源头，哪些文件是参考文档，哪些 API 是脚本提取的，哪些外部站点需要重新同步。
 
@@ -10,7 +10,7 @@
 ## 1. 总体结论
 
 - `mpos-dev` 应继续作为 `mpos-*` skill 家族的共享基础层，放置 MicroPythonOS 架构、LVGL 约定、官方 docs 专题参考、API 提取脚本和生成出的 reference 文件。
-- 当前 `mpos-*` 主链已经补齐为：`mpos-plan-app` -> `mpos-analyze-app` -> `mpos-prepare-deps` -> `mpos-gen-app` -> `mpos-test-app` -> `mpos-package-app` -> `mpos-deploy-app` -> `mpos-publish-app`，外加共享 `mpos-dev` 和运行时排障用 `mpos-debug-app`。
+- 当前 `mpos-*` 主链已经补齐为：`mpos-plan-app` -> `mpos-analyze-app` -> `mpos-prepare-deps` -> `mpos-gen-app` -> `mpos-test-app` -> `mpos-package-app` -> `mpos-deploy-app` -> `mpos-publish-app`，外加共享 `mpos-dev`。
 - 所有面向单个 App 的阶段 skill 应统一维护 `<repo-root>/tmp/mpos-plan-app/<fullname>/plan_state.json` 和 `activity_log.jsonl`，并通过 `mpos-plan-app/scripts/update_plan_state.py` 登记阶段产物，便于中断、恢复、用户改需求和 AI 调试。
 - 新 App 默认使用 flat 布局：`MANIFEST.JSON`、`icon_64x64.png`、`assets/*.py`。旧 `META-INF/MANIFEST.JSON` 和 `res/mipmap-mdpi/icon_64x64.png` 只做兼容读取，并必须 warning。
 - `/home/leeqingshui/MicroPythonOS` 主仓库应尽量保持和上游一致。build、desktop simulator、web preview、联调测试默认放在隔离 clone/worktree/临时副本中；除新增 App 或用户明确允许外，不修改 OS/build 源码。
@@ -18,7 +18,7 @@
 - `web.micropythonos.com` 属于 WebAssembly/browser runtime 资料，应同时出现在 `mpos-dev/reference/docs-web-port.md` 和根级分析文件 `mpos-conversational-skills-analysis.md` 的路线图中。
 - LVGL API 的源头应是编译/生成后的 MicroPython stub：`/home/leeqingshui/lvgl_micropython/lvgl.pyi`，不是直接从 LVGL C 头文件猜 API。
 - MicroPythonOS API 提取应只提取 MicroPython 可见 API：native MicroPython 模块的 import/call 形态、模块 globals、type locals、以及 `mpos.__all__` 导出的 Python API；不要把内部实现函数、底层签名或实现源文件当成公开 API。
-- 机器检索优先用 JSON，人读和 Codex 快速扫读需要 MD。当前已补齐 `mpos_api_summary.json`、`mpos-api-reference.md`、`lvgl_api_summary.json` 与 `lvgl-api-reference.md`。
+- 机器检索优先用 JSON，人读和 Codex 快速扫读需要 MD。当前已补齐 `mpos_api_summary.json`、`mpos-api-reference.md`、`lvgl_api_summary.json` 与 `lvgl-api-reference.md`；mpos 相关 skill 必须完整读取 API summary，不能按任务难度省略。
 
 ## 2. 本地根目录
 
@@ -38,12 +38,11 @@
 - `mpos-plan-app/`：对话式入口和状态机，负责阶段编排、中断恢复、失效清单确认和默认跑到发布交接。
 - `mpos-analyze-app/`：把自然语言需求转成 App 身份、manifest 草案、Activity/Service 计划、依赖风险和测试/部署计划。
 - `mpos-prepare-deps/`：准备应用层纯 Python/MPY 依赖，缓存搜索结果，支持 async/aio/uasyncio 搜索策略；同步库必须标 `sync_needs_adapter=true` 交给生成阶段做非阻塞封装。
-- `mpos-gen-app/`：两阶段生成、更新、修复 App 文件；强制先输出计划并等待确认，执行后立即跑 manifest、syntax、MPY import、`make lint`、flake8、pylint 等静态门禁并产出 `generation_result.json`。
-- `mpos-test-app/`：只做目标 App 的 MPOS runtime smoke/可选 Web Port 检查，使用 MicroPythonOS 内置 `run_desktop.sh`、`mpos_controller.py` 等工具；不拥有静态 lint/manifest 门禁。
+- `mpos-gen-app/`：两阶段生成、更新、修复 App 文件；强制先输出计划并等待确认，执行后立即跑 manifest、syntax、MPY import、API usage、`make lint`、flake8、pylint、App-only 变更检查等静态门禁并产出 `generation_result.json`。
+- `mpos-test-app/`：只做目标 App 的 MPOS runtime smoke/可选 Web Port 检查，使用 MicroPythonOS 内置 `run_desktop.sh`、`mpos_controller.py` 等工具；不拥有静态 lint/manifest/API 门禁，但必须复核 `generation_result.json` 已记录这些门禁。
 - `mpos-package-app/`：生成单 App `.mpk`、`app_index_entry.json` 和 `package_result.json`，默认 `stored` 压缩；测试缺失或失败时可继续打包但必须 warning。
-- `mpos-deploy-app/`：只做部署/预览路径，包括 desktop-preview、web-preview、device-copy、mpk-install、install-site、local-flash；desktop/manual launch 只是可选预览，不是 smoke gate。
+- `mpos-deploy-app/`：只做部署/预览路径，包括 desktop-preview、web-preview、device-copy、mpk-install、install-site、local-flash；先确认物理设备、串口和 MicroPythonOS 安装状态，desktop/manual launch 只是可选预览，不是 smoke gate。
 - `mpos-publish-app/`：只做 upystore 发布指导和校验，必须同时读取 `package_result.json`、`app_test_result.json`、`deploy_result.json`，并产出 `publish_result.json`；不登录、不上传。
-- `mpos-debug-app/`：运行时排障和人工诊断辅助，不作为 `mpos-test-app` 默认前置。
 
 ### `/home/leeqingshui/MicroPythonOS`
 

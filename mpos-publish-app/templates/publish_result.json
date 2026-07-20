@@ -6,6 +6,7 @@
   "app": {
     "fullname": "com.micropythonos.example",
     "name": "Example",
+    "publisher": "com.micropythonos",
     "version": "1.0.0",
     "app_dir": "internal_filesystem/apps/com.micropythonos.example",
     "manifest": "internal_filesystem/apps/com.micropythonos.example/MANIFEST.JSON",

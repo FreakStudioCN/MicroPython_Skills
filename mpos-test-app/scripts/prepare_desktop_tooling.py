@@ -19,6 +19,33 @@ from pathlib import Path
 from typing import Any
 
 
+def is_repo_root(path: Path) -> bool:
+    return (path / "internal_filesystem" / "apps").is_dir() and (path / "scripts").is_dir()
+
+
+def default_repo() -> Path | None:
+    env_repo = os.environ.get("MPOS_REPO")
+    if env_repo:
+        return Path(env_repo)
+    cwd = Path.cwd()
+    if is_repo_root(cwd):
+        return cwd
+    return None
+
+
+def resolve_repo_arg(value: str | None) -> Path:
+    repo = Path(value).expanduser() if value else default_repo()
+    if repo is None:
+        raise SystemExit(
+            "ERROR: --repo is required when the current directory is not a MicroPythonOS repo "
+            "and MPOS_REPO is unset"
+        )
+    repo = repo.resolve()
+    if not is_repo_root(repo):
+        raise SystemExit(f"ERROR: not a MicroPythonOS repo root: {repo}")
+    return repo
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -218,13 +245,13 @@ def build_unix(repo: Path, env: dict[str, str], timeout: int) -> dict[str, Any]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Prepare MPOS desktop simulator tooling without editing OS sources")
-    parser.add_argument("--repo", default="/home/leeqingshui/MicroPythonOS")
+    parser.add_argument("--repo", help="MicroPythonOS repository root; defaults to MPOS_REPO or current repo root")
     parser.add_argument("--build", action="store_true", help="Run scripts/build_mpos.sh unix with temporary dependency shims")
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--output", help="Optional JSON result path")
     args = parser.parse_args(argv)
 
-    repo = Path(args.repo).resolve()
+    repo = resolve_repo_arg(args.repo)
     result: dict[str, Any] = {
         "schema_version": "mpos-test-app-desktop-tooling-v1",
         "phase": "prepare-desktop-tooling",
@@ -248,7 +275,9 @@ def main(argv: list[str]) -> int:
             "--build",
         ]
     else:
-        with tempfile.TemporaryDirectory(prefix="mpos-desktop-tooling-") as temp:
+        temp_root = repo / "tmp" / "mpos-test-app" / "desktop-tooling"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="shim-", dir=temp_root) as temp:
             env, env_info = prepare_env(repo, Path(temp))
             result["environment"] = env_info
             build = build_unix(repo, env, args.timeout)

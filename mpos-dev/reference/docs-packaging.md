@@ -44,7 +44,7 @@ com.example.app/icon_64x64.png
 
 - 目录名等于 manifest `fullname`。
 - manifest JSON 能解析。
-- `name` 和 `version` 存在。
+- `name`、`publisher` 和 `version` 存在且非空。
 - `version` 是规范的整数点号字符串。
 - 每个 activity/service entrypoint 都以 `.py` 结尾。
 - 每个 entrypoint 都存在于 app 根目录的相对路径下。
@@ -67,7 +67,7 @@ com.example.app/icon_64x64.png
 
 建议的单 App 脚本：
 
-- `scripts/validate_manifest.py`
+- `mpos-package-app/scripts/validate_mpos_app.py`
 - `scripts/package_mpos_app.py`
 - `scripts/validate_mpk.py`
 - `scripts/emit_app_index_entry.py`
@@ -89,6 +89,7 @@ com.example.app/icon_64x64.png
 - `services`（如果存在）
 
 Activity 元数据优先使用带 `classname`、`entrypoint`、`intent_filters` 的完整 manifest object。不要给新生成的 package 输出字符串型 activity 列表。
+upystore 上传同样要求 manifest 中存在非空 `publisher`；本地打包阶段必须提前拦截，不能把缺字段的 `.mpk` 交给用户上传。
 
 ## AppStore Backend
 

@@ -34,6 +34,8 @@ If `deploy_result.json` is a `desktop-preview` or `web-preview`, accept it as th
 
 ## Read first
 
+- `mpos-dev/reference/mpos_api_summary.json`
+- `mpos-dev/reference/lvgl_api_summary.json`
 - `mpos-dev/reference/docs-packaging.md`
 - `<repo-root>/AGENTS.md`
 - `mpos-package-app/SKILL.md`
@@ -47,6 +49,7 @@ Use current upystore public endpoints only for read-only version comparison:
 - `https://upystore.io/developer`
 
 If upystore is unavailable, record a warning and continue generating the handoff. Do not treat network failure as App failure.
+Read both API summary JSON files completely even though this phase does not write App code; stale MPOS/AppManager/manifest assumptions must not enter the publish handoff.
 
 ## Boundaries
 
@@ -68,7 +71,8 @@ Always read all three result files together:
 --deploy-result /path/to/deploy_result.json
 ```
 
-Missing, unreadable, wrong-schema, wrong-phase, or mismatched `app.fullname` inputs are publish blockers. A `result == "failed"` input is a blocker. A `result == "partial"` input is allowed only with warnings in `publish_result.json`.
+Missing, unreadable, wrong-schema, wrong-phase, or mismatched `app.fullname` inputs are publish blockers. A `result == "failed"` or `result == "blocked"` input is a blocker. A `result == "partial"` input is allowed only when every `checks[]` item with `required=true` has `ok=true`; otherwise publish is blocked.
+Upstream `app.publisher` is required and must be non-empty. If it is missing, block publishing and route back to `mpos-gen-app`/`mpos-package-app` instead of producing manual upload guidance.
 
 ## Store metadata
 
@@ -154,6 +158,7 @@ Required checks:
 
 - MPK path, release revision, sha256, size, app_index_entry path. The MPK filename must use `<fullname>_rN.mpk`; `<fullname>_<version>.mpk` is not publish-ready.
 - app fullname, name, version, manifest, icon.
+- app `publisher`; this is required by upystore manifest validation.
 - upystore endpoint status and published version comparison.
 - store metadata fields, screenshot format readiness, and missing metadata list.
 - warnings, errors, and handoff.

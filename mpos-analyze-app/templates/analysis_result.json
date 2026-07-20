@@ -30,12 +30,13 @@
     "name": "Example",
     "version": "1.0.0",
     "category": "utilities",
-    "publisher": null,
+    "publisher": "com.micropythonos",
     "defaults_used": [
       "fullname",
       "name",
       "version",
-      "category"
+      "category",
+      "publisher"
     ]
   },
   "target": {
@@ -56,6 +57,7 @@
   "manifest_draft": {
     "fullname": "com.micropythonos.example",
     "name": "Example",
+    "publisher": "com.micropythonos",
     "version": "1.0.0",
     "category": "utilities",
     "activities": [

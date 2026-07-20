@@ -93,6 +93,7 @@ def main() -> int:
         app_info = {
             "fullname": fullname,
             "name": fullname,
+            "publisher": "",
             "version": "unknown",
             "app_dir": str(app_dir),
             "manifest": str(app_dir / "MANIFEST.JSON"),
@@ -100,6 +101,8 @@ def main() -> int:
             "layout": "missing",
         }
         errors.append(str(exc))
+    if not app_info.get("publisher"):
+        errors.append("manifest publisher is missing")
 
     missing_artifacts = [path for path in artifact_paths(repo) if not path.is_file()]
     if missing_artifacts and not args.build:
@@ -154,7 +157,16 @@ def main() -> int:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.touch()
 
-    result = "failed" if errors else ("partial" if warnings or not launched else "success")
+    if errors:
+        result = "failed"
+    elif missing_artifacts:
+        result = "blocked"
+    elif not launched or not server_ready:
+        result = "failed"
+    elif warnings:
+        result = "partial"
+    else:
+        result = "success"
     command_primary = shlex.join([str(run_web), "--no-build"])
     if args.build:
         command_primary = shlex.join([str(build_web), "web"]) + " && " + command_primary

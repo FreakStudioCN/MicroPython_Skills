@@ -35,6 +35,14 @@ TYPE_ALIAS_RUNTIME_ENUM_OVERRIDES = {
     "long_mode_t": "label.LONG_MODE",
 }
 
+SYMBOL_NOTES = {
+    "lv.buttonmatrix.set_map": [
+        "Map is a list of str labels; use a standalone '\\n' item to separate rows.",
+        "Standalone buttonmatrix maps must end with an empty string terminator ''.",
+        "Do not pass bytes labels; prefer ASCII labels unless the target font/input path is verified.",
+    ],
+}
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -101,7 +109,9 @@ def generate_from_source(lvgl_mpy_root: str) -> str:
 
     import tempfile
 
-    with tempfile.TemporaryDirectory(suffix=".lvgl_gen") as tmpdir:
+    temp_root = Path(__file__).resolve().parents[2] / "tmp" / "mpos-dev" / "lvgl-gen"
+    temp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(suffix=".lvgl_gen", dir=temp_root) as tmpdir:
         metadata_path = os.path.join(tmpdir, "lvgl_metadata.json")
         c_output_path = os.path.join(tmpdir, "lv_mp.c")
         script = os.path.join(gen_dir, "lvgl_api_gen_mpy.py")
@@ -382,10 +392,11 @@ def build_symbols(api: dict) -> list[dict]:
                 "deprecated": False,
             })
             for method in cls["methods"]:
+                fqname = f"{class_fqname}.{method['name']}"
                 symbols.append({
                     "kind": "method",
                     "name": method["name"],
-                    "fqname": f"{class_fqname}.{method['name']}",
+                    "fqname": fqname,
                     "module": "lvgl",
                     "parent": class_fqname,
                     "signature": method["signature"],
@@ -393,7 +404,7 @@ def build_symbols(api: dict) -> list[dict]:
                     "returns": method["returns"],
                     "description": None,
                     "description_source": None,
-                    "notes": [],
+                    "notes": list(SYMBOL_NOTES.get(fqname, [])),
                     "examples": [],
                     "source_path": source_path,
                     "source_line": method.get("source_line"),
@@ -520,6 +531,9 @@ def generate_markdown(api: dict) -> str:
             lines.append("")
             for method in widget["methods"]:
                 lines.append(f"- `{method['signature']}`")
+                notes = SYMBOL_NOTES.get(f"lv.{widget['name']}.{method['name']}", [])
+                for note in notes:
+                    lines.append(f"  - Note: {note}")
         lines.append("")
 
     lines.append("## 4. Data/Object Classes")

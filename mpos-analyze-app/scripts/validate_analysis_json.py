@@ -87,6 +87,7 @@ def validate_app(data: dict[str, Any], errors: list[str]) -> None:
     version = app.get("version")
     check_string(fullname, "app.fullname", errors)
     check_string(app.get("name"), "app.name", errors)
+    check_string(app.get("publisher"), "app.publisher", errors)
     check_string(version, "app.version", errors)
     check_string(app.get("category"), "app.category", errors)
     if isinstance(fullname, str) and not FULLNAME_RE.match(fullname):
@@ -111,6 +112,7 @@ def validate_manifest(data: dict[str, Any], errors: list[str]) -> None:
     manifest = require_object(data.get("manifest_draft"), "manifest_draft", errors)
     check_string(manifest.get("fullname"), "manifest_draft.fullname", errors)
     check_string(manifest.get("name"), "manifest_draft.name", errors)
+    check_string(manifest.get("publisher"), "manifest_draft.publisher", errors)
     check_string(manifest.get("version"), "manifest_draft.version", errors)
 
     activities = require_array(manifest.get("activities", []), "manifest_draft.activities", errors)
