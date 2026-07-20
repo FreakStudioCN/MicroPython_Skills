@@ -1,0 +1,157 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "w5500-evb-pico2",
+  "display_name": "W5500-EVB-Pico2",
+  "vendor": "WIZnet",
+  "mcu": "rp2350",
+  "chip_family": "rp2350",
+  "firmware": {
+    "source": "github_release_zip",
+    "repo": "WIZnet-ioNIC/WIZnet-EVB-Pico-micropython",
+    "release_tag": "v1.27.0-WIZnet-timeout",
+    "url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases",
+    "port": "rp2",
+    "board_name": "W5500_EVB_PICO2",
+    "asset_pattern": "LWIP_build-W5500_EVB_PICO2.zip",
+    "archive_member": "LWIP_build-W5500_EVB_PICO2/firmware.uf2",
+    "container_type": "zip",
+    "file_type": "uf2",
+    "flash_method": "uf2-drag-drop",
+    "release_asset_mode": "lwip",
+    "latest_version": "v1.27.0-WIZnet-timeout",
+    "latest_release": {
+      "date": "2026-06-17",
+      "url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases/download/v1.27.0-WIZnet-timeout/LWIP_build-W5500_EVB_PICO2.zip",
+      "version": "v1.27.0-WIZnet-timeout"
+    }
+  },
+  "specs": {
+    "flash_mb": 4,
+    "psram_mb": 0,
+    "gpio": 30,
+    "adc": 4,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 2,
+    "uart": 2,
+    "pwm": 24,
+    "touch": 0,
+    "wifi": false,
+    "ble": false,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Ethernet MicroPython prototyping",
+    "RP2350 wired network experiments"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "Vendor firmware is distributed as a GitHub release ZIP; extract firmware.uf2 before UF2 drag-drop. Pin layout uses RP2350 family defaults and requires hardware review for onboard W5500 pin ownership.",
+  "features": [
+    "Dual-core",
+    "Ethernet",
+    "External Flash",
+    "USB"
+  ],
+  "board_capabilities": {
+    "wifi": false,
+    "ble": false,
+    "display": false,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": true,
+    "secure_element": false,
+    "battery_power": false
+  },
+  "onboard_peripherals": [
+    {
+      "name": "W5500 ethernet",
+      "type": "ethernet",
+      "model": "W5500",
+      "manufacturer": "WIZnet",
+      "interface": "SPI",
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "vendor_firmware_board_name",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "needs_pin_mapping",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "network",
+        "status": "ready"
+      },
+      "notes": "MicroPython firmware is built for W5500 Ethernet. Exact SPI pin mapping requires vendor schematic review."
+    }
+  ],
+  "pin_layout": {
+    "model": "rp2350_family_defaults_pending_human_review",
+    "default_bus_pins": {
+      "i2c0": {"sda": 4, "scl": 5},
+      "i2c1": {"sda": 2, "scl": 3},
+      "spi0": {"mosi": 3, "miso": 0, "clk": 2, "cs": 1},
+      "spi1": {"mosi": 11, "miso": 8, "clk": 10, "cs": 9},
+      "uart0": {"tx": 0, "rx": 1},
+      "uart1": {"tx": 4, "rx": 5}
+    },
+    "default_bus_source": "rp2350_family_heuristic",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": [26, 27, 28]
+    },
+    "pin_options": {
+      "i2c0_sda": [0, 4, 8, 12, 16, 20],
+      "i2c0_scl": [1, 5, 9, 13, 17, 21],
+      "i2c1_sda": [2, 6, 10, 14, 18, 26],
+      "i2c1_scl": [3, 7, 11, 15, 19, 27],
+      "spi0_mosi": [3, 7, 11, 15, 19],
+      "spi0_miso": [0, 4, 8, 12, 16, 20],
+      "spi0_clk": [2, 6, 10, 14, 18, 22],
+      "spi0_cs": [1, 5, 9, 13, 17, 21],
+      "spi1_mosi": [11, 15, 19, 27],
+      "spi1_miso": [8, 12, 16, 20],
+      "spi1_clk": [10, 14, 18, 22, 26],
+      "spi1_cs": [9, 13, 17, 21],
+      "uart0_tx": [0, 12, 16, 28],
+      "uart0_rx": [1, 13, 17, 29],
+      "uart1_tx": [4, 8, 20],
+      "uart1_rx": [5, 9, 21],
+      "named_pins": {"LED": 25},
+      "exposed_pins": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28]
+    },
+    "notes": [
+      "RP2350 family default pins; WIZnet Pico2 board-specific pinout still requires schematic review.",
+      "Onboard Ethernet pin ownership is not enforced until exact pins are verified."
+    ]
+  },
+  "media": {
+    "product_page_url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython-examples",
+    "source_url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython"
+  },
+  "source_refs": {
+    "vendor_examples": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython-examples",
+    "vendor_firmware_release": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases",
+    "firmware_asset": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases/download/v1.27.0-WIZnet-timeout/LWIP_build-W5500_EVB_PICO2.zip"
+  },
+  "verification": {
+    "draft_from_vendor_sources": true,
+    "firmware_asset_verified": true,
+    "firmware_archive_member_verified": true,
+    "pinout_source_available": false,
+    "default_bus_pins_verified": false,
+    "onboard_peripherals_detected": true,
+    "onboard_peripheral_pin_mappings_verified": false,
+    "safe_to_promote_to_skill_board_definition": false,
+    "requires_human_review": true
+  }
+}

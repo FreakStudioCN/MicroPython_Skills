@@ -508,6 +508,9 @@ upy-analyze-plugin/boards
 - 用户传入接线时，优先保留用户接线，但必须通过 board JSON 的 restricted/occupied 校验；非法用户接线不能静默成功。
 - 用户指定引脚只表示偏好/约束，不表示跳过安全校验。若指定引脚命中 hard forbidden、输入输出方向不匹配、已被 `always_used` 板载外设占用，输出 `partial`，`checkpoint.resume_step=pin_assignment`，并在 `structured_errors` 中说明冲突原因；非法引脚不得静默改写，也不要自动换脚后继续 success。
 - 板载器件与用户指定器件或系统推荐器件一致时，复用 `onboard_peripherals` 声明的板载默认/占用引脚，不重复分配外接 GPIO，也不重复加入 BOM。
+- 板载器件进入项目设备清单时，不要把 `devices[].source` 改成新枚举；`source` 仍保持 `user_specified` 或 `system_recommended`，并额外写 `physical_source="board_onboard"`、`onboard_peripheral_ref={board_id,index,name,type,model,occupied_pins,verification}`。这样下游旧插件仍能读取 `devices[]`，同时可识别它不是外接 BOM。
+- 如果用户需求需要显示屏、IMU、麦克风、摄像头、SD/存储、LoRa、以太网、LED/按键、电源管理等，并且所选 board JSON 的 `onboard_peripherals` 有匹配项，优先复用板载外设；如果 `occupied_pins` 为空或 `verification` 标记 `needs_pin_mapping`，只记录为非硬约束并在 notes/warnings 中要求核验。
+- 板载外设驱动只使用确定性映射或已有 `devices[].driver`。未验证的型号不得猜包名；设置 `driver.source="cold-driver"` 和 `driver.status="cold_driver_required"`，交给 `upy-gen-driver-plugin`。
 - 板载器件与当前需求不一致时，`onboard_peripherals[].occupied_pins` 视为已占用资源，外接器件只能使用空余引脚。
 - 如果用户要求释放板载器件占用脚，必须确认 `always_used=false`，并在 notes/warnings 中说明释放原因。
 - `pin_assignment_log.md` 和 phase log 中的 GPIO 汇总必须从完整 board JSON 与最终 `pinout` 计算，不允许手写静态列表。V0 至少包含 `used_gpio`、`unused_gpio`、`restricted_or_occupied_gpio` 三组；不要把条件可用脚包装成绝对安全，只需在 warnings 中说明限制和确认点。

@@ -1,0 +1,20 @@
+{
+  "version": "2026-07-19.v1",
+  "description": "Conservative driver hints for selected-board onboard peripherals. Only verified, low-risk mappings belong here; missing entries fall back to cold-driver or builtin/runtime handling.",
+  "models": {
+    "SSD1306": {
+      "interface": "I2C",
+      "known_addresses": ["0x3C", "0x3D"],
+      "driver": {
+        "source": "upypi",
+        "package_name": "ssd1306",
+        "version": "1.0.0",
+        "install_cmd": "mpremote mip install ssd1306",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "SSD1306 MicroPython OLED display driver"
+      },
+      "notes": "Present in the current package catalog and has a curated driver context."
+    }
+  }
+}

@@ -136,6 +136,7 @@ description: 插件化工作流版 analyze。读取用户自然语言和插件�
 - 用户明确指定的型号必须保留为 `user_specified`
 - 用户对指定器件补充的行为/电平/触发语义必须保留在该器件上，不要只写入 `requirements.description`。例如“触摸按键用 TTP223，按下后为低电平”应输出 `devices[].notes`，并尽量结构化为 `devices[].behavior.active_level="low"`。
 - 系统补充的器件必须标记为 `system_recommended`
+- 如果用户选择的板卡本身可能已带有满足需求的屏幕、IMU、麦克风、摄像头、SD/存储、LoRa、以太网、LED、按键或电源管理芯片，不要新增 `devices[].source` 枚举；仍用 `user_specified` 或 `system_recommended` 表达需求来源，并可写 `physical_source="board_onboard"` 作为提示。正式的板载外设匹配、`onboard_peripheral_ref` 和引脚/BOM 去重由 `select-hw` 根据完整 board JSON 归一化。
 
 完成本步骤后，必须输出：
 

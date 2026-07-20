@@ -17,7 +17,8 @@ SKILL_DIR = TEST_DIR.parent
 REPO_ROOT = SKILL_DIR.parent
 SAMPLE_DIR = SKILL_DIR / "sample"
 BOARD_DIR = REPO_ROOT / "upy-analyze-plugin" / "boards"
-PREFERRED_NO_MCU_FAMILIES = {"rp2", "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6"}
+RP2_LIKE_FAMILIES = {"rp2", "rp2040", "rp2350"}
+PREFERRED_NO_MCU_FAMILIES = RP2_LIKE_FAMILIES | {"esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6"}
 OFFICIAL_ARTIFACT_FILES = [
     ("select_hw_draft.json", "draft", "select-hw 草稿"),
     ("select_hw_validated.json", "manifest", "校验规范化后的 select-hw manifest"),
@@ -181,7 +182,7 @@ def score_board(board: dict[str, Any], manifest: dict[str, Any]) -> int:
             score += 160
         elif target.startswith("esp32") and family.startswith("esp32"):
             score += 70
-        elif target.startswith("pico") and family == "rp2":
+        elif target.startswith("pico") and family in RP2_LIKE_FAMILIES:
             score += 70
     else:
         score += 100 if family in PREFERRED_NO_MCU_FAMILIES else -100
@@ -199,12 +200,12 @@ def score_board(board: dict[str, Any], manifest: dict[str, Any]) -> int:
     if requirements.get("power") in {"battery", "low_power"}:
         if family == "esp32c3":
             score += 15
-        elif family == "rp2":
+        elif family in RP2_LIKE_FAMILIES:
             score += 8
     if requirements.get("experience") == "beginner":
         if board.get("beginner_friendly"):
             score += 10
-        if family == "rp2":
+        if family in RP2_LIKE_FAMILIES:
             score += 8
         elif family == "esp32":
             score += 5
