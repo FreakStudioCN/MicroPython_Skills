@@ -17,10 +17,13 @@
     "Device raises ImportError: no module named 'unittest'",
     "Generated device tests pass static subset checks but fail on real MicroPython firmware",
     "The generated project imports a micropython-lib package but no deploy-time installation plan exists",
-    "The agent vendors library source into firmware/lib without a version, source, or license record"
+    "The agent vendors library source into firmware/lib without a version, source, or license record",
+    "download_drivers.py reports DRIVER_SOURCE_UNSUPPORTED or NO_DRIVER_FILES for driver.source=micropython_lib",
+    "Generated business code guesses MicroPython-lib package APIs because the source is not copied into firmware/lib",
+    "A uPyPi driver package installs .py files during generate but loses non-Python assets such as bma423conf.bin"
   ],
-  "wrong_pattern": "Assuming every MicroPython documented or micropython-lib module is already present in the target firmware, or silently crawling and copying library source into the project during generate.",
-  "correct_pattern": "Use route A for device tests: continue using MicroPython unittest, but generate must declare runtime_dependencies.mip and deploy must install missing packages with mpremote mip install before running device tests. Generate should not crawl library source into the project by default.",
+  "wrong_pattern": "Assuming every MicroPython documented, micropython-lib, or uPyPi module is already present in the target firmware, or silently crawling and copying library source/assets into the project during generate.",
+  "correct_pattern": "Use route A for device tests and package drivers: generate must declare runtime_dependencies.mip and deploy must install missing packages with mpremote mip install before running device tests or generated firmware. Generate should not crawl micropython-lib source into the project by default; uPyPi source downloads are only supplemental evidence/source records and must not replace deploy-time mip installation.",
   "architecture_decision": {
     "selected_route": "A_continue_using_unittest",
     "generate_role": [
@@ -28,7 +31,11 @@
       "Declare runtime_dependencies.mip entries with package, reason, target, verify_import, and install_phase=deploy.",
       "Record official docs and package index evidence.",
       "Do not install packages on the device.",
-      "Do not vendor micropython-lib source by default."
+      "Do not vendor micropython-lib source by default.",
+      "Treat driver.source=micropython_lib as a runtime-only mip dependency, not as a source-download driver and not as none/manual placeholder.",
+      "Treat driver.source=upypi as a deploy-time mip dependency using the uPyPi package URL, even when .py files are also downloaded as generation evidence.",
+      "Record uPyPi non-Python package assets in asset_files and rely on deploy mpremote mip install to install them.",
+      "Still require api_ref, README, examples, docs, or package metadata before generating calls into that package."
     ],
     "deploy_role": [
       "Probe the selected device for required imports.",
@@ -67,6 +74,10 @@
   },
   "fix_guidance": [
     "If device/tests import unittest, keep unittest but add runtime_dependencies.mip for package unittest.",
+    "If devices[].driver.source is micropython_lib, emit runtime_dependencies.mip with install_phase=deploy and suppress NO_DRIVER_FILES because no firmware/lib source file is expected.",
+    "If devices[].driver.source is upypi, emit runtime_dependencies.mip with package=https://upypi.net/pkgs/<name>/<version>, install_phase=deploy, verify_import, and source=upypi.",
+    "If a uPyPi package contains non-Python assets such as bma423conf.bin, keep those filenames in asset_files and do not try to represent binary content as UTF-8 file records.",
+    "If the same driver lacks api_ref/readme/examples/docs/package metadata, stop generation with a partial result and request upstream API evidence instead of copying source or guessing.",
     "Do not copy micropython-lib source into firmware/lib unless the user chooses offline vendoring.",
     "Ensure phase_complete exposes runtime_dependencies so upy-deploy-plugin can run mpremote mip install.",
     "Add a deploy-time import probe result to error_context when dependency installation fails.",

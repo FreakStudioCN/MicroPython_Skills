@@ -320,11 +320,14 @@ for device in confirmed_devices:
 
 - `aioble`
 
-建议补充：
+必须补充：
 
 - `driver.package_name`
 - `driver.install_cmd`
 - `driver.repo_url`
+- `driver.api_ref`（优先结构化对象）或 `driver.readme_url` / `driver.examples` / `driver.docs_url`
+
+这些字段供 generate 阶段在不 vendoring MicroPython-lib 源码的情况下生成正确业务调用。只有 `package_name` 不足以推断 API；缺 API 证据时应 partial 或要求 upy-pkg-guide/API 代理补齐，不要让下游凭记忆写调用。
 
 硬约束：
 
@@ -926,7 +929,7 @@ Analyze 交给下游 `select-hw` 的 `manifest_content` 至少必须包含：
 - `package_name`
 - `install_cmd`
 - `version`
-- `api_ref`：优先为对象；字符串形式只可作为临时弱结果，并应在校验警告中暴露
+- `api_ref`：优先为对象；`micropython_lib` 必须有结构化 `api_ref` 或 `readme_url/examples/docs_url` 这类 API 证据。字符串形式只可作为临时弱结果，并应在校验警告中暴露
 
 `driver` 还应保留搜索证据字段，供 analyze 校验和排查使用；下游 `select-hw` 可以忽略这些字段：
 

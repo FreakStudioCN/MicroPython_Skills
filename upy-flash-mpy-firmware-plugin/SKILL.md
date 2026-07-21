@@ -141,6 +141,7 @@ payload.manifest_content.phase == "select-hw"
 | `firmware.asset_pattern` | `github_release_zip` 的 asset 匹配模式，例如 `LWIP_build-W5500_EVB_PICO2.zip`。 |
 | `firmware.archive_member` | ZIP 内最终固件路径，例如 `LWIP_build-W5500_EVB_PICO2/firmware.uf2`。 |
 | `firmware.board_name` / `mcu.firmware_board_name` | MicroPython 固件板卡名，用于展示和 URL 缺失时的兜底匹配。 |
+| `firmware.variant` | MicroPython 官方页中的固件变体，例如 ESP32-S3 Octal-SPIRAM 板卡使用 `spiram-oct`。传给 `firmware_page_resolve.py --variant`，不要求插件 UI 让用户手动选择。 |
 | `display_name` | 给用户看的板卡名，不用于拼下载 URL。 |
 | `board_id` | 本地板卡库 ID，不用于拼下载 URL。 |
 | `download_slug` | 从固件 URL path 提取或从下载首页匹配出的真实 MicroPython 下载页 slug。 |
@@ -165,7 +166,7 @@ payload.manifest_content.phase == "select-hw"
 4. 如果缺少 `firmware_action`，发送 `approval_request(firmware_action_select)` 并等待用户输入。
 5. 如果用户选择 `already_flashed`，输出 `success`，并设置 `firmware.status="skipped_user_confirmed"`。
 6. 如果用户选择 `save_partial`、超时或取消，输出带 checkpoint 的 `partial`。
-7. 如果 `firmware.source` 是 `github_release_zip` 或 `vendor_direct`，使用 `scripts/firmware_source_resolve.py --board-json <board.json>` 解析 vendor 固件；否则使用 `scripts/firmware_page_resolve.py` 解析 MicroPython 板卡页面。官方页流程正常从上游固件 URL 传 `--board-url`，只有 URL 缺失时才用 `--download-index-url` 和 `--board-name` 兜底匹配下载页。
+7. 如果 `firmware.source` 是 `github_release_zip` 或 `vendor_direct`，使用 `scripts/firmware_source_resolve.py --board-json <board.json>` 解析 vendor 固件；否则使用 `scripts/firmware_page_resolve.py` 解析 MicroPython 板卡页面。官方页流程正常从上游固件 URL 传 `--board-url`，只有 URL 缺失时才用 `--download-index-url` 和 `--board-name` 兜底匹配下载页。如果上游 board JSON 或 manifest 中存在 `firmware.variant`，必须同时传 `--variant <firmware.variant>`，例如 LilyGO ESP32-S3 OPI PSRAM 板卡传 `--variant spiram-oct`。
 8. 除非提供 `firmware_override.local_path` 或分支是 manual-only，否则用 `scripts/firmware_download.py` 下载固件；当解析结果是 ZIP 时，必须同时保存 ZIP 并抽取 `latest.archive_member` 指向的最终固件。
 9. 进入选定板卡分支。
 10. 使用 `scripts/flash_mpy_firmware_manifest.py` 校验阶段输出。
@@ -366,7 +367,7 @@ V0 中，用户确认 `copied_uf2` 即可视为成功。
 
 | 脚本 | 用途 |
 | --- | --- |
-| `scripts/firmware_page_resolve.py` | 解析 MicroPython 下载页、最新固件 URL 和安装说明；支持 `--html-file` 用于 mock 测试。 |
+| `scripts/firmware_page_resolve.py` | 解析 MicroPython 下载页、最新固件 URL 和安装说明；支持 `--variant` 选择同一官方板卡页下的固件变体，支持 `--html-file` 用于 mock 测试。 |
 | `scripts/firmware_source_resolve.py` | 解析 board JSON 中声明的 vendor 固件来源；支持 `github_release_zip` 和 `vendor_direct`。 |
 | `scripts/firmware_download.py` | 下载已解析的固件产物，或输出不下载的计划；当解析结果为 ZIP 时，保存原始 ZIP 并抽取最终固件文件。 |
 | `scripts/list_serial_ports.py` | 为 ESP32 真实/插件模式枚举串口；优先使用 pyserial，失败时在 Windows/macOS/Linux 使用平台兜底。 |

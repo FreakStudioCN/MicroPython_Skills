@@ -201,6 +201,18 @@ def parse_ls_names(stdout: str) -> list[str]:
     return names
 
 
+def expected_asset_names(dep: dict[str, Any]) -> list[str]:
+    raw_assets = dep.get("asset_files")
+    if not isinstance(raw_assets, list):
+        return []
+    names: list[str] = []
+    for item in raw_assets:
+        name = str(item or "").strip().replace("\\", "/").split("/")[-1]
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
 def fs_verify_dependency(port: str, dep: dict[str, Any], timeout_ms: int) -> dict[str, Any]:
     module = dep.get("verify_import") or dep["package"].replace("-", "_")
     target = normalize_device_path(dep.get("target") or "/lib")
@@ -214,7 +226,10 @@ def fs_verify_dependency(port: str, dep: dict[str, Any], timeout_ms: int) -> dic
     module_leaf = module.split(".")[-1]
     module_files = [f"{module_leaf}.py", f"{module_leaf}.mpy"]
     matched_module_files = [name for name in module_files if name in root_names]
-    ok = bool(
+    asset_files = expected_asset_names(dep)
+    matched_asset_files = [name for name in asset_files if name in root_names]
+    missing_asset_files = [name for name in asset_files if name not in matched_asset_files]
+    module_ok = bool(
         root_listing["ok"]
         and (
             (package_listing["ok"] and matched_files)
@@ -222,6 +237,7 @@ def fs_verify_dependency(port: str, dep: dict[str, Any], timeout_ms: int) -> dic
             or module_leaf in root_names
         )
     )
+    ok = bool(module_ok and not missing_asset_files)
     return {
         "status": "success" if ok else "failed",
         "target": target,
@@ -230,6 +246,9 @@ def fs_verify_dependency(port: str, dep: dict[str, Any], timeout_ms: int) -> dic
         "matched_files": matched_files,
         "module_files": module_files,
         "matched_module_files": matched_module_files,
+        "asset_files": asset_files,
+        "matched_asset_files": matched_asset_files,
+        "missing_asset_files": missing_asset_files,
         "root_listing": root_listing,
         "package_listing": package_listing,
         "ok": ok,
@@ -239,6 +258,10 @@ def fs_verify_dependency(port: str, dep: dict[str, Any], timeout_ms: int) -> dic
 def mock_install(deps: list[dict[str, Any]]) -> dict[str, Any]:
     records = []
     for dep in deps:
+        module = dep.get("verify_import") or dep["package"].replace("-", "_")
+        module_leaf = str(module).split(".")[-1]
+        asset_files = expected_asset_names(dep)
+        root_items = [f"{module_leaf}/", f"{module_leaf}.py"] + asset_files
         records.append(
             {
                 "package": dep["package"],
@@ -255,9 +278,12 @@ def mock_install(deps: list[dict[str, Any]]) -> dict[str, Any]:
                     "package_path": f"{dep['target'].rstrip('/')}/{dep.get('verify_import') or dep['package']}",
                     "expected_files": ["__init__.py", "__init__.mpy"],
                     "matched_files": ["__init__.mpy"],
-                    "module_files": ["unittest.py", "unittest.mpy"],
-                    "matched_module_files": [],
-                    "root_listing": {"ok": True, "stdout_excerpt": "unittest/"},
+                    "module_files": [f"{module_leaf}.py", f"{module_leaf}.mpy"],
+                    "matched_module_files": [f"{module_leaf}.py"],
+                    "asset_files": asset_files,
+                    "matched_asset_files": asset_files,
+                    "missing_asset_files": [],
+                    "root_listing": {"ok": True, "stdout_excerpt": "\n".join(root_items)},
                     "package_listing": {"ok": True, "stdout_excerpt": "__init__.mpy"},
                     "ok": True,
                 },

@@ -24,6 +24,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 SCRIPTS = ROOT / "scripts"
+UPYPI_BASE = "https://upypi.net"
 SCAFFOLD_RUNNER = REPO / "upy-scaffold-plugin" / "scripts" / "apply_scaffold.py"
 FLASH_SAMPLE = REPO / "upy-flash-mpy-firmware-plugin" / "sample" / "phase_complete.upy_flash_mpy_firmware_plugin.esp32_c3_success.json"
 SELECT_SAMPLE = REPO / "upy-select-hw-plugin" / "sample" / "phase_complete.select_hw.success.json"
@@ -751,9 +752,158 @@ def check_ok(result: dict[str, Any]) -> bool:
     return result.get("returncode") in (0, None)
 
 
+def add_mip_dependency(
+    entries: list[dict[str, Any]],
+    seen: set[tuple[str, str, str]],
+    raw: Any,
+) -> None:
+    if isinstance(raw, str):
+        package = raw.strip()
+        if not package:
+            return
+        entry = {
+            "package": package,
+            "reason": f"{package} runtime dependency",
+            "required_for": [package],
+            "target": "/lib",
+            "version": "latest",
+            "install_phase": "deploy",
+            "verify_import": package.replace("-", "_"),
+        }
+    elif isinstance(raw, dict):
+        package = str(raw.get("package") or "").strip()
+        if not package:
+            return
+        entry = deepcopy(raw)
+        entry["package"] = package
+        entry["target"] = str(entry.get("target") or "/lib").strip() or "/lib"
+        entry["version"] = str(entry.get("version") or "latest")
+        entry["install_phase"] = str(entry.get("install_phase") or "deploy")
+        entry["verify_import"] = str(entry.get("verify_import") or package.replace("-", "_")).strip()
+    else:
+        return
+    key = (entry["package"], entry.get("verify_import") or "", entry["target"])
+    if key in seen:
+        return
+    seen.add(key)
+    entries.append(entry)
+
+
+def add_builtin_required(values: list[str], seen: set[str], raw: Any) -> None:
+    if not isinstance(raw, list):
+        return
+    for item in raw:
+        value = str(item or "").strip()
+        if value and value not in seen:
+            seen.add(value)
+            values.append(value)
+
+
+def runtime_dependency_for_micropython_lib(device: dict[str, Any], driver: dict[str, Any]) -> dict[str, Any] | None:
+    package = str(driver.get("package_name") or "").strip()
+    if not package:
+        return None
+    device_name = str(device.get("name") or "device")
+    verify_import = str(driver.get("verify_import") or driver.get("module") or package.replace("-", "_")).strip()
+    return {
+        "package": package,
+        "version": str(driver.get("version") or "latest"),
+        "reason": f"{device_name} requires MicroPython-lib package {package}",
+        "required_for": [device_name],
+        "target": str(driver.get("target") or "/lib"),
+        "install_phase": "deploy",
+        "verify_import": verify_import,
+        "source": "micropython_lib",
+    }
+
+
+def upypi_package_url(driver: dict[str, Any], package_name: str, version: str) -> str:
+    url = str(driver.get("url") or "").strip()
+    if url:
+        url = url.rstrip("/")
+        if url.endswith("/package.json"):
+            url = url[: -len("/package.json")]
+        return url
+    return f"{UPYPI_BASE}/pkgs/{package_name}/{version}"
+
+
+def runtime_dependency_for_upypi(device: dict[str, Any], driver: dict[str, Any]) -> dict[str, Any] | None:
+    package_name = str(driver.get("package_name") or "").strip()
+    if not package_name:
+        return None
+    version = str(driver.get("version") or "1.0.0").strip() or "1.0.0"
+    package_url = upypi_package_url(driver, package_name, version)
+    device_name = str(device.get("name") or "device")
+    verify_import = str(driver.get("verify_import") or driver.get("module") or package_name.replace("-", "_")).strip()
+    return {
+        "package": package_url,
+        "package_name": package_name,
+        "version": version,
+        "reason": f"{device_name} requires uPyPi package {package_name}",
+        "required_for": [device_name],
+        "target": str(driver.get("target") or "/lib"),
+        "install_phase": "deploy",
+        "verify_import": verify_import,
+        "source": "upypi",
+        "source_url": package_url,
+        "package_json_url": str(driver.get("package_json_url") or f"{package_url}/package.json"),
+        "asset_files": driver.get("asset_files") if isinstance(driver.get("asset_files"), list) else [],
+    }
+
+
+def merged_runtime_dependencies(manifest: dict[str, Any]) -> dict[str, Any]:
+    mip_entries: list[dict[str, Any]] = []
+    seen_mip: set[tuple[str, str, str]] = set()
+    builtin_required: list[str] = []
+    seen_builtin: set[str] = set()
+    default_runtime = {
+        "mip": [
+            {
+                "package": "unittest",
+                "reason": "device/tests import unittest",
+                "required_for": ["device_tests"],
+                "target": "/lib",
+                "version": "latest",
+                "install_phase": "deploy",
+                "verify_import": "unittest",
+            }
+        ],
+        "builtin_required": ["machine", "time", "gc", "sys"],
+    }
+    candidates: list[dict[str, Any]] = []
+    for value in (default_runtime, manifest.get("runtime_dependencies")):
+        if isinstance(value, dict):
+            candidates.append(value)
+    generate = manifest.get("generate")
+    if isinstance(generate, dict) and isinstance(generate.get("runtime_dependencies"), dict):
+        candidates.append(generate["runtime_dependencies"])
+    for deps in candidates:
+        for item in deps.get("mip") or []:
+            add_mip_dependency(mip_entries, seen_mip, item)
+        add_builtin_required(builtin_required, seen_builtin, deps.get("builtin_required"))
+    devices = manifest.get("devices")
+    if isinstance(devices, list):
+        for device in devices:
+            if not isinstance(device, dict):
+                continue
+            driver = device.get("driver")
+            if not isinstance(driver, dict):
+                continue
+            source = str(driver.get("source") or "").strip().lower()
+            dependency = None
+            if source == "micropython_lib":
+                dependency = runtime_dependency_for_micropython_lib(device, driver)
+            elif source == "upypi":
+                dependency = runtime_dependency_for_upypi(device, driver)
+            if dependency:
+                add_mip_dependency(mip_entries, seen_mip, dependency)
+    return {"mip": mip_entries, "builtin_required": builtin_required}
+
+
 def update_manifest(project_dir: Path, manifest: dict[str, Any], mode: str, checks: dict[str, Any], git_info: dict[str, Any]) -> dict[str, Any]:
     _ = git_info
     updated = deepcopy(manifest)
+    runtime_dependencies = merged_runtime_dependencies(updated)
     updated["phase"] = "generate"
     updated["domain_phase"] = "generate"
     updated["final_status"] = "generated"
@@ -785,20 +935,7 @@ def update_manifest(project_dir: Path, manifest: dict[str, Any], mode: str, chec
             "data_generators": [],
             "expected_outputs": ["serial"],
         },
-        "runtime_dependencies": {
-            "mip": [
-                {
-                    "package": "unittest",
-                    "reason": "device/tests import unittest",
-                    "required_for": ["device_tests"],
-                    "target": "/lib",
-                    "version": "latest",
-                    "install_phase": "deploy",
-                    "verify_import": "unittest",
-                }
-            ],
-            "builtin_required": ["machine", "time", "gc", "sys"],
-        },
+        "runtime_dependencies": runtime_dependencies,
         "doc_evidence": [
             {
                 "module": "machine",

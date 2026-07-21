@@ -1,0 +1,547 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "lilygo-t-deck-plus",
+  "display_name": "LilyGO T-Deck Plus",
+  "vendor": "LILYGO",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Keyboard handheld UI",
+    "LoRa messaging",
+    "GPS telemetry",
+    "Audio capture and playback"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. T-Deck Plus is treated as no-touch by default; keyboard and trackball are onboard inputs.",
+  "features": [
+    "Audio",
+    "Battery",
+    "BLE",
+    "Display",
+    "External RAM",
+    "GPS",
+    "Keyboard",
+    "LoRa",
+    "MicroSD",
+    "Speaker",
+    "Trackball",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": true,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "keyboard": true,
+    "trackball": true,
+    "gps": true,
+    "touch": false
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789 display",
+      "type": "display",
+      "model": "ST7789",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "cs": 12,
+        "dc": 11,
+        "backlight": 42,
+        "mosi": 41,
+        "miso": 38,
+        "clk": 40,
+        "rst": -1
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789_driver",
+        "version": "1.0.0",
+        "module": "st7789",
+        "url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "notes": "SPI ST7789 package. uPyPi description metadata currently mentions gt911 by mistake; package files contain st7789.py and fonts.",
+        "source_url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789"
+      },
+      "notes": "320x240 SPI display. RST is not connected in the referenced pin map."
+    },
+    {
+      "name": "I2C keyboard",
+      "type": "keyboard",
+      "model": "T-Deck keyboard controller",
+      "manufacturer": "LILYGO",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 18,
+        "scl": 8
+      },
+      "i2c_addr": "0x55",
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "tdeck_keyboard",
+        "version": "0.1.0",
+        "module": "tdeck_keyboard",
+        "url": "https://upypi.net/pkgs/tdeck_keyboard/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/tdeck_keyboard/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/tdeck_keyboard/0.1.0",
+        "source_url": "https://upypi.net/pkgs/tdeck_keyboard/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "tdeck_keyboard",
+        "api_ref": {
+          "import": "from tdeck_keyboard import TDeckKeyboard",
+          "class": "TDeckKeyboard",
+          "init": "TDeckKeyboard(i2c, address=0x55, power_pin=None, startup_ms=0, debug=False)",
+          "methods": [
+            "is_present()",
+            "set_brightness(duty)",
+            "set_default_brightness(duty)",
+            "set_raw_mode()",
+            "set_key_mode()",
+            "read_keycode()",
+            "read_key()",
+            "read_key_name()",
+            "wait_key(timeout_ms=1000, poll_ms=10)",
+            "read_raw()",
+            "pressed_positions(raw=None)",
+            "pressed_keys(raw=None, include_special=False)",
+            "decode_keycode(code)",
+            "self_test(verbose=True)",
+            "deinit(power_off=False)"
+          ],
+          "hardware_note": "Package README says syntax/import checks passed, but T-Deck Plus hardware communication is not verified yet."
+        },
+        "notes": "LILYGO custom I2C keyboard protocol for the onboard ESP32-C3 keyboard controller at 0x55; not a TCA8418-style generic keyboard scanner. Optional power control may use GPIO10 depending on board power wiring."
+      },
+      "notes": "Onboard keyboard controller over I2C."
+    },
+    {
+      "name": "Trackball",
+      "type": "trackball",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "g01": 3,
+        "g02": 2,
+        "g03": 15,
+        "g04": 1,
+        "button": 0
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "tdeck_trackball",
+        "version": "0.1.0",
+        "module": "tdeck_trackball",
+        "url": "https://upypi.net/pkgs/tdeck_trackball/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/tdeck_trackball/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/tdeck_trackball/0.1.0",
+        "source_url": "https://upypi.net/pkgs/tdeck_trackball/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "tdeck_trackball",
+        "api_ref": {
+          "import": "from tdeck_trackball import TDeckTrackball",
+          "class": "TDeckTrackball",
+          "init": "TDeckTrackball(pin_right=2, pin_up=3, pin_left=1, pin_down=15, pin_button=0, step=1, debounce_ms=0, debug=False)",
+          "methods": [
+            "poll()",
+            "read()",
+            "pressed()",
+            "button_changed()",
+            "position()",
+            "reset_position()",
+            "reset_state()",
+            "self_test(verbose=True)",
+            "deinit()"
+          ],
+          "hardware_note": "Package README says syntax/import checks passed, but T-Deck Plus direction mapping and Hall-switch behavior are not hardware verified yet."
+        },
+        "notes": "Pure GPIO polling driver for 4x AN48841B Hall switches plus TS-1187AB center button; not an I2C/SPI trackball controller. GPIO0 is BOOT and must remain input-only."
+      },
+      "notes": "Trackball GPIO pin order should be verified on hardware."
+    },
+    {
+      "name": "SX1262 LoRa radio",
+      "type": "radio_lora",
+      "model": "SX1262",
+      "manufacturer": "Semtech",
+      "interface": "SPI",
+      "occupied_pins": {
+        "cs": 9,
+        "busy": 13,
+        "rst": 17,
+        "dio1": 45,
+        "clk": 40,
+        "mosi": 41,
+        "miso": 38
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "sx1262_driver",
+        "version": "1.0.0",
+        "module": "sx1262",
+        "url": "https://upypi.net/pkgs/sx1262_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/sx1262_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/sx1262_driver/1.0.0",
+        "source_url": "https://upypi.net/pkgs/sx1262_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "sx1262"
+      },
+      "notes": "LoRa shares the SPI bus with display and MicroSD."
+    },
+    {
+      "name": "MIA-M10Q GPS",
+      "type": "gps",
+      "model": "MIA-M10Q",
+      "manufacturer": "u-blox",
+      "interface": "UART",
+      "occupied_pins": {
+        "tx": 43,
+        "rx": 44
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "mia_m10q_driver",
+        "version": "1.0.0",
+        "module": "mia_m10q",
+        "url": "https://upypi.net/pkgs/mia_m10q_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/mia_m10q_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/mia_m10q_driver/1.0.0",
+        "source_url": "https://upypi.net/pkgs/mia_m10q_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "mia m10q"
+      },
+      "notes": "UART GPS receiver."
+    },
+    {
+      "name": "ES7210 audio ADC",
+      "type": "audio_codec",
+      "model": "ES7210",
+      "manufacturer": "Everest Semiconductor",
+      "interface": "I2S",
+      "occupied_pins": {
+        "mclk": 48,
+        "lrck": 21,
+        "sck": 47,
+        "din": 14
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "es7210_driver",
+        "version": "0.1.0",
+        "module": "es7210",
+        "url": "https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/es7210_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "source_url": "https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "es7210",
+        "control_interface": "I2C",
+        "data_interface": "I2S",
+        "notes": "ES7210 driver configures the codec control registers; audio samples use machine.I2S."
+      },
+      "notes": "Audio ADC / microphone path."
+    },
+    {
+      "name": "MSM381A3729H9CP microphone",
+      "type": "microphone",
+      "model": "MSM381A3729H9CP",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "mclk": 48,
+        "lrck": 21,
+        "sck": 47,
+        "din": 14
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "audio_codec_shared",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.I2S",
+        "notes": "Microphone uses the ES7210 audio path; audio data is read through standard I2S.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Microphone uses the ES7210 audio path."
+    },
+    {
+      "name": "Speaker",
+      "type": "speaker",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "ws": 5,
+        "bck": 7,
+        "dout": 6
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.I2S",
+        "notes": "Speaker output uses standard I2S; no separate uPyPi driver is required.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "I2S speaker output."
+    },
+    {
+      "name": "Battery voltage ADC",
+      "type": "power_mgmt",
+      "model": "ADC divider",
+      "manufacturer": "",
+      "interface": "ADC",
+      "occupied_pins": {
+        "vbat": 4,
+        "power": 10
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.ADC",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Battery ADC and power control pin."
+    },
+    {
+      "name": "MicroSD slot",
+      "type": "storage",
+      "model": "microSD",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "cs": 39,
+        "clk": 40,
+        "mosi": 41,
+        "miso": 38
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "notes": "Exact constructor arguments depend on generated bus configuration.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "MicroSD shares the SPI bus with display and LoRa."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "sda": 18,
+        "scl": 8
+      },
+      "spi0": {
+        "mosi": 41,
+        "miso": 38,
+        "clk": 40,
+        "cs": 12
+      },
+      "uart1": {
+        "tx": 43,
+        "rx": 44
+      },
+      "i2s0": {
+        "bck": 7,
+        "ws": 5,
+        "data_out": 6
+      },
+      "i2s1": {
+        "bck": 47,
+        "ws": 21,
+        "data_in": 14
+      }
+    },
+    "default_bus_source": "vendor_hardware_reference",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LCD_CS": 12,
+        "LCD_DC": 11,
+        "LCD_BL": 42,
+        "SPI_MOSI": 41,
+        "SPI_MISO": 38,
+        "SPI_SCK": 40,
+        "KEYBOARD_SDA": 18,
+        "KEYBOARD_SCL": 8,
+        "TRACKBALL_G01": 3,
+        "TRACKBALL_G02": 2,
+        "TRACKBALL_G03": 15,
+        "TRACKBALL_G04": 1,
+        "TRACKBALL_BUTTON": 0,
+        "LORA_CS": 9,
+        "LORA_BUSY": 13,
+        "LORA_RST": 17,
+        "LORA_DIO1": 45,
+        "GPS_TX": 43,
+        "GPS_RX": 44,
+        "ES7210_MCLK": 48,
+        "ES7210_LRCK": 21,
+        "ES7210_SCK": 47,
+        "ES7210_DIN": 14,
+        "SPK_WS": 5,
+        "SPK_BCK": 7,
+        "SPK_DOUT": 6,
+        "BATTERY_ADC": 4,
+        "POWER": 10,
+        "SD_CS": 39
+      },
+      "exposed_pins": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        21,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "T-Deck Plus is no-touch by default; do not enable GT911/touchpad examples unless the SKU is verified.",
+      "Display, LoRa and MicroSD share the SPI bus."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.lilygo.cc/products/t-deck-plus",
+    "source_url": "https://github.com/Xinyuan-LilyGO/T-Deck"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://www.lilygo.cc/products/t-deck-plus",
+    "vendor_hardware_repo": "https://github.com/Xinyuan-LilyGO/T-Deck",
+    "datasheet_or_hardware": [],
+    "schematic": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "upypi_mapping_available",
+    "created_at": "2026-07-20"
+  }
+}

@@ -150,6 +150,11 @@ def micropython_lib_driver_for(device: dict[str, Any]) -> Optional[dict[str, Any
             "version": "latest",
             "search_provider": "micropython_lib_classifier",
             "search_required": False,
+            "api_ref": {
+                "import": "import aioble",
+                "usage": "Use aioble documented async helpers for BLE roles; keep low-level bluetooth.BLE usage separately cited",
+            },
+            "readme_url": "https://github.com/micropython/micropython-lib/tree/master/micropython/bluetooth/aioble",
             "notes": "official MicroPython BLE helper package",
         }
     return None
@@ -167,12 +172,12 @@ def mock_upy_pkg_guide(device: dict[str, Any]) -> dict[str, Any]:
 
 
 def resolve_driver(device: dict[str, Any]) -> dict[str, Any]:
-    builtin_driver = builtin_driver_for(device)
-    if builtin_driver is not None:
-        return builtin_driver
-
     lib_driver = micropython_lib_driver_for(device)
     if lib_driver is not None:
         return lib_driver
+
+    builtin_driver = builtin_driver_for(device)
+    if builtin_driver is not None:
+        return builtin_driver
 
     return mock_upy_pkg_guide(device)

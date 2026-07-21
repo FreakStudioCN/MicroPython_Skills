@@ -52,7 +52,7 @@ upy-deploy-plugin
 |---|---|
 | 解析协议、写 `phase_complete`、解释 JSON 字段 | `references/protocol_fields.md` |
 | 开始 full/fix 生成前 | `references/legacy_constraints.md` |
-| 生成 driver factory/mock 前 | `references/driver_factory_templates.md` |
+| 生成 driver factory/mock 前 | `references/driver_factory_templates.md` 与 `knowledge/driver_api_usage.pitfall.json` |
 | 生成 task 和 PC 测试前 | `references/task_generation_rules.md` |
 | 生成 device MicroPython unittest 测试前 | `references/device_unittest_subset.md` |
 | 修改 `conf.py` 或 `main.py` 前 | `references/main_conf_rules.md` |
@@ -125,9 +125,9 @@ fix 模式：
 5. 写 `project/generate_plan.json`，先只规划不写运行时代码。计划必须包含 scheduler_mode、driver adapters、tasks、config_constants、main_assembly、tests、resource_plan、cloud_integrations（如果需要云 API）。语音、传感器、云 API、状态机或跨 tick 业务流还必须包含 `data_flow_contract[]`，并为每条关键数据流声明 contract test 覆盖。随后运行 `scripts/check_generate_plan.py --project-dir <project_root> --require-plan`，失败则停在 partial，不要继续大规模写代码。
 6. 用英文关键词解析驱动和中间件依赖。先运行 `scripts/resolve_upypi_packages.py` 枚举 `https://upypi.net/packages.json`，再按英文关键词调用搜索、awesome-micropython 或 GitHub fallback。
 7. 如果需求涉及 LLM、ASR、TTS、视觉、IoT/MQTT、Webhook、天气地图、对象存储、第三方 REST API 或任何付费/带凭据云服务，读取 `references/cloud_integrations.md` 和 `knowledge/cloud_service_catalog.json`，发起用户确认：服务商、官方文档/控制台/价格链接、是否已开通计费/购买 token、API Key 是否准备好、是否需要网关/代理。不要把真实 token 写入代码。
-8. 运行 `scripts/download_drivers.py`。脚本只读 manifest/stdin，只 stdout JSON；不得直接写项目目录，不得直接改 `project-manifest.json`。
+8. 运行 `scripts/download_drivers.py`。脚本只读 manifest/stdin，只 stdout JSON；不得直接写项目目录，不得直接改 `project-manifest.json`。当 `devices[].driver.source="micropython_lib"` 时，脚本必须把该包输出为 deploy 阶段 `runtime_dependencies.mip`，不得下载/复制 micropython-lib 源码，不得生成 `none/manual` 占位文件，也不得触发 `NO_DRIVER_FILES`。
 9. 将脚本输出的 `files[]` 逐条转成 `file_operation(write)`，目标必须位于 `firmware/lib/...`。
-10. 读取 `references/driver_factory_templates.md`，再读取驱动源码、README、example 和 package metadata，生成 `firmware/drivers/<name>_driver/__init__.py` 与 `mock.py`。Mock 方法签名必须来自驱动源码。
+10. 读取 `references/driver_factory_templates.md` 和 `knowledge/driver_api_usage.pitfall.json`，再读取驱动源码、README、example 和 package metadata，生成 `firmware/drivers/<name>_driver/__init__.py` 与 `mock.py`。Mock 方法签名必须来自可信 API 证据。对 `devices[].driver.source="micropython_lib"`，不得以“没有本地源码”为由凭记忆写调用；必须使用上游 `driver.api_ref`、`readme_url/readme`、`examples`、`docs_url` 或 upy-pkg-guide 返回的 metadata。若这些证据缺失或只是不足以确认调用形状的摘要，输出 `partial` 并要求补 API 参考，不要生成可能错误的业务 API 调用。
 11. 读取 `references/task_generation_rules.md`，按 scaffold 选择的调度模式生成 task：
    - `timer`：周期 tick，避免阻塞，优先使用 `time_helper.timed_function`。
    - `async`：使用 `uasyncio`，优先使用 `timed_coro`，阻塞 sleep 改为 `await asyncio.sleep_ms`。
@@ -218,7 +218,7 @@ Additional hard rules:
 - 每个传感器/器件读写独立 try/except，一个失败不影响其他。
 - 关键状态必须 print + `lib.logger` 双写：启动、驱动初始化、读数、报警、显示、网络发送、异常。
 - 生成 task 时必须遵守 `references/task_generation_rules.md` 的日志矩阵。
-- 生成 factory/mock 时必须遵守 `references/driver_factory_templates.md` 的 I2C/GPIO/SPI 模板和驱动 API 解析规则。
+- 生成 factory/mock 时必须遵守 `references/driver_factory_templates.md` 的 I2C/GPIO/SPI 模板和驱动 API 解析规则。`micropython_lib` 包是 runtime-only 依赖，不写入 `firmware/lib`；业务代码和 adapter 只能依据 `driver.api_ref`、README、examples、docs 或 package metadata，证据不足时必须 partial。
 - 生成 `main.py` 和 `conf.py` 时必须遵守 `references/main_conf_rules.md` 的 rotating logger、I2C scan、boot delay、配置常量规则。
 - PC 测试必须使用 CPython `unittest`，覆盖正常、设备为 None、驱动异常三类场景。
 - device 测试必须读取并遵守 `references/device_unittest_subset.md`：使用 MicroPython 可运行的 `unittest` 子集，覆盖设备端可跑的协议、状态、driver adapter、配置或轻量文件系统行为；不要生成 pytest、`unittest.mock`、`pathlib`、`tempfile`、`typing` 等 CPython-only 测试代码。
@@ -375,4 +375,6 @@ python -X utf8 upy-generate-plugin/test/run_local_mock_session.py --session-dir 
 - Scaffold framework ownership, `main.py` assembly, and logger timestamp call-site rules live in `references/main_conf_rules.md`; do not patch scaffold-owned libraries to hide generated-app bugs.
 - MicroPython import policy lives in `references/validation_gates.md` and `knowledge/micropython_imports.pitfall.json`; guarded CPython-only branches are warnings, direct runtime CPython imports remain hard failures.
 - Runtime mip dependency policy lives in `knowledge/mip_runtime_dependencies.pitfall.json`; generate declares `runtime_dependencies.mip`, deploy installs/verifies with `mpremote mip install`, and generate does not vendor micropython-lib source by default.
+- MicroPython-lib package API usage still needs evidence even when source is not vendored. Use upstream `driver.api_ref` or docs/readme/examples/package metadata for generation; missing evidence is a generate-blocking issue, not a reason to copy source into `firmware/lib`.
+- uPyPi device drivers must also be declared in `runtime_dependencies.mip` using the package URL, for example `https://upypi.net/pkgs/bma423_driver/1.0.0`; deploy uses `mpremote mip install` so package assets such as `.bin` files are installed completely.
 - Official hardware/peripheral documentation evidence rules live in `references/validation_gates.md` and `knowledge/micropython_official_library_index.json`; exact class/module pages are required when available.

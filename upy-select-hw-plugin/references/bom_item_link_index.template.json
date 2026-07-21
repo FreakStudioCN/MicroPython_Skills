@@ -13,7 +13,9 @@
     "shop_url",
     "datasheet_url",
     "supplier",
-    "sku"
+    "sku",
+    "search_query",
+    "purchase_links"
   ],
   "bom_item_template": {
     "name": "",
@@ -25,6 +27,8 @@
     "datasheet_url": "",
     "supplier": "",
     "sku": "",
+    "search_query": "",
+    "purchase_links": [],
     "notes": ""
   },
   "examples": [

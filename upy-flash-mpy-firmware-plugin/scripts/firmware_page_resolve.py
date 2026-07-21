@@ -146,7 +146,28 @@ def candidate_links(html_text: str, board_url: str) -> list[dict[str, Any]]:
     return items
 
 
-def choose_latest(items: list[dict[str, Any]], family: str) -> dict[str, Any]:
+def firmware_matches_variant(item: dict[str, Any], variant: str | None) -> bool:
+    if not variant:
+        return True
+    normalized = variant.strip().lower().replace("_", "-")
+    haystack = " ".join(
+        str(item.get(field) or "")
+        for field in ("filename", "link_text", "nearby_text", "url")
+    ).lower()
+    dashed = haystack.replace("_", "-")
+    spaced = dashed.replace("-", " ")
+    if normalized in {"spiram-oct", "octal-spiram"}:
+        return (
+            "spiram-oct" in dashed
+            or "spiram oct" in spaced
+            or "octal-spiram" in dashed
+            or "octal spiram" in spaced
+            or "octal psram" in spaced
+        )
+    return normalized in dashed or normalized.replace("-", " ") in spaced
+
+
+def choose_latest(items: list[dict[str, Any]], family: str, variant: str | None = None) -> dict[str, Any]:
     ext = extension_for_family(family)
     filtered = []
     for item in items:
@@ -155,9 +176,12 @@ def choose_latest(items: list[dict[str, Any]], family: str) -> dict[str, Any]:
                 filtered.append(item)
         elif item["file_type"] == ext:
             filtered.append(item)
+    if variant:
+        filtered = [item for item in filtered if firmware_matches_variant(item, variant)]
     latest = [item for item in filtered if item["is_latest"] and not item["is_preview"]]
     if not latest:
-        raise LookupError(f"no latest firmware found for family={family}")
+        suffix = f" variant={variant}" if variant else ""
+        raise LookupError(f"no latest firmware found for family={family}{suffix}")
     return latest[0]
 
 
@@ -330,6 +354,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--board-url")
     parser.add_argument("--board-name", required=True)
     parser.add_argument("--board-family", choices=("esp32", "pico", "manual"), required=True)
+    parser.add_argument("--variant", help="Optional firmware variant, for example spiram-oct.")
     parser.add_argument("--html-file")
     parser.add_argument("--index-html-file")
     parser.add_argument("--out-json", "--output-json", dest="out_json")
@@ -354,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
             warnings.extend(index_warnings)
         download_slug = download_slug_from_url(board_url)
         page, source = read_page(board_url, args.html_file, args.timeout)
-        latest = choose_latest(candidate_links(page, board_url), args.board_family)
+        latest = choose_latest(candidate_links(page, board_url), args.board_family, args.variant)
         result = {
             "status": "success",
             "board_name": args.board_name,
@@ -362,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
             "board_url": board_url,
             "download_index_url": args.download_index_url,
             "family": args.board_family,
+            "variant": args.variant,
             "page_source": source,
             "index_source": index_source,
             "resolved": {

@@ -83,20 +83,103 @@ def file_record(path: str, content: str, role: str, source_path: str) -> dict[st
     return record
 
 
-def download_upypi(device_name: str, package_name: str, version: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def upypi_package_url(package_name: str, version: str, driver: dict[str, Any]) -> str:
+    url = str(driver.get("url") or "").strip()
+    if url:
+        url = url.rstrip("/")
+        if url.endswith("/package.json"):
+            url = url[: -len("/package.json")]
+        return url
+    return f"{UPYPI_BASE}/pkgs/{package_name}/{version}"
+
+
+def dependency_key(dependency: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(dependency.get("package") or ""),
+        str(dependency.get("verify_import") or ""),
+        str(dependency.get("target") or "/lib"),
+    )
+
+
+def merge_runtime_dependency(existing: dict[str, Any], incoming: dict[str, Any]) -> None:
+    for field in ("package_name", "version", "reason", "target", "install_phase", "verify_import", "source", "source_url", "package_json_url"):
+        if incoming.get(field) and not existing.get(field):
+            existing[field] = incoming[field]
+    for field in ("required_for", "asset_files"):
+        current = existing.get(field)
+        added = incoming.get(field)
+        if not isinstance(current, list):
+            current = []
+        if not isinstance(added, list):
+            added = []
+        for item in added:
+            if item not in current:
+                current.append(item)
+        existing[field] = current
+
+
+def append_runtime_dependency(entries: list[dict[str, Any]], dependency: dict[str, Any] | None) -> None:
+    if not dependency:
+        return
+    key = dependency_key(dependency)
+    for existing in entries:
+        if dependency_key(existing) == key:
+            merge_runtime_dependency(existing, dependency)
+            return
+    entries.append(dependency)
+
+
+def runtime_dependency_for_upypi(
+    device: dict[str, Any],
+    driver: dict[str, Any],
+    package_name: str,
+    version: str,
+    *,
+    asset_files: list[str] | None = None,
+) -> dict[str, Any]:
+    device_name = str(device.get("name", "device"))
+    package_url = upypi_package_url(package_name, version, driver)
+    verify_import = str(driver.get("verify_import") or driver.get("module") or package_name.replace("-", "_")).strip()
+    return {
+        "package": package_url,
+        "package_name": package_name,
+        "version": version,
+        "reason": f"{device_name} requires uPyPi package {package_name}",
+        "required_for": [device_name],
+        "target": str(driver.get("target") or "/lib"),
+        "install_phase": "deploy",
+        "verify_import": verify_import,
+        "source": "upypi",
+        "source_url": package_url,
+        "package_json_url": str(driver.get("package_json_url") or f"{package_url}/package.json"),
+        "asset_files": asset_files or [],
+    }
+
+
+def download_upypi(
+    device: dict[str, Any],
+    package_name: str,
+    version: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    device_name = str(device.get("name", "device"))
+    driver = device.get("driver") if isinstance(device.get("driver"), dict) else {}
     files: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
-    base = f"{UPYPI_BASE}/pkgs/{package_name}/{version}"
+    runtime_dependencies: list[dict[str, Any]] = []
+    base = upypi_package_url(package_name, version, driver)
     try:
         package = fetch_json(f"{base}/package.json")
     except Exception as exc:
-        return files, [{"code": "UPYPI_PACKAGE_JSON_FAILED", "package": package_name, "message": str(exc)}]
+        runtime_dependencies.append(runtime_dependency_for_upypi(device, driver, package_name, version))
+        return files, [{"code": "UPYPI_PACKAGE_JSON_FAILED", "package": package_name, "message": str(exc)}], runtime_dependencies
 
+    non_python_assets: list[str] = []
     for entry in package.get("urls", []):
         if not isinstance(entry, list) or len(entry) < 2:
             continue
         target_name, source_path = str(entry[0]), str(entry[1])
         if not target_name.endswith(".py"):
+            non_python_assets.append(target_name)
             continue
         try:
             text = normalize_python_text(fetch_text(f"{base}/{source_path}"))
@@ -118,7 +201,19 @@ def download_upypi(device_name: str, package_name: str, version: str) -> tuple[l
             if role == "example":
                 text = normalize_python_text(text)
             files.append(file_record(firmware_lib_path(ref_name), text, role, url))
-    return files, warnings
+    runtime_dependencies.append(
+        runtime_dependency_for_upypi(device, driver, package_name, version, asset_files=non_python_assets)
+    )
+    if non_python_assets:
+        warnings.append(
+            {
+                "code": "UPYPI_NON_PYTHON_ASSETS_REQUIRE_MIP",
+                "package": package_name,
+                "asset_files": non_python_assets,
+                "message": "uPyPi package includes non-Python assets; deploy must install the package with mpremote mip",
+            }
+        )
+    return files, warnings, runtime_dependencies
 
 
 def parse_github_repo(url: str) -> tuple[str, str] | None:
@@ -179,6 +274,23 @@ def placeholder_for_none(device: dict[str, Any]) -> dict[str, Any]:
     return file_record(f"firmware/lib/{name}_placeholder.py", content, "placeholder", "generated")
 
 
+def runtime_dependency_for_micropython_lib(device: dict[str, Any], driver: dict[str, Any]) -> dict[str, Any]:
+    device_name = str(device.get("name", "device"))
+    package = str(driver.get("package_name") or "").strip()
+    version = str(driver.get("version") or "latest").strip() or "latest"
+    verify_import = str(driver.get("module") or driver.get("verify_import") or package.replace("-", "_")).strip()
+    return {
+        "package": package,
+        "version": version,
+        "reason": f"{device_name} requires MicroPython-lib package {package}",
+        "required_for": [device_name],
+        "target": str(driver.get("target") or "/lib"),
+        "install_phase": "deploy",
+        "verify_import": verify_import,
+        "source": "micropython_lib",
+    }
+
+
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(description="Download MicroPython drivers as JSON file records")
@@ -204,19 +316,21 @@ def main() -> int:
         return 2
 
     all_warnings: list[dict[str, Any]] = []
+    runtime_mip: list[dict[str, Any]] = []
     for device in manifest.get("devices", []):
         if not isinstance(device, dict):
             continue
         driver = device.get("driver", {})
         if not isinstance(driver, dict):
             driver = {}
-        source = str(driver.get("source", "")).lower()
+        source = str(driver.get("source", "")).strip().lower()
         device_name = str(device.get("name", "device"))
-        package_name = str(driver.get("package_name", ""))
+        package_name = str(driver.get("package_name", "")).strip()
         status = str(driver.get("status") or driver.get("driver_status") or device.get("driver_status") or "").strip()
-        version = str(driver.get("version", "1.0.0"))
+        version = str(driver.get("version") or ("latest" if source == "micropython_lib" else "1.0.0"))
         files: list[dict[str, Any]] = []
         warnings: list[dict[str, Any]] = []
+        runtime_dependencies: list[dict[str, Any]] = []
         if status == "ready" and driver.get("path"):
             warnings.append(
                 {
@@ -226,17 +340,73 @@ def main() -> int:
                     "message": "driver is already hardware-ready; no firmware/lib download is required",
                 }
             )
+        elif source == "micropython_lib":
+            if package_name:
+                dependency = runtime_dependency_for_micropython_lib(device, driver)
+                append_runtime_dependency(runtime_dependencies, dependency)
+                append_runtime_dependency(runtime_mip, dependency)
+                warnings.append(
+                    {
+                        "code": "MICROPYTHON_LIB_RUNTIME_DEPENDENCY",
+                        "device": device_name,
+                        "package": package_name,
+                        "message": "MicroPython-lib package is declared as a deploy-time mip dependency; no firmware/lib source download is required",
+                    }
+                )
+            else:
+                errors.append(
+                    {
+                        "code": "MICROPYTHON_LIB_PACKAGE_MISSING",
+                        "severity": "error",
+                        "device": device_name,
+                        "message": "driver.package_name is required when driver.source=micropython_lib",
+                    }
+                )
+        elif source == "upypi" and package_name:
+            dependency = runtime_dependency_for_upypi(device, driver, package_name, version)
+            append_runtime_dependency(runtime_dependencies, dependency)
+            append_runtime_dependency(runtime_mip, dependency)
+            if args.offline:
+                warnings.append(
+                    {
+                        "code": "UPYPI_RUNTIME_DEPENDENCY",
+                        "device": device_name,
+                        "package": package_name,
+                        "message": "uPyPi package is declared as a deploy-time mip dependency; source download skipped in offline mode",
+                    }
+                )
+            else:
+                files, warnings, resolved_runtime = download_upypi(device, package_name, version)
+                for dependency in resolved_runtime:
+                    append_runtime_dependency(runtime_dependencies, dependency)
+                    append_runtime_dependency(runtime_mip, dependency)
+                warnings.insert(
+                    0,
+                    {
+                        "code": "UPYPI_RUNTIME_DEPENDENCY",
+                        "device": device_name,
+                        "package": package_name,
+                        "message": "uPyPi package is also declared as a deploy-time mip dependency so package assets are installed completely",
+                    },
+                )
+        elif source == "upypi":
+            errors.append(
+                {
+                    "code": "UPYPI_PACKAGE_MISSING",
+                    "severity": "error",
+                    "device": device_name,
+                    "message": "driver.package_name is required when driver.source=upypi",
+                }
+            )
         elif args.offline:
             warnings.append({"code": "OFFLINE_MODE", "message": "network download skipped"})
-        elif source == "upypi" and package_name:
-            files, warnings = download_upypi(device_name, package_name, version)
         elif source in {"awesome-micropython", "github"} and driver.get("driver_url"):
             files, warnings = download_github(device_name, str(driver["driver_url"]))
         elif source in {"none", "manual", ""}:
             files = [placeholder_for_none(device)]
         else:
             warnings.append({"code": "DRIVER_SOURCE_UNSUPPORTED", "device": device_name, "source": source})
-        if source != "none" and not files and not args.offline and status not in {"cold_driver_required", "ready"}:
+        if source not in {"none", "manual", "micropython_lib", "upypi"} and not files and not args.offline and status not in {"cold_driver_required", "ready"}:
             warnings.append({"code": "NO_DRIVER_FILES", "device": device_name})
         drivers.append(
             {
@@ -245,6 +415,7 @@ def main() -> int:
                 "package_name": package_name or None,
                 "version": version if package_name else None,
                 "files": files,
+                "runtime_dependencies": runtime_dependencies,
                 "warnings": warnings,
             }
         )
@@ -252,6 +423,7 @@ def main() -> int:
     json_dump(
         {
             "drivers": drivers,
+            "runtime_dependencies": {"mip": runtime_mip},
             "errors": errors,
             "warnings": all_warnings,
             "summary": "Resolved {} device driver entries, {} files total".format(

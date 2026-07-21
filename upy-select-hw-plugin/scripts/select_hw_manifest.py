@@ -332,7 +332,20 @@ BOM_LINK_TEMPLATE_FIELDS = (
     "datasheet_url",
     "supplier",
     "sku",
+    "search_query",
+    "purchase_links",
 )
+BOM_LINK_LIST_FIELDS = {"purchase_links"}
+BOM_PURCHASE_LINK_STRING_FIELDS = (
+    "region",
+    "vendor",
+    "url",
+    "link_type",
+    "search_query",
+    "confidence",
+    "notes",
+)
+YOURCEE_PRODUCT_ENTRY_URL = "https://www.yourcee.com/cpzl"
 BOM_LINK_INDEX_TEMPLATE = SKILL_DIR / "references" / "bom_item_link_index.template.json"
 ONBOARD_DRIVER_MAP_PATH = SKILL_DIR / "references" / "onboard_driver_map.json"
 
@@ -546,6 +559,57 @@ def load_bom_link_fields() -> tuple[str, ...]:
     return normalized or BOM_LINK_TEMPLATE_FIELDS
 
 
+def bom_procurement_search_query(item: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for field in ("model", "selected_model", "module", "part", "name"):
+        value = item.get(field)
+        if value in (None, ""):
+            continue
+        text = str(value).strip()
+        if text and normalized_label(text) not in {normalized_label(part) for part in parts}:
+            parts.append(text)
+    query = " ".join(parts).strip()
+    if not query:
+        return ""
+    if all(ord(char) < 128 for char in query):
+        lowered = query.lower()
+        has_noun = any(
+            noun in lowered
+            for noun in ("module", "sensor", "board", "kit", "wire", "display", "led", "button")
+        )
+        if not has_noun:
+            query = f"{query} module"
+    return query
+
+
+def normalize_purchase_links(value: Any, search_query: str) -> list[dict[str, str]]:
+    links: list[dict[str, str]] = []
+    if isinstance(value, list):
+        for raw in value:
+            if not isinstance(raw, dict):
+                continue
+            link: dict[str, str] = {}
+            for field in BOM_PURCHASE_LINK_STRING_FIELDS:
+                raw_value = raw.get(field)
+                link[field] = "" if raw_value in (None, "") else str(raw_value)
+            if not link["search_query"]:
+                link["search_query"] = search_query
+            links.append(link)
+    if not links and search_query:
+        links.append(
+            {
+                "region": "cn",
+                "vendor": "Yourcee",
+                "url": YOURCEE_PRODUCT_ENTRY_URL,
+                "link_type": "site_entry",
+                "search_query": search_query,
+                "confidence": "medium",
+                "notes": "Open YourCee product data entry and search this query manually.",
+            }
+        )
+    return links
+
+
 def normalize_bom_items(bom: Any) -> list[Any]:
     if not isinstance(bom, list):
         return []
@@ -557,7 +621,10 @@ def normalize_bom_items(bom: Any) -> list[Any]:
             continue
         item = copy.deepcopy(raw)
         for field in link_fields:
-            item.setdefault(field, "")
+            item.setdefault(field, [] if field in BOM_LINK_LIST_FIELDS else "")
+        search_query = str(item.get("search_query") or "").strip() or bom_procurement_search_query(item)
+        item["search_query"] = search_query
+        item["purchase_links"] = normalize_purchase_links(item.get("purchase_links"), search_query)
         normalized.append(item)
     return normalized
 
@@ -1581,10 +1648,38 @@ def validate_pin_review(
                 errors.append("hardware_plan.pin_review.confirmed_at must be the actual approval time, not a date-only placeholder")
 
 
-def normalize_manifest(draft: dict[str, Any], effective_upstream: dict[str, Any] | None = None) -> dict[str, Any]:
+def selected_board_with_definition_defaults(
+    selected_board: Any,
+    board_definition: dict[str, Any] | None,
+) -> dict[str, Any]:
+    selected = copy.deepcopy(selected_board if isinstance(selected_board, dict) else {})
+    if not isinstance(board_definition, dict):
+        return selected
+
+    board_firmware = board_definition.get("firmware")
+    if not isinstance(board_firmware, dict):
+        return selected
+
+    selected_firmware = selected.get("firmware")
+    if not isinstance(selected_firmware, dict):
+        selected_firmware = {}
+        selected["firmware"] = selected_firmware
+
+    for field in ("source", "url", "port", "board_name", "variant", "file_type", "flash_method"):
+        if selected_firmware.get(field) in (None, "") and board_firmware.get(field) not in (None, ""):
+            selected_firmware[field] = copy.deepcopy(board_firmware[field])
+    return selected
+
+
+def normalize_manifest(
+    draft: dict[str, Any],
+    effective_upstream: dict[str, Any] | None = None,
+    board_definition: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     upstream = copy.deepcopy(effective_upstream if effective_upstream is not None else draft["upstream_manifest"])
     plan = copy.deepcopy(draft["hardware_plan"])
     mcu = copy.deepcopy(plan["mcu"])
+    selected_board = selected_board_with_definition_defaults(draft.get("selected_board", {}), board_definition)
     estimated_total = plan.get("estimated_total_yuan")
     if estimated_total is None:
         estimated_total = sum(
@@ -1603,7 +1698,7 @@ def normalize_manifest(draft: dict[str, Any], effective_upstream: dict[str, Any]
         "mcu": mcu,
         "hardware_selection": {
             "source_phase": draft.get("source_phase", "analyze"),
-            "selected_board": copy.deepcopy(draft.get("selected_board", {})),
+            "selected_board": selected_board,
             "board_confirmed": True,
             "firmware_checked": True,
             "price_source": "llm_common_knowledge_v0",
@@ -1701,7 +1796,11 @@ def validate_draft(
 
     if errors:
         return errors, warnings, None
-    return errors, warnings, normalize_manifest(draft, effective_upstream if isinstance(effective_upstream, dict) else None)
+    return errors, warnings, normalize_manifest(
+        draft,
+        effective_upstream if isinstance(effective_upstream, dict) else None,
+        board_definition,
+    )
 
 
 def phase_payload(data: dict[str, Any]) -> dict[str, Any]:

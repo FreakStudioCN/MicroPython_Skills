@@ -1,0 +1,545 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "lilygo-t-watch-s3",
+  "display_name": "LilyGO T-WATCH S3",
+  "vendor": "LILYGO",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Wearable UI",
+    "LoRa telemetry",
+    "Battery-powered ESP32-S3 projects",
+    "Audio and haptic prototypes"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. Core onboard driver package mappings use confirmed uPyPi packages; optional/SKU-dependent peripherals remain pending.",
+  "features": [
+    "BLE",
+    "Battery",
+    "Display",
+    "External RAM",
+    "Haptic",
+    "IMU",
+    "LoRa",
+    "Microphone",
+    "RTC",
+    "Speaker",
+    "Touch",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": false,
+    "lora": true,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "touch": true,
+    "haptic": true,
+    "rtc": true
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789 display",
+      "type": "display",
+      "model": "ST7789",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "mosi": 13,
+        "clk": 18,
+        "cs": 12,
+        "dc": 38,
+        "backlight": 45,
+        "rst": -1
+      },
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789_driver",
+        "version": "1.0.0",
+        "module": "st7789",
+        "url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "notes": "SPI ST7789 package. uPyPi description metadata currently mentions gt911 by mistake; package files contain st7789.py and fonts.",
+        "source_url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789"
+      },
+      "notes": "240x240 SPI display. RST is not connected in the referenced MicroPython project."
+    },
+    {
+      "name": "FT6x06 touch controller",
+      "type": "touch",
+      "model": "FT6x06/FT5336",
+      "manufacturer": "FocalTech",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 39,
+        "scl": 40,
+        "int": 16
+      },
+      "i2c_addr": "0x38",
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "ft6x06_driver",
+        "version": "1.0.0",
+        "module": "ft6x06",
+        "url": "https://upypi.net/pkgs/ft6x06_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/ft6x06_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/ft6x06_driver/1.0.0",
+        "alternate_packages": [
+          {
+            "package_name": "ft5336_driver",
+            "version": "1.0.0",
+            "module": "ft5336",
+            "url": "https://upypi.net/pkgs/ft5336_driver/1.0.0",
+            "package_json_url": "https://upypi.net/pkgs/ft5336_driver/1.0.0/package.json"
+          }
+        ],
+        "notes": "External I2C touch controller, not machine.TouchPad. Use ft5336_driver if hardware review confirms FT5336 specifically.",
+        "source_url": "https://upypi.net/pkgs/ft6x06_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "ft6x06"
+      },
+      "notes": "Explicit driver entry prevents select-hw from treating this as ESP32 capacitive TouchPad."
+    },
+    {
+      "name": "AXP2101 power management",
+      "type": "power_mgmt",
+      "model": "AXP2101",
+      "manufacturer": "X-Powers",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 10,
+        "scl": 11
+      },
+      "i2c_addr": "0x34",
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "axp2101_driver",
+        "version": "1.0.0",
+        "module": "axp2101",
+        "url": "https://upypi.net/pkgs/axp2101_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/axp2101_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/axp2101_driver/1.0.0",
+        "source_url": "https://upypi.net/pkgs/axp2101_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "axp2101"
+      },
+      "notes": "Main internal I2C bus shared with RTC, IMU and haptic controller."
+    },
+    {
+      "name": "PCF8563 RTC",
+      "type": "rtc",
+      "model": "PCF8563",
+      "manufacturer": "NXP",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 10,
+        "scl": 11,
+        "int": 17
+      },
+      "i2c_addr": "0x51",
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "pcf8563_driver",
+        "version": "1.0.2",
+        "module": "pcf8563",
+        "url": "https://upypi.net/pkgs/pcf8563_driver/1.0.2",
+        "package_json_url": "https://upypi.net/pkgs/pcf8563_driver/1.0.2/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/pcf8563_driver/1.0.2",
+        "source_url": "https://upypi.net/pkgs/pcf8563_driver/1.0.2",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "pcf8563"
+      },
+      "notes": "Shares the main internal I2C bus."
+    },
+    {
+      "name": "BMA423 IMU",
+      "type": "imu",
+      "model": "BMA423",
+      "manufacturer": "Bosch",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 10,
+        "scl": 11,
+        "int1": 14
+      },
+      "i2c_addr": "0x19",
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "bma423_driver",
+        "version": "1.0.0",
+        "module": "bma423",
+        "url": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/bma423_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/bma423_driver/1.0.0",
+        "source_url": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "bma423",
+        "asset_files": [
+          "bma423conf.bin"
+        ]
+      },
+      "notes": "Shares the main internal I2C bus."
+    },
+    {
+      "name": "DRV2605L haptic driver",
+      "type": "haptic",
+      "model": "DRV2605L",
+      "manufacturer": "Texas Instruments",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 10,
+        "scl": 11
+      },
+      "i2c_addr": "0x5A",
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "drv2605l_driver",
+        "version": "0.1.0",
+        "module": "drv2605l",
+        "url": "https://upypi.net/pkgs/drv2605l_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/drv2605l_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/drv2605l_driver/0.1.0",
+        "source_url": "https://upypi.net/pkgs/drv2605l_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "drv2605l"
+      },
+      "notes": "Shares the main internal I2C bus."
+    },
+    {
+      "name": "SX1262 LoRa radio",
+      "type": "radio_lora",
+      "model": "SX1262",
+      "manufacturer": "Semtech",
+      "interface": "SPI",
+      "occupied_pins": {
+        "clk": 3,
+        "miso": 4,
+        "mosi": 1,
+        "cs": 5,
+        "dio1": 9,
+        "rst": 8,
+        "busy": 7,
+        "dio3": 6
+      },
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "sx1262_driver",
+        "version": "1.0.0",
+        "module": "sx1262",
+        "url": "https://upypi.net/pkgs/sx1262_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/sx1262_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/sx1262_driver/1.0.0",
+        "source_url": "https://upypi.net/pkgs/sx1262_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "sx1262"
+      },
+      "notes": "Dedicated LoRa SPI bus."
+    },
+    {
+      "name": "MAX98357A speaker amplifier",
+      "type": "speaker",
+      "model": "MAX98357A",
+      "manufacturer": "Maxim Integrated",
+      "interface": "I2S",
+      "occupied_pins": {
+        "bck": 48,
+        "ws": 15,
+        "dout": 46
+      },
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.I2S",
+        "notes": "MAX98357A uses standard I2S output; no separate uPyPi driver is required.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "I2S audio output."
+    },
+    {
+      "name": "PDM microphone",
+      "type": "microphone",
+      "model": "",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "data": 47,
+        "clk": 44
+      },
+      "always_used": false,
+      "model_evidence": "needs_model_identification",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.I2S",
+        "notes": "PDM microphone data path uses I2S/PDM handling; exact microphone model remains pending hardware review.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "PDM microphone model requires hardware review."
+    },
+    {
+      "name": "IR transmitter",
+      "type": "led",
+      "model": "IR LED",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "ir": 2
+      },
+      "always_used": false,
+      "model_evidence": "vendor_reference_code",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.Pin",
+        "notes": "PWM/timer usage depends on generated application.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Infrared output GPIO."
+    },
+    {
+      "name": "Optional GPS connector",
+      "type": "gps",
+      "model": "",
+      "manufacturer": "",
+      "interface": "UART",
+      "occupied_pins": {
+        "tx": 42,
+        "rx": 41
+      },
+      "always_used": false,
+      "model_evidence": "optional_expansion",
+      "pin_evidence": "vendor_reference_code",
+      "verification": "sku_or_expansion_pending_review",
+      "driver": {
+        "source": "cold-driver",
+        "status": "cold_driver_required",
+        "mapping_status": "pending_upypi_mapping",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "gps uart"
+      },
+      "notes": "Optional expansion; do not auto-add unless user asks for GPS."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "sda": 10,
+        "scl": 11
+      },
+      "i2c1": {
+        "sda": 39,
+        "scl": 40
+      },
+      "spi0": {
+        "mosi": 13,
+        "clk": 18,
+        "cs": 12
+      },
+      "spi1": {
+        "mosi": 1,
+        "miso": 4,
+        "clk": 3,
+        "cs": 5
+      },
+      "i2s0": {
+        "bck": 48,
+        "ws": 15,
+        "data_out": 46
+      },
+      "uart1": {
+        "tx": 42,
+        "rx": 41
+      }
+    },
+    "default_bus_source": "vendor_reference_code",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "DISPLAY_MOSI": 13,
+        "DISPLAY_SCLK": 18,
+        "DISPLAY_CS": 12,
+        "DISPLAY_DC": 38,
+        "DISPLAY_BL": 45,
+        "TOUCH_SDA": 39,
+        "TOUCH_SCL": 40,
+        "TOUCH_INT": 16,
+        "PMU_SDA": 10,
+        "PMU_SCL": 11,
+        "RTC_INT": 17,
+        "IMU_INT1": 14,
+        "LORA_SCK": 3,
+        "LORA_MISO": 4,
+        "LORA_MOSI": 1,
+        "LORA_SS": 5,
+        "LORA_DIO1": 9,
+        "LORA_RST": 8,
+        "LORA_BUSY": 7,
+        "LORA_DIO3": 6,
+        "AUDIO_BCK": 48,
+        "AUDIO_WS": 15,
+        "AUDIO_DOUT": 46,
+        "MIC_DATA": 47,
+        "MIC_CLK": 44,
+        "IR": 2,
+        "GPS_TX": 42,
+        "GPS_RX": 41
+      },
+      "exposed_pins": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        38,
+        39,
+        40,
+        41,
+        42,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "Core onboard driver package names have confirmed uPyPi mappings; optional/SKU-dependent peripherals remain pending.",
+      "FT6x06/FT5336 is an external I2C touch controller and must not be mapped to machine.TouchPad."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.lilygo.cc/products/t-watch-s3",
+    "source_url": "https://github.com/antirez/t-watch-s3-micropython"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://www.lilygo.cc/products/t-watch-s3",
+    "reference_micropython_repo": "https://github.com/antirez/t-watch-s3-micropython",
+    "datasheet_or_hardware": [],
+    "schematic": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "partial_upypi_mapping",
+    "created_at": "2026-07-20"
+  }
+}

@@ -86,6 +86,18 @@ MICROPYTHON_LIB_MIDDLEWARE_TYPES = {
     "protocol_stack",
     "network_stack",
 }
+API_REFERENCE_FIELDS = ("api_ref", "api_reference", "api_summary")
+API_EVIDENCE_FIELDS = (
+    "docs_url",
+    "doc_url",
+    "documentation_url",
+    "readme_url",
+    "readme",
+    "examples_url",
+    "example_url",
+    "examples",
+    "source_url",
+)
 
 REQUIREMENTS_DEFAULTS = {
     "scene": "indoor",
@@ -112,6 +124,41 @@ def load_input(args: argparse.Namespace) -> dict[str, Any]:
         with open(args.input, "r", encoding="utf-8") as f:
             return json.load(f)
     raise ValueError("must provide --stdin or --input")
+
+
+def has_nonempty_value(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return any(str(key).strip() and has_nonempty_value(item) for key, item in value.items())
+    if isinstance(value, list):
+        return any(has_nonempty_value(item) for item in value)
+    return value is not None
+
+
+def has_structured_api_reference(driver: dict[str, Any]) -> bool:
+    for field in API_REFERENCE_FIELDS:
+        value = driver.get(field)
+        if isinstance(value, (dict, list)) and has_nonempty_value(value):
+            return True
+    for container_name in ("metadata", "package_metadata", "package_info"):
+        container = driver.get(container_name)
+        if isinstance(container, dict) and has_structured_api_reference(container):
+            return True
+    return False
+
+
+def has_api_reference(driver: dict[str, Any]) -> bool:
+    if has_structured_api_reference(driver):
+        return True
+    for field in API_EVIDENCE_FIELDS:
+        if has_nonempty_value(driver.get(field)):
+            return True
+    for container_name in ("metadata", "package_metadata", "package_info"):
+        container = driver.get(container_name)
+        if isinstance(container, dict) and has_api_reference(container):
+            return True
+    return False
 
 
 def validate_and_fill(data: dict[str, Any]) -> list[str]:
@@ -226,6 +273,10 @@ def validate_and_fill(data: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix}.driver.install_cmd is required when driver.source={source}")
                 if source == "micropython_lib" and not driver.get("repo_url"):
                     errors.append(f"{prefix}.driver.repo_url is required when driver.source=micropython_lib")
+                if source == "micropython_lib" and not has_api_reference(driver):
+                    errors.append(
+                        f"{prefix}.driver.api_ref/readme_url/examples/docs_url is required when driver.source=micropython_lib"
+                    )
 
             search_provider = driver.get("search_provider")
             if search_provider is not None and search_provider not in VALID_DRIVER_SEARCH_PROVIDERS:

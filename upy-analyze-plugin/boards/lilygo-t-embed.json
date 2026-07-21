@@ -1,0 +1,427 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "lilygo-t-embed",
+  "display_name": "LilyGO T-Embed",
+  "vendor": "LILYGO",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Handheld UI controller",
+    "Audio experiments",
+    "Rotary encoder interfaces",
+    "MicroSD logging"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. Core onboard driver package mappings use confirmed uPyPi packages; SKU-dependent expansion remains pending.",
+  "features": [
+    "Audio",
+    "Battery",
+    "BLE",
+    "Display",
+    "External RAM",
+    "MicroSD",
+    "RGB LED",
+    "Rotary Encoder",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "rgb_led": true,
+    "rotary_encoder": true
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789V display",
+      "type": "display",
+      "model": "ST7789V",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "backlight": 15,
+        "dc": 13,
+        "cs": 10,
+        "clk": 12,
+        "mosi": 11,
+        "rst": 9
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789_driver",
+        "version": "1.0.0",
+        "module": "st7789",
+        "url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "notes": "SPI ST7789/ST7789V package. uPyPi description metadata currently mentions gt911 by mistake; package files contain st7789.py and fonts.",
+        "source_url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789"
+      },
+      "notes": "SPI ST7789V display."
+    },
+    {
+      "name": "APA102 RGB LED",
+      "type": "rgb_led",
+      "model": "APA102",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "clk": 45,
+        "data": 42
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "apa102_driver",
+        "version": "1.0.0",
+        "module": "apa102",
+        "url": "https://upypi.net/pkgs/apa102_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/apa102_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/apa102_driver/1.0.0",
+        "notes": "APA102 uses clock/data and must not be mapped to neopixel/WS2812.",
+        "source_url": "https://upypi.net/pkgs/apa102_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "apa102"
+      },
+      "notes": "Explicit driver entry prevents select-hw from treating APA102 as neopixel."
+    },
+    {
+      "name": "Rotary encoder",
+      "type": "rotary_encoder",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "a": 2,
+        "b": 1,
+        "button": 0
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "rotaryencoder_driver",
+        "version": "1.0.0",
+        "module": "ec11encoder",
+        "url": "https://upypi.net/pkgs/rotaryencoder_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/rotaryencoder_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/rotaryencoder_driver/1.0.0",
+        "notes": "Use for EC11-style A/B GPIO rotary encoder with push button.",
+        "source_url": "https://upypi.net/pkgs/rotaryencoder_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "rotary encoder"
+      },
+      "notes": "Rotary encoder with push button."
+    },
+    {
+      "name": "MAX98357A speaker amplifier",
+      "type": "speaker",
+      "model": "MAX98357A",
+      "manufacturer": "Maxim Integrated",
+      "interface": "I2S",
+      "occupied_pins": {
+        "bclk": 7,
+        "wclk": 5,
+        "dout": 6
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.I2S",
+        "notes": "MAX98357A uses standard I2S output; no separate uPyPi driver is required.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "I2S speaker output."
+    },
+    {
+      "name": "ES7210 audio ADC",
+      "type": "audio_codec",
+      "model": "ES7210",
+      "manufacturer": "Everest Semiconductor",
+      "interface": "I2S",
+      "occupied_pins": {
+        "bclk": 47,
+        "lrck": 21,
+        "din": 14,
+        "mclk": 48
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "es7210_driver",
+        "version": "0.1.0",
+        "module": "es7210",
+        "url": "https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/es7210_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "source_url": "https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "es7210",
+        "control_interface": "I2C",
+        "data_interface": "I2S",
+        "notes": "ES7210 driver configures the codec control registers; audio samples use machine.I2S."
+      },
+      "notes": "Audio ADC / microphone path; configuration bus details require package mapping review."
+    },
+    {
+      "name": "Battery voltage ADC",
+      "type": "power_mgmt",
+      "model": "ADC divider",
+      "manufacturer": "",
+      "interface": "ADC",
+      "occupied_pins": {
+        "vbat": 4
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.ADC",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Battery voltage sense input."
+    },
+    {
+      "name": "MicroSD slot",
+      "type": "storage",
+      "model": "microSD",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "cs": 39,
+        "clk": 40,
+        "mosi": 41,
+        "miso": 38
+      },
+      "always_used": false,
+      "model_evidence": "vendor_hardware_reference",
+      "pin_evidence": "vendor_hardware_reference",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "notes": "Exact constructor arguments depend on generated bus configuration.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "TF/MicroSD socket over SPI."
+    },
+    {
+      "name": "Candidate radio/NFC expansion",
+      "type": "expansion",
+      "model": "",
+      "manufacturer": "",
+      "interface": "SPI",
+      "alternate_interfaces": [
+        "I2C"
+      ],
+      "occupied_pins": {},
+      "always_used": false,
+      "model_evidence": "sku_dependent",
+      "pin_evidence": "needs_pin_mapping",
+      "verification": "sku_dependent_candidate",
+      "driver": {
+        "source": "cold-driver",
+        "status": "cold_driver_required",
+        "mapping_status": "pending_upypi_mapping",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "radio nfc expansion"
+      },
+      "notes": "Radio/NFC/SI4732/CC1101 content is SKU or expansion dependent and must not be enabled by default."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "sda": 18,
+        "scl": 8
+      },
+      "spi0": {
+        "mosi": 11,
+        "clk": 12,
+        "cs": 10
+      },
+      "spi1": {
+        "mosi": 41,
+        "miso": 38,
+        "clk": 40,
+        "cs": 39
+      },
+      "i2s0": {
+        "bck": 7,
+        "ws": 5,
+        "data_out": 6
+      },
+      "i2s1": {
+        "bck": 47,
+        "ws": 21,
+        "data_in": 14
+      }
+    },
+    "default_bus_source": "vendor_hardware_reference",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LCD_BL": 15,
+        "LCD_DC": 13,
+        "LCD_CS": 10,
+        "LCD_CLK": 12,
+        "LCD_MOSI": 11,
+        "LCD_RST": 9,
+        "APA102_CLK": 45,
+        "APA102_DATA": 42,
+        "ENCODER_A": 2,
+        "ENCODER_B": 1,
+        "ENCODER_BUTTON": 0,
+        "SPK_BCLK": 7,
+        "SPK_WCLK": 5,
+        "SPK_DOUT": 6,
+        "ES7210_BCLK": 47,
+        "ES7210_LRCK": 21,
+        "ES7210_DIN": 14,
+        "ES7210_MCLK": 48,
+        "BATTERY_ADC": 4,
+        "SD_CS": 39,
+        "SD_SCK": 40,
+        "SD_MOSI": 41,
+        "SD_MISO": 38,
+        "I2C_SDA": 18,
+        "I2C_SCL": 8
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        18,
+        21,
+        38,
+        39,
+        40,
+        41,
+        42,
+        45,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "APA102 must not be mapped to neopixel/WS2812.",
+      "Radio/NFC/SI4732/CC1101 are SKU or expansion dependent and not enabled by default."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.lilygo.cc/products/t-embed",
+    "source_url": "https://github.com/Xinyuan-LilyGO/T-Embed"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://www.lilygo.cc/products/t-embed",
+    "vendor_hardware_repo": "https://github.com/Xinyuan-LilyGO/T-Embed",
+    "datasheet_or_hardware": [],
+    "schematic": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "partial_upypi_mapping",
+    "created_at": "2026-07-20"
+  }
+}

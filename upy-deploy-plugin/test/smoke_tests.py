@@ -621,6 +621,41 @@ def assert_install_mip_dependencies_mock() -> None:
         if "__init__.mpy" not in fs_verify.get("expected_files", []) or "__init__.mpy" not in fs_verify.get("matched_files", []):
             raise AssertionError(f"mip fs verification must accept precompiled .mpy package files: {result}")
 
+        manifest["runtime_dependencies"]["mip"].append(
+            {
+                "package": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+                "package_name": "bma423_driver",
+                "reason": "BMA423 IMU requires uPyPi package bma423_driver",
+                "required_for": ["BMA423 IMU"],
+                "target": "/lib",
+                "version": "1.0.0",
+                "install_phase": "deploy",
+                "verify_import": "bma423",
+                "source": "upypi",
+                "asset_files": ["bma423conf.bin"],
+            }
+        )
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        result = run_json([
+            sys.executable,
+            str(SCRIPTS / "install_mip_dependencies.py"),
+            "--project-root",
+            str(project),
+            "--mock",
+        ])
+        bma_record = next(
+            (
+                item for item in result.get("records", [])
+                if item.get("package") == "https://upypi.net/pkgs/bma423_driver/1.0.0"
+            ),
+            None,
+        )
+        if not bma_record:
+            raise AssertionError(f"mock mip install must include BMA423 uPyPi dependency: {result}")
+        bma_fs_verify = bma_record.get("fs_verify") or {}
+        if bma_fs_verify.get("missing_asset_files") or "bma423conf.bin" not in bma_fs_verify.get("matched_asset_files", []):
+            raise AssertionError(f"mip fs verification must check uPyPi asset files: {result}")
+
         mip_failed_json = project / "mip_failed.json"
         mip_failed_json.write_text(
             json.dumps(

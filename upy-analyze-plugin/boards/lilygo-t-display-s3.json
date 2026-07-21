@@ -1,0 +1,297 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "lilygo-t-display-s3",
+  "display_name": "LilyGO T-Display-S3",
+  "vendor": "LILYGO",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Compact display UI",
+    "Battery-powered ESP32-S3 projects",
+    "USB-C display prototypes"
+  ],
+  "beginner_friendly": true,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. The onboard ST7789V display is 8-bit parallel/I8080, not SPI ST7789.",
+  "features": [
+    "BLE",
+    "Battery",
+    "Display",
+    "External RAM",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": false,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": false,
+    "sdcard": false,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "touch": false
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789V parallel display",
+      "type": "display",
+      "model": "ST7789V",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "bus_protocol": "I8080",
+      "occupied_pins": {
+        "backlight": 38,
+        "power": 15,
+        "rst": 5,
+        "cs": 6,
+        "dc": 7,
+        "wr": 8,
+        "rd": 9,
+        "d0": 39,
+        "d1": 40,
+        "d2": 41,
+        "d3": 42,
+        "d4": 45,
+        "d5": 46,
+        "d6": 47,
+        "d7": 48
+      },
+      "always_used": false,
+      "model_evidence": "vendor_micropython_repo",
+      "pin_evidence": "vendor_micropython_repo",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789v_parallel_driver",
+        "version": "0.1.0",
+        "module": "st7789v_parallel",
+        "url": "https://upypi.net/pkgs/st7789v_parallel_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789v_parallel_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789v_parallel_driver/0.1.0",
+        "notes": "Use only for the 8-bit parallel/I8080 ST7789V path; do not replace with the SPI ST7789 package.",
+        "source_url": "https://upypi.net/pkgs/st7789v_parallel_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789v parallel i8080"
+      },
+      "notes": "1.9 inch 170x320 ST7789V over 8-bit parallel bus."
+    },
+    {
+      "name": "BOOT button",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "button": 0
+      },
+      "always_used": false,
+      "model_evidence": "vendor_micropython_repo",
+      "pin_evidence": "vendor_micropython_repo",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.Pin",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Boot/user input button."
+    },
+    {
+      "name": "USER button",
+      "type": "button",
+      "model": "",
+      "manufacturer": "",
+      "interface": "GPIO",
+      "occupied_pins": {
+        "button": 14
+      },
+      "always_used": false,
+      "model_evidence": "vendor_micropython_repo",
+      "pin_evidence": "vendor_micropython_repo",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.Pin",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Second user button."
+    },
+    {
+      "name": "Battery voltage ADC",
+      "type": "power_mgmt",
+      "model": "ADC divider",
+      "manufacturer": "",
+      "interface": "ADC",
+      "occupied_pins": {
+        "vbat": 4
+      },
+      "always_used": false,
+      "model_evidence": "vendor_micropython_repo",
+      "pin_evidence": "vendor_micropython_repo",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.ADC",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Battery voltage sense input."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "sda": 18,
+        "scl": 17
+      },
+      "uart1": {
+        "tx": 43,
+        "rx": 44
+      },
+      "display_i8080": {
+        "d0": 39,
+        "d1": 40,
+        "d2": 41,
+        "d3": 42,
+        "d4": 45,
+        "d5": 46,
+        "d6": 47,
+        "d7": 48,
+        "wr": 8,
+        "rd": 9,
+        "dc": 7,
+        "cs": 6
+      }
+    },
+    "default_bus_source": "vendor_micropython_repo",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LCD_BL": 38,
+        "LCD_POWER": 15,
+        "LCD_RST": 5,
+        "LCD_CS": 6,
+        "LCD_DC": 7,
+        "LCD_WR": 8,
+        "LCD_RD": 9,
+        "LCD_D0": 39,
+        "LCD_D1": 40,
+        "LCD_D2": 41,
+        "LCD_D3": 42,
+        "LCD_D4": 45,
+        "LCD_D5": 46,
+        "LCD_D6": 47,
+        "LCD_D7": 48,
+        "BUTTON_BOOT": 0,
+        "BUTTON_USER": 14,
+        "BATTERY_ADC": 4,
+        "I2C_SDA": 18,
+        "I2C_SCL": 17,
+        "UART_TX": 43,
+        "UART_RX": 44
+      },
+      "exposed_pins": [
+        0,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        14,
+        15,
+        17,
+        18,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "The display is 8-bit parallel/I8080, not SPI.",
+      "Touch is SKU-dependent and is not enabled by default in this board profile."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "",
+    "datasheet_url": "",
+    "product_page_url": "https://www.lilygo.cc/products/t-display-s3",
+    "source_url": "https://github.com/Xinyuan-LilyGO/T-Display-S3-MicroPython"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://www.lilygo.cc/products/t-display-s3",
+    "reference_micropython_repo": "https://github.com/Xinyuan-LilyGO/T-Display-S3-MicroPython",
+    "firmware_reference": "https://github.com/Xinyuan-LilyGO/T-Display-S3-MicroPython/tree/main/firmware",
+    "datasheet_or_hardware": [],
+    "schematic": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "upypi_mapping_available",
+    "created_at": "2026-07-20"
+  }
+}

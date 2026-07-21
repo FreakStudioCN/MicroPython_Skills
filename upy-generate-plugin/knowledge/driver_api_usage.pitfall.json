@@ -1,6 +1,6 @@
 {
   "id": "driver-api-usage",
-  "title": "Factory and mock APIs must come from downloaded driver source",
+  "title": "Factory and mock APIs must come from trusted driver API evidence",
   "category": "driver",
   "applies_to": {
     "modes": ["full", "fix"],
@@ -11,22 +11,25 @@
   "symptoms": [
     "Factory calls driver constructor with wrong keyword",
     "Mock lacks a public method used by task",
-    "Device smoke test passes scan but runtime task fails"
+    "Device smoke test passes scan but runtime task fails",
+    "Generated code imports a MicroPython-lib runtime package but guesses its API from the package name"
   ],
   "wrong_pattern": "Guessing driver constructor or method names from package name only.",
-  "correct_pattern": "Read driver .py, README, and example before writing factory/mock.",
+  "correct_pattern": "Read driver .py, README, examples, or structured package API metadata before writing factory/mock. For driver.source=micropython_lib, use api_ref/readme/examples/docs/package metadata without vendoring source into firmware/lib.",
   "detection": {
     "script": "",
     "grep": "class .*\\(|def __init__|def [a-zA-Z_]",
     "structured_error_code": "DRIVER_API_MISMATCH"
   },
   "fix_guidance": [
-    "Extract main driver class from source.",
+    "Extract main driver class from source when the driver source is downloaded.",
     "Use README/example for default I2C address and constructor shape.",
+    "For MicroPython-lib runtime-only packages, require driver.api_ref or docs/readme/examples metadata before generating calls.",
+    "If API evidence is missing, return partial and request upstream package-guide metadata instead of copying source into firmware/lib or guessing.",
     "Mock every public method used by generated tasks."
   ],
-  "references": [],
-  "verified_by": [],
+  "references": ["mip_runtime_dependencies.pitfall.json"],
+  "verified_by": ["check_runtime_dependencies.py"],
   "confidence": "medium",
   "last_seen": "2026-06-23"
 }

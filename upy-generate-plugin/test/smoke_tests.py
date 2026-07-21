@@ -99,6 +99,7 @@ def assert_references_and_knowledge_docs() -> None:
             raise AssertionError(f"missing reference file: {rel}")
     required_knowledge_links = [
         "knowledge/esp32_timer_scheduler_api.pitfall.json",
+        "knowledge/driver_api_usage.pitfall.json",
         "knowledge/micropython_imports.pitfall.json",
         "knowledge/mip_runtime_dependencies.pitfall.json",
         "knowledge/micropython_official_library_index.json",
@@ -133,6 +134,11 @@ def assert_references_and_knowledge_docs() -> None:
     for phrase in ("_IS_MICROPYTHON", "MPY_IMPORT_CPYTHON_ONLY_GUARD", "direct runtime import logging"):
         if phrase not in imports_text:
             raise AssertionError(f"imports pitfall missing rule: {phrase}")
+    driver_api_pitfall = load_json(ROOT / "knowledge" / "driver_api_usage.pitfall.json")
+    driver_api_text = json.dumps(driver_api_pitfall, ensure_ascii=False)
+    for phrase in ("trusted driver API evidence", "driver.source=micropython_lib", "api_ref"):
+        if phrase not in driver_api_text:
+            raise AssertionError(f"driver API pitfall missing rule: {phrase}")
     mip_pitfall = load_json(ROOT / "knowledge" / "mip_runtime_dependencies.pitfall.json")
     mip_text = json.dumps(mip_pitfall, ensure_ascii=False)
     for phrase in ("mpremote fs ls", "runtime_dependency_install_network_unavailable", "Do not copy micropython-lib source"):
@@ -181,6 +187,16 @@ def assert_download_drivers_offline() -> None:
         "devices": [
             {"name": "LED", "driver": {"source": "none"}},
             {"name": "DHT22", "driver": {"source": "upypi", "package_name": "dht"}},
+            {
+                "name": "BMA423 IMU",
+                "driver": {
+                    "source": "upypi",
+                    "package_name": "bma423_driver",
+                    "version": "1.0.0",
+                    "module": "bma423",
+                    "url": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+                },
+            },
         ],
     }
     cmd = [
@@ -194,8 +210,67 @@ def assert_download_drivers_offline() -> None:
     if rc != 0:
         raise AssertionError(f"ordinary source-only driver resolution should not fail: {stderr}")
     payload = json.loads(stdout)
-    if not isinstance(payload.get("drivers"), list) or len(payload["drivers"]) != 2:
+    if not isinstance(payload.get("drivers"), list) or len(payload["drivers"]) != 3:
         raise AssertionError(f"driver payload invalid: {payload}")
+    if "DRIVER_SOURCE_UNSUPPORTED" in stdout or "NO_DRIVER_FILES" in stdout:
+        raise AssertionError(f"upypi should not be treated as unsupported or missing files: {stdout}")
+    deps = payload.get("runtime_dependencies", {}).get("mip", [])
+    if not any(
+        item.get("package") == "https://upypi.net/pkgs/bma423_driver/1.0.0"
+        and item.get("verify_import") == "bma423"
+        and item.get("source") == "upypi"
+        for item in deps
+    ):
+        raise AssertionError(f"upypi driver must emit deploy-time package URL mip dependency: {payload}")
+
+    micropython_lib_manifest = {
+        "phase": "scaffold",
+        "devices": [
+            {
+                "name": "BLE stack",
+                "type": "middleware",
+                "driver": {
+                    "source": "micropython_lib",
+                    "package_name": "aioble",
+                    "install_cmd": "mpremote mip install aioble",
+                    "repo_url": "https://github.com/micropython/micropython-lib",
+                    "search_provider": "micropython_lib_classifier",
+                    "api_ref": {
+                        "import": "import aioble",
+                        "usage": "Use documented aioble async helpers; do not call low-level bluetooth.BLE directly unless cited separately",
+                    },
+                },
+            }
+        ],
+    }
+    rc, stdout, stderr = run_cmd(cmd, input_obj=micropython_lib_manifest)
+    if rc != 0:
+        raise AssertionError(f"micropython_lib runtime dependency should pass offline driver resolution: {stderr}")
+    payload = json.loads(stdout)
+    if "DRIVER_SOURCE_UNSUPPORTED" in stdout or "NO_DRIVER_FILES" in stdout:
+        raise AssertionError(f"micropython_lib should not be treated as unsupported or missing files: {stdout}")
+    driver = payload["drivers"][0]
+    if driver["files"]:
+        raise AssertionError(f"micropython_lib must not vendor source or placeholder files by default: {driver}")
+    deps = payload.get("runtime_dependencies", {}).get("mip", [])
+    if not deps or deps[0].get("package") != "aioble" or deps[0].get("install_phase") != "deploy":
+        raise AssertionError(f"micropython_lib must emit deploy-time mip dependency: {payload}")
+
+    missing_package_manifest = {
+        "phase": "scaffold",
+        "devices": [{"name": "BLE stack", "driver": {"source": "micropython_lib"}}],
+    }
+    rc, stdout, _stderr = run_cmd(cmd, input_obj=missing_package_manifest)
+    if rc == 0 or "MICROPYTHON_LIB_PACKAGE_MISSING" not in stdout:
+        raise AssertionError(f"micropython_lib without package_name must fail driver resolution: {stdout}")
+
+    missing_upypi_package_manifest = {
+        "phase": "scaffold",
+        "devices": [{"name": "BMA423 IMU", "driver": {"source": "upypi"}}],
+    }
+    rc, stdout, _stderr = run_cmd(cmd, input_obj=missing_upypi_package_manifest)
+    if rc == 0 or "UPYPI_PACKAGE_MISSING" not in stdout:
+        raise AssertionError(f"upypi without package_name must fail driver resolution: {stdout}")
 
     ready_manifest = {
         "phase": "scaffold",
@@ -593,6 +668,148 @@ def assert_check_scripts_negative_cases() -> None:
         )
         if rc == 0 or "MPY_RUNTIME_DEPENDENCY_UNDECLARED" not in stdout:
             raise AssertionError("check_runtime_dependencies.py must require unittest mip dependency for device tests")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [
+            {
+                "name": "BLE stack",
+                "type": "middleware",
+                "driver": {
+                    "source": "micropython_lib",
+                    "package_name": "aioble",
+                    "install_cmd": "mpremote mip install aioble",
+                    "repo_url": "https://github.com/micropython/micropython-lib",
+                    "search_provider": "micropython_lib_classifier",
+                    "api_ref": {
+                        "import": "import aioble",
+                        "usage": "Use documented aioble async helpers; do not call low-level bluetooth.BLE directly unless cited separately",
+                    },
+                },
+            }
+        ]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or '"package": "aioble"' not in stdout or "MPY_RUNTIME_DEPENDENCY_UNDECLARED" not in stdout:
+            raise AssertionError("check_runtime_dependencies.py must require mip dependency for manifest micropython_lib drivers")
+        manifest["runtime_dependencies"]["mip"].append(
+            {
+                "package": "aioble",
+                "reason": "BLE stack requires MicroPython-lib package aioble",
+                "required_for": ["BLE stack"],
+                "target": "/lib",
+                "version": "latest",
+                "install_phase": "deploy",
+                "verify_import": "aioble",
+            }
+        )
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if rc != 0:
+            raise AssertionError(f"check_runtime_dependencies.py should accept declared micropython_lib mip dependency: {stdout}\n{stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [
+            {
+                "name": "BMA423 IMU",
+                "type": "imu",
+                "driver": {
+                    "source": "upypi",
+                    "package_name": "bma423_driver",
+                    "version": "1.0.0",
+                    "module": "bma423",
+                    "url": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+                    "package_json_url": "https://upypi.net/pkgs/bma423_driver/1.0.0/package.json",
+                    "search_provider": "upy-pkg-guide",
+                    "search_mode": "real",
+                },
+            }
+        ]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if (
+            rc == 0
+            or '"package": "https://upypi.net/pkgs/bma423_driver/1.0.0"' not in stdout
+            or "MPY_RUNTIME_DEPENDENCY_UNDECLARED" not in stdout
+        ):
+            raise AssertionError("check_runtime_dependencies.py must require mip dependency for manifest upypi drivers")
+        manifest["runtime_dependencies"]["mip"].append(
+            {
+                "package": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+                "package_name": "bma423_driver",
+                "reason": "BMA423 IMU requires uPyPi package bma423_driver",
+                "required_for": ["BMA423 IMU"],
+                "target": "/lib",
+                "version": "1.0.0",
+                "install_phase": "deploy",
+                "verify_import": "bma423",
+                "source": "upypi",
+            }
+        )
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if rc != 0:
+            raise AssertionError(f"check_runtime_dependencies.py should accept declared upypi mip dependency: {stdout}\n{stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [
+            {
+                "name": "BLE stack",
+                "type": "middleware",
+                "driver": {
+                    "source": "micropython_lib",
+                    "package_name": "aioble",
+                    "install_cmd": "mpremote mip install aioble",
+                    "repo_url": "https://github.com/micropython/micropython-lib",
+                    "search_provider": "micropython_lib_classifier",
+                },
+            }
+        ]
+        manifest["runtime_dependencies"]["mip"].append(
+            {
+                "package": "aioble",
+                "reason": "BLE stack requires MicroPython-lib package aioble",
+                "required_for": ["BLE stack"],
+                "target": "/lib",
+                "version": "latest",
+                "install_phase": "deploy",
+                "verify_import": "aioble",
+            }
+        )
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "MPY_RUNTIME_DEPENDENCY_API_REFERENCE_MISSING" not in stdout:
+            raise AssertionError("check_runtime_dependencies.py must require API evidence for micropython_lib code generation")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [{"name": "BLE stack", "driver": {"source": "micropython_lib"}}]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_runtime_dependencies.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "MPY_RUNTIME_DEPENDENCY_PACKAGE_NAME_MISSING" not in stdout:
+            raise AssertionError("check_runtime_dependencies.py must require package_name for micropython_lib drivers")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
@@ -2245,6 +2462,117 @@ def assert_local_runner() -> None:
         tracked_cache = [line for line in stdout.splitlines() if "__pycache__/" in line or line.endswith(".pyc")]
         if tracked_cache:
             raise AssertionError(f"runner git commit must not include Python cache files: {tracked_cache}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "generate-micropython-lib"
+        project = session_dir / "project"
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [
+            {
+                "name": "BLE stack",
+                "type": "middleware",
+                "driver": {
+                    "source": "micropython_lib",
+                    "package_name": "aioble",
+                    "install_cmd": "mpremote mip install aioble",
+                    "repo_url": "https://github.com/micropython/micropython-lib",
+                    "search_provider": "micropython_lib_classifier",
+                    "api_ref": {
+                        "import": "import aioble",
+                        "usage": "Use documented aioble async helpers; do not call low-level bluetooth.BLE directly unless cited separately",
+                    },
+                },
+            }
+        ]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        cmd = [
+            sys.executable,
+            str(ROOT / "test" / "run_local_mock_session.py"),
+            "--session-dir",
+            str(session_dir),
+            "--mode",
+            "timer",
+            "--next-phase",
+            "stop",
+            "--force",
+            "--allow-git-commit",
+            "--write-phase-complete",
+        ]
+        rc, stdout, stderr = run_cmd(cmd)
+        if rc != 0:
+            raise AssertionError(f"local runner with micropython_lib device failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        updated = load_json(project / "project-manifest.json")
+        deps = updated.get("runtime_dependencies", {}).get("mip", [])
+        if not any(item.get("package") == "aioble" and item.get("source") == "micropython_lib" for item in deps):
+            raise AssertionError(f"local runner must propagate micropython_lib mip dependency: {deps}")
+        phase_complete = load_json(session_dir / "phase_complete.upy_generate_plugin.json")
+        phase_deps = (
+            phase_complete.get("payload", {})
+            .get("manifest_content", {})
+            .get("generate", {})
+            .get("runtime_dependencies", {})
+            .get("mip", [])
+        )
+        if not any(item.get("package") == "aioble" for item in phase_deps):
+            raise AssertionError(f"phase_complete must expose micropython_lib mip dependency for deploy: {phase_deps}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_dir = Path(temp_dir) / "sessions" / "generate-upypi"
+        project = session_dir / "project"
+        make_project(project)
+        manifest = load_json(project / "project-manifest.json")
+        manifest["devices"] = [
+            {
+                "name": "BMA423 IMU",
+                "type": "imu",
+                "driver": {
+                    "source": "upypi",
+                    "package_name": "bma423_driver",
+                    "version": "1.0.0",
+                    "module": "bma423",
+                    "url": "https://upypi.net/pkgs/bma423_driver/1.0.0",
+                    "package_json_url": "https://upypi.net/pkgs/bma423_driver/1.0.0/package.json",
+                    "search_provider": "upy-pkg-guide",
+                    "search_mode": "real",
+                },
+            }
+        ]
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        cmd = [
+            sys.executable,
+            str(ROOT / "test" / "run_local_mock_session.py"),
+            "--session-dir",
+            str(session_dir),
+            "--mode",
+            "timer",
+            "--next-phase",
+            "stop",
+            "--force",
+            "--allow-git-commit",
+            "--write-phase-complete",
+        ]
+        rc, stdout, stderr = run_cmd(cmd)
+        if rc != 0:
+            raise AssertionError(f"local runner with upypi device failed:\nSTDOUT={stdout}\nSTDERR={stderr}")
+        updated = load_json(project / "project-manifest.json")
+        deps = updated.get("runtime_dependencies", {}).get("mip", [])
+        if not any(
+            item.get("package") == "https://upypi.net/pkgs/bma423_driver/1.0.0"
+            and item.get("source") == "upypi"
+            for item in deps
+        ):
+            raise AssertionError(f"local runner must propagate upypi mip dependency: {deps}")
+        phase_complete = load_json(session_dir / "phase_complete.upy_generate_plugin.json")
+        phase_deps = (
+            phase_complete.get("payload", {})
+            .get("manifest_content", {})
+            .get("generate", {})
+            .get("runtime_dependencies", {})
+            .get("mip", [])
+        )
+        if not any(item.get("package") == "https://upypi.net/pkgs/bma423_driver/1.0.0" for item in phase_deps):
+            raise AssertionError(f"phase_complete must expose upypi mip dependency for deploy: {phase_deps}")
 
 
 def assert_session_chain_validator_negative_case() -> None:

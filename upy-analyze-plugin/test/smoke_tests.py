@@ -189,6 +189,15 @@ def check_pkg_guide_adapter_marks_mock() -> None:
         raise AssertionError(f"adapter result must declare pkg_guide_adapter provider: {driver}")
     if driver.get("search_mode") != "mock" or driver.get("mock") is not True:
         raise AssertionError(f"adapter result must be marked as mock: {driver}")
+    ble_driver = resolve_driver({
+        "name": "aioble",
+        "type": "ble_stack",
+        "interface": "BLE",
+    })
+    if ble_driver.get("source") != "micropython_lib":
+        raise AssertionError(f"aioble adapter result should resolve to micropython_lib: {ble_driver}")
+    if not isinstance(ble_driver.get("api_ref"), dict):
+        raise AssertionError(f"micropython_lib adapter result must include structured api_ref: {ble_driver}")
 
 
 def check_runner_bridge() -> None:

@@ -275,6 +275,105 @@ def check_onboard_peripheral_resolution() -> None:
         raise AssertionError(f"onboard resolution summary missing: {result}")
 
 
+def check_selected_board_firmware_defaults_from_board_definition() -> None:
+    draft = {
+        "protocol_version": "1.0",
+        "session_id": "lilygo-firmware-default-test",
+        "source_phase": "analyze",
+        "upstream_manifest": {
+            "schema_version": "1.0",
+            "phase": "analyze",
+            "created_at": "2026-07-20T00:00:00Z",
+            "project_name": "lilygo_t_display_s3_test",
+            "requirements": {
+                "description": "Blink an external LED on the selected ESP32-S3 board.",
+                "existing_hardware": [],
+                "mcu_specified": None,
+                "output": ["led"],
+                "special_requirements": ["none"],
+                "network": "none",
+            },
+            "devices": [
+                {
+                    "name": "External LED",
+                    "type": "led",
+                    "interface": "GPIO",
+                    "source": "user_specified",
+                    "driver": {"source": "builtin_runtime", "module": "machine.Pin"},
+                }
+            ],
+        },
+        "selected_board": {
+            "id": "lilygo-t-display-s3",
+            "display_name": "LilyGO T-Display-S3",
+            "mcu": "esp32s3",
+            "firmware": {
+                "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+                "board_name": "ESP32_GENERIC_S3",
+            },
+        },
+        "hardware_plan": {
+            "mcu": {
+                "model": "esp32s3",
+                "board_id": "lilygo-t-display-s3",
+                "display_name": "LilyGO T-Display-S3",
+                "firmware_url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+                "firmware_board_name": "ESP32_GENERIC_S3",
+                "flash_tool": "esptool.py",
+            },
+            "pinout": [
+                {"device": "External LED", "pin_name": "signal", "gpio": 16, "type": "gpio_out", "source": "user_wiring"},
+                {"device": "power", "pin_name": "3V3", "gpio": "3V3", "type": "power_3v3", "source": "power"},
+                {"device": "power", "pin_name": "GND", "gpio": "GND", "type": "gnd", "source": "power"},
+            ],
+            "pin_decisions": [
+                {
+                    "device": "External LED",
+                    "pin_name": "signal",
+                    "assigned_gpio": 16,
+                    "decision_type": "user_wiring",
+                    "source": "user_wiring",
+                    "evidence": {"note": "User selected free exposed GPIO16."},
+                    "requires_user_review": False,
+                }
+            ],
+            "pin_review": {
+                "confirmed": True,
+                "approval_id": "pin_plan_review",
+                "confirmed_by": "user_confirmed",
+                "confirmed_at": "2026-07-20T00:00:00Z",
+                "source": "user_confirmed",
+            },
+            "bom": [{"name": "LilyGO T-Display-S3", "model": "lilygo-t-display-s3", "quantity": 1, "unit_price_yuan": 0}],
+            "estimated_total_yuan": 0,
+        },
+    }
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(draft, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"LilyGO firmware default draft should validate:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    firmware = result["manifest"]["hardware_selection"]["selected_board"]["firmware"]
+    expected = {
+        "source": "micropython_latest",
+        "port": "esp32",
+        "variant": "spiram-oct",
+        "file_type": "bin",
+        "flash_method": "esptool",
+    }
+    for field, value in expected.items():
+        if firmware.get(field) != value:
+            raise AssertionError(f"selected_board.firmware.{field} should default from board JSON: {firmware}")
+
+
 def check_formatted_output_validation() -> None:
     with tempfile.TemporaryDirectory(prefix="select-hw-") as temp_dir:
         output_path = Path(temp_dir) / "select_hw_validated.json"
@@ -798,7 +897,7 @@ def check_bom_link_index_template() -> None:
         raise AssertionError("BOM links must remain optional for select-hw success")
     if policy.get("do_not_fabricate_links") is not True:
         raise AssertionError("BOM link template must prohibit fabricated links")
-    required = {"product_url", "shop_url", "datasheet_url", "supplier", "sku"}
+    required = {"product_url", "shop_url", "datasheet_url", "supplier", "sku", "search_query", "purchase_links"}
     fields = set(template.get("link_fields", []))
     if fields != required:
         raise AssertionError(f"BOM link template fields mismatch: {fields}")
@@ -806,13 +905,16 @@ def check_bom_link_index_template() -> None:
     missing = required.difference(item_template)
     if missing:
         raise AssertionError(f"BOM item template missing link fields: {missing}")
+    if not isinstance(item_template.get("purchase_links"), list):
+        raise AssertionError("BOM item template purchase_links must be a list")
 
 
 def check_bom_link_template_is_optional_and_normalized() -> None:
     draft = load_json(SAMPLE_DIR / "select_hw_draft.json")
     missing = json.loads(json.dumps(draft))
+    link_fields = ["product_url", "shop_url", "datasheet_url", "supplier", "sku", "search_query", "purchase_links"]
     for item in missing["hardware_plan"]["bom"]:
-        for field in ["product_url", "shop_url", "datasheet_url", "supplier", "sku"]:
+        for field in link_fields:
             item.pop(field, None)
     proc = run(
         [
@@ -834,16 +936,30 @@ def check_bom_link_template_is_optional_and_normalized() -> None:
     bom = manifest.get("bom")
     if not isinstance(bom, list) or not bom:
         raise AssertionError(f"normalized manifest missing BOM: {result}")
-    required = {"product_url", "shop_url", "datasheet_url", "supplier", "sku"}
+    required = {"product_url", "shop_url", "datasheet_url", "supplier", "sku", "search_query", "purchase_links"}
+    string_fields = {"product_url", "shop_url", "datasheet_url", "supplier", "sku", "search_query"}
     for index, item in enumerate(bom):
         if not isinstance(item, dict):
             continue
         missing_fields = required.difference(item)
         if missing_fields:
             raise AssertionError(f"normalized BOM[{index}] missing optional link template fields: {missing_fields}")
-        for field in required:
+        for field in string_fields:
             if not isinstance(item.get(field), str):
                 raise AssertionError(f"normalized BOM[{index}].{field} must be a string template value")
+        links = item.get("purchase_links")
+        if not isinstance(links, list):
+            raise AssertionError(f"normalized BOM[{index}].purchase_links must be a list")
+        if item.get("search_query") and not links:
+            raise AssertionError(f"normalized BOM[{index}] with search_query should include a default purchase link")
+        if links:
+            first = links[0]
+            if first.get("vendor") != "Yourcee":
+                raise AssertionError(f"normalized BOM[{index}] default purchase link should use Yourcee: {first}")
+            if first.get("url") != "https://www.yourcee.com/cpzl":
+                raise AssertionError(f"normalized BOM[{index}] default purchase link should open YourCee entry: {first}")
+            if first.get("link_type") != "site_entry":
+                raise AssertionError(f"normalized BOM[{index}] default purchase link must be a site entry: {first}")
 
 
 def check_runtime_context_required() -> None:
@@ -955,6 +1071,7 @@ def main() -> int:
         ("manifest validation", check_manifest_validation),
         ("cold-driver status normalization", check_cold_driver_status_normalization),
         ("onboard peripheral resolution", check_onboard_peripheral_resolution),
+        ("selected board firmware defaults", check_selected_board_firmware_defaults_from_board_definition),
         ("formatted output validation", check_formatted_output_validation),
         ("board unavailable sample", check_board_unavailable_sample),
         ("pin plan revise response sample", check_pin_plan_revise_response_sample),

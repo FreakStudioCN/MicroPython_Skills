@@ -188,6 +188,10 @@ def make_device(
                 "install_cmd": f"mpremote mip install {pkg_name}",
                 "repo_url": "https://github.com/micropython/micropython-lib",
                 "version": "latest",
+                "api_ref": {
+                    "import": f"import {pkg_name.replace('-', '_')}",
+                    "usage": "Use documented MicroPython-lib package APIs; require package guide evidence before generating calls",
+                },
             }
         )
     return {

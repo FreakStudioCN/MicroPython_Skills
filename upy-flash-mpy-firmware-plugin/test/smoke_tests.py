@@ -269,6 +269,48 @@ def firmware_page_resolves_esp32_c3_zero_offset_from_page() -> None:
     assert data["install"]["baud"] == 460800
 
 
+def firmware_page_resolves_esp32_s3_spiram_oct_variant() -> None:
+    with tempfile.TemporaryDirectory(prefix="flash-page-variant-") as temp_dir:
+        html_file = Path(temp_dir) / "esp32_generic_s3.html"
+        html_file.write_text(
+            """
+            <html><body>
+              <h2>Firmware</h2>
+              <div>
+                <p>Standard firmware Latest</p>
+                <a href="/resources/firmware/ESP32_GENERIC_S3-20260406-v1.28.0.bin">latest</a>
+              </div>
+              <div>
+                <p>Support for Octal-SPIRAM Latest</p>
+                <a href="/resources/firmware/ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin">latest</a>
+              </div>
+              <h2>Installation instructions</h2>
+              <pre><code>esptool.py --chip esp32s3 --port PORTNAME write_flash -z 0 ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin</code></pre>
+            </body></html>
+            """,
+            encoding="utf-8",
+        )
+        data = run_json(
+            [
+                sys.executable,
+                str(SCRIPTS / "firmware_page_resolve.py"),
+                "--board-url",
+                "https://micropython.org/download/ESP32_GENERIC_S3/",
+                "--board-name",
+                "ESP32_GENERIC_S3",
+                "--board-family",
+                "esp32",
+                "--variant",
+                "spiram-oct",
+                "--html-file",
+                str(html_file),
+            ]
+        )
+        assert data["status"] == "success"
+        assert data["variant"] == "spiram-oct"
+        assert data["latest"]["filename"] == "ESP32_GENERIC_S3-SPIRAM_OCT-20260406-v1.28.0.bin"
+
+
 def firmware_page_resolve_accepts_output_json_alias() -> None:
     with tempfile.TemporaryDirectory(prefix="flash-page-alias-") as temp_dir:
         output = Path(temp_dir) / "resolved.json"
@@ -1141,6 +1183,7 @@ def main() -> int:
         state_rejects_phase_complete_status,
         firmware_page_resolves_esp32_c5_offset_from_page,
         firmware_page_resolves_esp32_c3_zero_offset_from_page,
+        firmware_page_resolves_esp32_s3_spiram_oct_variant,
         firmware_page_resolve_accepts_output_json_alias,
         firmware_page_resolves_board_url_from_download_index,
         firmware_page_resolves_pico_uf2,

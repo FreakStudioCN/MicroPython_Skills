@@ -359,8 +359,10 @@ checkpoint 必填
 
 - `hardware_plan.pinout[].device` 必须匹配上游 `devices[].name`，只允许 `power`、`GND`、`3V3`、`5V`、`board`、`mcu` 等供电/系统项例外。
 - `hardware_plan.bom[]` 中的功能硬件必须能通过 `name`、`model`、`device` 或 `selected_model` 映射到上游 `devices[]`；杜邦线、面包板、电阻、电容、排针、USB 线、外壳、电池盒、电源模块、转接板等支撑物料可以不在上游器件清单中。
-- BOM 的 `url`、`link`、`product_url`、`shop_url`、`datasheet_url`、`supplier`、`sku` 等采购/参考字段可以保留，但不是传给 generate/deploy 的强 contract，不得作为下游成功前置条件。
-- 所有实体 BOM 项统一按 `references/bom_item_link_index.template.json` 保留 `product_url`、`shop_url`、`datasheet_url`、`supplier`、`sku`；未知时写空字符串，链接为空不得阻断 `select-hw` success 或进入下一阶段。
+- BOM 的 `url`、`link`、`product_url`、`shop_url`、`datasheet_url`、`supplier`、`sku`、`search_query`、`purchase_links` 等采购/参考字段可以保留，但不是传给 generate/deploy 的强 contract，不得作为下游成功前置条件。
+- 所有实体 BOM 项统一按 `references/bom_item_link_index.template.json` 保留 `product_url`、`shop_url`、`datasheet_url`、`supplier`、`sku`、`search_query`、`purchase_links`；未知时写空字符串或空数组，链接为空不得阻断 `select-hw` success 或进入下一阶段。
+- `search_query` 用于插件端按地区生成采购入口；默认优先从 `model`、`selected_model`、`module`、`part`、`name` 组合生成。中国区可以保留 YourCee 产品资料入口 `https://www.yourcee.com/cpzl`，并让用户打开页面后按 `search_query` 自行搜索。
+- `purchase_links[].link_type="site_entry"` 表示站点入口，不表示已核验到具体商品页；插件端展示时应把 YourCee 文案写成“在 YourCee 搜索”，不能写成“购买该商品”。
 - 不得为了补齐链接编造真实商城 URL、供应商或 SKU；链接索引只是采购展示模板，不改变硬件事实边界。
 - 如果 `select-hw` 为上游泛称补了具体型号，例如 `OLED display` -> `SSD1306 OLED`，应记录为原器件的型号补充或 BOM/model 信息，不要追加成新 `devices[]` 项；若型号会影响驱动/API，必须保持能映射回原上游器件。
 
