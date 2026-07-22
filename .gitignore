@@ -7,6 +7,7 @@ __pycache__/
 # Virtual environment
 .venv/
 venv/
+upy-flash-mpy-firmware-plugin/scripts/.venv-esptool/
 
 # Build output
 build/
