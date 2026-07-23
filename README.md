@@ -6,7 +6,7 @@ GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规
 
 **B. 驱动开发规范化（15 个 skill）**：基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行），覆盖驱动规范化、测试文件生成、README 生成、性能优化、内存优化、打包、设备部署。
 
-**C. MicroPythonOS App / MPK / upystore 流水线（9 个 mpos skill）**：面向 [MicroPythonOS](https://docs.micropythonos.com/) App 开发，覆盖需求分析、依赖准备、App 生成、桌面测试、MPK 打包、真机/预览部署、upystore 发布准备。该体系不包含 `mpos-debug-app`。
+**C. MicroPythonOS App / MPK / upystore 流水线（9 个 classic mpos skill + 9 个浏览器 `-web` skill）**：面向 [MicroPythonOS](https://docs.micropythonos.com/) App 开发。classic skill 用于 Claude Code `/skill-name 描述` 本地工作流；`mpos-*-web` 是新增浏览器/后端 runner 协议版，不覆盖原 skill。该体系不包含 `mpos-debug-app`。
 
 > **当前 source of truth（2026-07）**：本仓库已经完成 VS Code 插件版 8 流程 Skill/plugin。若下游仓库的 submodule 只看到 6 个 plugin，说明下游 pinned commit 落后，应 bump/sync 到本仓库最新 commit，而不是认为 wiring/diagram 缺失。
 
@@ -93,6 +93,22 @@ GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规
 | `mpos-package-app` | MPK 打包 | 校验 manifest/icon/entrypoint，生成 `<fullname>_rN.mpk` 和 `app_index_entry.json` |
 | `mpos-deploy-app` | 部署/预览 | desktop/web preview、`device-copy`、`mpk-install`、installer/flash 指导 |
 | `mpos-publish-app` | 发布准备 | 同时读取 package/test/deploy 结果，准备 upystore 手工上传交接 |
+
+### MicroPythonOS 浏览器编排版 `-web` Skill
+
+这 9 个目录是新增浏览器/后端 runner 版本，不覆盖上面的 classic `mpos-*`。浏览器项目应调用 `mpos-*-web`，并通过 JSON 协议传入 `session_id`、`checkpoint_id`、`idempotency_key`、`capabilities`、`permission_prompts` 和 artifact manifest。
+
+| Skill | 类型 | 说明 |
+|---|---|---|
+| `mpos-dev-web` | 浏览器共享基础层 | 协议、状态机、错误码、artifact manifest、权限、能力协商、板卡/Web preview 限制 |
+| `mpos-plan-app-web` | 浏览器编排入口 | 创建/恢复/重试/取消 session，维护 checkpoint 并路由下一阶段 |
+| `mpos-analyze-app-web` | 浏览器需求分析 | 把浏览器自然语言请求变成结构化 `analysis_result.json` |
+| `mpos-prepare-deps-web` | 浏览器依赖准备 | 准备 App-local 依赖和 adapter handoff，不改 OS |
+| `mpos-gen-app-web` | 浏览器代码生成 | 消费结构化输入生成/修复 App，输出 `generation_result.json` 和 file operations |
+| `mpos-test-app-web` | 浏览器测试 | desktop smoke、可选 Web preview、截图、结构化失败归因 |
+| `mpos-package-app-web` | 浏览器打包 | 校验 manifest/publisher，生成 `<fullname>_rN.mpk` 和 package artifacts |
+| `mpos-deploy-app-web` | 浏览器部署 | desktop/web/device-copy/mpk-install/install-site/local-flash 记录和权限提示 |
+| `mpos-publish-app-web` | 浏览器发布准备 | 聚合 package/test/deploy，做 upystore read-only 检查和手工上传指导 |
 
 ### 支撑目录
 
@@ -191,7 +207,10 @@ for skill in upy-analyze upy-select-hw upy-scaffold upy-generate upy-simulate \
              upy-pkg-guide fetch-doc upy-project review \
              mpremote-device-interaction mpremote-file-transfer mpremote-live-session \
              mpos-dev mpos-plan-app mpos-analyze-app mpos-prepare-deps mpos-gen-app \
-             mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app; do
+             mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app \
+             mpos-dev-web mpos-plan-app-web mpos-analyze-app-web mpos-prepare-deps-web \
+             mpos-gen-app-web mpos-test-app-web mpos-package-app-web \
+             mpos-deploy-app-web mpos-publish-app-web; do
   cp -r $skill ~/.claude/skills/
 done
 ```
@@ -210,7 +229,10 @@ $skills = @("upy-analyze","upy-select-hw","upy-scaffold","upy-generate","upy-sim
             "upy-pkg-guide","fetch-doc","upy-project","review",
             "mpremote-device-interaction","mpremote-file-transfer","mpremote-live-session",
             "mpos-dev","mpos-plan-app","mpos-analyze-app","mpos-prepare-deps","mpos-gen-app",
-            "mpos-test-app","mpos-package-app","mpos-deploy-app","mpos-publish-app")
+            "mpos-test-app","mpos-package-app","mpos-deploy-app","mpos-publish-app",
+            "mpos-dev-web","mpos-plan-app-web","mpos-analyze-app-web","mpos-prepare-deps-web",
+            "mpos-gen-app-web","mpos-test-app-web","mpos-package-app-web",
+            "mpos-deploy-app-web","mpos-publish-app-web")
 foreach ($skill in $skills) {
   Copy-Item -Recurse $skill $env:USERPROFILE\.claude\skills\
 }
@@ -247,7 +269,10 @@ MicroPythonOS 相关 skill 推荐本地安装，确保 `mpos-dev/reference/` 和
 
 ```bash
 for skill in mpos-dev mpos-plan-app mpos-analyze-app mpos-prepare-deps mpos-gen-app \
-             mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app; do
+             mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app \
+             mpos-dev-web mpos-plan-app-web mpos-analyze-app-web mpos-prepare-deps-web \
+             mpos-gen-app-web mpos-test-app-web mpos-package-app-web \
+             mpos-deploy-app-web mpos-publish-app-web; do
   npx skillfish add FreakStudioCN/MicroPython_Skills $skill
 done
 ```
@@ -396,6 +421,13 @@ MicroPythonOS skill 是独立于普通 `upy-*` 硬件项目的 App 开发链路�
 - 想写普通 ESP32 / Pico 的 `main.py`：用 `upy-*`。
 - 想修 MicroPythonOS 系统本身、LVGL binding、Web build、固件构建：这不是默认 App 流程，必须明确告诉 AI “允许修 OS”。
 
+### Classic 和浏览器 `-web` 版本怎么选
+
+- 在 Claude Code 本地聊天里用 `/mpos-plan-app ...`、`/mpos-gen-app ...` 这类 classic skill。
+- 在浏览器自然语言生成 App 项目中，后端 runner 使用 `mpos-plan-app-web`、`mpos-gen-app-web` 等 `-web` skill。
+- 两套 skill 并行存在，`-web` 不覆盖 classic，也不改变 `/skill-name 描述` 的本地测试方式。
+- `-web` skill 的 source of truth 是结构化 JSON：`session_state.json`、`phase_complete.*.json`、`artifact_manifest.json`、各阶段 result JSON。不要让浏览器解析 Claude 最终自然语言回答作为状态。
+
 ### 新手快速开始
 
 1. 确认 skill 已安装到 Claude Code：
@@ -455,7 +487,7 @@ claude
 /mpos-gen-app 修复 com.example.cc_skill_smoke。下面是 mpos-test-app 的失败输出和 app_test_result.json 路径：...
 ```
 
-### 9 个 mpos skill 怎么分工
+### 9 个 classic mpos skill 怎么分工
 
 一般新手只需要记住：**完整流程用 `/mpos-plan-app`，单独某阶段出问题再用对应阶段 skill**。
 
@@ -470,6 +502,22 @@ claude
 | 预览/真机部署 | `/mpos-deploy-app` | 做 desktop preview、web preview、`device-copy` 或 `mpk-install` 记录 |
 | 发布准备 | `/mpos-publish-app` | 同时读取 package/test/deploy 三份结果，检查 upystore 版本和发布元数据，只给手工上传指导 |
 | 共享知识库 | `mpos-dev` | 其他 skill 自动读取它；用户通常不要直接调用 |
+
+### 9 个浏览器 `mpos-*-web` skill 怎么分工
+
+浏览器项目不要调用 classic `mpos-*` 作为协议入口，应使用下表 `-web` 版本：
+
+| 阶段 | 浏览器 skill | 结构化输出 |
+|---|---|---|
+| Session 编排 | `mpos-plan-app-web` | `session_state.json`、`activity_log.jsonl`、`phase_complete.mpos_plan_app_web.json` |
+| 需求分析 | `mpos-analyze-app-web` | `analysis_result.json`、manifest 草案、下一阶段路由 |
+| 依赖准备 | `mpos-prepare-deps-web` | `dependency_handoff.json` |
+| 生成/修复 App | `mpos-gen-app-web` | `generation_result.json`、file operations、artifact manifest |
+| 运行测试 | `mpos-test-app-web` | `app_test_result.json`、截图、Web preview/desktop smoke 记录 |
+| 打包 MPK | `mpos-package-app-web` | `package_result.json`、`app_index_entry.json`、`<fullname>_rN.mpk` |
+| 预览/真机部署 | `mpos-deploy-app-web` | `deploy_result.json`、权限记录、设备/preview 记录 |
+| 发布准备 | `mpos-publish-app-web` | `publish_result.json`、手工 upystore 上传指导 |
+| 共享协议 | `mpos-dev-web` | `reference/protocol.md`、错误码、artifact、权限、能力、板卡/Web 限制 |
 
 ### 内部逻辑
 
@@ -1230,6 +1278,7 @@ Claude 加载 SKILL.md 中的规范摘要和优先级表
 | v1.7.1 | 2026-06-03 | leezisheng | README.md 安装脚本补充 upy-deploy-test + review skill。功能规划.md 修复：模块四可视化方案（Pillow→Mermaid）、模块七 gen-driver 流程补充硬件验证环、triage.py 行数修正、项目架构脚本名刷新、/cold-driver→/gen-driver。 |
 | v1.8.0 | 2026-07-05 | leezisheng | README.md 新增当前 Skill / Plugin 全量导览，明确插件版 8 流程：`upy-analyze-plugin`、`upy-select-hw-plugin`、`upy-flash-mpy-firmware-plugin`、`upy-scaffold-plugin`、`upy-generate-plugin`、`upy-deploy-plugin`、`upy-wiring-plugin`、`upy-diagram-plugin`；补充 `upy-gen-driver-plugin` 为缺失硬件驱动分支，并区分插件版 Skill/plugin 与 Classic Skill。 |
 | v1.9.0 | 2026-07-20 | leezisheng | README.md 新增 MicroPythonOS App / MPK / upystore 独立章节，补充 9 个 `mpos-*` skill 的职责、Claude Code slash command 用法、新手快速开始、`cc-switch` 切换 DeepSeek 模型建议、内部 artifact/plan_state 逻辑、API 全量读取要求、App-only 修改边界、Web preview 已知问题、报错反馈模板和逐步修复流程；安装脚本同步加入 `mpos-*`，明确不再需要 `mpos-debug-app`。 |
+| v1.10.0 | 2026-07-23 | leezisheng | 新增 9 个浏览器编排版 `mpos-*-web` skill，与 classic `mpos-*` 并行存在且不覆盖；新增 `mpos-dev-web/reference/` 协议、状态机、错误码、artifact manifest、权限、能力、板卡和 Web preview 限制；README 安装命令同步加入 `-web` skill。 |
 
 ---
 

@@ -1,0 +1,79 @@
+---
+name: mpos-analyze-app-web
+description: Structured browser requirements analysis for MicroPythonOS Apps. Use when a backend runner receives a natural-language App request and needs analysis_result.json, manifest draft, App identity, dependency/test/deploy plans, missing-field errors, and next_phase routing for mpos-ai-app/v1. This does not replace classic mpos-analyze-app.
+---
+
+# MicroPythonOS Browser App Analysis
+
+`mpos-analyze-app-web` converts a browser user's natural-language request into structured App requirements. It does not write App source files.
+
+## Shared Requirements
+
+Before acting, read `mpos-dev-web/SKILL.md`, then read these references as needed:
+
+```text
+mpos-dev-web/reference/protocol.md
+mpos-dev-web/reference/state_machine.md
+mpos-dev-web/reference/error_codes.md
+mpos-dev-web/reference/artifact_manifest.md
+mpos-dev-web/reference/permission_prompts.md
+mpos-dev-web/reference/capabilities.md
+```
+
+Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
+
+Never modify classic `mpos-*` skills, MicroPythonOS OS/framework/build/lvgl files, or App directories outside the current workflow target.
+
+## Read First
+
+Also read:
+
+```text
+mpos-dev/reference/docs-app-model.md
+mpos-dev/reference/docs-frameworks.md
+mpos-dev/reference/docs-packaging.md
+mpos-dev-web/reference/board_capabilities.md
+mpos-dev-web/reference/web_preview_limits.md
+```
+
+## Required Input
+
+`payload.input.prompt` is required. Prefer explicit `fullname`, `name`, `publisher`, and `version`. If missing, derive safe defaults and record them. If `fullname` cannot be derived, emit `MISSING_FIELD`.
+
+## Workflow
+
+1. Validate request and capabilities.
+2. Derive App identity:
+   - `fullname`: reverse-DNS package name.
+   - `publisher`: default to the organization prefix, for example `com.example`.
+   - `version`: default `1.0.0` for new Apps.
+3. Produce manifest draft using the flat MPOS layout.
+4. Identify LVGL widgets, MPOS APIs, system managers, images, networking, storage, camera, audio, sensor, and hardware needs.
+5. Decide whether `mpos-prepare-deps-web` is required.
+6. Produce test, package, deploy, and publish plans.
+7. Warn when physical hardware validation is needed.
+8. Emit `analysis_result.json` and update artifact manifest.
+
+## Output
+
+Write `analysis_result.json` with:
+
+```json
+{
+  "schema_version": "mpos-analyze-app-web-v1",
+  "phase": "mpos-analyze-app-web",
+  "result": "success",
+  "app": {},
+  "manifest_draft": {},
+  "requirements": {},
+  "api_plan": {},
+  "dependency_plan": {},
+  "test_plan": {},
+  "deploy_plan": {},
+  "warnings": [],
+  "structured_errors": [],
+  "handoff": {"next_phase": "mpos-gen-app-web"}
+}
+```
+
+If dependencies are needed, set `handoff.next_phase` to `mpos-prepare-deps-web`.
