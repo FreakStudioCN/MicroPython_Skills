@@ -1,0 +1,419 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "waveshare-esp32-s3-touch-lcd-2",
+  "display_name": "Waveshare ESP32-S3-Touch-LCD-2",
+  "vendor": "Waveshare",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Compact touch display UI",
+    "Camera connector prototype",
+    "IMU data logger",
+    "MicroSD logging"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. LCD and MicroSD share GPIO38/GPIO39 and must be separated by CS. Camera connector is SKU/module dependent.",
+  "features": [
+    "Battery",
+    "BLE",
+    "Camera Connector",
+    "Display",
+    "External RAM",
+    "IMU",
+    "MicroSD",
+    "Touch",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": false,
+    "camera": true,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "touch": true
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789T3 display",
+      "type": "display",
+      "model": "ST7789T3",
+      "aliases": [
+        "ST7789"
+      ],
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "rst": 0,
+        "backlight": 1,
+        "mosi": 38,
+        "clk": 39,
+        "dc": 42,
+        "cs": 45
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789_driver",
+        "version": "1.0.0",
+        "module": "st7789",
+        "url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "notes": "SPI ST7789 package. uPyPi description metadata currently mentions gt911 by mistake; package files contain st7789.py and fonts. Init params still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789"
+      },
+      "notes": "LCD uses GPIO38/GPIO39 shared with MicroSD."
+    },
+    {
+      "name": "CST816D touch controller",
+      "type": "touch_controller",
+      "model": "CST816D",
+      "aliases": [
+        "CST816"
+      ],
+      "manufacturer": "",
+      "interface": "I2C",
+      "occupied_pins": {
+        "int": 46,
+        "scl": 47,
+        "sda": 48
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "cst816_driver",
+        "version": "1.0.0",
+        "module": "cst816",
+        "url": "https://upypi.net/pkgs/cst816_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/cst816_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/cst816_driver/1.0.0",
+        "notes": "CST816/CST816S/CST816T/CST816D I2C touch controller package. External touch controller; do not map to ESP32 machine.TouchPad.",
+        "source_url": "https://upypi.net/pkgs/cst816_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "cst816"
+      },
+      "notes": "External I2C touch controller; never map this to ESP32 machine.TouchPad."
+    },
+    {
+      "name": "QMI8658C IMU",
+      "type": "imu",
+      "model": "QMI8658C",
+      "aliases": [
+        "QMI8658"
+      ],
+      "manufacturer": "QST",
+      "interface": "I2C",
+      "occupied_pins": {
+        "int1": 3,
+        "scl": 47,
+        "sda": 48
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "qmi8658_driver",
+        "version": "0.1.0",
+        "module": "qmi8658",
+        "url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "notes": "QMI8658/QMI8658C I2C IMU package. Pin mapping and orientation still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "qmi8658"
+      },
+      "notes": "Shares I2C GPIO47/GPIO48 with touch controller."
+    },
+    {
+      "name": "MicroSD slot",
+      "type": "storage",
+      "model": "microSD",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "mosi": 38,
+        "clk": 39,
+        "miso": 40,
+        "cs": 41
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "notes": "MicroSD uses SPI and shares GPIO38/GPIO39 with LCD SPI.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "LCD and SD share MOSI/SCLK and require separate CS."
+    },
+    {
+      "name": "DVP camera connector",
+      "type": "camera",
+      "model": "DVP camera connector",
+      "manufacturer": "",
+      "interface": "DVP",
+      "occupied_pins": {
+        "d7": 2,
+        "href": 4,
+        "vsync": 6,
+        "d6": 7,
+        "xclk": 8,
+        "pclk": 9,
+        "d5": 10,
+        "d3": 11,
+        "d0": 12,
+        "d1": 13,
+        "d4": 14,
+        "d2": 15,
+        "twi_clk": 16,
+        "pwdn": 17,
+        "twi_sda": 21
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "connector_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "none",
+        "mapping_status": "sku_or_camera_module_dependent",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "pending_mapping",
+        "query": "esp32s3 dvp camera micropython"
+      },
+      "notes": "Camera is connector/SKU dependent; do not enable by default."
+    },
+    {
+      "name": "Battery ADC",
+      "type": "power_mgmt",
+      "model": "Battery ADC divider",
+      "manufacturer": "",
+      "interface": "ADC",
+      "occupied_pins": {
+        "bat_adc": 5
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.ADC",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "ETA6098 charger/power-path hardware is present on the schematic, but it is not a generated-code driver target; user code only reads the battery ADC if requested."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 47,
+        "sda": 48
+      },
+      "spi_lcd": {
+        "mosi": 38,
+        "clk": 39,
+        "dc": 42,
+        "cs": 45,
+        "rst": 0,
+        "backlight": 1
+      },
+      "spi_sd": {
+        "mosi": 38,
+        "clk": 39,
+        "miso": 40,
+        "cs": 41
+      },
+      "uart1": {
+        "tx": 43,
+        "rx": 44
+      }
+    },
+    "default_bus_source": "waveshare_schematic_gpio_table",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [
+        0
+      ],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LCD_RST": 0,
+        "LCD_BL": 1,
+        "LCD_MOSI": 38,
+        "LCD_SCLK": 39,
+        "LCD_DC": 42,
+        "LCD_CS": 45,
+        "TP_INT": 46,
+        "TP_SCL": 47,
+        "TP_SDA": 48,
+        "IMU_INT1": 3,
+        "IMU_SCL": 47,
+        "IMU_SDA": 48,
+        "SD_MOSI": 38,
+        "SD_SCLK": 39,
+        "SD_MISO": 40,
+        "SD_CS": 41,
+        "CAM_D7": 2,
+        "CAM_HREF": 4,
+        "CAM_VSYNC": 6,
+        "CAM_D6": 7,
+        "CAM_XCLK": 8,
+        "CAM_PCLK": 9,
+        "CAM_D5": 10,
+        "CAM_D3": 11,
+        "CAM_D0": 12,
+        "CAM_D1": 13,
+        "CAM_D4": 14,
+        "CAM_D2": 15,
+        "CAM_TWI_CLK": 16,
+        "CAM_PWDN": 17,
+        "CAM_TWI_SDA": 21,
+        "BAT_ADC": 5,
+        "USB_DN": 19,
+        "USB_DP": 20,
+        "UART_TXD": 43,
+        "UART_RXD": 44
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "Touch is an external I2C controller, not ESP32 machine.TouchPad.",
+      "LCD and MicroSD share GPIO38/GPIO39.",
+      "GPIO33-GPIO37 are not marked as onboard peripheral use in the schematic table, but still require pinout/hardware review before recommending them."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-2/ESP32-S3-Touch-LCD-2-SchDoc.pdf",
+    "datasheet_url": "",
+    "product_page_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2/",
+    "source_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2/Resources-And-Documents/"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2/",
+    "vendor_resources_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2/Resources-And-Documents/",
+    "schematic": [
+      "https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-2/ESP32-S3-Touch-LCD-2-SchDoc.pdf"
+    ],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "partial_upypi_mapping",
+    "created_at": "2026-07-22",
+    "source_summary": "Waveshare docs/resources plus official schematic GPIO table.",
+    "driver_mapping_updated_at": "2026-07-23",
+    "driver_mapping_summary": "Updated confirmed uPyPi package mappings for Waveshare onboard display, touch, IMU, RTC, codec and TCA9554 expander peripherals; revision-dependent or builtin-runtime peripherals remain non-ready."
+  }
+}

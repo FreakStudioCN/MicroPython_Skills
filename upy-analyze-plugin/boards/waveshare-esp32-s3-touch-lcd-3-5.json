@@ -1,0 +1,539 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "waveshare-esp32-s3-touch-lcd-3-5",
+  "display_name": "Waveshare ESP32-S3-Touch-LCD-3.5",
+  "vendor": "Waveshare",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Large touch display UI",
+    "Audio touch terminal",
+    "Camera preview prototype",
+    "Battery-powered data logger"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. Several board controls are behind a TCA9554 I/O expander; generation must not treat EXIO lines as direct ESP32 GPIO.",
+  "features": [
+    "Audio",
+    "Battery",
+    "BLE",
+    "Camera Connector",
+    "Display",
+    "External RAM",
+    "IMU",
+    "MicroSD",
+    "PMU",
+    "RTC",
+    "Touch",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": true,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "touch": true,
+    "rtc": true,
+    "pmu": true
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7796S display",
+      "type": "display",
+      "model": "ST7796S",
+      "aliases": [
+        "ST7796"
+      ],
+      "manufacturer": "",
+      "interface": "SPI",
+      "alternate_interfaces": [
+        "QSPI schematic labels"
+      ],
+      "occupied_pins": {
+        "mosi": 1,
+        "miso": 2,
+        "dc": 3,
+        "qspi_io3": 4,
+        "clk": 5,
+        "backlight": 6,
+        "rst_exio": 1
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7796_driver",
+        "version": "0.1.0",
+        "module": "st7796",
+        "url": "https://upypi.net/pkgs/st7796_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/st7796_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7796_driver/0.1.0",
+        "notes": "ST7796/ST7796S SPI display package. Keep separate from ST7789 and from 8-bit parallel/I8080 display packages.",
+        "source_url": "https://upypi.net/pkgs/st7796_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7796"
+      },
+      "notes": "Treat the display as SPI by default. LCD_RST is EXIO1 through TCA9554 and requires expander initialization."
+    },
+    {
+      "name": "FT6336U touch controller",
+      "type": "touch_controller",
+      "model": "FT6336U",
+      "aliases": [
+        "FT6336",
+        "FT6x06"
+      ],
+      "manufacturer": "",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 7,
+        "sda": 8,
+        "int_exio": 2
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "ft6336_driver",
+        "version": "0.1.0",
+        "module": "ft6336",
+        "url": "https://upypi.net/pkgs/ft6336_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/ft6336_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/ft6336_driver/0.1.0",
+        "notes": "FT6336/FT6336U I2C touch controller package. External touch controller; do not map to ESP32 machine.TouchPad.",
+        "source_url": "https://upypi.net/pkgs/ft6336_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "ft6336"
+      },
+      "notes": "External I2C touch controller; never map this to ESP32 machine.TouchPad."
+    },
+    {
+      "name": "TCA9554 I/O expander",
+      "type": "io_expander",
+      "model": "TCA9554",
+      "manufacturer": "Texas Instruments",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 7,
+        "sda": 8
+      },
+      "expanded_pins": {
+        "exio0": "CAM_PWDN",
+        "exio1": "LCD_RST",
+        "exio2": "TP_INT",
+        "exio3": "SD_CS",
+        "exio4": "RTC_INT",
+        "exio5": "AXP_IRQ",
+        "exio6": "SYS_OUT",
+        "exio7": "PA_CTRL"
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "tca9554_driver",
+        "version": "1.0.0",
+        "module": "tca9554",
+        "url": "https://upypi.net/pkgs/tca9554_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/tca9554_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/tca9554_driver/1.0.0",
+        "notes": "TCA9554 I2C GPIO expander package. Required before using EXIO-controlled LCD reset, touch interrupt, SD CS, RTC/PMU IRQ or PA control.",
+        "source_url": "https://upypi.net/pkgs/tca9554_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "tca9554"
+      },
+      "notes": "Required before using LCD reset, touch interrupt, SD CS, RTC/PMU IRQ and amplifier control."
+    },
+    {
+      "name": "QMI8658 IMU",
+      "type": "imu",
+      "model": "QMI8658",
+      "manufacturer": "QST",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 7,
+        "sda": 8,
+        "int1": 0
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "qmi8658_driver",
+        "version": "0.1.0",
+        "module": "qmi8658",
+        "url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "notes": "QMI8658/QMI8658C I2C IMU package. Pin mapping and orientation still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "qmi8658"
+      },
+      "notes": "Shares GPIO7/GPIO8 with touch, codec control, RTC, PMU and TCA9554."
+    },
+    {
+      "name": "PCF85063 RTC",
+      "type": "rtc",
+      "model": "PCF85063",
+      "manufacturer": "NXP",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 7,
+        "sda": 8,
+        "int_exio": 4
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "pcf85063_driver",
+        "version": "0.1.0",
+        "module": "pcf85063",
+        "url": "https://upypi.net/pkgs/pcf85063_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/pcf85063_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/pcf85063_driver/0.1.0",
+        "notes": "PCF85063/PCF85063ATL I2C RTC package. Interrupt wiring remains board-specific.",
+        "source_url": "https://upypi.net/pkgs/pcf85063_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "pcf85063"
+      },
+      "notes": "RTC interrupt is EXIO4 through TCA9554."
+    },
+    {
+      "name": "AXP2101 PMU",
+      "type": "pmu",
+      "model": "AXP2101",
+      "manufacturer": "X-Powers",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 7,
+        "sda": 8,
+        "irq_exio": 5,
+        "sys_out_exio": 6
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "axp2101_driver",
+        "version": "1.0.0",
+        "module": "axp2101",
+        "url": "https://upypi.net/pkgs/axp2101_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/axp2101_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/axp2101_driver/1.0.0",
+        "source_url": "https://upypi.net/pkgs/axp2101_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "axp2101"
+      },
+      "notes": "PMU interrupt/control signals are routed through TCA9554 EXIO."
+    },
+    {
+      "name": "ES8311 audio codec",
+      "type": "audio_codec",
+      "model": "ES8311",
+      "manufacturer": "Everest Semiconductor",
+      "interface": "I2C/I2S",
+      "occupied_pins": {
+        "scl": 7,
+        "sda": 8,
+        "mclk": 12,
+        "sclk": 13,
+        "asdout": 14,
+        "lrck": 15,
+        "dsdin": 16,
+        "pa_ctrl_exio": 7
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "es8311_driver",
+        "version": "1.0.0",
+        "module": "es8311",
+        "url": "https://upypi.net/pkgs/es8311_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/es8311_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/es8311_driver/1.0.0",
+        "notes": "ES8311 I2C codec configuration package. Audio samples still use machine.I2S after codec setup.",
+        "source_url": "https://upypi.net/pkgs/es8311_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "es8311",
+        "control_interface": "I2C",
+        "data_interface": "I2S"
+      },
+      "notes": "Codec register setup needs a driver package; raw audio samples use I2S after codec init."
+    },
+    {
+      "name": "MicroSD slot",
+      "type": "storage",
+      "model": "microSD",
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "miso": 9,
+        "mosi": 10,
+        "clk": 11,
+        "cs_exio": 3
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "notes": "SD data bus uses SPI pins, but CS is EXIO3 through TCA9554 and must be controlled before SDCard init.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Requires TCA9554 for SD_CS."
+    },
+    {
+      "name": "DVP camera connector",
+      "type": "camera",
+      "model": "DVP camera connector",
+      "manufacturer": "",
+      "interface": "DVP",
+      "occupied_pins": {
+        "vsync": 17,
+        "href": 18,
+        "d7": 21,
+        "xclk": 38,
+        "d6": 39,
+        "d5": 40,
+        "pclk": 41,
+        "d4": 42,
+        "d0": 45,
+        "d3": 46,
+        "d1": 47,
+        "d2": 48,
+        "pwdn_exio": 0
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "connector_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "none",
+        "mapping_status": "sku_or_camera_module_dependent",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "pending_mapping",
+        "query": "esp32s3 dvp camera micropython"
+      },
+      "notes": "Camera module is connector/SKU dependent; do not enable by default."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 7,
+        "sda": 8
+      },
+      "spi_lcd": {
+        "mosi": 1,
+        "miso": 2,
+        "clk": 5,
+        "dc": 3,
+        "qspi_io3": 4,
+        "backlight": 6,
+        "rst_exio": 1
+      },
+      "spi_sd": {
+        "miso": 9,
+        "mosi": 10,
+        "clk": 11,
+        "cs_exio": 3
+      },
+      "uart1": {
+        "tx": 43,
+        "rx": 44
+      },
+      "i2s0": {
+        "mclk": 12,
+        "sclk": 13,
+        "data_out": 14,
+        "ws": 15,
+        "data_in": 16
+      }
+    },
+    "default_bus_source": "waveshare_schematic_gpio_table",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [
+        0
+      ],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "IMU_INT1": 0,
+        "LCD_SPI_MOSI": 1,
+        "LCD_SPI_MISO": 2,
+        "LCD_DC": 3,
+        "LCD_QSPI_IO3": 4,
+        "LCD_SPI_SCLK": 5,
+        "LCD_BL": 6,
+        "I2C_SCL": 7,
+        "I2C_SDA": 8,
+        "SD_MISO": 9,
+        "SD_MOSI": 10,
+        "SD_SCLK": 11,
+        "I2S_MCLK": 12,
+        "I2S_SCLK": 13,
+        "I2S_ASDOUT": 14,
+        "I2S_LRCK": 15,
+        "I2S_DSDIN": 16,
+        "USB_DN": 19,
+        "USB_DP": 20,
+        "UART_TXD": 43,
+        "UART_RXD": 44,
+        "EXIO0_CAM_PWDN": 0,
+        "EXIO1_LCD_RST": 1,
+        "EXIO2_TP_INT": 2,
+        "EXIO3_SD_CS": 3,
+        "EXIO4_RTC_INT": 4,
+        "EXIO5_AXP_IRQ": 5,
+        "EXIO6_SYS_OUT": 6,
+        "EXIO7_PA_CTRL": 7
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "TCA9554 EXIO controls LCD reset, touch interrupt, SD CS, RTC interrupt, PMU IRQ/SYS_OUT and amplifier control.",
+      "Touch is an external I2C controller, not ESP32 machine.TouchPad.",
+      "Display schematic uses SPI and QSPI signal aliases; default this board profile to SPI unless hardware-specific QSPI support is added."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "https://www.waveshare.net/w/upload/f/fa/ESP32-S3-Touch-LCD-3.5-Schematic.pdf",
+    "datasheet_url": "",
+    "product_page_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-3.5/",
+    "source_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-3.5/Resources-And-Documents/"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-3.5/",
+    "vendor_resources_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-3.5/Resources-And-Documents/",
+    "schematic": [
+      "https://www.waveshare.net/w/upload/f/fa/ESP32-S3-Touch-LCD-3.5-Schematic.pdf"
+    ],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "partial_upypi_mapping",
+    "created_at": "2026-07-22",
+    "source_summary": "Waveshare docs/resources plus official schematic GPIO table.",
+    "driver_mapping_updated_at": "2026-07-23",
+    "driver_mapping_summary": "Updated confirmed uPyPi package mappings for Waveshare onboard display, touch, IMU, RTC, codec and TCA9554 expander peripherals; revision-dependent or builtin-runtime peripherals remain non-ready."
+  }
+}

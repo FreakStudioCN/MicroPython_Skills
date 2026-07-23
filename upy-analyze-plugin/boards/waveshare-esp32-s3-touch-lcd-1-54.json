@@ -1,0 +1,501 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "waveshare-esp32-s3-touch-lcd-1-54",
+  "display_name": "Waveshare ESP32-S3-Touch-LCD-1.54",
+  "vendor": "Waveshare",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Compact touch UI",
+    "Audio capture and playback",
+    "IMU logging",
+    "SD_MMC data logging"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. Pin mapping comes from Waveshare schematic and is cross-checked with Waveshare GitHub GFX, QMI8658 and SD examples.",
+  "features": [
+    "Audio",
+    "Battery",
+    "BLE",
+    "Display",
+    "External RAM",
+    "IMU",
+    "Microphone",
+    "MicroSD",
+    "Speaker",
+    "Touch",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": true,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "touch": true
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789V2 display",
+      "type": "display",
+      "model": "ST7789V2",
+      "aliases": [
+        "ST7789"
+      ],
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "cs": 21,
+        "clk": 38,
+        "mosi": 39,
+        "rst": 40,
+        "dc": 45,
+        "backlight": 46
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_schematic_and_github_example",
+      "pin_evidence": "waveshare_schematic_gpio_table_and_gfx_example",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789_driver",
+        "version": "1.0.0",
+        "module": "st7789",
+        "url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "notes": "SPI ST7789 package. uPyPi description metadata currently mentions gt911 by mistake; package files contain st7789.py and fonts. Init params still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789"
+      },
+      "notes": "1.54 inch display; Waveshare example confirms CS/CLK/MOSI/RST/DC/BL pins."
+    },
+    {
+      "name": "CST816 touch controller",
+      "type": "touch_controller",
+      "model": "CST816",
+      "aliases": [
+        "CST816S",
+        "CST816T"
+      ],
+      "manufacturer": "",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 41,
+        "sda": 42,
+        "rst": 47,
+        "int": 48
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "cst816_driver",
+        "version": "1.0.0",
+        "module": "cst816",
+        "url": "https://upypi.net/pkgs/cst816_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/cst816_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/cst816_driver/1.0.0",
+        "notes": "CST816/CST816S/CST816T/CST816D I2C touch controller package. External touch controller; do not map to ESP32 machine.TouchPad.",
+        "source_url": "https://upypi.net/pkgs/cst816_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "cst816"
+      },
+      "notes": "External I2C touch controller; never map this to ESP32 machine.TouchPad."
+    },
+    {
+      "name": "QMI8658C IMU",
+      "type": "imu",
+      "model": "QMI8658C",
+      "aliases": [
+        "QMI8658"
+      ],
+      "manufacturer": "QST",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 41,
+        "sda": 42,
+        "int": 6
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_schematic_and_github_example",
+      "pin_evidence": "waveshare_schematic_gpio_table_and_qmi8658_example",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "qmi8658_driver",
+        "version": "0.1.0",
+        "module": "qmi8658",
+        "url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "notes": "QMI8658/QMI8658C I2C IMU package. Pin mapping and orientation still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "qmi8658"
+      },
+      "notes": "Shares I2C GPIO41/GPIO42 with touch and audio codec control."
+    },
+    {
+      "name": "ES8311 audio codec",
+      "type": "audio_codec",
+      "model": "ES8311",
+      "manufacturer": "Everest Semiconductor",
+      "interface": "I2C/I2S",
+      "occupied_pins": {
+        "scl": 41,
+        "sda": 42,
+        "mclk": 8,
+        "sclk": 9,
+        "lrck": 10,
+        "asdout": 11,
+        "dsdin": 12,
+        "pa_ctrl": 7
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "es8311_driver",
+        "version": "1.0.0",
+        "module": "es8311",
+        "url": "https://upypi.net/pkgs/es8311_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/es8311_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/es8311_driver/1.0.0",
+        "notes": "ES8311 I2C codec configuration package. Audio samples still use machine.I2S after codec setup.",
+        "source_url": "https://upypi.net/pkgs/es8311_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "es8311",
+        "control_interface": "I2C",
+        "data_interface": "I2S"
+      },
+      "notes": "Codec register setup needs a driver package; I2S pins are shared with ES7210 audio ADC."
+    },
+    {
+      "name": "ES7210 audio ADC",
+      "type": "audio_codec",
+      "model": "ES7210",
+      "manufacturer": "Everest Semiconductor",
+      "interface": "I2C/I2S",
+      "occupied_pins": {
+        "scl": 41,
+        "sda": 42,
+        "mclk": 8,
+        "sclk": 9,
+        "lrck": 10,
+        "asdout": 11,
+        "dsdin": 12
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "es7210_driver",
+        "version": "0.1.0",
+        "module": "es7210",
+        "url": "https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/es7210_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "source_url": "https://upypi.net/pkgs/es7210_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "es7210",
+        "control_interface": "I2C",
+        "data_interface": "I2S"
+      },
+      "notes": "Audio ADC / microphone path. API and codec init still require hardware validation."
+    },
+    {
+      "name": "NS4150B speaker amplifier enable",
+      "type": "speaker",
+      "model": "NS4150B",
+      "manufacturer": "",
+      "interface": "GPIO/analog",
+      "occupied_pins": {
+        "pa_ctrl": 7
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.Pin",
+        "notes": "NS4150B is an analog speaker amplifier stage. Generated code only needs GPIO PA_CTRL when amplifier enable/mute control is required; audio samples still flow through the ES8311/I2S path.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Do not treat NS4150B as an I2S device or search for a separate MicroPython audio driver."
+    },
+    {
+      "name": "MicroSD slot",
+      "type": "storage",
+      "model": "microSD",
+      "manufacturer": "",
+      "interface": "SD_MMC",
+      "occupied_pins": {
+        "d2": 13,
+        "d3": 14,
+        "cmd": 15,
+        "clk": 16,
+        "d0": 17,
+        "d1": 18
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_schematic_and_github_example",
+      "pin_evidence": "waveshare_schematic_gpio_table_and_sd_example",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "notes": "Board maps SD as SD_MMC 4-bit in the schematic/examples; exact MicroPython constructor support depends on firmware build.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Do not rewrite this profile as simple SPI SD."
+    },
+    {
+      "name": "Buttons and battery monitor",
+      "type": "power_mgmt",
+      "model": "Buttons plus ADC divider",
+      "manufacturer": "",
+      "interface": "GPIO/ADC",
+      "occupied_pins": {
+        "key_minus": 0,
+        "bat_adc": 1,
+        "bat_en": 2,
+        "chg_stat": 3,
+        "key_plus": 4,
+        "key_pwr": 5
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.Pin,machine.ADC",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "GPIO0 is a boot strap pin; handle as input-only/user button."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 41,
+        "sda": 42
+      },
+      "spi_lcd": {
+        "cs": 21,
+        "clk": 38,
+        "mosi": 39,
+        "rst": 40,
+        "dc": 45,
+        "backlight": 46
+      },
+      "sd_mmc": {
+        "d2": 13,
+        "d3": 14,
+        "cmd": 15,
+        "clk": 16,
+        "d0": 17,
+        "d1": 18
+      },
+      "uart1": {
+        "tx": 43,
+        "rx": 44
+      },
+      "i2s0": {
+        "mclk": 8,
+        "sclk": 9,
+        "ws": 10,
+        "data_out": 11,
+        "data_in": 12
+      }
+    },
+    "default_bus_source": "waveshare_schematic_gpio_table_and_github_examples",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [
+        0
+      ],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [],
+      "other": [],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LCD_CS": 21,
+        "LCD_CLK": 38,
+        "LCD_DIN": 39,
+        "LCD_RST": 40,
+        "LCD_DC": 45,
+        "LCD_BL": 46,
+        "TP_SCL": 41,
+        "TP_SDA": 42,
+        "TP_RST": 47,
+        "TP_INT": 48,
+        "IMU_SCL": 41,
+        "IMU_SDA": 42,
+        "IMU_INT": 6,
+        "CODEC_SCL": 41,
+        "CODEC_SDA": 42,
+        "SD_D2": 13,
+        "SD_D3": 14,
+        "SD_CMD": 15,
+        "SD_CLK": 16,
+        "SD_D0": 17,
+        "SD_D1": 18,
+        "I2S_MCLK": 8,
+        "I2S_SCLK": 9,
+        "I2S_LRCK": 10,
+        "I2S_ASDOUT": 11,
+        "I2S_DSDIN": 12,
+        "PA_CTRL": 7,
+        "USB_DN": 19,
+        "USB_DP": 20,
+        "UART_TXD": 43,
+        "UART_RXD": 44,
+        "KEY_MINUS": 0,
+        "BAT_ADC": 1,
+        "BAT_EN": 2,
+        "CHG_STAT": 3,
+        "KEY_PLUS": 4,
+        "KEY_PWR": 5
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "Touch is an external I2C controller, not ESP32 machine.TouchPad.",
+      "SD is SD_MMC 4-bit in the vendor schematic/examples; do not downgrade to SPI without a board-specific reason.",
+      "GPIO41/GPIO42 are shared by touch, IMU and audio codec control."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "https://www.waveshare.net/w/upload/c/cf/ESP32-S3-LCD-1.54-Schematic.pdf",
+    "datasheet_url": "",
+    "product_page_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-1.54/",
+    "source_url": "https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.54"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-1.54/",
+    "vendor_resources_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-1.54/Resources-And-Documents/",
+    "vendor_hardware_repo": "https://github.com/waveshareteam/ESP32-S3-Touch-LCD-1.54",
+    "schematic": [
+      "https://www.waveshare.net/w/upload/c/cf/ESP32-S3-LCD-1.54-Schematic.pdf"
+    ],
+    "datasheet_or_hardware": [],
+    "github_pin_examples": [
+      "https://raw.githubusercontent.com/waveshareteam/ESP32-S3-Touch-LCD-1.54/main/examples/ESP32-S3-Touch-LCD-1.54-demo/Arduino-3.2.0/examples/03_qmi8658_example/03_qmi8658_example.ino",
+      "https://raw.githubusercontent.com/waveshareteam/ESP32-S3-Touch-LCD-1.54/main/examples/ESP32-S3-Touch-LCD-1.54-demo/Arduino-3.2.0/examples/04_gfx_helloworld/04_gfx_helloworld.ino",
+      "https://raw.githubusercontent.com/waveshareteam/ESP32-S3-Touch-LCD-1.54/main/examples/ESP32-S3-Touch-LCD-1.54-demo/Arduino-3.2.0/examples/07_sd_card_test/07_sd_card_test.ino"
+    ]
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "partial_upypi_mapping",
+    "created_at": "2026-07-22",
+    "source_summary": "Waveshare docs/resources plus official schematic GPIO table and vendor GitHub pin examples.",
+    "driver_mapping_updated_at": "2026-07-23",
+    "driver_mapping_summary": "Updated confirmed uPyPi package mappings for Waveshare onboard display, touch, IMU, RTC, codec and TCA9554 expander peripherals; revision-dependent or builtin-runtime peripherals remain non-ready."
+  }
+}

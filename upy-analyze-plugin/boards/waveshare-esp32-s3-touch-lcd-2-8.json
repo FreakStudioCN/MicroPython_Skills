@@ -1,0 +1,476 @@
+{
+  "schema": "blockless.micropython.skill_board_definition.vendor_source.v1",
+  "id": "waveshare-esp32-s3-touch-lcd-2-8",
+  "display_name": "Waveshare ESP32-S3-Touch-LCD-2.8",
+  "vendor": "Waveshare",
+  "mcu": "esp32s3",
+  "chip_family": "esp32s3",
+  "ui_visible": true,
+  "support_status": "skill_vendor_profile",
+  "firmware": {
+    "source": "micropython_latest",
+    "url": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "port": "esp32",
+    "board_name": "ESP32_GENERIC_S3",
+    "variant": "spiram-oct",
+    "file_type": "bin",
+    "flash_method": "esptool"
+  },
+  "specs": {
+    "flash_mb": 16,
+    "psram_mb": 8,
+    "gpio": 45,
+    "adc": 20,
+    "dac": 0,
+    "i2c": 2,
+    "spi": 4,
+    "uart": 3,
+    "pwm": 8,
+    "touch": 0,
+    "wifi": true,
+    "ble": true,
+    "usb_otg": true
+  },
+  "typical_use_cases": [
+    "Touch display UI",
+    "Battery-powered dashboard",
+    "IMU and RTC data logger",
+    "I2S audio output"
+  ],
+  "beginner_friendly": false,
+  "price_yuan": 0,
+  "notes": "Uses the MicroPython ESP32_GENERIC_S3 Octal-SPIRAM firmware variant. Pin mapping comes from the Waveshare 2.8 schematic. Touch controller differs by revision: V1 CST328, V2 CST3530; V2 pin compatibility still needs hardware or V2 schematic review.",
+  "features": [
+    "Audio",
+    "Battery",
+    "BLE",
+    "Display",
+    "External RAM",
+    "IMU",
+    "MicroSD",
+    "RTC",
+    "Touch",
+    "USB-C",
+    "WiFi"
+  ],
+  "board_capabilities": {
+    "wifi": true,
+    "ble": true,
+    "display": true,
+    "imu": true,
+    "environment_sensor": false,
+    "microphone": false,
+    "audio": true,
+    "camera": false,
+    "sdcard": true,
+    "lora": false,
+    "ethernet": false,
+    "secure_element": false,
+    "battery_power": true,
+    "touch": true,
+    "rtc": true
+  },
+  "onboard_peripherals": [
+    {
+      "name": "ST7789T3 display",
+      "type": "display",
+      "model": "ST7789T3",
+      "aliases": [
+        "ST7789"
+      ],
+      "manufacturer": "",
+      "interface": "SPI",
+      "occupied_pins": {
+        "mosi": 45,
+        "miso": 46,
+        "clk": 40,
+        "cs": 42,
+        "dc": 41,
+        "rst": 39,
+        "backlight": 5
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "st7789_driver",
+        "version": "1.0.0",
+        "module": "st7789",
+        "url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "package_json_url": "https://upypi.net/pkgs/st7789_driver/1.0.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "notes": "SPI ST7789 package. uPyPi description metadata currently mentions gt911 by mistake; package files contain st7789.py and fonts. Init params still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/st7789_driver/1.0.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "st7789"
+      },
+      "notes": "LCD_MISO is listed in the schematic table, but common ST7789 usage does not require MISO."
+    },
+    {
+      "name": "CST328/CST3530 touch controller",
+      "type": "touch_controller",
+      "model": "CST328",
+      "aliases": [
+        "CST3530"
+      ],
+      "manufacturer": "",
+      "interface": "I2C",
+      "occupied_pins": {
+        "sda": 1,
+        "scl": 3,
+        "rst": 2,
+        "int": 4
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_revision_notes",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "revision_dependent_model_pending_hardware_review",
+      "driver": {
+        "source": "none",
+        "mapping_status": "revision_dependent_partial_upypi_mapping",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "cst328 cst3530",
+        "available_packages": [
+          {
+            "model": "CST328",
+            "package_name": "cst328_driver",
+            "version": "1.0.0",
+            "module": "cst328",
+            "url": "https://upypi.net/pkgs/cst328_driver/1.0.0",
+            "package_json_url": "https://upypi.net/pkgs/cst328_driver/1.0.0/package.json",
+            "install_cmd": "mpremote mip install https://upypi.net/pkgs/cst328_driver/1.0.0"
+          }
+        ],
+        "unmapped_models": [
+          "CST3530"
+        ],
+        "notes": "2.8 board touch controller is revision-dependent. CST328 has a confirmed uPyPi package, but CST3530 has no confirmed package yet, so this combined profile must not unlock as a ready upypi mapping until the board revision is known. Never map this external I2C touch controller to ESP32 machine.TouchPad."
+      },
+      "notes": "External I2C touch controller; CST328 package is available, but CST3530 still needs a confirmed package or hardware-specific driver mapping. Never map this to ESP32 machine.TouchPad."
+    },
+    {
+      "name": "QMI8658C IMU",
+      "type": "imu",
+      "model": "QMI8658C",
+      "aliases": [
+        "QMI8658"
+      ],
+      "manufacturer": "QST",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 10,
+        "sda": 11,
+        "int1": 13,
+        "int2": 12
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "qmi8658_driver",
+        "version": "0.1.0",
+        "module": "qmi8658",
+        "url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "notes": "QMI8658/QMI8658C I2C IMU package. Pin mapping and orientation still need board-level hardware validation.",
+        "source_url": "https://upypi.net/pkgs/qmi8658_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "qmi8658"
+      },
+      "notes": "Shares I2C GPIO10/GPIO11 with RTC and external I2C header."
+    },
+    {
+      "name": "PCF85063 RTC",
+      "type": "rtc",
+      "model": "PCF85063ATL",
+      "aliases": [
+        "PCF85063"
+      ],
+      "manufacturer": "NXP",
+      "interface": "I2C",
+      "occupied_pins": {
+        "scl": 10,
+        "sda": 11,
+        "int": 9
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "upypi",
+        "package_name": "pcf85063_driver",
+        "version": "0.1.0",
+        "module": "pcf85063",
+        "url": "https://upypi.net/pkgs/pcf85063_driver/0.1.0",
+        "package_json_url": "https://upypi.net/pkgs/pcf85063_driver/0.1.0/package.json",
+        "install_cmd": "mpremote mip install https://upypi.net/pkgs/pcf85063_driver/0.1.0",
+        "notes": "PCF85063/PCF85063ATL I2C RTC package. Interrupt wiring remains board-specific.",
+        "source_url": "https://upypi.net/pkgs/pcf85063_driver/0.1.0",
+        "search_provider": "upy-pkg-guide",
+        "search_mode": "real",
+        "query": "pcf85063"
+      },
+      "notes": "Shares I2C GPIO10/GPIO11 with IMU and external I2C header."
+    },
+    {
+      "name": "MicroSD slot",
+      "type": "storage",
+      "model": "microSD",
+      "manufacturer": "",
+      "interface": "SPI",
+      "alternate_interfaces": [
+        "SDIO candidate"
+      ],
+      "occupied_pins": {
+        "clk": 14,
+        "miso": 16,
+        "mosi": 17,
+        "cs": 21,
+        "d2_candidate": 15,
+        "d1_candidate": 18
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_docs_and_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.SDCard",
+        "notes": "Default to SPI SD on GPIO14/16/17/21. GPIO15/GPIO18 appear as SD_D2/SD_D1 in the schematic table and should remain shared/needs_verification.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "Use SPI mapping by default; do not assume 4-bit SDMMC without hardware validation."
+    },
+    {
+      "name": "PCM5101A I2S audio output path",
+      "type": "speaker",
+      "model": "PCM5101APWR",
+      "manufacturer": "",
+      "interface": "I2S",
+      "occupied_pins": {
+        "lrck": 38,
+        "data_out": 47,
+        "bck": 48
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "model_and_pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.I2S",
+        "notes": "PCM5101A audio output is driven by standard machine.I2S. The downstream APA2068 analog amplifier does not require a separate MicroPython package; no dedicated amp-enable GPIO was extracted from the 2.8 GPIO table.",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "PCM5101A accepts standard I2S from ESP32-S3. APA2068KAI-TRG is the downstream analog power amplifier stage and is not a standalone MicroPython driver target.",
+      "companion_chips": [
+        "APA2068KAI-TRG analog audio amplifier"
+      ]
+    },
+    {
+      "name": "Battery controls and ADC",
+      "type": "power_mgmt",
+      "model": "Battery switch/control plus ADC divider",
+      "manufacturer": "",
+      "interface": "GPIO/ADC",
+      "occupied_pins": {
+        "key_bat": 6,
+        "bat_control": 7,
+        "bat_adc": 8
+      },
+      "always_used": false,
+      "model_evidence": "waveshare_schematic",
+      "pin_evidence": "waveshare_schematic_gpio_table",
+      "verification": "pin_mapping_pending_hardware_review",
+      "driver": {
+        "source": "builtin_runtime",
+        "module": "machine.Pin,machine.ADC",
+        "search_provider": "builtin_runtime_classifier",
+        "search_required": false
+      },
+      "notes": "ETA6098 charger/power-path hardware is present on the schematic, but generated user code should only use the exposed battery key/control/ADC pins when requested."
+    }
+  ],
+  "pin_layout": {
+    "model": "vendor_reference_pending_hardware_review",
+    "default_bus_pins": {
+      "i2c0": {
+        "scl": 10,
+        "sda": 11
+      },
+      "touch_i2c": {
+        "scl": 3,
+        "sda": 1
+      },
+      "spi_lcd": {
+        "mosi": 45,
+        "miso": 46,
+        "clk": 40,
+        "cs": 42,
+        "dc": 41,
+        "rst": 39,
+        "backlight": 5
+      },
+      "spi_sd": {
+        "clk": 14,
+        "miso": 16,
+        "mosi": 17,
+        "cs": 21
+      },
+      "uart1": {
+        "tx": 43,
+        "rx": 44
+      },
+      "i2s0": {
+        "ws": 38,
+        "data_out": 47,
+        "bck": 48
+      }
+    },
+    "default_bus_source": "waveshare_schematic_gpio_table",
+    "restricted_gpio": {
+      "input_only": [],
+      "strapping": [
+        0
+      ],
+      "flash_psram_occupied": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "adc2_wifi_conflict": [],
+      "reserved": [],
+      "internal_only": [
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "other": [
+        15,
+        18
+      ],
+      "adc_only": []
+    },
+    "pin_options": {
+      "named_pins": {
+        "LCD_MOSI": 45,
+        "LCD_MISO": 46,
+        "LCD_SCK": 40,
+        "LCD_CS": 42,
+        "LCD_DC": 41,
+        "LCD_RST": 39,
+        "LCD_BL": 5,
+        "TP_SDA": 1,
+        "TP_SCL": 3,
+        "TP_RST": 2,
+        "TP_INT": 4,
+        "IMU_SCL": 10,
+        "IMU_SDA": 11,
+        "IMU_INT1": 13,
+        "IMU_INT2": 12,
+        "RTC_SCL": 10,
+        "RTC_SDA": 11,
+        "RTC_INT": 9,
+        "SD_SCLK": 14,
+        "SD_MISO": 16,
+        "SD_MOSI": 17,
+        "SD_CS": 21,
+        "SD_D2_CANDIDATE": 15,
+        "SD_D1_CANDIDATE": 18,
+        "I2S_LRCK": 38,
+        "I2S_DIN": 47,
+        "I2S_BCK": 48,
+        "UART_TXD": 43,
+        "UART_RXD": 44,
+        "USB_DN": 19,
+        "USB_DP": 20,
+        "KEY_BAT": 6,
+        "BAT_CONTROL": 7,
+        "BAT_ADC": 8
+      },
+      "exposed_pins": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    "notes": [
+      "Board uses ESP32_GENERIC_S3 Octal-SPIRAM firmware.",
+      "Touch is an external I2C controller, not ESP32 machine.TouchPad.",
+      "GPIO15/GPIO18 are visible on the 12-pin header but overlap the schematic SD_D2/SD_D1 labels; keep them shared until hardware validation.",
+      "GPIO33-GPIO37 are marked Internal occupancy in the 2.8 schematic table."
+    ]
+  },
+  "media": {
+    "board_image_url": "",
+    "pinout_image_url": "",
+    "schematic_url": "https://www.waveshare.net/w/upload/3/33/ESP32-S3-Touch-LCD-2.8.pdf",
+    "datasheet_url": "",
+    "product_page_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2.8/",
+    "source_url": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2.8/Resources-And-Documents/"
+  },
+  "source_refs": {
+    "micropython_page": "https://micropython.org/download/ESP32_GENERIC_S3/",
+    "vendor_product_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2.8/",
+    "vendor_resources_page": "https://docs.waveshare.net/ESP32-S3-Touch-LCD-2.8/Resources-And-Documents/",
+    "schematic": [
+      "https://www.waveshare.net/w/upload/3/33/ESP32-S3-Touch-LCD-2.8.pdf"
+    ],
+    "datasheet_or_hardware": []
+  },
+  "source_evidence": {
+    "curation_status": "vendor_reference_pending_hardware_review",
+    "driver_mapping_status": "partial_upypi_mapping",
+    "created_at": "2026-07-22",
+    "source_summary": "Waveshare docs/resources plus official schematic GPIO table.",
+    "driver_mapping_updated_at": "2026-07-23",
+    "driver_mapping_summary": "Updated confirmed uPyPi package mappings for Waveshare onboard display, touch, IMU, RTC, codec and TCA9554 expander peripherals; revision-dependent or builtin-runtime peripherals remain non-ready."
+  }
+}
