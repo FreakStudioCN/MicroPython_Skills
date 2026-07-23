@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-07-22",
+  "source_policy": "Generation must use local references/examples. Network crawling is allowed only during Skill maintenance.",
+  "sources": [
+    {
+      "url": "https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html",
+      "title": "MaixCAM Pro hardware page",
+      "source_type": "official_hardware_page",
+      "local_summary": "references/maixcam_pro_hardware.md"
+    },
+    {
+      "url": "https://wiki.sipeed.com/maixpy/",
+      "title": "MaixPy documentation",
+      "source_type": "official_doc_root",
+      "local_summary": "references/maixpy_api_index.md"
+    },
+    {
+      "url": "https://wiki.sipeed.com/maixpy/api/index.html",
+      "title": "MaixPy API module index",
+      "source_type": "official_api_index",
+      "local_summary": "references/maixpy_api_module_index.md"
+    },
+    {
+      "url": "https://github.com/sipeed/maixpy",
+      "title": "MaixPy GitHub",
+      "source_type": "official_github",
+      "local_summary": "references/maixpy_api_index.md"
+    }
+  ]
+}

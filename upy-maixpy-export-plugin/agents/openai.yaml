@@ -1,0 +1,4 @@
+﻿interface:
+  display_name: "Sipeed 视觉模块代码生成"
+  short_description: "Generate standalone MaixPy code for Sipeed vision modules."
+  default_prompt: "Generate MaixPy code for Sipeed MaixCAM Pro as a UART vision module."

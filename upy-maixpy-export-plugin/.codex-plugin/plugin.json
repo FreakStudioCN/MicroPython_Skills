@@ -1,0 +1,33 @@
+{
+  "name": "upy-maixpy-export-plugin",
+  "version": "0.1.0",
+  "description": "Standalone global-tool workflow for generating MaixPy code for Sipeed vision modules such as MaixCAM Pro.",
+  "author": {
+    "name": "MicroPython Skills"
+  },
+  "license": "MIT",
+  "keywords": [
+    "maixpy",
+    "sipeed",
+    "maixcam",
+    "vision",
+    "workflow"
+  ],
+  "interface": {
+    "displayName": "Sipeed 视觉模块代码生成",
+    "shortDescription": "Generate standalone MaixPy code for a Sipeed vision module.",
+    "longDescription": "Consumes a user vision task and emits sipeed_vision/main.py plus README guidance for running on Sipeed MaixCAM Pro with MaixPy/MaixVision. It does not flash firmware, does not use mpremote, and does not modify the MicroPython main workflow.",
+    "developerName": "MicroPython Skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Generate MaixPy code for Sipeed MaixCAM Pro as a UART vision module.",
+      "Create sipeed_vision/main.py for object detection and send JSONL results over UART.",
+      "Create a MaixPy camera/display example for MaixVision."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

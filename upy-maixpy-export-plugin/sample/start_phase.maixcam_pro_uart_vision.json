@@ -1,0 +1,51 @@
+{
+  "protocol_version": "1.0",
+  "type": "start_phase",
+  "phase": "upy-maixpy-export-plugin",
+  "session_id": "demo-maixpy-export",
+  "msg_id": "msg-demo-start",
+  "timestamp": "2026-07-22T00:00:00Z",
+  "idempotency_key": "upy-maixpy-export-plugin:demo-maixpy-export:start:v1",
+  "payload": {
+    "mode": "generate",
+    "invocation_mode": "plugin_protocol",
+    "local_test": false,
+    "target_runtime": "maixpy",
+    "target_device": "maixcam_pro",
+    "output_root": "sipeed_vision",
+    "vision_task": {
+      "type": "yolo_detection",
+      "model_path": "/root/models/model_xxx.mud",
+      "uart_output": true
+    },
+    "uart": {
+      "port": "UART1",
+      "tx_pin": "A19",
+      "rx_pin": "A18",
+      "baudrate": 115200,
+      "baudrate_editable": false,
+      "protocol": "jsonl",
+      "jsonl_fields": ["type", "label", "score", "x", "y", "w", "h"]
+    },
+    "runtime_context": {
+      "session_root": "sessions/demo-maixpy-export",
+      "project_root": ".",
+      "file_operation_root": ".",
+      "resource_root": "upy-maixpy-export-plugin"
+    },
+    "capabilities": {
+      "protocol_versions": ["1.0"],
+      "approval_request": true,
+      "file_operation": true,
+      "script_run": true,
+      "checkpoint_resume": false,
+      "cancellation": true,
+      "retry": true,
+      "timeout": true,
+      "permission_prompt": false,
+      "artifact_manifest": true,
+      "device_command": false,
+      "network": false
+    }
+  }
+}

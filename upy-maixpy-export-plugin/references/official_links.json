@@ -1,0 +1,10 @@
+{
+  "maixcam_pro_hardware": "https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html",
+  "maixpy_docs": "https://wiki.sipeed.com/maixpy/",
+  "maixpy_api_index": "https://wiki.sipeed.com/maixpy/api/index.html",
+  "maixpy_github": "https://github.com/sipeed/maixpy",
+  "qrcode_doc": "https://wiki.sipeed.com/maixpy/doc/zh/vision/qrcode.html",
+  "find_blobs_doc": "https://wiki.sipeed.com/maixpy/doc/en/vision/find_blobs.html",
+  "face_recognition_doc": "https://wiki.sipeed.com/maixpy/doc/zh/vision/face_recognition.html",
+  "ocr_doc": "https://wiki.sipeed.com/maixpy/doc/zh/vision/ocr.html"
+}

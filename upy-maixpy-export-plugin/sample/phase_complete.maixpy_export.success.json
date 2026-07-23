@@ -1,0 +1,68 @@
+{
+  "protocol_version": "1.0",
+  "type": "phase_complete",
+  "phase": "upy-maixpy-export-plugin",
+  "session_id": "demo-maixpy-export",
+  "msg_id": "msg-demo-complete",
+  "timestamp": "2026-07-22T00:00:30Z",
+  "idempotency_key": "upy-maixpy-export-plugin:demo-maixpy-export:phase_complete:phase_completed:v1",
+  "payload": {
+    "phase": "upy-maixpy-export-plugin",
+    "result": "success",
+    "summary": "Generated standalone MaixPy files for a Sipeed vision module.",
+    "next_phase": null,
+    "checkpoint": {
+      "checkpoint_id": "upy-maixpy-export-plugin:demo-maixpy-export:phase_completed",
+      "resume_phase": "upy-maixpy-export-plugin",
+      "resume_step": "phase_completed",
+      "state_file": "sessions/demo-maixpy-export/session_state.upy_maixpy_export_plugin.json"
+    },
+    "artifacts": [
+      {
+        "type": "file",
+        "title": "MaixPy main.py",
+        "path": "sipeed_vision/main.py"
+      },
+      {
+        "type": "file",
+        "title": "Run guide",
+        "path": "sipeed_vision/README.md"
+      }
+    ],
+    "file_manifest": {
+      "root": ".",
+      "files": [
+        {
+          "path": "sipeed_vision/main.py",
+          "status": "created",
+          "role": "maixpy_entry",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "sipeed_vision/README.md",
+          "status": "created",
+          "role": "manual_run_guide",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ]
+    },
+    "official_links": [
+      {
+        "label": "MaixCAM Pro hardware page",
+        "url": "https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html"
+      },
+      {
+        "label": "MaixPy documentation",
+        "url": "https://wiki.sipeed.com/maixpy/"
+      },
+      {
+        "label": "MaixPy GitHub",
+        "url": "https://github.com/sipeed/maixpy"
+      }
+    ],
+    "warnings": [],
+    "errors": []
+  }
+}
