@@ -1,4 +1,5 @@
-# Source: https://wiki.sipeed.com/maixpy/
+# Source: https://wiki.sipeed.com/maixpy/api/maix/nn.html
+# Source: https://wiki.sipeed.com/maixpy/doc/en/vision/yolov5.html
 # Purpose: Conservative YOLO + UART JSONL skeleton. User must provide MODEL_PATH.
 import json
 from maix import app, camera, display, err, image, nn, pinmap, uart
@@ -20,6 +21,14 @@ cam = camera.Camera(detector.input_width(), detector.input_height(), detector.in
 disp = display.Display()
 
 
+def label_for(class_id):
+    labels = getattr(detector, "labels", [])
+    idx = int(class_id)
+    if 0 <= idx < len(labels):
+        return labels[idx]
+    return str(idx)
+
+
 def send_detection(label, score, x, y, w, h):
     payload = {
         "type": "object",
@@ -37,7 +46,7 @@ while not app.need_exit():
     img = cam.read()
     objs = detector.detect(img, conf_th=0.5, iou_th=0.45)
     for obj in objs:
-        label = detector.labels[obj.class_id] if hasattr(detector, "labels") else str(obj.class_id)
+        label = label_for(obj.class_id)
         send_detection(label, obj.score, obj.x, obj.y, obj.w, obj.h)
         img.draw_rect(obj.x, obj.y, obj.w, obj.h, image.COLOR_RED)
         img.draw_string(obj.x, obj.y, label, image.COLOR_RED)

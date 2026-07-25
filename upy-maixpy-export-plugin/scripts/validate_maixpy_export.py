@@ -23,6 +23,7 @@ FORBIDDEN_MAIN_TOKENS = [
 README_REQUIRED = [
     "MaixCAM",
     "MaixPy",
+    "MaixVision",
     "not the MicroPython master",
     "UART1",
     "A19",
@@ -33,7 +34,18 @@ README_REQUIRED = [
     "5 V",
     "https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html",
     "https://wiki.sipeed.com/maixpy/",
+    "https://wiki.sipeed.com/maixvision",
+    "https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html",
     "https://github.com/sipeed/maixpy",
+]
+FORBIDDEN_MISLEADING_PHRASES = [
+    "maixpy does not support",
+    "not supported by maixpy",
+    "maixpy api does not exist",
+    "official api does not exist",
+    "official api is unavailable",
+    "api not available in maixpy",
+    "api unavailable in maixpy",
 ]
 
 
@@ -77,6 +89,13 @@ def validate(project_root: Path) -> tuple[list[str], dict[str, object]]:
     for token in README_REQUIRED:
         if token not in readme_text:
             errors.append(f"README.md missing required text: {token}")
+    combined_lower = f"{main_text}\n{readme_text}".lower()
+    for phrase in FORBIDDEN_MISLEADING_PHRASES:
+        if phrase in combined_lower:
+            errors.append(
+                "generated artifacts must not describe local reference gaps as official MaixPy API gaps: "
+                + phrase
+            )
     if "firmware flashing" not in readme_text.lower():
         warnings.append("README.md should mention firmware flashing is manual/external")
     if "maixhub" not in readme_text.lower():

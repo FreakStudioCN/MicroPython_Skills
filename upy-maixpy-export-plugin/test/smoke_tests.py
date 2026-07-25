@@ -37,6 +37,8 @@ def write_sample_project(project_root: Path) -> None:
                 "Official links:",
                 "- https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html",
                 "- https://wiki.sipeed.com/maixpy/",
+                "- https://wiki.sipeed.com/maixvision",
+                "- https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html",
                 "- https://github.com/sipeed/maixpy",
                 "",
             ]
@@ -46,6 +48,11 @@ def write_sample_project(project_root: Path) -> None:
 
 
 def main() -> int:
+    official_links = (ROOT / "references/official_links.json").read_text(encoding="utf-8")
+    assert "https://wiki.sipeed.com/maixvision" in official_links
+    assert "https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html" in official_links
+    sample_phase = (ROOT / "sample/phase_complete.maixpy_export.success.json").read_text(encoding="utf-8")
+    assert "https://wiki.sipeed.com/maixvision" in sample_phase
     run_python("scripts/validate_reference_index.py", "--skill-root", str(ROOT))
     with tempfile.TemporaryDirectory() as tmp:
         project_root = Path(tmp)

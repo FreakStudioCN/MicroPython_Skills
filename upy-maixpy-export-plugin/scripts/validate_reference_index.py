@@ -11,6 +11,14 @@ from pathlib import Path
 
 
 VALID_STATUSES = {"seed_reference", "needs_full_crawl", "not_codegen_ready"}
+REQUIRED_OFFICIAL_LINKS = {
+    "maixcam_pro_hardware": "https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html",
+    "maixpy_docs": "https://wiki.sipeed.com/maixpy/",
+    "maixpy_api_index": "https://wiki.sipeed.com/maixpy/api/index.html",
+    "maixvision_ide": "https://wiki.sipeed.com/maixvision",
+    "maixvision_manual": "https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html",
+    "maixpy_github": "https://github.com/sipeed/maixpy",
+}
 REQUIRED_ROOT_FILES = [
     "SKILL.md",
     ".codex-plugin/plugin.json",
@@ -48,6 +56,30 @@ def parse_task_examples(path: Path) -> set[str]:
     return examples
 
 
+def validate_official_links(path: Path, errors: list[str]) -> None:
+    try:
+        data = json.loads(read_text(path))
+    except json.JSONDecodeError as exc:
+        errors.append(f"invalid official_links.json: {exc}")
+        return
+    for key, expected in REQUIRED_OFFICIAL_LINKS.items():
+        actual = data.get(key)
+        if actual != expected:
+            errors.append(f"official_links.json missing or changed {key}: expected {expected}")
+
+
+def validate_reference_file(path: Path, rel: str, status: str, errors: list[str]) -> None:
+    text = read_text(path)
+    for token in ["Official URL:", "Status:", "Stage A policy:"]:
+        if token not in text:
+            errors.append(f"{rel} missing required reference token: {token}")
+    if status == "seed_reference" and "Officially indexed callable surface" not in text:
+        if "maix.nn" not in text:
+            errors.append(f"{rel} seed reference must include an official callable surface summary")
+    if "MaixPy does not support" in text or "not supported by MaixPy" in text:
+        errors.append(f"{rel} must not describe local reference gaps as official MaixPy support gaps")
+
+
 def validate(skill_root: Path) -> tuple[list[str], dict[str, object]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -55,6 +87,10 @@ def validate(skill_root: Path) -> tuple[list[str], dict[str, object]]:
     for rel in REQUIRED_ROOT_FILES:
         if not (skill_root / rel).exists():
             errors.append(f"missing required file: {rel}")
+
+    official_links_path = skill_root / "references/official_links.json"
+    if official_links_path.exists():
+        validate_official_links(official_links_path, errors)
 
     module_index_path = skill_root / "references/maixpy_api_module_index.md"
     manifest_path = skill_root / "references/maixpy_api_crawl_manifest.json"
@@ -85,6 +121,8 @@ def validate(skill_root: Path) -> tuple[list[str], dict[str, object]]:
                     errors.append(f"manifest module {module} has invalid status: {status}")
                 if local_reference and not (skill_root / local_reference).exists():
                     errors.append(f"manifest module {module} local reference missing: {local_reference}")
+                elif local_reference:
+                    validate_reference_file(skill_root / local_reference, local_reference, status, errors)
         except json.JSONDecodeError as exc:
             errors.append(f"invalid maixpy_api_crawl_manifest.json: {exc}")
 

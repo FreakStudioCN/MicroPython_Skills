@@ -58,6 +58,14 @@
         "url": "https://wiki.sipeed.com/maixpy/"
       },
       {
+        "label": "MaixVision IDE",
+        "url": "https://wiki.sipeed.com/maixvision"
+      },
+      {
+        "label": "MaixVision manual guide",
+        "url": "https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html"
+      },
+      {
         "label": "MaixPy GitHub",
         "url": "https://github.com/sipeed/maixpy"
       }

@@ -1,4 +1,5 @@
-# Source: https://wiki.sipeed.com/maixpy/
+# Source: https://wiki.sipeed.com/maixpy/doc/en/vision/find_blobs.html
+# Source: https://wiki.sipeed.com/maixpy/api/maix/image.html
 # Purpose: Color blob skeleton with fixed UART JSONL fields. Tune thresholds in real light.
 import json
 from maix import app, camera, display, err, image, pinmap, uart

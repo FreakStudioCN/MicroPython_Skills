@@ -1,4 +1,5 @@
-# Source: https://wiki.sipeed.com/maixpy/
+# Source: https://wiki.sipeed.com/maixpy/api/maix/camera.html
+# Source: https://wiki.sipeed.com/maixpy/api/maix/display.html
 # Purpose: MaixPy camera + display preview baseline for MaixCAM Pro.
 from maix import app, camera, display
 

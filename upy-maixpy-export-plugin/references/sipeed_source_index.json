@@ -21,6 +21,18 @@
       "local_summary": "references/maixpy_api_module_index.md"
     },
     {
+      "url": "https://wiki.sipeed.com/maixvision",
+      "title": "MaixVision IDE",
+      "source_type": "official_ide_page",
+      "local_summary": "references/maixvision_manual_run.md"
+    },
+    {
+      "url": "https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html",
+      "title": "MaixVision manual run guide",
+      "source_type": "official_doc_page",
+      "local_summary": "references/maixvision_manual_run.md"
+    },
+    {
       "url": "https://github.com/sipeed/maixpy",
       "title": "MaixPy GitHub",
       "source_type": "official_github",

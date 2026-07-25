@@ -24,7 +24,7 @@ This file is the complete module coverage checklist. Each module must also have 
 | `maix.i18n` | maix.i18n module | `references/api_modules/maix_i18n.md` | A1 skeleton only |
 | `maix.thread` | maix.thread module | `references/api_modules/maix_thread.md` | A1 skeleton only |
 | `maix.util` | maix.util module | `references/api_modules/maix_util.md` | A1 skeleton only |
-| `maix.protocol` | maix.protocol module | `references/api_modules/maix_protocol.md` | A1 skeleton only |
+| `maix.protocol` | maix.protocol module | `references/api_modules/maix_protocol.md` | A2 link only |
 | `maix.app` | maix.app module | `references/api_modules/maix_app.md` | A0 direct support |
 | `maix.log` | maix.log module | `references/api_modules/maix_log.md` | A0 direct support |
 | `maix.time` | maix.time module | `references/api_modules/maix_time.md` | A0 direct support |
@@ -46,4 +46,3 @@ Policy:
 - A1 modules require explicit user intent and must remain conservative skeletons with README prerequisites.
 - A2 modules are indexed but not auto-generated in stage A because they imply networking, streaming, services, or device-mode complexity.
 - A3 modules are examples/source index only.
-

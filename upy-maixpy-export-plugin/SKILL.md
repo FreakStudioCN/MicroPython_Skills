@@ -51,7 +51,9 @@ Load only the references needed by the task:
 - Face recognition: `maixpy_ai_face_recognition.md`, `references/api_modules/maix_nn.md`, `examples/face_recognition_jsonl.py`
 - OCR: `maixpy_ai_ocr.md`, `references/api_modules/maix_nn.md`, `references/api_modules/maix_i18n.md`, `examples/ocr_jsonl.py`
 
-If any required reference is marked `Status: needs_full_crawl` or `Status: not_codegen_ready`, return `partial` unless the task is README-only guidance.
+If any required reference is marked `Status: needs_full_crawl`, return `partial` instead of writing unverified API code. If a reference is marked `Status: not_codegen_ready`, return README/link-only guidance unless a later protocol explicitly enables that feature.
+
+Do not describe missing local reference coverage as "MaixPy does not support this API" or "the official API is unavailable". Use "local Skill reference is not codegen-ready" and cite the official URL when available.
 
 ## Full API Index Requirement
 
@@ -61,6 +63,8 @@ Build the reference library from:
 https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html
 https://wiki.sipeed.com/maixpy/
 https://wiki.sipeed.com/maixpy/api/index.html
+https://wiki.sipeed.com/maixvision
+https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html
 https://github.com/sipeed/maixpy
 ```
 
@@ -115,6 +119,8 @@ Always use `app.need_exit()` in loops when examples show an event loop.
 - Official links:
   - https://wiki.sipeed.com/hardware/zh/maixcam/maixcam_pro.html
   - https://wiki.sipeed.com/maixpy/
+  - https://wiki.sipeed.com/maixvision
+  - https://wiki.sipeed.com/maixpy/doc/zh/basic/maixvision.html
   - https://github.com/sipeed/maixpy
 - If AI models are involved, the model path is a prerequisite, normally under `/root/models`.
 
@@ -133,6 +139,8 @@ Conditional stage A support:
 
 - Face recognition can be a conservative skeleton only when references/examples are present. README must explain model files, face database, and enrollment prerequisites.
 - OCR can be a conservative skeleton only when references/examples are present. README must explain model files, font files, and MaixPy version prerequisites.
+
+For `maix.nn` features, local references now cover YOLOv5, YOLOv8, YOLO11, YOLOWorld, FaceRecognizer, and PP_OCR at seed level. YOLOv5 remains the default detection skeleton. Face recognition and OCR may be generated only as conservative runtime skeletons with explicit model/database/asset prerequisites. Classifier, tracker, custom tensor, audio, touch UI, video, pipeline, network, streaming, and WebRTC tasks remain partial or link-only unless the task-specific reference/example is added.
 
 Unsupported in stage A:
 

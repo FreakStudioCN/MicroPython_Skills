@@ -1,4 +1,5 @@
-# Source: https://wiki.sipeed.com/maixpy/
+# Source: https://wiki.sipeed.com/maixpy/doc/zh/vision/qrcode.html
+# Source: https://wiki.sipeed.com/maixpy/api/maix/image.html
 # Purpose: QR code detection skeleton with fixed UART JSONL fields.
 import json
 from maix import app, camera, display, err, pinmap, uart
