@@ -52,6 +52,18 @@ mpos-test-app/SKILL.md
 
 Publish-ready screenshots must be PNG, JPEG, or WebP. BMP is raw evidence only.
 
+For final-artifact-only or batch sessions, screenshots are required even when per-App `app_test_result.json` is not exposed to the frontend. Use the classic helper or host-equivalent action:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/capture_batch_screenshots.py \
+  --repo <repo-root> \
+  --app-prefix <fullname-prefix> \
+  --output-dir <artifact-root>/screenshots
+```
+
+Write `screenshot_manifest.json` and add each PNG/JPEG/WebP file to `artifact_manifest.json` with role `store_screenshot`. Missing screenshots are structured errors and block `publish_ready`.
+
 ## Output
 
 Write `app_test_result.json` with desktop launch result, controller smoke result, optional Web preview result, screenshots, visible text/widget tree when available, manual commands, warnings, structured errors, and `handoff.next_phase`.

@@ -97,6 +97,22 @@ Default goal is from request to upystore publishing handoff:
 
 Before step 8, ask whether a physical device and serial port are available and whether MicroPythonOS is already installed on that device. If yes, route deploy toward `mpk-install` for release verification unless the user chooses another device mode; if MPOS runtime probing fails but filesystem copy is acceptable, route to `device-copy`. If no physical board exists, a `desktop-preview` or `web-preview` `deploy_result.json` is enough to satisfy the publish-chain deployment record, and the result must record `hardware_available=false`.
 
+## Batch / Final Artifact Mode
+
+When the user requests multiple Apps, a demo batch, or says intermediate files are not needed, keep the normal safety checks but change the completion contract:
+
+- Do not require final reports to include every per-App `analysis_result`, `generation_result`, `app_test_result`, `package_result`, `deploy_result`, or `publish_result` unless the user explicitly asks for a fully resumable per-App workflow.
+- Still require final deliverables that a user can inspect, demo, install, or upload:
+  - App source directories.
+  - MPK files named `<fullname>_rN.mpk`.
+  - publish-ready screenshots in PNG, JPEG, or WebP for every App.
+  - an upystore upload manifest or equivalent publish handoff listing each App's fullname, name, publisher, version, icon, MPK path, MPK sha256/size, screenshot path, release notes, hardware tags, and `https://upystore.io/developer`.
+  - an artifact manifest when a browser/frontend will display or download the results.
+- Do not mark a batch as `100/100 OK`, `publish-ready`, or ready for user handoff if screenshots or upystore upload metadata are missing. Report it as partial and list the missing App numbers.
+- For screenshot-only batch evidence, route to `mpos-test-app` and use `mpos-test-app/scripts/capture_batch_screenshots.py`; do not invent screenshot paths.
+- For manual upystore upload bundles, route to `mpos-publish-app` and use `mpos-publish-app/scripts/prepare_upload_manifest.py`.
+- If final artifacts are regenerated after App code repair, treat old MPKs, screenshots, and upload manifests as stale and regenerate them before the final summary.
+
 ## Resumption
 
 For "continue", "resume", "next step", or after context loss:

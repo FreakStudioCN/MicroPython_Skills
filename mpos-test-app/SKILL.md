@@ -196,6 +196,22 @@ scripts/run_web.sh
 
 `scripts/build_mpos.sh web` 会把 `internal_filesystem` staging 到 `web/.preload_internal_filesystem`，注入 web-only `_thread`、`socket`、`aiorepl`、`_webrepl`、`websocket`、`aiohttp`、`machine.Timer` 等 shim，并输出 `web/micropython.{html,js,wasm,data}` 与 `web/index.html`。这验证的是浏览器/WASM 端兼容性；默认 App smoke 仍优先用本地 desktop simulator。
 
+## 批量截图 / 最终证据模式
+
+批量生成、演示 App 库、或用户明确说“中间文件不需要”时，`app_test_result.json` 可以不作为最终交付文件展示，但截图不能省略。必须为每个 App 生成 PNG/JPEG/WebP 这种 upystore 可接受的截图，并写出截图清单：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-test-app/scripts/capture_batch_screenshots.py \
+  --repo <repo-root> \
+  --app-prefix <fullname-prefix> \
+  --output-dir <repo-root>/tmp/<batch-name>/screenshots
+```
+
+该脚本只输出 PNG 截图和 `screenshot_manifest.json`，不要求补齐每个 App 的 `app_test_result.json`。如果用户需要可恢复的单 App 测试链路，继续使用 `run_app_smoke.py --screenshot --output <repo-root>/tmp/mpos-test-app/<fullname>/app_test_result.json`。
+
+不要在缺少截图时把批量 App 报告为 demo-ready、publish-ready 或 `100/100 OK`；必须列出缺失截图的 App。
+
 ## 失败处理
 
 失败时输出结构化结果并交回 `mpos-gen-app repair`，包含：

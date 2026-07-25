@@ -134,6 +134,17 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
   <repo-root>/tmp/mpos-package-app/<fullname>/package_result.json
 ```
 
+## 批量 / 最终产物模式
+
+当用户要求很多 App，或明确说“中间文件不需要”时，`package_result.json` 可以作为内部构建记录，不必作为最终展示文件逐个补齐，但 MPK 不是可选项。最终交付必须满足：
+
+- 每个 App 都有 `<fullname>_rN.mpk`。
+- App 源码修复后，旧 MPK 必须视为 stale 并重新打包。
+- MPK 内不能包含 `__pycache__`、`*.pyc`、`.git`、`.DS_Store` 或主机临时文件。
+- 后续由 `mpos-publish-app/scripts/prepare_upload_manifest.py` 生成上传清单。
+
+如果代码修复发生在打包之后，必须先重新打包，再生成截图和上传清单。
+
 ## MPK 规则
 
 必须由脚本保证：

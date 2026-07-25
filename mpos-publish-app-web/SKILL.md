@@ -60,6 +60,23 @@ Check:
 
 Use upystore public endpoints only for read-only version comparison when `network_read=true`. If network is unavailable, warn and continue with `version_status=unknown_unverified`.
 
+## Batch Upload Manifest
+
+For batch sessions or `final_artifacts_only=true`, create a browser-visible upload bundle:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-publish-app/scripts/prepare_upload_manifest.py \
+  --repo <repo-root> \
+  --app-prefix <fullname-prefix> \
+  --mpk-dir <artifact-root>/mpk \
+  --screenshot-dir <artifact-root>/screenshots \
+  --output <artifact-root>/upystore_upload_manifest.json \
+  --artifact-manifest-output <artifact-root>/artifact_manifest.json
+```
+
+Expose the upload manifest in `artifact_manifest.json` with role `upystore_upload_manifest`. Do not set `publish_ready=true` if any App entry is missing `publisher`, MPK, icon, or PNG/JPEG/WebP screenshot.
+
 ## Output
 
 Write `publish_result.json` with release readiness, blockers, warnings, structured errors, MPK metadata, app metadata, screenshot readiness, upystore comparison, manual upload guidance, and `handoff.next_phase=null`.
