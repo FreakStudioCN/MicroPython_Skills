@@ -44,8 +44,14 @@ mpk
 app_index_entry
 deploy_result
 publish_result
+store_screenshot
+upystore_upload_manifest
+manual_upload_guidance
+publish_bundle
 activity_log
 session_state
 ```
 
 Image artifacts for screenshots or upload guidance must be PNG, JPEG, or WebP. BMP may be stored as raw test evidence but is not publish-ready.
+
+For batch/final-artifact sessions, the browser must not infer readiness from source files or MPKs alone. The manifest must include at least one `store_screenshot` artifact per App and either per-App `publish_result` artifacts or one batch `upystore_upload_manifest` artifact.

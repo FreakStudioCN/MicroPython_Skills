@@ -50,6 +50,10 @@ mpos-package-app/SKILL.md
 5. Write `package_result.json`, `app_index_entry.json`, and artifact manifest entries.
 6. Route to `mpos-deploy-app-web`.
 
+## Final Artifact Mode
+
+When `final_artifacts_only=true`, per-App `package_result.json` may remain internal, but fresh MPK files are mandatory final artifacts. Add every MPK to `artifact_manifest.json` with role `mpk`, and mark downstream artifacts stale if App source changed after packaging.
+
 ## Output
 
 `package_result.json` includes `app`, `package.revision`, `package.mpk_path`, `package.filename_policy`, checks, warnings, structured errors, and handoff.

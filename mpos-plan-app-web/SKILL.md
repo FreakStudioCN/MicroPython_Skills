@@ -50,6 +50,17 @@ If required fields are missing, emit `MISSING_FIELD` and `phase_complete(result=
 5. Preserve artifacts and errors from prior attempts.
 6. Emit `phase_complete` with `next_phase` and checkpoint.
 
+## Batch / Final Artifact Mode
+
+If the browser session requests multiple Apps, a project library, or `final_artifacts_only=true`, the session may omit per-App intermediate display artifacts, but it must still route through final evidence creation:
+
+- `mpos-test-app-web` must produce or reference PNG/JPEG/WebP screenshots for every App.
+- `mpos-package-app-web` must produce fresh `<fullname>_rN.mpk` files.
+- `mpos-publish-app-web` must produce an `upystore_upload_manifest` or per-App `publish_result` artifacts.
+- `artifact_manifest.json` must expose screenshots, MPKs, and upload guidance explicitly.
+
+Do not emit `completed` or `publish_ready=true` while any App lacks a screenshot or upload metadata. Emit `partial` with structured missing-artifact errors instead.
+
 ## Output
 
 Write:
