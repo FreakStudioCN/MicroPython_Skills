@@ -629,13 +629,33 @@ def normalize_bom_items(bom: Any) -> list[Any]:
     return normalized
 
 
-def load_onboard_driver_map() -> dict[str, Any]:
-    try:
-        with open(ONBOARD_DRIVER_MAP_PATH, "r", encoding="utf-8-sig") as f:
-            data = json.load(f)
-    except Exception:  # noqa: BLE001
+def onboard_driver_map_path() -> Path:
+    override = os.environ.get("UPY_SELECT_HW_ONBOARD_DRIVER_MAP")
+    return Path(override) if override else ONBOARD_DRIVER_MAP_PATH
+
+
+def warn_onboard_driver_map(warnings: list[str] | None, message: str) -> None:
+    if warnings is not None:
+        warnings.append(f"onboard driver map ignored: {message}")
+
+
+def load_onboard_driver_map(warnings: list[str] | None = None) -> dict[str, Any]:
+    path = onboard_driver_map_path()
+    if not path.exists():
         return {}
-    return data if isinstance(data, dict) else {}
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except Exception as exc:  # noqa: BLE001
+        warn_onboard_driver_map(warnings, f"{path}: {exc}")
+        return {}
+    if not isinstance(data, dict):
+        warn_onboard_driver_map(warnings, f"{path}: root must be an object")
+        return {}
+    if "models" in data and not isinstance(data.get("models"), dict):
+        warn_onboard_driver_map(warnings, f"{path}: models must be an object")
+        return {}
+    return data
 
 
 def map_lookup_by_model(driver_map: dict[str, Any], model: Any) -> dict[str, Any]:
@@ -936,9 +956,42 @@ def create_device_from_peripheral(
     return device
 
 
+def validate_onboard_resolved_devices(
+    upstream: dict[str, Any],
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    devices = upstream.get("devices")
+    if not isinstance(devices, list):
+        return
+    for index, raw in enumerate(devices):
+        if not isinstance(raw, dict) or raw.get("physical_source") != "board_onboard":
+            continue
+        prefix = f"upstream_manifest.devices[{index}]"
+        for field in ["name", "type", "interface", "source", "driver", "onboard_peripheral_ref"]:
+            if field not in raw or raw[field] in (None, ""):
+                errors.append(f"{prefix}.{field} is required for board_onboard device")
+        if raw.get("source") == "board_onboard":
+            errors.append(f"{prefix}.source must remain user_specified/system_recommended; use physical_source=board_onboard")
+        interface = raw.get("interface")
+        if interface not in VALID_DEVICE_INTERFACES:
+            errors.append(f"{prefix}.interface invalid value '{interface}', valid values: {sorted(VALID_DEVICE_INTERFACES)}")
+        driver = raw.get("driver")
+        if not isinstance(driver, dict):
+            errors.append(f"{prefix}.driver must be an object")
+        else:
+            source = driver.get("source")
+            if source not in VALID_DRIVER_SOURCES:
+                errors.append(f"{prefix}.driver.source invalid value '{source}', valid values: {sorted(VALID_DRIVER_SOURCES)}")
+            normalize_driver_status(driver, prefix, warnings, errors)
+        if not isinstance(raw.get("onboard_peripheral_ref"), dict):
+            errors.append(f"{prefix}.onboard_peripheral_ref must be an object")
+
+
 def merge_onboard_devices_into_upstream(
     upstream_manifest: Any,
     board: dict[str, Any] | None,
+    errors: list[str],
     warnings: list[str],
 ) -> dict[str, Any]:
     upstream = copy.deepcopy(upstream_manifest) if isinstance(upstream_manifest, dict) else {}
@@ -953,7 +1006,7 @@ def merge_onboard_devices_into_upstream(
     if not isinstance(devices, list):
         return upstream
 
-    driver_map = load_onboard_driver_map()
+    driver_map = load_onboard_driver_map(warnings)
     used_peripherals: set[int] = set()
     enriched = 0
     added = 0
@@ -994,6 +1047,7 @@ def merge_onboard_devices_into_upstream(
 
     if enriched or added:
         upstream["devices"] = devices
+        validate_onboard_resolved_devices(upstream, errors, warnings)
         upstream["board_onboard_device_resolution"] = {
             "board_id": board.get("id") or board.get("board_id"),
             "physical_source_field": "physical_source",
@@ -1665,7 +1719,23 @@ def selected_board_with_definition_defaults(
         selected_firmware = {}
         selected["firmware"] = selected_firmware
 
-    for field in ("source", "url", "port", "board_name", "variant", "file_type", "flash_method"):
+    for field in (
+        "source",
+        "url",
+        "port",
+        "board_name",
+        "variant",
+        "repo",
+        "release_tag",
+        "asset_pattern",
+        "archive_member",
+        "container_type",
+        "file_type",
+        "flash_method",
+        "release_asset_mode",
+        "latest_version",
+        "latest_release",
+    ):
         if selected_firmware.get(field) in (None, "") and board_firmware.get(field) not in (None, ""):
             selected_firmware[field] = copy.deepcopy(board_firmware[field])
     return selected
@@ -1752,7 +1822,7 @@ def validate_draft(
         validate_selected_board_against_definition(selected_board, mcu_obj, board_definition, errors)
     effective_upstream = draft.get("upstream_manifest")
     if isinstance(effective_upstream, dict):
-        effective_upstream = merge_onboard_devices_into_upstream(effective_upstream, board_definition, warnings)
+        effective_upstream = merge_onboard_devices_into_upstream(effective_upstream, board_definition, errors, warnings)
 
     if plan is not None:
         validate_mcu(plan.get("mcu"), errors)

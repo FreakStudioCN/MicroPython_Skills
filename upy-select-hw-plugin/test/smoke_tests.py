@@ -30,11 +30,15 @@ SESSION_ID = "022ad742-3269-42e9-ac20-c14f477ecdf2"
 EXPECTED_ARTIFACTS_CWD = [f"sessions/{SESSION_ID}/{name}" for name in EXPECTED_ARTIFACTS_BARE]
 
 
-def run(cmd: list[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+def run(
+    cmd: list[str], *, input_text: str | None = None, env_extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
+    if env_extra:
+        env.update(env_extra)
     return subprocess.run(
         cmd,
         cwd=str(SKILL_DIR),
@@ -182,8 +186,28 @@ def check_cold_driver_status_normalization() -> None:
         raise AssertionError(f"source/status mismatch should warn: {mismatched}")
 
 
-def check_onboard_peripheral_resolution() -> None:
-    draft = {
+def onboard_display_draft(*, include_display_device: bool) -> dict:
+    if include_display_device:
+        devices = [
+            {
+                "name": "Status display",
+                "type": "display",
+                "interface": "I2C",
+                "source": "system_recommended",
+                "driver": {"source": "none"},
+            }
+        ]
+    else:
+        devices = [
+            {
+                "name": "Heartbeat LED",
+                "type": "led",
+                "interface": "GPIO",
+                "source": "system_recommended",
+                "driver": {"source": "builtin_runtime", "module": "machine.Pin"},
+            }
+        ]
+    return {
         "protocol_version": "1.0",
         "session_id": "onboard-test",
         "source_phase": "analyze",
@@ -200,15 +224,7 @@ def check_onboard_peripheral_resolution() -> None:
                 "special_requirements": ["none"],
                 "network": "none",
             },
-            "devices": [
-                {
-                    "name": "Status display",
-                    "type": "display",
-                    "interface": "I2C",
-                    "source": "system_recommended",
-                    "driver": {"source": "none"},
-                }
-            ],
+            "devices": devices,
         },
         "selected_board": {
             "id": "lolin-s2-pico",
@@ -244,6 +260,10 @@ def check_onboard_peripheral_resolution() -> None:
             "estimated_total_yuan": 0,
         },
     }
+
+
+def check_onboard_peripheral_resolution() -> None:
+    draft = onboard_display_draft(include_display_device=True)
     proc = run(
         [
             sys.executable,
@@ -273,6 +293,64 @@ def check_onboard_peripheral_resolution() -> None:
     resolution = result["manifest"].get("board_onboard_device_resolution", {})
     if resolution.get("onboard_device_count_enriched") != 1:
         raise AssertionError(f"onboard resolution summary missing: {result}")
+
+
+def check_onboard_peripheral_auto_add() -> None:
+    draft = onboard_display_draft(include_display_device=False)
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(draft, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"onboard auto-add draft should validate:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    devices = result["manifest"]["devices"]
+    added = [device for device in devices if device.get("physical_source") == "board_onboard"]
+    if len(added) != 1:
+        raise AssertionError(f"onboard auto-add should synthesize exactly one device: {result}")
+    device = added[0]
+    if device.get("source") != "system_recommended":
+        raise AssertionError(f"auto-added onboard device must keep source=system_recommended: {device}")
+    if device.get("type") != "display" or device.get("interface") != "I2C":
+        raise AssertionError(f"auto-added onboard display should have a valid device contract: {device}")
+    if device.get("driver", {}).get("source") != "upypi":
+        raise AssertionError(f"auto-added SSD1306 should use the verified driver map: {device}")
+    resolution = result["manifest"].get("board_onboard_device_resolution", {})
+    if resolution.get("onboard_device_count_added") != 1:
+        raise AssertionError(f"onboard resolution should record the auto-add path: {result}")
+
+
+def check_onboard_driver_map_parse_warning() -> None:
+    draft = onboard_display_draft(include_display_device=True)
+    with tempfile.TemporaryDirectory(prefix="select-hw-bad-driver-map-") as temp_dir:
+        bad_map = Path(temp_dir) / "onboard_driver_map.json"
+        bad_map.write_text("{not valid json", encoding="utf-8")
+        proc = run(
+            [
+                sys.executable,
+                str(SELECT_HW_MANIFEST),
+                "--stdin",
+                "--board-root",
+                str(BOARD_ROOT),
+            ],
+            input_text=json.dumps(draft, ensure_ascii=False),
+            env_extra={"UPY_SELECT_HW_ONBOARD_DRIVER_MAP": str(bad_map)},
+        )
+    if proc.returncode != 0:
+        raise AssertionError(f"bad onboard driver map should warn, not fail:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    joined = "\n".join(result.get("warnings", []))
+    if "onboard driver map ignored" not in joined:
+        raise AssertionError(f"bad onboard driver map warning missing: {result}")
+    driver = result["manifest"]["devices"][0].get("driver", {})
+    if driver.get("source") != "cold-driver" or driver.get("status") != "cold_driver_required":
+        raise AssertionError(f"missing driver map should degrade onboard display to cold-driver: {driver}")
 
 
 def check_selected_board_firmware_defaults_from_board_definition() -> None:
@@ -372,6 +450,106 @@ def check_selected_board_firmware_defaults_from_board_definition() -> None:
     for field, value in expected.items():
         if firmware.get(field) != value:
             raise AssertionError(f"selected_board.firmware.{field} should default from board JSON: {firmware}")
+
+
+def check_wiznet_vendor_firmware_defaults_from_board_definition() -> None:
+    draft = {
+        "protocol_version": "1.0",
+        "session_id": "wiznet-vendor-firmware-default-test",
+        "source_phase": "analyze",
+        "upstream_manifest": {
+            "schema_version": "1.0",
+            "phase": "analyze",
+            "created_at": "2026-07-27T00:00:00Z",
+            "project_name": "wiznet_ethernet_test",
+            "requirements": {
+                "description": "Use WIZnet wired Ethernet on the selected board.",
+                "existing_hardware": [],
+                "mcu_specified": None,
+                "output": ["network_status"],
+                "special_requirements": ["none"],
+                "network": "ethernet",
+            },
+            "devices": [
+                {
+                    "name": "Ethernet",
+                    "type": "ethernet",
+                    "interface": "SPI",
+                    "source": "system_recommended",
+                    "driver": {"source": "none"},
+                }
+            ],
+        },
+        "selected_board": {
+            "id": "w5500-evb-pico2",
+            "display_name": "W5500-EVB-Pico2",
+            "mcu": "rp2350",
+            "firmware": {
+                "url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases",
+                "board_name": "W5500_EVB_PICO2",
+            },
+        },
+        "hardware_plan": {
+            "mcu": {
+                "model": "rp2350",
+                "board_id": "w5500-evb-pico2",
+                "display_name": "W5500-EVB-Pico2",
+                "firmware_url": "https://github.com/WIZnet-ioNIC/WIZnet-EVB-Pico-micropython/releases",
+                "firmware_board_name": "W5500_EVB_PICO2",
+                "flash_tool": "uf2-drag-drop",
+            },
+            "pinout": [
+                {"device": "power", "pin_name": "3V3", "gpio": "3V3", "type": "power_3v3", "source": "power"},
+                {"device": "power", "pin_name": "GND", "gpio": "GND", "type": "gnd", "source": "power"},
+            ],
+            "pin_decisions": [],
+            "pin_review": {
+                "confirmed": True,
+                "approval_id": "pin_plan_review",
+                "confirmed_by": "user_confirmed",
+                "confirmed_at": "2026-07-27T00:00:00Z",
+                "source": "user_confirmed",
+            },
+            "bom": [{"name": "W5500-EVB-Pico2", "model": "w5500-evb-pico2", "quantity": 1, "unit_price_yuan": 0}],
+            "estimated_total_yuan": 0,
+        },
+    }
+    proc = run(
+        [
+            sys.executable,
+            str(SELECT_HW_MANIFEST),
+            "--stdin",
+            "--board-root",
+            str(BOARD_ROOT),
+        ],
+        input_text=json.dumps(draft, ensure_ascii=False),
+    )
+    if proc.returncode != 0:
+        raise AssertionError(f"WIZnet vendor firmware draft should validate:\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    result = json.loads(proc.stdout)
+    firmware = result["manifest"]["hardware_selection"]["selected_board"]["firmware"]
+    expected = {
+        "source": "github_release_zip",
+        "repo": "WIZnet-ioNIC/WIZnet-EVB-Pico-micropython",
+        "release_tag": "v1.27.0-WIZnet-timeout",
+        "asset_pattern": "LWIP_build-W5500_EVB_PICO2.zip",
+        "archive_member": "LWIP_build-W5500_EVB_PICO2/firmware.uf2",
+        "container_type": "zip",
+        "file_type": "uf2",
+        "flash_method": "uf2-drag-drop",
+    }
+    for field, value in expected.items():
+        if firmware.get(field) != value:
+            raise AssertionError(f"selected_board.firmware.{field} should default from WIZnet board JSON: {firmware}")
+    latest = firmware.get("latest_release")
+    if not isinstance(latest, dict) or not str(latest.get("url", "")).endswith("LWIP_build-W5500_EVB_PICO2.zip"):
+        raise AssertionError(f"WIZnet selected board should preserve latest_release asset metadata: {firmware}")
+    device = result["manifest"]["devices"][0]
+    if device.get("physical_source") != "board_onboard":
+        raise AssertionError(f"WIZnet ethernet device should be marked as board_onboard: {device}")
+    driver = device.get("driver", {})
+    if driver.get("source") != "builtin_runtime" or driver.get("module") != "network":
+        raise AssertionError(f"WIZnet onboard ethernet should preserve board-provided runtime driver: {device}")
 
 
 def check_formatted_output_validation() -> None:
@@ -1071,7 +1249,10 @@ def main() -> int:
         ("manifest validation", check_manifest_validation),
         ("cold-driver status normalization", check_cold_driver_status_normalization),
         ("onboard peripheral resolution", check_onboard_peripheral_resolution),
+        ("onboard peripheral auto-add", check_onboard_peripheral_auto_add),
+        ("onboard driver map parse warning", check_onboard_driver_map_parse_warning),
         ("selected board firmware defaults", check_selected_board_firmware_defaults_from_board_definition),
+        ("WIZnet vendor firmware defaults", check_wiznet_vendor_firmware_defaults_from_board_definition),
         ("formatted output validation", check_formatted_output_validation),
         ("board unavailable sample", check_board_unavailable_sample),
         ("pin plan revise response sample", check_pin_plan_revise_response_sample),
