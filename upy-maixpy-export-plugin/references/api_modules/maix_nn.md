@@ -52,6 +52,7 @@ recognizer = nn.FaceRecognizer(
 )
 recognizer.load(detect_model, feature_model)
 recognizer.load_faces("/root/models/faces.bin")
+cam = camera.Camera(recognizer.input_width(), recognizer.input_height(), recognizer.input_format())
 faces = recognizer.recognize(
     img,
     conf_th=0.5,

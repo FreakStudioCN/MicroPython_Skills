@@ -27,6 +27,7 @@ recognizer = nn.FaceRecognizer(
 )
 recognizer.load(detect_model, feature_model)
 recognizer.load_faces("/root/models/faces.bin")
+cam = camera.Camera(recognizer.input_width(), recognizer.input_height(), recognizer.input_format())
 faces = recognizer.recognize(
     img,
     conf_th=0.5,
@@ -57,4 +58,6 @@ Codegen policy:
 - May generate a runtime skeleton using `nn.FaceRecognizer`, camera/display, and UART JSONL.
 - Must not claim known identities exist unless a face database path is supplied and documented.
 - Must keep `"unknown"` as a safe fallback label.
+- Must check `fs.exists(face_db_path)` before `load_faces(...)` and wrap the returned error code with `err.check_raise(...)`.
+- Must initialize camera with `recognizer.input_width()`, `recognizer.input_height()`, and `recognizer.input_format()`.
 - Must not use invented APIs such as a custom `face_db.match(...)`.

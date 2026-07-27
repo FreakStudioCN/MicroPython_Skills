@@ -1,4 +1,4 @@
----
+﻿---
 name: upy-maixpy-export-plugin
 description: Standalone tool-style Skill for generating MaixPy code for Sipeed vision modules such as MaixCAM Pro. Use when the plugin global Sipeed vision-module code-generation tool or a local test asks to create sipeed_vision/main.py and sipeed_vision/README.md for a MaixPy vision coprocessor over UART JSON Lines. This Skill is not part of the canonical MicroPython workflow, does not flash firmware, does not use mpremote, does not call MaixHub APIs, and does not modify firmware/.
 ---
@@ -107,6 +107,18 @@ For a task without a bounding box, keep the fixed fields and use `x=0`, `y=0`, `
 
 Always use `app.need_exit()` in loops when examples show an event loop.
 
+For model-backed vision tasks, open the camera using the model wrapper's advertised input shape and format. Do not hard-code `camera.Camera(640, 480)` for YOLO, FaceRecognizer, or PP_OCR loops.
+
+```python
+cam = camera.Camera(detector.input_width(), detector.input_height(), detector.input_format())
+cam = camera.Camera(recognizer.input_width(), recognizer.input_height(), recognizer.input_format())
+cam = camera.Camera(ocr.input_width(), ocr.input_height(), ocr.input_format())
+```
+
+For face recognition, check the face database path before loading it. Use `fs.exists(...)` and `err.check_raise(recognizer.load_faces(...), ...)`; do not infer success from a broad `try/except` around `load_faces(...)`.
+
+For drawing overlays, use indexed MaixPy color constants such as `image.COLOR_GREEN` or `image.COLOR_RED`. Do not generate `image.Color.from_rgb(...)` unless a future local reference explicitly indexes that class and constructor.
+
 ## README Rules
 
 `sipeed_vision/README.md` must state:
@@ -187,3 +199,4 @@ If `script_run=false`, do not claim validation passed. Do LLM self-check and ret
 ## Local Test Mode
 
 Local direct tests may write under a temporary project root and session root. They must produce the same `phase_complete` payload shape as plugin mode. Local tests must not be treated as hardware proof.
+
