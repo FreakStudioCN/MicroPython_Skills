@@ -56,7 +56,7 @@ description: Use this skill when the user wants to normalize or standardize an e
 | # | 改写项 | 说明 |
 |---|---|---|
 | 1 | 文件头 7 行注释 | 补全或修正（无需 `__version__` 等全局变量）；`@Author` 从原文件读取并沿用，若无则提示用户填写，不得使用占位符 |
-| 2 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序 |
+| 2 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序；分区标注必须是模块顶层注释（缩进 0），不得放在 `def main()`、函数、类、if/try/loop 内；6 个分区不得缺失、重复或乱序 |
 | 3 | `time.sleep(3)` | 初始化配置区开头必须有，不可删除 |
 | 4 | FreakStudio print | 初始化配置区必须有 `print("FreakStudio: ...")` 格式的打印 |
 | 5 | 实例化位置 | 全局变量区禁止实例化（`I2C()`、`Pin()` 等），移至初始化配置区 |
@@ -65,10 +65,11 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 8 | try/except/finally | 主程序区的 while 循环用 `try/except KeyboardInterrupt/OSError/Exception/finally` 包裹 |
 | 9 | finally 资源清理 | `finally` 中调用 `device.close()`/`deinit()`，`del` 硬件对象，打印退出提示 |
 | 10 | 行内注释中文 | 所有行内注释改为中文；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
-| 11 | I2C 设备扫描 + ID 验证 | 若驱动使用 I2C，初始化配置区必须包含完整扫描逻辑：① `i2c.scan()` 扫描总线，若列表为空则 `raise RuntimeError("No I2C device found")`；② 遍历设备列表，找到目标地址则记录，未找到则 `raise RuntimeError("Device not found at expected address")`；③ 读取芯片 ID 寄存器与期望值比对，打印 "Device found" 或 "Device not found"；设备 ID 寄存器地址、期望值声明为全局变量区常量（`UPPER_CASE`）；I2C 扫描所需的额外 `import` 必须放在导入区，不得在初始化配置区内 `import` |
+| 11 | I2C 设备扫描 + 条件式 ID/响应验证 | 若驱动使用 I2C，初始化配置区必须先 `i2c.scan()`：空列表时报 `RuntimeError("No I2C device found")`，目标地址不存在时报 `RuntimeError("Device not found at expected address")`。仅当 datasheet、原驱动或驱动文件中已有明确芯片 ID 寄存器与期望值时，才声明 `UPPER_CASE` ID 常量并读取比对；没有可靠 ID 信息时不得编造寄存器和值，改为执行最小安全读/状态读/软复位响应检查，并在注释说明“该器件无固定 ID 验证”。I2C 扫描所需 import 必须放在导入区 |
 | 11a | 中间件库：WiFi 连接函数 | 若驱动为中间件库（见 upy-norm-driver 类型判断规则），跳过 #11 I2C 扫描，替换为：功能函数区定义 `connect_wifi()` 函数，初始化配置区调用并打印 IP 地址 |
 | 11b | 中间件库：凭证配置区 | 全局变量区声明 `APP_ID`/`ACCESS_TOKEN` 等凭证常量（`UPPER_CASE`），不得硬编码在实例化语句中 |
 | 11c | 中间件库：场景列表结构 | 主程序区用 `tests = [...]` 列表驱动多场景测试，替代 `while True` 轮询结构；使用 `asyncio.run()` 作为入口 |
+| 12 | 功能函数类型注解 | 功能函数区所有 helper/test 函数必须补齐参数和返回值注解；无返回值写 `-> None`，地址列表格式化等 helper 写明确返回类型（如 `-> str`） |
 
 ### P1 — 尽量改
 
@@ -86,6 +87,14 @@ description: Use this skill when the user wants to normalize or standardize an e
 | 14 | 批量操作封装 | 有多个同类 API 调用时，封装为批量测试函数供 REPL 一键调用 |
 
 ## 关键规范摘要
+
+
+### 分区与验收硬门禁
+
+- 只把形如 `# ======================================== 标题 =========================================` 或 `# 标题` 且缩进为 0 的注释视为分区标注；普通说明文字中的“初始化配置区/主程序区”不算分区。
+- 输出前按固定顺序检查 6 个分区：导入相关模块、全局变量、功能函数、自定义类、初始化配置、主程序；任一缺失、重复、缩进非 0 或乱序都必须重写。
+- `while` 循环只允许位于顶层 `主程序` 分区之后；若使用 `def main()` 包装入口，`主程序` 分区标注仍必须在 `def main()` 外部顶层，不能缩进到函数内部。
+- 全局变量区只允许常量、简单状态变量和占位变量；不得实例化 `I2C()`、`SPI()`、`UART()`、`Pin()` 或驱动类。
 
 ### 文件头格式（main.py 版）
 ```python

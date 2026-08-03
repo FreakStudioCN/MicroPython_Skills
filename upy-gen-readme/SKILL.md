@@ -48,7 +48,7 @@ description: Use this skill when the user wants to generate a README.md from scr
 | 10 | 注意事项 | 工作条件、测量范围限制、使用限制、兼容性提示（按表格分类） |
 | 11 | 版本记录 | 表格：版本号 \| 日期 \| 作者 \| 修改说明（至少一行初始版本） |
 | 12 | 联系方式 | 邮箱 + GitHub（若从驱动文件中能提取则使用，否则留占位符） |
-| 13 | 许可协议 | MIT License，完整说明 |
+| 13 | 许可协议 | 与驱动来源一致的许可证说明；原创或原项目 MIT 时写 MIT License，参考第三方代码时必须沿用原许可证，不得固定改写为 MIT |
 
 ### 可选章节
 
@@ -87,7 +87,7 @@ description: Use this skill when the user wants to generate a README.md from scr
 | v1.0.0 | YYYY-MM-DD | 作者名 | 初始版本 |
 ```
 
-### 许可协议（固定格式）
+### 许可协议（按来源生成）
 ```markdown
 ## 许可协议
 
@@ -119,8 +119,15 @@ print(sensor.read_value())
 - **作者信息**：从驱动文件 `__author__` 或文件头 `@Author` 提取；若无则提示用户填写，不得使用占位符
 - **版本**：从 `__version__` 提取
 - **引脚配置**：从 `main.py` 初始化配置区的 `I2C()`/`SPI()`/`UART()`/`Pin()` 实例化语句提取实际引脚号，用于硬件要求表格和快速开始接线表
-- **快速开始代码示例**：将 `main.py` 完整内容直接复制到快速开始章节的代码块中，不截取、不改写、不自行编造
+- **快速开始代码示例**：仅在 `main.py` 已通过分区、类型注解、导入和 package 映射验收时，才可复制完整 `main.py`；若未验收，通过驱动 API 生成最小可运行示例，不得传播坏分区、错误 import 或未发布的 demo/test 文件引用
 - **I2C 地址**：从 `main.py` 全局变量区的地址常量（如 `BMP280_ADDRS`）提取，用于注意事项表格
+
+
+## README 生成前验收门禁
+
+- 若存在 `main.py`，先检查 6 个分区是否顶层、顺序严格，helper 函数是否有参数/返回注解，导入名称是否与 `package.json.urls` 和文件大小写一致。
+- 若 `code/` 下存在 `test_*.py`、`*_test.py`、`demo_*.py`，README 必须说明它们位于 `examples/` 或明确它们被发布；不得引用安装后不存在的文件。
+- 许可证章节必须与 `package.json.license`、`LICENSE` 文件和源代码来源一致。
 
 ## 输出格式
 

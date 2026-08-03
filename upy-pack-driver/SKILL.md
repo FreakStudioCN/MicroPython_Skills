@@ -23,7 +23,7 @@ description: Use this skill when the user wants to package a MicroPython driver 
 │       └── ...
 ├── package.json           ← 包配置文件
 ├── README.md              ← 说明文档
-└── LICENSE                ← MIT 许可证
+└── LICENSE                ← 许可证文件（优先保留/继承原许可证）
 ```
 
 ## 执行步骤
@@ -45,34 +45,16 @@ description: Use this skill when the user wants to package a MicroPython driver 
    - **若同目录下存在含 `__init__.py` 的子包目录**：整体复制到 `<chip>_driver/code/<subpkg>/`（保留子目录内所有文件）
    - 复制 `README.md` → `<chip>_driver/README.md`
    - 复制 `package.json` → `<chip>_driver/package.json`
-   - 生成 `<chip>_driver/LICENSE`（MIT 固定模板，见下方）
+   - 处理 `<chip>_driver/LICENSE`：若同目录已有 LICENSE，原样复制；若参考第三方代码，必须使用原仓库许可证文本；只有确认原创或原项目为 MIT 时，才生成 MIT 模板
 7. 输出最终目录结构确认
 
-## LICENSE 固定模板
+## LICENSE 处理规则
 
-```
-MIT License
-
-Copyright (c) 2026 leezisheng
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+1. 若源目录已有 `LICENSE`，原样复制到驱动包根目录，不得覆盖。
+2. 若驱动参考第三方仓库，必须使用原仓库许可证文本，并保持 `package.json.license`、源文件 `__license__`、README 许可章节一致。
+3. 若原仓库无许可证，暂停并提示用户确认授权状态；不得擅自改成 MIT。
+4. 只有确认代码为 FreakStudio 原创，或原项目许可证明确为 MIT 时，才生成 MIT 模板。
+5. 打包后执行一次 package/license 自检：LICENSE 文件存在，且与 `package.json.license` 不冲突。
 
 ## 输出格式
 
@@ -88,7 +70,7 @@ SOFTWARE.
    │   └── <subpkg>/        ✓ (若存在子包)
    ├── package.json         ✓
    ├── README.md            ✓
-   └── LICENSE              ✓ (generated)
+   └── LICENSE              ✓ (preserved/generated after license check)
    ```
 
 ## 完整规范参考

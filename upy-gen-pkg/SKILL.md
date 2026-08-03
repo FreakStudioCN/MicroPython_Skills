@@ -18,19 +18,19 @@ description: Use this skill when the user wants to generate a package.json from 
 3. 从所有驱动文件中提取：文件名列表、`@Author`、`@Description`、`__version__`、`__license__`、所有 `import` 语句（合并去重）；`author`/`version`/`description` 优先从与目录同名的主驱动文件提取，若无同名文件则从第一个 `.py` 文件提取
 4. 分析每个 import 的来源类型（见依赖处理步骤）
 5. 对第三方依赖逐一查询 upypi
-6. 生成完整 `package.json`
+6. 生成完整 `package.json`，随后执行“生成后验收门禁”，任一失败都必须先修正再输出
 
 ## 必须生成的字段（全部）
 
 | 字段 | 生成规则 |
 |---|---|
-| `name` | 从目录名提取，转为小写字母+下划线（如 `BH1750_driver` → `bh1750_driver`） |
-| `urls` | 扫描目录下所有**顶层** `.py` 文件（排除 `main.py`），每个文件生成一条 `["文件名.py", "code/文件名.py"]` 映射；含 `__init__.py` 的子目录根据开发者选择：选②打包进 urls（含子目录路径前缀），选①③则不写入 `urls` |
+| `name` | 必须与驱动包目录名一致，并使用小写字母+下划线；若目录名含大写或与规范名不一致，先提示重命名目录，不得生成与目录大小写不一致的 package name |
+| `urls` | 扫描 `code/` 目录下所有运行时 `.py` 文件（排除 `main.py`；测试/演示文件必须移到 `examples/` 或明确纳入发布策略），每个文件生成一条 `["目标相对路径.py", "code/源相对路径.py"]` 映射；target/source 均不得以 `/` 或 `\` 开头，source 必须在当前文件系统按大小写精确存在；含 `__init__.py` 的子目录根据开发者选择：选②打包进 urls（含子目录路径前缀），选①③则不写入 `urls` |
 | `version` | 从 `__version__` 提取，若无则默认 `"1.0.0"` |
 | `_comments` | 固定内容（见下方模板） |
 | `description` | 从 `@Description` 或类 docstring 提取，英文 |
 | `author` | 从驱动文件 `__author__` 或文件头 `@Author` 提取；若无则提示用户填写，不得使用占位符 |
-| `license` | 从 `__license__` 提取，默认 `"MIT"` |
+| `license` | 从 `__license__`、原仓库 LICENSE 或 README 提取；参考他人代码时必须与原仓库许可证一致。只有确认原创或原项目就是 MIT 时才默认 `"MIT"` |
 | `chips` | 默认 `"all"`，除非驱动明确依赖特定芯片（如 RP2040 PIO） |
 | `fw` | 默认 `"all"`，除非有特殊固件依赖（ulab、lvgl 等） |
 
@@ -193,6 +193,17 @@ curl -s "https://upypi.net/api/search?q={依赖模块名}"
   ]
 }
 ```
+
+
+## 生成后验收门禁
+
+输出 `package.json` 前必须逐项验证：
+1. `name` 与驱动包目录名完全一致；若目录名不符合小写+下划线规范，先提示重命名目录。
+2. `urls` 中每个 target/source 都是相对路径，不得以 `/`、`\` 开头，不得是绝对路径。
+3. 每个 source 文件必须真实存在，且路径大小写与文件系统完全一致；Windows 下也必须做 exact-case 校验。
+4. `code/` 下运行时 `.py` 文件（排除 `main.py`）必须被 `urls` 覆盖；`test_*.py`、`*_test.py`、`demo_*.py` 不得混在运行包中，除非 README 和 urls 明确说明它们是发布示例。
+5. 所有本地 runtime import 必须能由 `urls` 中的文件或 `deps` 覆盖；不能出现 `from lm75 import ...` 但实际只存在 `LM75.py` 这种大小写错配。
+6. `author`/`license`/`LICENSE`/README 许可证信息必须一致；参考第三方代码不得改写为 FreakStudio/MIT。
 
 ## 三种安装方式（生成 package.json 后告知用户）
 

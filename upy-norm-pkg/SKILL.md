@@ -39,6 +39,7 @@ description: Use this skill when the user wants to normalize/standardize an exis
    - **驱动文件**：同级目录下的 `.py` 文件，排除 `main.py`
    - **子包依赖目录**：同级目录下含 `__init__.py` 的子目录（不作为驱动文件处理，将在 gen-pkg 步骤查询 upypi 并写入 `deps`）
    - **测试文件**：`main.py`（若存在）
+   - **示例/临时测试文件**：`test_*.py`、`*_test.py`、`demo_*.py` 不得混在 `code/` 运行包中；必须移动到 `examples/`、合并进规范 `main.py`，或在发布策略中显式说明
 3. 输出扫描结果：
    ```
    目录：G:/ens160_project/
@@ -134,6 +135,16 @@ description: Use this skill when the user wants to normalize/standardize an exis
 ```
 
 询问用户："是否继续进行设备部署与验证？"，用户确认后进入第 6 步。
+
+
+### 第 5a 步：最终验收门禁（必须通过）
+
+打包完成后立即执行最终验收；任一失败都必须回到对应步骤修复，不得输出“完成”或进入部署：
+1. 运行仓库 `code_checker.py -r <driver_package>/code`，必须 0 fail。
+2. AST/文本分区检查：所有 `.py` 文件 6 个分区标注必须缩进 0、顺序严格、无缺失、无重复；`main.py` 的 `主程序` 标记不得在 `def main()` 内。
+3. 类型注解检查：`__init__` 所有参数和 `-> None`、公共方法参数/返回、property setter 参数、main.py helper 函数参数/返回均完整。
+4. package.json 检查：`name` 与目录名一致；`urls` 无前导 `/` 或绝对路径；source 文件 exact-case 存在；运行时 `.py` 文件和本地 import 均被 urls/deps 覆盖。
+5. README/package/license 检查：README 快速开始只引用已通过验收的 `main.py`；`author`/`license`/`LICENSE` 与来源一致；测试/demo 文件边界清晰。
 
 ### 第 6 步：deploy-test
 

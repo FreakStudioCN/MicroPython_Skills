@@ -79,18 +79,27 @@ description: Use this skill when the user wants to generate a new main.py test f
 | # | 内容 | 说明 |
 |---|---|---|
 | 1 | 文件头 7 行注释 | 含 `@File : main.py`、`@Description : 测试XXX驱动类`；`@Author` 从驱动文件 `__author__` 字段读取并沿用，若无则提示用户填写，不得使用占位符 |
-| 2 | 6 个分区标注注释 | 顺序正确 |
+| 2 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序；分区标注必须是模块顶层注释（缩进 0），不得放在 `def main()`、函数、类、if/try/loop 内；6 个分区不得缺失、重复或乱序 |
 | 3 | `time.sleep(3)` | 初始化配置区开头 |
 | 4 | `print("FreakStudio: ...")` | 说明当前测试的驱动模块 |
 | 5 | 硬件对象实例化 | 在初始化配置区，根据驱动构造参数生成 |
-| 5a | I2C 设备扫描 + ID 验证 | 若驱动使用 I2C，初始化配置区必须包含完整扫描逻辑：① `i2c.scan()` 扫描总线，若列表为空则 `raise RuntimeError("No I2C device found")`；② 遍历设备列表，找到目标地址则记录，未找到则 `raise RuntimeError("Device not found at expected address")`；③ 读取芯片 ID 寄存器与期望值比对，打印 "Device found" 或 "Device not found"；设备 ID 寄存器地址、期望值声明为全局变量区常量（`UPPER_CASE`）；I2C 扫描所需的额外 `import`（如 `import micropython`）必须放在导入区，不得在初始化配置区内 `import` |
+| 5a | I2C 设备扫描 + 条件式 ID/响应验证 | 若驱动使用 I2C，初始化配置区必须先 `i2c.scan()`：空列表时报 `RuntimeError("No I2C device found")`，目标地址不存在时报 `RuntimeError("Device not found at expected address")`。仅当 datasheet、原驱动或驱动文件中已有明确芯片 ID 寄存器与期望值时，才声明 `UPPER_CASE` ID 常量并读取比对；没有可靠 ID 信息时不得编造寄存器和值，改为执行最小安全读/状态读/软复位响应检查，并在注释说明“该器件无固定 ID 验证”。I2C 扫描所需 import 必须放在导入区 |
 | 6 | 所有公共 API 的调用代码 | 低频自动执行，高频/模式切换注释调用 |
 | 7 | `try/except/finally` | 主程序区包裹，含 KeyboardInterrupt/OSError/Exception 三种捕获 |
 | 8 | finally 资源清理 | `close()`/`deinit()`、`del`、退出提示 |
 | 9 | raise/print 全英文 | 运行时字符串全部英文 |
 | 10 | 行内注释中文 | 所有注释使用中文；函数内部关键操作步骤（硬件初始化、数据读取、条件判断、资源清理等）须加中文注释说明；**注释必须写在对应代码行的上方（独立注释行），禁止写在代码行末尾（行尾 `#` 注释）** |
+| 11 | 功能函数类型注解 | 功能函数区生成的所有 helper/test 函数必须补齐参数和返回值注解；无返回值写 `-> None`，格式化/解析 helper 写明确返回类型 |
 
 ### 关键规范摘要
+
+
+### 分区与验收硬门禁
+
+- 只把形如 `# ======================================== 标题 =========================================` 或 `# 标题` 且缩进为 0 的注释视为分区标注；普通说明文字中的“初始化配置区/主程序区”不算分区。
+- 输出前按固定顺序检查 6 个分区：导入相关模块、全局变量、功能函数、自定义类、初始化配置、主程序；任一缺失、重复、缩进非 0 或乱序都必须重写。
+- `while` 循环只允许位于顶层 `主程序` 分区之后；若使用 `def main()` 包装入口，`主程序` 分区标注仍必须在 `def main()` 外部顶层，不能缩进到函数内部。
+- 全局变量区只允许常量、简单状态变量和占位变量；不得实例化 `I2C()`、`SPI()`、`UART()`、`Pin()` 或驱动类。
 
 **文件头格式**
 ```python
@@ -113,12 +122,12 @@ print_interval = 2000   # 打印间隔（ms）
 **功能函数区示例**（高频/模式切换函数）
 ```python
 # ======================================== 功能函数 ============================================
-def print_realtime_data():
+def print_realtime_data() -> None:
     """打印实时高频数据（高频，默认注释调用，可REPL手动调用）"""
     data = device.read_raw()
     print("Raw data: %s" % str(data))
 
-def switch_to_sleep_mode():
+def switch_to_sleep_mode() -> None:
     """切换到休眠模式（模式切换，默认注释调用，可REPL手动触发）"""
     device.sleep()
     print("Device entered sleep mode")

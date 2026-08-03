@@ -50,10 +50,10 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 | # | 改写项 | 说明 |
 |---|---|---|
-| 0 | 文件命名规范检查 | 文件名须全小写+下划线，基于传感器/芯片型号，不与 MicroPython 内置模块重名；若不符合规范，在说明表中提示用户重命名（不自动重命名文件） |
+| 0 | 文件命名规范检查 | 文件名须全小写+下划线，基于传感器/芯片型号，不与 MicroPython 内置模块重名；若不符合规范，在说明表中提示用户重命名。进入包级流程时，落盘文件名、`package.json.urls` 的 source/target、以及示例 import 名称必须大小写完全一致，不得只提示后继续打包 |
 | 1 | 文件头 7 行注释 | 补全或修正，`# @License : MIT` 必须独立成行，不可与其他内容合并；`@Author` 从原文件 `__author__` 字段读取并沿用，若原文件无此字段则提示用户填写，不得使用占位符 |
 | 2 | 4 个模块全局变量 | `__version__`、`__author__`、`__license__`、`__platform__` 紧跟文件头；`__author__` 从原文件读取并沿用，若无则提示用户填写；若驱动依赖特定芯片特性可加可选 `__chip__` |
-| 3 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序；驱动文件末尾的初始化配置区和主程序区留空但必须存在 |
+| 3 | 6 个分区标注注释 | 顺序：导入相关模块→全局变量→功能函数→自定义类→初始化配置→主程序；分区标注必须是模块顶层注释（缩进 0），不得出现在函数、类、if/try/loop 等代码块内；6 个分区不得缺失、重复或乱序；驱动文件末尾的初始化配置区和主程序区留空但必须存在 |
 | 4 | 分区内容规范 | 导入区：禁止长延时操作和硬件实例化；全局变量区：只放常量/DEBUG开关/复用缓冲区，禁止硬件对象实例化 |
 
 #### 输出与注释类
@@ -95,15 +95,16 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 | # | 改写项 | 说明 |
 |---|---|---|
-| 22 | `__init__` 类型注解 | 所有参数加类型注解，返回值 `-> None`；参数校验必须在初始化逻辑之前 |
-| 23 | 公共方法返回值注解 | 每个公共方法加返回值类型注解（仅用 MicroPython 原生类型，禁用 typing 泛型） |
+| 22 | `__init__` 类型注解 | 所有参数加类型注解，返回值 `-> None`；硬件对象参数可注解为已导入的 `I2C`/`SPI`/`UART`/`Pin` 或 `object`，但注解名称必须在 MicroPython 运行时可执行；参数校验必须在初始化逻辑之前 |
+| 23 | 公共方法参数与返回值注解 | 每个公共方法、`@property` getter/setter、`__enter__`/`__exit__` 均补齐参数注解和返回值注解（仅用 MicroPython 原生类型，禁用 typing 泛型）；setter 的 `value` 参数不得漏注 |
 | 24 | 回调参数注解 | 回调/函数类型注解写 `callable`，在 docstring Args 中明确签名 |
+| 24a | 模块级函数注解 | 功能函数区的模块级 helper 函数（包括 `_` 前缀私有 helper）必须补齐参数和返回值注解；容器元素类型写在 docstring，不用 `typing` 泛型 |
 
 #### 参数校验类
 
 | # | 改写项 | 说明 |
 |---|---|---|
-| 25 | 参数校验三种模式 | 按场景选择：① `isinstance` + raise（类型检查）② `hasattr` + raise（鸭子类型）③ 值范围比较 + raise |
+| 25 | 参数校验三种模式 | 按场景选择：① `isinstance` + raise（仅用于 `int`/`float`/`bool`/`str`/`bytes` 等稳定运行时类型）② `hasattr` + raise（硬件总线对象优先使用 duck-typing，如检查 `readfrom_mem`/`writeto_mem`/`read`/`write`/`irq`）③ 值范围比较 + raise；每个入口参数都必须有对应校验，不得只校验其中一个参数 |
 | 26 | `__init__` 两步校验 | 每个参数至少：None 检查 + 类型检查，必要时追加值范围检查 |
 
 #### 异常处理类
@@ -279,8 +280,8 @@ def _read_with_retry(self, reg: int, retries: int = 2, delay_ms: int = 5) -> byt
 # 正确：总线作为参数传入
 class SHT30:
     def __init__(self, i2c: I2C, addr: int = 0x44) -> None:
-        if not isinstance(i2c, I2C):
-            raise ValueError("i2c must be I2C instance")
+        if not hasattr(i2c, "readfrom_mem"):
+            raise ValueError("i2c must be an I2C instance")
         self._i2c = i2c
         self._addr = addr
 
@@ -353,8 +354,8 @@ class SensorDriver:
     I2C_DEFAULT_ADDR = micropython.const(0x44)
 
     def __init__(self, i2c: I2C, addr: int = I2C_DEFAULT_ADDR) -> None:
-        if not isinstance(i2c, I2C):
-            raise ValueError("i2c must be I2C instance")
+        if not hasattr(i2c, "readfrom_mem"):
+            raise ValueError("i2c must be an I2C instance")
         self._i2c = i2c
         self._addr = addr
 
@@ -452,6 +453,15 @@ class SensorDriver:
 - 容器元素类型在 docstring 中说明，不用泛型注解
 
 ---
+
+
+### 最终自检门禁（输出前必须执行）
+
+- 分区门禁：6 个分区标注必须缩进 0、顺序严格、无缺失、无重复；`初始化配置` 和 `主程序` 不得误放入函数/类内部。
+- 类型注解门禁：`__init__`、公共方法、property setter、context manager、模块级 helper 函数均按上表补齐参数与返回值注解；不得使用 `typing` 泛型或运行时不存在的注解名。
+- 硬件对象门禁：驱动类内不得创建 I2C/SPI/UART/Timer 等硬件实例；总线、Pin、Timer 等硬件资源由外部注入，Timer 不得默认创建 `Timer(-1)`。
+- 参数校验门禁：每个入口参数必须能在初始化或方法逻辑前找到对应校验；硬件对象优先使用 `hasattr` 能力检查。
+- 包级联动门禁：若本文件将进入 `upy-norm-pkg`/`upy-pack-driver`，确认文件名、import 名称和 package.json 映射大小写一致。
 
 ## 输出格式
 
