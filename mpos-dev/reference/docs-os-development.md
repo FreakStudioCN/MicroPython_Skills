@@ -47,6 +47,26 @@ docs 提到的 target 包括 `esp32`、`esp32s3`、`unix`、`macOS`、`web`。�
 
 重要本地注意事项：`build_mpos.sh` 会在 patch 构建输入时修改 tracked files。除非明确 revert，否则这些改动会保留。
 
+## Builtin / Freezefs 构建验证铁律
+
+修改 `internal_filesystem/builtin/`、OS framework、board support、filesystem image、C/native module、LVGL binding 或构建脚本后，不能用工作区 `.py` 源码直接判断设备运行结果。MicroPythonOS 的 builtin 内容会在构建时先复制到临时目录，再由 `mpy-cross` 编译成 `.mpy`，随后生成 `freezefs_mount_builtin.py` 并打进固件镜像；设备运行的是固件里的 frozen/freezefs 产物。
+
+必须按完整链路验证：
+
+1. 清理旧产物：检查并删除相关 `__pycache__`、旧 `.mpy`、以及 ESP32 frozen build 目录，避免旧编译产物污染判断。
+2. 重新构建：运行 `./scripts/build_mpos.sh esp32s3` 或对应 target。
+3. 在构建日志中确认出现 `Refreshing freezefs`，并看到 builtin `.py` 被 `mpy-cross` 以正确 `-march` 编译。
+4. 确认生成新的固件镜像，例如 `lvgl_micropython/build/lvgl_micropy_ESP32_GENERIC_S3-SPIRAM_OCT-16.bin`。
+5. 按部署文档整包烧录固件；只烧 `internal_filesystem.bin` 或只复制 App 目录不能证明 builtin/freezefs 变更生效。
+6. 启动新固件后再做实机交互、串口日志或截图验证。
+
+常见误判：
+
+- 源码已经修改，但设备仍运行旧 `.mpy` / 旧 freezefs。
+- build 成功，但没有烧录到设备。
+- 烧录成功，但设备仍停在 BOOT/下载模式，没有运行新固件。
+- 模拟器现象被误当成真机证据；硬件行为必须用物理设备验证。
+
 ## 测试
 
 本地 AGENTS 规则：

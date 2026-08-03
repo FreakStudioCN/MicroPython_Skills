@@ -275,6 +275,8 @@ prog.v20x_program(firmware, progress_callback)
 - **不修改 AGENTS.md 或 ruff.toml**
 - **不污染主仓库**：除新增/修改目标 App 或用户明确允许外，不修改 `/home/leeqingshui/MicroPythonOS` 的 OS/build 源码；build、simulator、desktop-preview、web-preview、web build、联调测试默认使用隔离 clone/worktree/临时副本
 - **真机前确认 OS 状态**：涉及物理设备运行、安装或发布验证时，先确认设备是否已经安装 MicroPythonOS；未安装或不确定时提示 `https://install.micropythonos.com/`
+- **builtin/freezefs 变更必须闭环验证**：只要修改 `internal_filesystem/builtin/`、OS/framework/build、board support、filesystem image 或固件相关内容，就不能只看 `.py` 源码判断结果；必须按 `reference/docs-os-development.md` 重新编译 `.mpy`、刷新 `freezefs`、重建固件，并按 `reference/docs-deploy-targets.md` 整包烧录和实机验证
+- **区分构建、烧录、启动、实机验证**：`build_mpos.sh` 成功不等于设备已更新；`Hash of data verified` 只证明写入成功；必须确认设备退出 BOOT/下载模式并启动新固件，再用串口日志、截图或实际交互记录验证行为
 - **用户可见输出延续起始语言**：中文开始就继续中文，英文开始就继续英文；代码、命令、路径、API 名和 JSON 字段名保持英文
 - **临时文件放 tmp/，不放 /tmp**
 - **杀死进程用 killall，不用 pkill -f**

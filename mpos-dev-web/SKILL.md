@@ -61,6 +61,7 @@ mpos-dev/reference/docs-app-model.md
 mpos-dev/reference/docs-frameworks.md
 mpos-dev/reference/docs-packaging.md
 mpos-dev/reference/docs-deploy-targets.md
+mpos-dev/reference/docs-os-development.md
 mpos-dev/reference/docs-web-port.md
 ```
 
@@ -76,6 +77,7 @@ The API summary JSON files are mandatory for every mpos-*-web phase. Read them c
 - Confirm whether MicroPythonOS is installed on a device before any physical deploy or MPK install path.
 - Always expose the real hardware path. Desktop preview and Web preview are not replacements for physical validation.
 - Web preview is optional and may fail due to Web port, browser, or toolchain issues. Classify those failures as external/tooling unless logs prove an App bug.
+- If a browser workflow touches `internal_filesystem/builtin/`, OS/framework/build files, board support, filesystem images, or firmware artifacts, treat it as an OS-level operation: require explicit permission, rebuild `.mpy`/freezefs/firmware, flash the full image, record USB/BOOT state, and require physical-device evidence before claiming hardware success.
 
 ## Output Discipline
 

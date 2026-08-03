@@ -127,6 +127,39 @@ python3 lvgl_micropython/lib/micropython/tools/mpremote/mpremote.py connect /dev
 
 不要在没有用户明确确认的情况下执行 destructive erase/flash 动作。
 
+### 本地 ESP32-S3 整包烧录失效模式
+
+固件构建、烧录、启动和实机验证必须分开记录。`build_mpos.sh` 成功只说明镜像生成；`esptool` 写入成功只说明 flash 内容已校验；设备还必须退出 BOOT/下载模式并实际启动新固件。
+
+检查 USB 状态时先看 `lsusb`：
+
+- `303a:4001` 通常表示 Espressif Device 运行态 CDC 设备。
+- `303a:1001` 通常表示 ESP32-S3 USB JTAG/serial 下载模式。
+
+在 Linux/VMware 环境中，自动复位策略可能不稳定：
+
+- `--before default_reset` 或 `--before usb_reset` 可能因底层串口 ioctl 报错。
+- `--before no_reset_no_sync` 不是通用替代，可能无法完成 ROM 同步。
+- 更稳的路径是手动让板子进入 BOOT/下载模式，确认 `lsusb` 显示 `303a:1001`，然后使用 `--before no_reset` 烧录。
+- `mpremote bootloader` 不能当作唯一进入下载模式的方法；失败时要求手动 BOOT。
+
+ESP32-S3 手动 BOOT 后的整包烧录示例：
+
+```bash
+LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+python -m esptool --chip esp32s3 -p /dev/ttyACM0 -b 460800 \
+  --before no_reset --after hard_reset \
+  write_flash --flash_mode dio --flash_size 16MB --flash_freq 80m \
+  --erase-all 0x0 lvgl_micropython/build/lvgl_micropy_ESP32_GENERIC_S3-SPIRAM_OCT-16.bin
+```
+
+必须保留的证据：
+
+- 构建日志中固件路径和 freezefs 刷新记录。
+- 烧录日志中的 chip/flash 信息和 `Hash of data verified`。
+- 烧录后 USB 枚举状态；如果仍是 `303a:1001`，提示松开 BOOT、按 RESET 或拔插 USB。
+- 启动后的串口日志、实机截图或实际交互结果。模拟器截图不能替代真机证据。
+
 ## QEMU ESP32 仿真
 
 docs 描述了 ESP32 QEMU 路径，用于更深层 OS 测试，可模拟 WiFi、storage、ULP/deepsleep、GPIO/touch button、ST7789V display。把它视为 OS-development 基础设施，不是默认 App 开发路径。
