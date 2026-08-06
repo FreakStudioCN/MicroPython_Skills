@@ -18,6 +18,7 @@ REPO = ROOT.parent
 SAMPLE = ROOT / "sample"
 SCRIPTS = ROOT / "scripts"
 PHASE = "upy-deploy-plugin"
+SHARED_SERIAL_CASES = REPO / "shared-plugin-scripts" / "mpremote" / "list_serial_ports_descriptorless_cases.json"
 
 
 def run(args: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -745,6 +746,7 @@ def assert_run_device_tests_mock() -> None:
             raise AssertionError(f"stdout JSON result invalid: {proc.stdout}")
 
 
+
 def assert_shared_serial_mock() -> None:
     script = REPO / "shared-plugin-scripts" / "mpremote" / "list_serial_ports.py"
     result = run_json([sys.executable, str(script), "--mode", "mock", "--mock-port", "COM9"], cwd=REPO)
@@ -760,6 +762,37 @@ def assert_shared_serial_mock() -> None:
     wrapper_result = run_json([sys.executable, str(deploy_wrapper), "--mode", "mock", "--mock-port", "COM10"], cwd=ROOT)
     if wrapper_result["ports"][0]["name"] != "COM10":
         raise AssertionError("deploy serial wrapper did not delegate to shared scanner")
+
+
+def _descriptorless_records(case: dict[str, Any]) -> list[dict[str, Any]]:
+    records = []
+    for item in case["ports"]:
+        name = item[0]
+        hwid = item[1]
+        source = item[2] if len(item) > 2 else "pyserial"
+        record = {"name": name, "source": source}
+        if source == "pyserial" and hwid not in (None, "0000:0000"):
+            vid, pid = str(hwid).split(":", 1)
+            record["vid"] = int(vid, 16)
+            record["pid"] = int(pid, 16)
+        records.append(record)
+    return records
+
+
+def assert_shared_descriptorless_serial_filter_fixture() -> None:
+    script = REPO / "shared-plugin-scripts" / "mpremote" / "list_serial_ports.py"
+    module = load_script_module("deploy_shared_list_serial_ports", script)
+    cases = load_json(SHARED_SERIAL_CASES)
+    for case in cases.get("shared_core_cases", []):
+        survivors = module.filter_descriptorless_ports(_descriptorless_records(case))
+        actual = [item["name"] for item in survivors]
+        if actual != case["expected"]:
+            raise AssertionError(f"{case['name']} survivors mismatch: {actual} != {case['expected']}")
+    for case in cases.get("scanner_source_exemption_cases", []):
+        survivors = module.filter_descriptorless_ports(_descriptorless_records(case))
+        actual = [item["name"] for item in survivors]
+        if actual != case["expected"]:
+            raise AssertionError(f"{case['name']} survivors mismatch: {actual} != {case['expected']}")
 
 
 def main() -> int:
@@ -780,6 +813,7 @@ def main() -> int:
         assert_install_mip_dependencies_mock,
         assert_run_device_tests_mock,
         assert_shared_serial_mock,
+        assert_shared_descriptorless_serial_filter_fixture,
     ]
     for test in tests:
         test()

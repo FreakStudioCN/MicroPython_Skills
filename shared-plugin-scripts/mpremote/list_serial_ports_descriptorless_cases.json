@@ -1,0 +1,144 @@
+{
+  "shared_core_cases": [
+    {
+      "name": "HC-05 beside a real board -> HC-05 dropped",
+      "ports": [
+        [
+          "COM5",
+          "0000:0000"
+        ],
+        [
+          "COM48",
+          "303a:1001"
+        ]
+      ],
+      "expected": [
+        "COM48"
+      ]
+    },
+    {
+      "name": "lone descriptorless -> kept (nothing else to pick)",
+      "ports": [
+        [
+          "COM5",
+          "0000:0000"
+        ]
+      ],
+      "expected": [
+        "COM5"
+      ]
+    },
+    {
+      "name": "two real boards -> both kept",
+      "ports": [
+        [
+          "COM7",
+          "303a:1001"
+        ],
+        [
+          "COM48",
+          "2e8a:0005"
+        ]
+      ],
+      "expected": [
+        "COM7",
+        "COM48"
+      ]
+    },
+    {
+      "name": "several descriptorless + one real -> only the real survives",
+      "ports": [
+        [
+          "COM3",
+          "0000:0000"
+        ],
+        [
+          "COM5",
+          "0000:0000"
+        ],
+        [
+          "COM48",
+          "303a:1001"
+        ]
+      ],
+      "expected": [
+        "COM48"
+      ]
+    },
+    {
+      "name": "all descriptorless, none real -> keep them all (don't leave nothing)",
+      "ports": [
+        [
+          "COM3",
+          "0000:0000"
+        ],
+        [
+          "COM5",
+          "0000:0000"
+        ]
+      ],
+      "expected": [
+        "COM3",
+        "COM5"
+      ]
+    }
+  ],
+  "scanner_source_exemption_cases": [
+    {
+      "name": "posix-glob fallback beside a real board -> fallback kept (exempt)",
+      "ports": [
+        [
+          "/dev/ttyUSB0",
+          null,
+          "posix-glob"
+        ],
+        [
+          "/dev/ttyACM0",
+          "303a:1001",
+          "pyserial"
+        ]
+      ],
+      "expected": [
+        "/dev/ttyUSB0",
+        "/dev/ttyACM0"
+      ]
+    },
+    {
+      "name": "windows-powershell fallback beside a real board -> fallback kept",
+      "ports": [
+        [
+          "COM9",
+          null,
+          "windows-powershell"
+        ],
+        [
+          "COM48",
+          "303a:1001",
+          "pyserial"
+        ]
+      ],
+      "expected": [
+        "COM9",
+        "COM48"
+      ]
+    },
+    {
+      "name": "pyserial descriptorless beside pyserial real -> dropped (only pyserial is filtered)",
+      "ports": [
+        [
+          "COM5",
+          null,
+          "pyserial"
+        ],
+        [
+          "COM48",
+          "303a:1001",
+          "pyserial"
+        ]
+      ],
+      "expected": [
+        "COM48"
+      ]
+    }
+  ]
+}

@@ -20,6 +20,8 @@ SAMPLE = ROOT / "sample"
 SCRIPTS = ROOT / "scripts"
 PHASE = "upy-flash-mpy-firmware-plugin"
 NEXT_PHASE = "upy-scaffold-plugin"
+REPO = ROOT.parent
+SHARED_SERIAL_CASES = REPO / "shared-plugin-scripts" / "mpremote" / "list_serial_ports_descriptorless_cases.json"
 sys.dont_write_bytecode = True
 
 
@@ -770,6 +772,34 @@ def list_serial_ports_posix_fallback_deduplicates_candidates() -> None:
     assert "platform" in ports[0]
 
 
+def _descriptorless_records(case: dict[str, Any]) -> list[dict[str, Any]]:
+    records = []
+    for item in case["ports"]:
+        name = item[0]
+        hwid = item[1]
+        source = item[2] if len(item) > 2 else "pyserial"
+        record = {"name": name, "source": source}
+        if source == "pyserial" and hwid not in (None, "0000:0000"):
+            vid, pid = str(hwid).split(":", 1)
+            record["vid"] = int(vid, 16)
+            record["pid"] = int(pid, 16)
+        records.append(record)
+    return records
+
+def list_serial_ports_descriptorless_filter_fixture() -> None:
+    script = REPO / "shared-plugin-scripts" / "mpremote" / "list_serial_ports.py"
+    module = load_script_module("flash_shared_list_serial_ports", script)
+    cases = load_json(SHARED_SERIAL_CASES)
+    for case in cases.get("shared_core_cases", []):
+        survivors = module.filter_descriptorless_ports(_descriptorless_records(case))
+        actual = [item["name"] for item in survivors]
+        assert actual == case["expected"], f"{case['name']} survivors mismatch: {actual} != {case['expected']}"
+    for case in cases.get("scanner_source_exemption_cases", []):
+        survivors = module.filter_descriptorless_ports(_descriptorless_records(case))
+        actual = [item["name"] for item in survivors]
+        assert actual == case["expected"], f"{case['name']} survivors mismatch: {actual} != {case['expected']}"
+
+
 def find_uf2_mount_reports_candidate_without_copying() -> None:
     with tempfile.TemporaryDirectory(prefix="flash-uf2-mount-") as temp_dir:
         mount = Path(temp_dir) / "RPI-RP2"
@@ -1199,6 +1229,7 @@ def main() -> int:
         mock_serial_port_is_mock_mode_only,
         list_serial_ports_accepts_out_json_alias,
         list_serial_ports_posix_fallback_deduplicates_candidates,
+        list_serial_ports_descriptorless_filter_fixture,
         find_uf2_mount_reports_candidate_without_copying,
         bootstrap_missing_is_action_required_not_failure,
         esp32_flash_plan_uses_page_offset_and_skill_local_esptool_path,

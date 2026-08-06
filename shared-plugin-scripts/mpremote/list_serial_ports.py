@@ -41,6 +41,24 @@ def serial_record(name: str, description: str, hwid: str = "", *, source: str) -
     }
 
 
+def filter_descriptorless_ports(ports: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Only pyserial records carry real vid/pid metadata. Fallbacks (windows-powershell,
+    # posix-glob, mock) are descriptor-opaque and must survive unchanged.
+    records = list(ports)
+    has_real_pyserial_descriptor = any(
+        record.get("source") == "pyserial" and record.get("vid") is not None and record.get("pid") is not None
+        for record in records
+    )
+    if not has_real_pyserial_descriptor:
+        return records
+    filtered: list[dict[str, Any]] = []
+    for record in records:
+        if record.get("source") == "pyserial" and (record.get("vid") is None or record.get("pid") is None):
+            continue
+        filtered.append(record)
+    return filtered
+
+
 def pyserial_ports() -> list[dict[str, Any]]:
     from serial.tools import list_ports  # type: ignore
 
@@ -171,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     try:
-        ports = live_ports()
+        ports = filter_descriptorless_ports(live_ports())
     except Exception as exc:  # pragma: no cover - depends on host
         emit(
             {
