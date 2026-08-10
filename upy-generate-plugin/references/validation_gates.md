@@ -44,7 +44,7 @@ Before writing runtime code, create `project/generate_plan.json` and validate it
 
 The plan must declare scheduler mode, tasks, driver adapters, `config_constants`, `main_assembly`, tests, resource plan, and cloud integrations when needed. The plan is a strong P0 gate: do not continue to broad code generation when it fails.
 
-For voice, sensor, cloud API, state-machine, pipeline, or other cross-stage flows, the plan must declare `data_flow_contract[]`. Each contract needs `name`, `producer`, `consumer`, `invariant`, test coverage, and `storage` when producer/consumer are in different ticks or states. The matching PC contract test should use sentinel data or spy objects to prove the generated consumer receives the produced data.
+For voice, sensor, cloud API, state-machine, pipeline, or other cross-stage flows, the plan must declare `data_flow_contract[]`. Each contract needs `name`, `producer`, `consumer`, `invariant`, test coverage declared with `covered_by_tests` or `test_path`, and `storage` when producer/consumer are in different ticks or states. Prefer `covered_by_tests` as a non-empty list of PC unittest node ids; use `test_path` only as a single-path compatibility fallback. Do not use alternate keys such as `tests`, `coverage`, `contract_tests`, or `test_coverage`. The matching PC contract test should use sentinel data or spy objects to prove the generated consumer receives the produced data. Simple GPIO blink/direct actuator-only flows should omit `data_flow_contract[]`.
 
 After runtime code is written, run the final plan gate with file existence checking:
 
@@ -69,7 +69,7 @@ The following failures must block deploy-ready success:
 - Syntax compile failure in generated firmware/tasks/drivers/main/test code.
 - Missing or invalid `generate_plan.json`.
 - `generate_plan.json` declares generated files that do not exist after generation.
-- Missing `data_flow_contract[]` or missing contract test coverage for complex voice/sensor/cloud/state-machine flows.
+- Missing `data_flow_contract[]` or missing `covered_by_tests`/`test_path` contract test coverage for complex voice/sensor/cloud/state-machine/pipeline flows.
 - Undefined `conf.X` reference, duplicate `conf.py` constant, or real secret value in `conf.py`.
 - flake8 failure in generated non-lib code.
 - pylint fatal/error/usage in generated non-lib firmware code.

@@ -42,7 +42,7 @@ Rules:
 
 ## Data Flow Contract Tests
 
-Do not rely on static semantic checks to infer all business intent. For every critical `data_flow_contract` in `generate_plan.json`, generate a PC `unittest` contract test that uses sentinel values or spy objects.
+Do not rely on static semantic checks to infer all business intent. For every critical `data_flow_contract` in `generate_plan.json`, generate a PC `unittest` contract test that uses sentinel values or spy objects, and reference it from the contract with `covered_by_tests` (preferred, non-empty list of unittest node ids) or `test_path` (single path fallback). Do not create `data_flow_contract[]` for simple GPIO blink or direct actuator-only tasks unless data produced by one component must be consumed by another across ticks/states.
 
 Example pattern:
 

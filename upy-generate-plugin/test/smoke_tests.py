@@ -959,6 +959,165 @@ def assert_check_scripts_negative_cases() -> None:
             raise AssertionError("check_generate_plan.py must require data_flow_contract for complex voice/audio flows")
 
 
+def generate_plan_contract_keys_and_paths_are_actionable() -> None:
+    def base_plan() -> dict:
+        return {
+            "schema_version": "1.0",
+            "scheduler_mode": "timer",
+            "tasks": [{"name": "sensor_pipeline", "path": "firmware/tasks/sensor_pipeline.py"}],
+            "drivers": [{"name": "sensor_driver", "path": "firmware/drivers/sensor_driver/__init__.py"}],
+            "config_constants": [{"name": "SENSOR_THRESHOLD", "value": 10}],
+            "main_assembly": {"imports": ["conf"], "drivers": ["sensor"], "tasks": ["sensor_pipeline"]},
+            "tests": [{"path": "test/pc/test_sensor_pipeline.py"}],
+            "resource_plan": {},
+            "cloud_integrations": [],
+            "behavior_spec": "sensor threshold pipeline",
+        }
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, include_plan=False)
+        plan = base_plan()
+        plan["data_flow_contract"] = [
+            {
+                "name": "sensor_to_threshold",
+                "producer": "firmware/tasks/sensor_pipeline.py::read_sensor",
+                "consumer": "firmware/tasks/sensor_pipeline.py::evaluate_threshold",
+                "invariant": "threshold evaluation receives the latest sensor reading",
+                "storage": "state.latest_sensor_reading",
+            }
+        ]
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc == 0 or "GENERATE_PLAN_DATA_FLOW_TEST_MISSING" not in stdout:
+            raise AssertionError("check_generate_plan.py must reject data_flow_contract without coverage")
+        if "covered_by_tests" not in stdout or "test_path" not in stdout:
+            raise AssertionError("coverage error must name accepted keys covered_by_tests and test_path")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, include_plan=False)
+        plan = base_plan()
+        plan["data_flow_contract"] = [
+            {
+                "name": "sensor_to_threshold",
+                "producer": "firmware/tasks/sensor_pipeline.py::read_sensor",
+                "consumer": "firmware/tasks/sensor_pipeline.py::evaluate_threshold",
+                "invariant": "threshold evaluation receives the latest sensor reading",
+                "storage": "state.latest_sensor_reading",
+                "covered_by_tests": ["test/pc/test_sensor_pipeline.py::TestSensorPipeline::test_contract"],
+            }
+        ]
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc != 0:
+            raise AssertionError(f"covered_by_tests should satisfy data_flow_contract coverage: {stdout}\n{stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, include_plan=False)
+        plan = base_plan()
+        plan["data_flow_contract"] = [
+            {
+                "name": "sensor_to_threshold",
+                "producer": "firmware/tasks/sensor_pipeline.py::read_sensor",
+                "consumer": "firmware/tasks/sensor_pipeline.py::evaluate_threshold",
+                "invariant": "threshold evaluation receives the latest sensor reading",
+                "storage": "state.latest_sensor_reading",
+                "test_path": "test/pc/test_sensor_pipeline.py",
+            }
+        ]
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc != 0:
+            raise AssertionError(f"test_path should satisfy data_flow_contract coverage: {stdout}\n{stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, include_plan=False)
+        plan = base_plan()
+        plan["data_flow_contract"] = [
+            {
+                "name": "sensor_to_threshold",
+                "producer": "firmware/tasks/sensor_pipeline.py::read_sensor",
+                "consumer": "firmware/tasks/sensor_pipeline.py::evaluate_threshold",
+                "invariant": "threshold evaluation receives the latest sensor reading",
+                "storage": "state.latest_sensor_reading",
+                "covered_by_tests": [],
+            }
+        ]
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc == 0 or "accepted_shape" not in stdout:
+            raise AssertionError("empty covered_by_tests must fail with accepted_shape guidance")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, include_plan=False)
+        plan = {
+            "schema_version": "1.0",
+            "scheduler_mode": "timer",
+            "tasks": [{"name": "led_blink_task", "path": "firmware/tasks/led_blink_task.py"}],
+            "drivers": [{"name": "onboard_led", "path": "firmware/drivers/onboard_led_driver/__init__.py"}],
+            "config_constants": [{"name": "BLINK_INTERVAL_MS", "value": 500}],
+            "main_assembly": {"imports": ["conf"], "drivers": ["onboard_led"], "tasks": ["blink_tick"]},
+            "tests": [{"path": "test/pc/test_led_blink_task.py"}],
+            "resource_plan": {},
+            "cloud_integrations": [],
+        }
+        (project / "generate_plan.json").write_text(json.dumps(plan), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project), "--require-plan"]
+        )
+        if rc != 0 or "GENERATE_PLAN_DATA_FLOW" in stdout:
+            raise AssertionError(f"simple GPIO blink plan should not require data_flow_contract: {stdout}\n{stderr}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_generate_plan.py"),
+                "--project-dir",
+                str(project),
+                "--plan",
+                "project/generate_plan.json",
+                "--require-plan",
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"project/generate_plan.json should resolve under project_dir: {stdout}\n{stderr}")
+        payload = json.loads(stdout)
+        if Path(payload["plan_path"]).resolve() != (project / "generate_plan.json").resolve():
+            raise AssertionError(f"plan_path should resolve to project generate_plan.json: {payload}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project)
+        rc, stdout, stderr = run_cmd(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "check_generate_plan.py"),
+                "--project-dir",
+                str(project),
+                "--plan",
+                "generate_plan.json",
+                "--require-plan",
+            ]
+        )
+        if rc != 0:
+            raise AssertionError(f"relative generate_plan.json should resolve under project_dir: {stdout}\n{stderr}")
+
+
 def assert_mpy_import_fallback_policy() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
@@ -2683,6 +2842,7 @@ def main() -> int:
         assert_download_drivers_offline,
         assert_check_scripts,
         assert_check_scripts_negative_cases,
+        generate_plan_contract_keys_and_paths_are_actionable,
         assert_mpy_import_fallback_policy,
         assert_phase_complete_consistency,
         assert_session_state_stale_detection,

@@ -46,27 +46,38 @@ def load_json(path: Path) -> Any:
 
 
 def infer_plan_path(project_dir: Path, plan_path: str = "") -> Path:
-    if plan_path:
-        return Path(plan_path)
-    return project_dir / "generate_plan.json"
+    if not plan_path:
+        return project_dir / "generate_plan.json"
+    candidate = Path(plan_path)
+    if candidate.is_absolute() or candidate.drive:
+        return candidate
+    parts = candidate.parts
+    if parts and parts[0] == "project":
+        candidate = Path(*parts[1:]) if len(parts) > 1 else Path("generate_plan.json")
+    return project_dir / candidate
+
+
+def plan_value_text(plan: dict[str, Any], fields: tuple[str, ...]) -> str:
+    chunks: list[str] = []
+    for field in fields:
+        value = plan.get(field)
+        if value in (None, "", [], {}):
+            continue
+        chunks.append(json.dumps(value, ensure_ascii=False))
+    return " ".join(chunks).lower()
 
 
 def has_cloud_need(plan: dict[str, Any]) -> bool:
-    text = json.dumps(plan, ensure_ascii=False).lower()
+    if plan.get("cloud_integrations"):
+        return True
+    text = plan_value_text(plan, ("requirements", "tasks", "drivers", "behavior_spec"))
     return any(keyword in text for keyword in CLOUD_KEYWORDS)
 
 
 def has_data_flow_need(plan: dict[str, Any]) -> bool:
-    text = json.dumps(
-        {
-            "requirements": plan.get("requirements"),
-            "tasks": plan.get("tasks"),
-            "drivers": plan.get("drivers"),
-            "cloud_integrations": plan.get("cloud_integrations"),
-            "behavior_spec": plan.get("behavior_spec"),
-        },
-        ensure_ascii=False,
-    ).lower()
+    if plan.get("cloud_integrations"):
+        return True
+    text = plan_value_text(plan, ("requirements", "tasks", "drivers", "behavior_spec"))
     return any(keyword in text for keyword in DATA_FLOW_KEYWORDS)
 
 
@@ -136,14 +147,31 @@ def validate_data_flow_contract(plan: dict[str, Any]) -> tuple[list[dict[str, An
                     "message": "cross-stage data flow should declare storage such as state field, queue, or buffer",
                 }
             )
-        coverage = item.get("covered_by_tests") or item.get("test_path")
-        if not coverage:
+        covered_by_tests = item.get("covered_by_tests")
+        test_path = item.get("test_path")
+        has_covered_by_tests = (
+            isinstance(covered_by_tests, list)
+            and bool(covered_by_tests)
+            and all(isinstance(value, str) and value.strip() for value in covered_by_tests)
+        )
+        has_test_path = isinstance(test_path, str) and bool(test_path.strip())
+        if not has_covered_by_tests and not has_test_path:
             errors.append(
                 {
                     "code": "GENERATE_PLAN_DATA_FLOW_TEST_MISSING",
                     "index": index,
                     "name": name,
-                    "message": "data_flow_contract must identify contract test coverage",
+                    "field": "covered_by_tests|test_path",
+                    "accepted_fields": ["covered_by_tests", "test_path"],
+                    "accepted_shape": {
+                        "covered_by_tests": ["test/pc/test_flow.py::TestFlow::test_contract"],
+                        "test_path": "test/pc/test_flow.py",
+                    },
+                    "message": (
+                        "data_flow_contract item must declare contract test coverage "
+                        "with covered_by_tests as a non-empty list of strings or "
+                        "test_path as a non-empty string"
+                    ),
                 }
             )
     duplicates = sorted(name for name in set(seen_names) if seen_names.count(name) > 1)
