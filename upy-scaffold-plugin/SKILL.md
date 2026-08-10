@@ -138,9 +138,9 @@ stdin 传完整 `manifest_content`。stdout 格式：
   "scaffold_mode": "timer",
   "directories": ["firmware", "firmware/lib/logger"],
   "files": [
-    {"path": "firmware/board.py", "content": "...", "encoding": "utf-8"},
-    {"path": "project-manifest.json", "content": "{...}", "encoding": "utf-8"},
-    {"path": "docs/.gitkeep", "content": "", "encoding": "utf-8"}
+    {"path": "firmware/board.py", "encoding": "utf-8"},
+    {"path": "project-manifest.json", "encoding": "utf-8"},
+    {"path": "docs/.gitkeep", "encoding": "utf-8"}
   ],
   "file_operations": [
     {
@@ -149,7 +149,6 @@ stdin 传完整 `manifest_content`。stdout 格式：
         "op_id": "scaffold_fo_001",
         "op": "write",
         "path": "firmware/board.py",
-        "content": "...",
         "encoding": "utf-8"
       }
     }
@@ -159,7 +158,8 @@ stdin 传完整 `manifest_content`。stdout 格式：
   ],
   "artifacts": [
     {"type": "file_tree", "title": "项目结构", "tree": {"firmware": {"board.py": "file"}}},
-    {"type": "file_list", "title": "待写入文件", "files": [{"path": "firmware/board.py", "status": "pending"}]}
+    {"type": "file_list", "title": "待写入文件", "files": [{"path": "firmware/board.py", "status": "pending"}]},
+    {"type": "file_bundle", "path": "C:/.../upy_scaffold_file_bundle_x.json", "title": "Scaffold file bundle"}
   ],
   "file_tree": {"firmware": {"board.py": "file"}},
   "manifest_content": {"phase": "scaffold", "scaffold_mode": "timer"},
@@ -208,6 +208,7 @@ python -X utf8 <resource_root>/upy-scaffold-plugin/scripts/init_scaffold.py \
 
 ## 输出约束
 
+- Model-visible stdout MUST keep `files[]` and `file_operations[]` compact: include paths/op metadata only, never full file bodies. Host/local runners MUST read full bodies from `artifacts[type=file_bundle].path` before applying writes.
 - `board.py` 只放引脚常量和查询函数，不实例化硬件。
 - `main.py` 只生成硬件实例化和调度框架；业务 task 注册位置保留 TODO。
 - `timer` 模式使用 `firmware/lib/scheduler/timer_sched.py` 的 `Scheduler`；不要为端口兼容性改写该内部库，库默认 `timer_id=-1` 必须保留，因为 RP2/Pico 和 Zephyr 只支持虚拟 Timer。端口差异必须在 `main.py` 入口装配层解决：只有 RP2/Pico/RP2040/RP2350 和 Zephyr 可以显式生成 `Scheduler(timer_id=-1, tick_ms=...)`；其他 MCU/port 默认生成 `Scheduler(timer_id=0, tick_ms=...)` 或其他已验证非负硬件 Timer ID，不得生成隐式 `Scheduler(...)`、`Scheduler(tick_ms=...)` 或 `Scheduler(timer_id=-1)`。`async` 模式直接使用 `uasyncio`；`thread` 模式直接使用 `_thread`。

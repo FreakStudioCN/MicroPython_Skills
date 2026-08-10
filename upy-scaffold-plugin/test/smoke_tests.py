@@ -75,9 +75,37 @@ def paths(output: dict) -> list[str]:
 
 def content(output: dict, path: str) -> str:
     for item in output["files"]:
-        if item["path"] == path:
+        if item["path"] == path and isinstance(item.get("content"), str):
             return item["content"]
+    bundle = file_bundle_contents(output)
+    if path in bundle:
+        return bundle[path]
     raise AssertionError(f"missing file: {path}")
+
+
+def file_bundle_contents(output: dict) -> dict[str, str]:
+    cached = output.get("_file_bundle_contents")
+    if isinstance(cached, dict):
+        return cached
+    for artifact in output.get("artifacts", []):
+        if not isinstance(artifact, dict) or artifact.get("type") != "file_bundle":
+            continue
+        bundle_path = Path(artifact.get("path", ""))
+        if not bundle_path.exists():
+            raise AssertionError(f"missing file bundle artifact: {bundle_path}")
+        with bundle_path.open("r", encoding="utf-8-sig") as handle:
+            data = json.load(handle)
+        files = data.get("files") if isinstance(data, dict) else data
+        if not isinstance(files, list):
+            raise AssertionError(f"file bundle has invalid files[]: {bundle_path}")
+        bundle = {
+            item["path"]: item["content"]
+            for item in files
+            if isinstance(item, dict) and isinstance(item.get("path"), str) and isinstance(item.get("content"), str)
+        }
+        output["_file_bundle_contents"] = bundle
+        return bundle
+    raise AssertionError("file_bundle artifact missing")
 
 
 def assert_generated_python_compiles(output: dict) -> None:
@@ -90,7 +118,7 @@ def assert_generated_python_compiles(output: dict) -> None:
                 continue
             target = root / rel_path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(item["content"], encoding="utf-8")
+            target.write_text(content(output, rel_path), encoding="utf-8")
             py_paths.append(target)
 
         result = subprocess.run(
@@ -109,14 +137,19 @@ def assert_common_output(output: dict) -> None:
         raise AssertionError("phase must be scaffold")
     if not isinstance(output.get("files"), list) or not output["files"]:
         raise AssertionError("files must be a non-empty list")
+    bundle = file_bundle_contents(output)
+    if set(bundle) != {item["path"] for item in output["files"]}:
+        raise AssertionError("file bundle must mirror files[] paths")
     for item in output["files"]:
         if item.get("encoding") != "utf-8":
             raise AssertionError(f"encoding must be utf-8: {item}")
-        if item.get("content", "").startswith("\ufeff"):
-            raise AssertionError(f"generated file content must not include UTF-8 BOM: {item.get('path')}")
+        if "content" in item:
+            raise AssertionError(f"files[] must not inline file content: {item.get('path')}")
         path = item.get("path", "")
         if not path or path.startswith("/") or "\\" in path or ".." in path.split("/"):
             raise AssertionError(f"path must be safe relative POSIX path: {path}")
+        if bundle[path].startswith("\ufeff"):
+            raise AssertionError(f"generated file content must not include UTF-8 BOM: {path}")
     if "file_tree" not in output:
         raise AssertionError("file_tree missing")
     if len(output.get("file_operations", [])) != len(output["files"]):
@@ -127,13 +160,13 @@ def assert_common_output(output: dict) -> None:
         payload = operation.get("payload", {})
         if payload.get("op") != "write":
             raise AssertionError(f"file operation op must be write: {payload}")
-        if payload.get("content", "").startswith("\ufeff"):
-            raise AssertionError(f"file operation content must not include UTF-8 BOM: {payload.get('path')}")
+        if "content" in payload:
+            raise AssertionError(f"file_operations[] must not inline file content: {payload.get('path')}")
         if payload.get("op_id") != f"scaffold_fo_{index:03d}":
             raise AssertionError(f"file operation op_id must be stable: {payload}")
     artifact_types = {artifact.get("type") for artifact in output.get("artifacts", [])}
-    if {"file_tree", "file_list"} - artifact_types:
-        raise AssertionError("artifacts must include file_tree and file_list")
+    if {"file_tree", "file_list", "file_bundle"} - artifact_types:
+        raise AssertionError("artifacts must include file_tree, file_list, and file_bundle")
     phase_payload = output.get("phase_complete_payload", {})
     if phase_payload.get("phase") != "scaffold" or phase_payload.get("result") != "success":
         raise AssertionError("phase_complete_payload must describe scaffold success")

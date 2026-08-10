@@ -140,6 +140,39 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def file_bundle_path(output: dict[str, Any]) -> Path | None:
+    bundle_path = output.get("file_bundle_path")
+    if isinstance(bundle_path, str) and bundle_path:
+        return Path(bundle_path)
+    for artifact in output.get("artifacts", []):
+        if isinstance(artifact, dict) and artifact.get("type") == "file_bundle":
+            path = artifact.get("path")
+            if isinstance(path, str) and path:
+                return Path(path)
+    return None
+
+
+def load_file_bundle_contents(output: dict[str, Any]) -> dict[str, str]:
+    bundle = file_bundle_path(output)
+    if bundle is None:
+        return {}
+    if not bundle.exists():
+        raise AssertionError(f"file bundle missing on disk: {bundle}")
+    data = load_json(bundle)
+    files = data.get("files") if isinstance(data, dict) else data
+    if not isinstance(files, list):
+        raise AssertionError(f"file bundle has invalid files[]: {bundle}")
+    contents: dict[str, str] = {}
+    for item in files:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path")
+        content = item.get("content")
+        if isinstance(path, str) and isinstance(content, str):
+            contents[path] = content
+    return contents
+
+
 def apply_file_operations(
     project_dir: Path,
     output: dict[str, Any],
@@ -152,6 +185,7 @@ def apply_file_operations(
     if len(files_by_path) != len(operations):
         raise AssertionError("files[] and file_operations[] length mismatch")
 
+    bundle_contents = load_file_bundle_contents(output)
     manifest: list[dict[str, Any]] = []
     for operation in operations:
         if operation.get("type") != "file_operation":
@@ -163,7 +197,14 @@ def apply_file_operations(
         if rel_path not in files_by_path:
             raise AssertionError(f"file operation path missing from files[]: {rel_path}")
         target = target_path(project_dir, rel_path)
-        content = strip_bom(payload.get("content", ""))
+        raw_content = payload.get("content")
+        if isinstance(raw_content, str):
+            content = raw_content
+        else:
+            content = bundle_contents.get(rel_path)
+        if content is None:
+            raise AssertionError(f"file operation content missing for: {rel_path}")
+        content = strip_bom(content)
         encoding = payload.get("encoding", "utf-8")
         desired_hash = sha256_text(content, encoding)
         before_hash = sha256_file(target) if target.exists() else None

@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -375,6 +376,26 @@ def normalize_path(path: str) -> str:
 
 def file_payload(path: str, content: str, encoding: str = "utf-8") -> Dict[str, str]:
     return {"path": normalize_path(path), "content": strip_bom(content), "encoding": encoding}
+
+
+def compact_file_payload(item: Dict[str, str]) -> Dict[str, str]:
+    return {
+        "path": item["path"],
+        "encoding": item.get("encoding", "utf-8"),
+    }
+
+
+def write_file_bundle(files: Sequence[Dict[str, str]]) -> str:
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        delete=False,
+        suffix=".json",
+        prefix="upy_scaffold_file_bundle_",
+    ) as handle:
+        json.dump({"files": list(files)}, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+        return handle.name
 
 
 def read_text(path: Path) -> str:
@@ -1208,7 +1229,6 @@ def build_file_operations(files: Sequence[Dict[str, str]]) -> List[Dict[str, Any
                     "op_id": f"scaffold_fo_{index:03d}",
                     "op": "write",
                     "path": item["path"],
-                    "content": item["content"],
                     "encoding": item.get("encoding", "utf-8"),
                 },
             }
@@ -1226,6 +1246,15 @@ def build_output(
     directories = infer_directories(files)
     file_tree = build_file_tree(files)
     artifacts = build_artifacts(files, file_tree)
+    file_bundle_path = write_file_bundle(files)
+    artifacts.append(
+        {
+            "type": "file_bundle",
+            "path": file_bundle_path,
+            "title": "Scaffold file bundle",
+        }
+    )
+    compact_files = [compact_file_payload(item) for item in files]
     summary = f"Generated {len(files)} files, {len(directories)} directories"
     next_phase = "upy-generate-plugin"
     changed_files = [item["path"] for item in files]
@@ -1255,8 +1284,8 @@ def build_output(
         "mode": mode,
         "scaffold_mode": mode if mode != "incremental" else manifest_content.get("scaffold_mode"),
         "directories": directories,
-        "files": list(files),
-        "file_operations": build_file_operations(files),
+        "files": compact_files,
+        "file_operations": build_file_operations(compact_files),
         "summary": summary,
         "status_updates": build_status_updates(mode, files),
         "artifacts": artifacts,
@@ -1303,7 +1332,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"init_scaffold.py: {exc}", file=sys.stderr)
         return 2
 
-    json.dump(output, sys.stdout, ensure_ascii=False, indent=2)
+    json.dump(output, sys.stdout, ensure_ascii=False, separators=(",", ":"))
     sys.stdout.write("\n")
     return 0
 
