@@ -135,9 +135,17 @@ def scan_python_secrets(project_dir: Path) -> list[dict[str, Any]]:
 
 def cloud_need_evidence(project_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
-    manifest_text = json.dumps(manifest, ensure_ascii=False)
-    if CLOUD_TRIGGER_RE.search(manifest_text):
-        evidence.append({"source": "project-manifest.json", "reason": "manifest contains cloud/API/voice keywords"})
+    requirements = manifest.get("requirements") if isinstance(manifest.get("requirements"), dict) else {}
+    requirement_text = json.dumps(
+        {
+            key: requirements.get(key)
+            for key in ("network", "output", "special_requirements", "description")
+            if key in requirements
+        },
+        ensure_ascii=False,
+    )
+    if CLOUD_TRIGGER_RE.search(requirement_text) and not re.search(r"\b(no|none|without)\s+cloud\b", requirement_text, re.IGNORECASE):
+        evidence.append({"source": "project-manifest.json", "reason": "requirements contain cloud/API/voice keywords"})
     roots = [
         project_dir / "firmware" / "conf.py",
         project_dir / "firmware" / "tasks",
@@ -217,7 +225,8 @@ def validate_integration(
                 "index": index,
                 "provider_id": provider_id,
                 "status": status,
-                "message": "credential_management.status must record ready/deferred/mock/blocked/not_required.",
+                "accepted_statuses": sorted(ALLOWED_CREDENTIAL_STATUS),
+                "message": "credential_management.status must be one of: " + ", ".join(sorted(ALLOWED_CREDENTIAL_STATUS)),
             }
         )
     secret_names = credential.get("secret_names", item.get("secret_names", []))

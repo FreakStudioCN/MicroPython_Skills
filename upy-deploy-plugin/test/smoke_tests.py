@@ -92,7 +92,7 @@ def assert_skill_text_contract() -> None:
         "erase_then_upload",
         "deploy_result_feedback",
         "deploy_fail_next_action",
-        "project/tools/flash_device.py --compile --upload --no-reset --port <port> --json-summary",
+        "do not call `project/tools/flash_device.py` through generic `script_run`",
         "shared-plugin-scripts/mpremote/list_serial_ports.py",
         "scripts/mpremote_runtime.py",
         "scripts/check_environment.py",

@@ -235,8 +235,9 @@ python -X utf8 upy-scaffold-plugin/scripts/apply_scaffold.py \
   --session-dir <session_root> \
   --manifest <session_root>/phase_complete.upy_flash_mpy_firmware_plugin.json \
   --mode async \
-  --modules logger,flash_device,time_helper,maintenance \
+  --modules logger,flash_device \
   --write-phase-complete
+Only add `time_helper` and `maintenance` when manifest/approval selects them. The main local example keeps `logger,flash_device` to match the plugin default path.
 python -X utf8 upy-scaffold-plugin/scripts/scaffold_manifest.py \
   --input <session_root>/phase_complete.upy_scaffold_plugin.json \
   --validate-phase-complete

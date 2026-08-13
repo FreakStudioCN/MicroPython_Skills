@@ -318,6 +318,16 @@ def has_weak_api_reference(driver: dict[str, Any]) -> bool:
     return any(isinstance(driver.get(field), str) and driver[field].strip() for field in API_REFERENCE_FIELDS)
 
 
+def expected_mip_entry(required: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "package": required["package"],
+        "install_phase": "deploy",
+        "target": "/lib",
+        "verify_import": required["verify_import"],
+        "required_for": required["required_for"],
+    }
+
+
 def entry_matches(entry: dict[str, Any], required: dict[str, Any]) -> bool:
     package = str(entry.get("package") or "")
     verify_import = str(entry.get("verify_import") or "")
@@ -428,7 +438,9 @@ def check(project_dir: Path) -> dict[str, Any]:
                     "package": required["package"],
                     "verify_import": required["verify_import"],
                     "evidence": required["evidence"],
-                    "message": "generate must declare MicroPython runtime dependencies for deploy-time mpremote mip install",
+                    "declare_in": "generate.runtime_dependencies.mip[]",
+                    "expected_entry": expected_mip_entry(required),
+                    "message": "generate must declare this complete MicroPython runtime dependency entry for deploy-time mpremote mip install",
                 }
             )
             continue

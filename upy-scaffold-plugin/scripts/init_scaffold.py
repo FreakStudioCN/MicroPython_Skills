@@ -248,6 +248,19 @@ def unique_name(base: str, used: Set[str]) -> str:
     return candidate
 
 
+def pinout_for_source(pinout: Any) -> Any:
+    """Return runtime pinout metadata without unbounded prose fields."""
+    if not isinstance(pinout, list):
+        return pinout
+    trimmed: List[Any] = []
+    for entry in pinout:
+        if isinstance(entry, dict):
+            trimmed.append({key: value for key, value in entry.items() if key not in {"notes", "note", "reason", "evidence"}})
+        else:
+            trimmed.append(entry)
+    return trimmed
+
+
 def py_literal(value: Any, *, indent: int = 0) -> str:
     text = json.dumps(value, ensure_ascii=False, indent=4)
     if indent <= 0:
@@ -439,10 +452,14 @@ def add_template_copy(
         warnings.append(optional_resource_warning(dest, [src]))
 
 
+def collapse_blank_runs(text: str) -> str:
+    return re.sub(r"\n{4,}", "\n\n\n", text)
+
+
 def render_template(name: str, variables: Dict[str, str]) -> str:
     path = FIRMWARE_TEMPLATES_DIR / name
     template = Template(read_text(path))
-    return template.safe_substitute(variables)
+    return collapse_blank_runs(template.safe_substitute(variables))
 
 
 def get_mcu_defaults(model: str) -> Dict[str, Any]:
@@ -711,7 +728,7 @@ def template_variables(manifest: Dict[str, Any], mode: str, modules: Set[str]) -
         "BOOT_SENSITIVE_LIST": py_literal(defaults.get("BOOT_SENSITIVE", []), indent=26),
         "FLASH_PINS_LIST": py_literal(defaults.get("FLASH_PINS", []), indent=22),
         "INPUT_ONLY_LIST": py_literal(defaults.get("INPUT_ONLY", []), indent=21),
-        "PINOUT_LIST": py_literal(manifest.get("pinout", []) or [], indent=18),
+        "PINOUT_LIST": py_literal(pinout_for_source(manifest.get("pinout", []) or []), indent=18),
         "I2C_INIT_BLOCK": extract_i2c_inits(i2c_pins, defaults),
         "GPIO_INIT_BLOCK": extract_gpio_inits(manifest),
         "I2C_INIT_BLOCK_IN_MAIN": indent_block(extract_i2c_inits(i2c_pins, defaults), 4),
@@ -777,6 +794,8 @@ per-file-ignores =
     firmware/main_thread.py: F401
     firmware/lib/logger/__init__.py: F401
     firmware/lib/scheduler/__init__.py: F401
+    test/pc/*.py: E402
+    test/device/*.py: E402
 
 [pycodestyle]
 max-line-length = 120

@@ -1,6 +1,35 @@
 import sys
 import time
 
+try:
+    from micropython import const
+except ImportError:
+    def const(value):
+        return value
+
+
+def _ticks_ms():
+    ticks = getattr(time, "ticks_ms", None)
+    if ticks is not None:
+        return ticks()
+    return int(time.monotonic() * 1000)
+
+
+def _ticks_diff(end, start):
+    diff = getattr(time, "ticks_diff", None)
+    if diff is not None:
+        return diff(end, start)
+    return end - start
+
+
+def _print_exception(exception, stream):
+    printer = getattr(sys, "print_exception", None)
+    if printer is not None:
+        printer(exception, stream)
+    else:
+        print(repr(exception), file=stream)
+
+
 CRITICAL = const(50)
 ERROR = const(40)
 WARNING = const(30)
@@ -28,7 +57,7 @@ class Logger:
     def __init__(self, name):
         self.name = name
         self.level = _level
-        self.start_ms = time.ticks_ms()
+        self.start_ms = _ticks_ms()
 
     def log(self, level, message, *args):
         if level < self.level:
@@ -44,7 +73,7 @@ class Logger:
             tm = time.localtime()
             record["asctime"] = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
                 tm[0], tm[1], tm[2], tm[3], tm[4], tm[5])
-            record["chrono"] = "{:f}".format(time.ticks_diff(time.ticks_ms(), self.start_ms) / 1000)
+            record["chrono"] = "{:f}".format(_ticks_diff(_ticks_ms(), self.start_ms) / 1000)
             log_str = _format % record + "\n"
             if _filename is None:
                 _ = _stream.write(log_str)
@@ -80,10 +109,10 @@ class Logger:
     def exception(self, exception, message, *args):
         self.log(ERROR, message, *args)
         if _filename is None:
-            sys.print_exception(exception, _stream)
+            _print_exception(exception, _stream)
         else:
             with open(_filename, "a") as fp:
-                sys.print_exception(exception, fp)
+                _print_exception(exception, fp)
 
 
 def getLogger(name="root"):

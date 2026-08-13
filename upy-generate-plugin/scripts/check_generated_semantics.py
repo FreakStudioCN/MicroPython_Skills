@@ -636,27 +636,44 @@ def uses_rotating_logger(tree: ast.Module) -> bool:
     return False
 
 
-def try_logs_exception(handler: ast.ExceptHandler) -> bool:
+def module_level_functions(tree: ast.Module) -> dict[str, ast.FunctionDef]:
+    return {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+
+
+def _calls_print_and_logger_exception(node: ast.AST) -> tuple[bool, bool]:
     has_print_exception = False
     has_logger_exception = False
-    for node in ast.walk(handler):
-        if not isinstance(node, ast.Call):
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Call):
             continue
-        name = call_name(node.func)
-        full = full_call_name(node.func)
+        name = call_name(child.func)
+        full = full_call_name(child.func)
         if name == "print_exception" or full.endswith(".print_exception"):
             has_print_exception = True
         if name == "exception" or full.endswith(".exception"):
             has_logger_exception = True
+    return has_print_exception, has_logger_exception
+
+
+def try_logs_exception(handler: ast.ExceptHandler, helpers: dict[str, ast.FunctionDef] | None = None) -> bool:
+    helpers = helpers or {}
+    has_print_exception, has_logger_exception = _calls_print_and_logger_exception(handler)
+    if has_print_exception and has_logger_exception:
+        return True
+    for node in ast.walk(handler):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in helpers:
+            helper_print, helper_logger = _calls_print_and_logger_exception(helpers[node.func.id])
+            has_print_exception = has_print_exception or helper_print
+            has_logger_exception = has_logger_exception or helper_logger
     return has_print_exception and has_logger_exception
 
-
 def has_startup_exception_guard(tree: ast.Module) -> bool:
+    helpers = module_level_functions(tree)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Try):
             continue
         for handler in node.handlers:
-            if try_logs_exception(handler):
+            if try_logs_exception(handler, helpers):
                 return True
     return False
 
@@ -718,7 +735,9 @@ def check_startup_exception_logging_contract(tree: ast.Module) -> list[dict[str,
             "code": "LOGGER_STARTUP_FATAL_GUARD_MISSING",
             "path": "firmware/main.py",
             "line": 1,
-            "message": "main.py installs rotating logger but lacks a top-level startup fatal guard that prints and writes exceptions to the device log",
+            "accepted_calls": ["sys.print_exception(exc)", "logger.exception(exc, message_with_time)"],
+            "accepted_time_markers": sorted(TIME_VALUE_NAMES | TIME_CALL_NAMES),
+            "message": "main.py installs rotating logger but lacks a startup fatal guard; the except handler, or one module-level helper it calls, must call sys.print_exception(exc) and logger.exception(...) with a timestamp/uptime marker",
         }
     ]
 
@@ -785,7 +804,7 @@ def check_timer_scheduler_contract(project_dir: Path, manifest: dict[str, Any]) 
                 }
             )
     scheduler_vars = collect_scheduler_vars(tree)
-    inline_scheduler_calls = {"add_task", "register", "start", "run"}
+    inline_scheduler_calls = {"add_task", "register", "register_task", "start", "run"}
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
             continue
@@ -806,7 +825,7 @@ def check_timer_scheduler_contract(project_dir: Path, manifest: dict[str, Any]) 
                     "line": node.lineno,
                     "method": method,
                     "available_methods": sorted(methods),
-                    "message": "main.py must call methods implemented by firmware/lib/scheduler/timer_sched.py Scheduler",
+                    "message": "main.py must call methods implemented by firmware/lib/scheduler/timer_sched.py Scheduler; use add_task(...) for task registration",
                 }
             )
     return errors

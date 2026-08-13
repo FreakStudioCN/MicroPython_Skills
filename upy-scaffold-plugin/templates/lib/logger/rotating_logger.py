@@ -139,3 +139,11 @@ else:
         def close(self):
             self._rot.close()
             super().close()
+
+    def install(log_dir, max_files=4, lines_per_file=150, prefix="run",
+                fmt="%(levelname)s:%(name)s:%(message)s"):
+        handler = RotatingFileHandler(log_dir, max_files, lines_per_file, prefix)
+        handler.setFormatter(logging.Formatter(fmt))
+        root = logging.getLogger()
+        root.addHandler(handler)
+        return handler

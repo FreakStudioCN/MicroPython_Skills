@@ -108,6 +108,14 @@ def file_bundle_contents(output: dict) -> dict[str, str]:
     raise AssertionError("file_bundle artifact missing")
 
 
+def write_output_to_project(output: dict, root: Path) -> None:
+    for item in output["files"]:
+        rel_path = item["path"]
+        target = root / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content(output, rel_path), encoding="utf-8")
+
+
 def assert_generated_python_compiles(output: dict) -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
@@ -386,6 +394,81 @@ def timer_scaffold_uses_hardware_timer_for_general_ports() -> None:
         raise AssertionError(f"General hardware-timer ports should default to Timer id 0:\n{main_py}")
     if "Scheduler(timer_id=-1" in main_py:
         raise AssertionError(f"Only RP2/Pico and Zephyr should use virtual Timer(-1):\n{main_py}")
+
+
+def async_manifest_modules_match_plugin_default_and_pass_flake8() -> None:
+    manifest = {
+        "phase": "select_hw",
+        "project_name": "DHT11 Temperature and Humidity Monitor",
+        "requirements": {
+            "description": "read a DHT11 sensor on GPIO14 and print temperature and humidity readings",
+            "network": "none",
+            "output": ["serial"],
+        },
+        "devices": [
+            {
+                "name": "DHT11 temperature and humidity sensor",
+                "type": "environmental_sensor",
+                "interface": "1-Wire",
+                "driver": {"source": "builtin_runtime", "module": "dht"},
+            }
+        ],
+        "mcu": {"model": "rp2350", "board_id": "rpi-pico2-w", "display_name": "Pico 2 W"},
+        "pinout": [
+            {
+                "device": "DHT11 temperature and humidity sensor",
+                "pin_name": "DATA",
+                "gpio": 14,
+                "type": "gpio_in",
+                "source": "user_wiring",
+                "notes": (
+                    "Ensure the DHT11 module includes a pull-up resistor on the data line; "
+                    "most breakout boards already have one fitted"
+                ),
+            },
+            {
+                "device": "DHT11 temperature and humidity sensor",
+                "pin_name": "VCC",
+                "gpio": 36,
+                "type": "power_3v3",
+                "notes": "3V3 OUT pin 36",
+            },
+            {
+                "device": "DHT11 temperature and humidity sensor",
+                "pin_name": "GND",
+                "gpio": 38,
+                "type": "gnd",
+                "notes": "GND pin 38",
+            },
+        ],
+    }
+    output = run_script(
+        "--mode",
+        "async",
+        "--modules",
+        "logger,flash_device",
+        "--manifest",
+        "-",
+        stdin_obj=manifest,
+    )
+    assert_common_output(output)
+    assert_generated_python_compiles(output)
+    board_py = content(output, "firmware/board.py")
+    if "pull-up resistor" in board_py or "3V3 OUT pin" in board_py:
+        raise AssertionError("board.py must not embed unbounded pinout notes prose")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        write_output_to_project(output, project)
+        result = subprocess.run(
+            [sys.executable, "-m", "flake8", "--jobs=1", "firmware", "tools"],
+            cwd=project,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            check=False,
+        )
+        if result.returncode != 0:
+            raise AssertionError(f"plugin-default async scaffold must pass flake8:\n{result.stdout}\n{result.stderr}")
 
 
 def async_omits_scheduler_when_not_timer() -> None:
@@ -871,6 +954,7 @@ def main() -> int:
         timer_scaffold_keeps_rp2_virtual_timer_default,
         timer_scaffold_keeps_zephyr_virtual_timer_default,
         timer_scaffold_uses_hardware_timer_for_general_ports,
+        async_manifest_modules_match_plugin_default_and_pass_flake8,
         async_omits_scheduler_when_not_timer,
         thread_mode_uses_thread_frame_and_custom_files,
         incremental_generates_only_new_driver_stub,

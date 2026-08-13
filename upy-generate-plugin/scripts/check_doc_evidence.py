@@ -96,6 +96,16 @@ def library_index() -> dict[str, dict[str, Any]]:
     return index
 
 
+def accepted_url_for(index: dict[str, dict[str, Any]], module: str) -> str:
+    page = index.get(module) or index.get(parent_module(module))
+    return str(page.get("url") or "") if isinstance(page, dict) else ""
+
+
+def accepted_urls(index: dict[str, dict[str, Any]]) -> list[str]:
+    urls = [str(page.get("url")) for page in index.values() if isinstance(page.get("url"), str)]
+    return sorted(urls)
+
+
 def indexed_urls(index: dict[str, dict[str, Any]]) -> set[str]:
     urls: set[str] = set()
     for page in index.values():
@@ -251,7 +261,12 @@ def check(project_dir: Path) -> dict[str, Any]:
                     "path": item["path"],
                     "line": item.get("line"),
                     "reason": item.get("reason"),
-                    "message": "hardware/peripheral MicroPython API usage must cite official MicroPython docs in generate.doc_evidence",
+                    "accepted_url": accepted_url_for(index, module),
+                    "message": (
+                        "hardware/peripheral MicroPython API usage must cite official MicroPython docs in "
+                        "generate.doc_evidence; cite "
+                        + (accepted_url_for(index, module) or "an indexed official page for this module")
+                    ),
                 }
             )
         page = index.get(module) or index.get(parent_module(module))
@@ -271,7 +286,8 @@ def check(project_dir: Path) -> dict[str, Any]:
                 {
                     "code": "DOC_EVIDENCE_URL_INVALID",
                     "url": url,
-                    "message": "doc evidence must reference a fetched official MicroPython library page or linked official page",
+                    "accepted_urls": accepted_urls(index)[:80],
+                    "message": "doc evidence must reference an indexed official MicroPython page; cite one of accepted_urls",
                 }
             )
     return {

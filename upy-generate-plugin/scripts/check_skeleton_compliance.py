@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,103 @@ def detect_mode(manifest: dict[str, Any]) -> str:
     return "timer"
 
 
+MIN_BOOT_DELAY_SECONDS = 3.0
+
+
+def _literal_number(node: ast.AST, constants: dict[str, float]) -> float | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return float(node.value)
+    if isinstance(node, ast.Name):
+        return constants.get(node.id)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        value = _literal_number(node.operand, constants)
+        return -value if value is not None else None
+    return None
+
+
+def _module_constants(tree: ast.Module) -> dict[str, float]:
+    constants: dict[str, float] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            value = _literal_number(node.value, constants)
+            if value is not None:
+                constants[node.targets[0].id] = value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            value = _literal_number(node.value, constants)
+            if value is not None:
+                constants[node.target.id] = value
+    return constants
+
+
+def _conf_constants(project_dir: Path) -> dict[str, float]:
+    conf_path = project_dir / "firmware" / "conf.py"
+    if not conf_path.exists():
+        return {}
+    try:
+        tree = ast.parse(text(conf_path), filename=str(conf_path))
+    except SyntaxError:
+        return {}
+    return _module_constants(tree)
+
+
+def _imported_conf_names(tree: ast.Module) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "conf":
+            for alias in node.names:
+                names.add(alias.asname or alias.name)
+    return names
+
+
+def _sleep_seconds(
+    node: ast.Call,
+    constants: dict[str, float],
+    conf_constants: dict[str, float],
+    imported_conf_names: set[str],
+) -> float | None:
+    name = ""
+    if isinstance(node.func, ast.Name):
+        name = node.func.id
+    elif isinstance(node.func, ast.Attribute):
+        if isinstance(node.func.value, ast.Name):
+            name = f"{node.func.value.id}.{node.func.attr}"
+        else:
+            name = node.func.attr
+    if name not in {"sleep", "time.sleep", "utime.sleep", "sleep_ms", "time.sleep_ms", "utime.sleep_ms"}:
+        return None
+    if not node.args:
+        return None
+    arg = node.args[0]
+    if isinstance(arg, ast.Attribute) and isinstance(arg.value, ast.Name) and arg.value.id == "conf":
+        seconds = conf_constants.get(arg.attr)
+    elif isinstance(arg, ast.Name) and arg.id in imported_conf_names:
+        seconds = conf_constants.get(arg.id)
+    else:
+        seconds = _literal_number(arg, constants)
+    if seconds is None:
+        return None
+    if name.endswith("sleep_ms"):
+        return seconds / 1000
+    return seconds
+
+
+def has_boot_delay(project_dir: Path, main_py: str) -> bool:
+    try:
+        tree = ast.parse(main_py, filename="firmware/main.py")
+    except SyntaxError:
+        return False
+    constants = _module_constants(tree)
+    conf_constants = _conf_constants(project_dir)
+    imported_conf_names = _imported_conf_names(tree)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        seconds = _sleep_seconds(node, constants, conf_constants, imported_conf_names)
+        if seconds is not None and seconds >= MIN_BOOT_DELAY_SECONDS:
+            return True
+    return False
+
+
 def check_project(project_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -44,12 +142,20 @@ def check_project(project_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]
     board_py = text(project_dir / "firmware" / "board.py")
     mode = detect_mode(manifest or load_project_manifest(project_dir))
 
-    if "time.sleep(3)" not in main_py and "sleep(3)" not in main_py:
+    if not has_boot_delay(project_dir, main_py):
         errors.append(
             {
                 "code": "BOOT_DELAY_MISSING",
                 "path": "firmware/main.py",
-                "message": "main.py must keep a 3 second boot delay for deploy/mpremote reconnect",
+                "minimum_seconds": MIN_BOOT_DELAY_SECONDS,
+                "accepted_forms": [
+                    "time.sleep(3)",
+                    "utime.sleep(3)",
+                    "time.sleep(BOOT_DELAY_SECONDS)",
+                    "time.sleep(conf.BOOT_DELAY_SECONDS)",
+                    "sleep_ms(3000)",
+                ],
+                "message": "main.py must keep a boot delay of at least 3 seconds for deploy/mpremote reconnect; canonical form: time.sleep(3)",
             }
         )
     if mode == "timer" and "Scheduler" not in main_py and "timer_sched" not in main_py:

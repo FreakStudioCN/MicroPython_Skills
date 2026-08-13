@@ -148,6 +148,15 @@ def assert_references_and_knowledge_docs() -> None:
     for field in ("field_descriptions", "id", "title", "category", "detection", "fix_guidance", "verified_by"):
         if field not in template:
             raise AssertionError(f"pitfall template must document/contain field: {field}")
+    library_index = load_json(ROOT / "knowledge" / "micropython_official_library_index.json")
+    modules = {page.get("module"): page.get("url") for page in library_index.get("pages", []) if isinstance(page, dict)}
+    for module, url in {
+        "dht": "https://docs.micropython.org/en/latest/esp8266/tutorial/dht.html",
+        "onewire": "https://docs.micropython.org/en/latest/esp8266/tutorial/onewire.html",
+    }.items():
+        if modules.get(module) != url:
+            raise AssertionError(f"official tutorial-only page missing from doc index for {module}: {modules.get(module)}")
+
     catalog = load_json(ROOT / "knowledge" / "cloud_service_catalog.json")
     provider_ids = {item["id"] for item in catalog.get("providers", [])}
     for provider_id in ("volcengine_ark", "aliyun_bailian", "tencent_hunyuan", "baidu_qianfan", "custom_http_proxy"):
@@ -2341,6 +2350,32 @@ def assert_generated_semantics_negative_cases() -> None:
         project = Path(temp_dir)
         make_project(project, mode="timer")
         main_py = project / "firmware" / "main.py"
+        conf_py = project / "firmware" / "conf.py"
+        conf_py.write_text(conf_py.read_text(encoding="utf-8") + "\nBOOT_DELAY_SECONDS = 3\n", encoding="utf-8")
+        accepted_sources = {
+            "time.sleep(3.0)": "import time\ntime.sleep(3.0)\n",
+            "utime.sleep(3)": "import utime\nutime.sleep(3)\n",
+            "time.sleep(conf.BOOT_DELAY_SECONDS)": "import time\nimport conf\ntime.sleep(conf.BOOT_DELAY_SECONDS)\n",
+            "sleep_ms(3000)": "from time import sleep_ms\nsleep_ms(3000)\n",
+        }
+        for label, source in accepted_sources.items():
+            main_py.write_text(source, encoding="utf-8")
+            rc, stdout, _stderr = run_cmd(
+                [sys.executable, str(ROOT / "scripts" / "check_skeleton_compliance.py"), "--project-dir", str(project)]
+            )
+            if rc != 0 or "BOOT_DELAY_MISSING" in stdout:
+                raise AssertionError(f"skeleton check must accept semantic boot delay form {label}: {stdout}")
+        main_py.write_text("import time\ntime.sleep(1)\n", encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_skeleton_compliance.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "BOOT_DELAY_MISSING" not in stdout or "accepted_forms" not in stdout:
+            raise AssertionError(f"skeleton check must reject short boot delay with actionable accepted_forms: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
+        main_py = project / "firmware" / "main.py"
         main_py.write_text(
             "from conf import LOG_DIR, LOG_FILES_MAX, LOG_LINES_PER_FILE\n"
             "from lib import logger\n"
@@ -2386,11 +2421,13 @@ def assert_generated_semantics_negative_cases() -> None:
             "    logger.install_rotating(LOG_DIR, max_files=LOG_FILES_MAX, lines_per_file=LOG_LINES_PER_FILE)\n"
             "    logger.info('[t=%dms] boot' % time.ticks_ms())\n"
             "    Scheduler().add_task(lambda: None, 100, name='tick')\n"
+            "def _log_startup_fatal(exc):\n"
+            "    sys.print_exception(exc)\n"
+            "    logger.exception(exc, '[t=%dms] startup failed' % time.ticks_ms())\n"
             "try:\n"
             "    _main()\n"
             "except Exception as exc:\n"
-            "    sys.print_exception(exc)\n"
-            "    logger.exception(exc, '[t=%dms] startup failed' % time.ticks_ms())\n"
+            "    _log_startup_fatal(exc)\n"
             "    raise\n",
             encoding="utf-8",
         )

@@ -603,10 +603,11 @@ def run_actual_project(args: argparse.Namespace) -> dict[str, Any]:
         lint = run_flake8(project_dir)
         lint["completed_at"] = utc_now()
         if lint["returncode"] != 0:
+            lint_message = (lint.get("stdout") or lint.get("stderr") or "flake8 gate failed").strip()
             structured_errors.append(
                 {
                     "code": "SCAFFOLD_LINT_FAILED",
-                    "message": "flake8 gate failed",
+                    "message": lint_message[:2000] if lint_message else "flake8 gate failed",
                     "severity": "error",
                     "recoverable": True,
                     "retryable": True,
@@ -643,6 +644,7 @@ def run_actual_project(args: argparse.Namespace) -> dict[str, Any]:
         "file_count": len(entries),
         "file_status_counts": {state: sum(1 for entry in entries if entry["status"] == state) for state in sorted({entry["status"] for entry in entries})},
         "next_phase": phase_complete["payload"].get("next_phase"),
+        "structured_errors": structured_errors,
         "flake8": lint,
         "phase_complete": phase_complete,
         "_temp_project": is_temp_project,

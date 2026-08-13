@@ -119,7 +119,7 @@ payload.manifest_content.phase == "generate"
    - 如果 `mip install` 因网络、代理或翻墙环境不可用失败，标记 `runtime_dependency_install_network_unavailable`，提示用户修复网络后重试，不要把它误判为 generate 代码错误。
    - 安装失败、导入验证失败或设备空间不足必须作为独立错误写入 `mip_install_result.json`，并交给 `deploy_result.py --mip-install-json ...` 汇总。
 9. 运行项目工具：
-   - `project/tools/flash_device.py --compile --upload --no-reset --port <port> --json-summary`
+   - `script_run` only resolves bundled plugin/shared scripts; do not call `project/tools/flash_device.py` through generic `script_run`. A project flash runner requires a dedicated plugin action.
    - `--json-summary` 是必需接口，deploy-plugin 只消费结构化结果。
    - 上传 summary 必须记录 `compiled_files`、`uploaded_files`、`skipped_files`。`conf.py`、`boot.py`、`main.py` 应作为 `.py` 上传，不得部署 `:conf.mpy` 或 `:boot.mpy`；`firmware/drivers/**/mock.py`/`mock.mpy` 是测试替身，不得部署到设备。
    - 即使项目工具返回 success，若 upload summary 或 `mpremote fs cp` 命令显示上传了 `:conf.mpy`、`:boot.mpy`、`:drivers/*/mock.py` 或 `:drivers/*/mock.mpy`，`deploy_result.py` 必须判 `FAIL`。

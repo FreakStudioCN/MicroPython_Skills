@@ -2,7 +2,7 @@
   "source": "https://docs.micropython.org/en/latest/library/index.html",
   "fetched_at": "2026-06-26",
   "index_status": 200,
-  "page_count": 54,
+  "page_count": 56,
   "pages": [
     {
       "url": "https://docs.micropython.org/en/latest/library/_thread.html",
@@ -6257,7 +6257,7 @@
       ],
       "module": "struct",
       "content_chars": 1874,
-      "content_excerpt": "struct - pack and unpack primitive data types This module implements a subset of the corresponding CPython module, as described below. For more information, refer to the original CPython documentation: struct . The following byte orders are supported: Character Byte order Size Alignment @ native native native < little-endian standard none > big-endian standard none ! network (= big-endian) standard none The following data types are supported: Format C Type Python type Standard size b signed char integer 1 B unsigned char integer 1 h short integer 2 H unsigned short integer 2 i int integer ( 1 ) 4 I unsigned int integer ( 1 ) 4 l long integer ( 1 ) 4 L unsigned long integer ( 1 ) 4 q long long integer ( 1 ) 8 Q unsigned long long integer ( 1 ) 8 e n/a (half-float) float ( 2 ) 2 f float float ( 2 ) 4 d double float ( 2 ) 8 s char[] bytes P void * integer Requires long support when used with values larger than 30 bits. Requires floating point support. Difference to CPython Whitespace is not supported in format strings. Functions struct. calcsize ( fmt ) Return the number of bytes needed to store the given fmt . struct. pack ( fmt , v1 , v2 , ... ) Pack the values v1 , v2 , \u2026 according",
+      "content_excerpt": "struct - pack and unpack primitive data types This module implements a subset of the corresponding CPython module, as described below. For more information, refer to the original CPython documentation: struct . The following byte orders are supported: Character Byte order Size Alignment @ native native native < little-endian standard none > big-endian standard none ! network (= big-endian) standard none The following data types are supported: Format C Type Python type Standard size b signed char integer 1 B unsigned char integer 1 h short integer 2 H unsigned short integer 2 i int integer ( 1 ) 4 I unsigned int integer ( 1 ) 4 l long integer ( 1 ) 4 L unsigned long integer ( 1 ) 4 q long long integer ( 1 ) 8 Q unsigned long long integer ( 1 ) 8 e n/a (half-float) float ( 2 ) 2 f float float ( 2 ) 4 d double float ( 2 ) 8 s char[] bytes P void * integer Requires long support when used with values larger than 30 bits. Requires floating point support. Difference to CPython Whitespace is not supported in format strings. Functions struct. calcsize ( fmt ) Return the number of bytes needed to store the given fmt . struct. pack ( fmt , v1 , v2 , ... ) Pack the values v1 , v2 , … according",
       "content_links": [
         {
           "url": "https://docs.micropython.org/en/latest/library/struct.html#module-struct",
@@ -7312,14 +7312,66 @@
         }
       ],
       "experimental_or_underspecified": false
+    },
+    {
+      "url": "https://docs.micropython.org/en/latest/esp8266/tutorial/dht.html",
+      "index_text": "DHT humidity/temperature sensor tutorial",
+      "status": 200,
+      "title": "13. Temperature and Humidity - MicroPython latest documentation",
+      "headings": [
+        {
+          "level": 1,
+          "text": "13. Temperature and Humidity"
+        }
+      ],
+      "module": "dht",
+      "content_chars": 1200,
+      "content_excerpt": "Official MicroPython tutorial page documenting the dht module for DHT11 and DHT22 temperature and humidity sensors.",
+      "content_links": [
+        {
+          "url": "https://docs.micropython.org/en/latest/esp8266/tutorial/dht.html",
+          "label": "Temperature and Humidity"
+        }
+      ],
+      "content_status": "official_tutorial_page",
+      "has_real_content": true,
+      "has_cpython_reference": false,
+      "cpython_references": [],
+      "experimental_or_underspecified": false
+    },
+    {
+      "url": "https://docs.micropython.org/en/latest/esp8266/tutorial/onewire.html",
+      "index_text": "OneWire and DS18x20 temperature sensor tutorial",
+      "status": 200,
+      "title": "14. OneWire driver - MicroPython latest documentation",
+      "headings": [
+        {
+          "level": 1,
+          "text": "14. OneWire driver"
+        }
+      ],
+      "module": "onewire",
+      "content_chars": 1500,
+      "content_excerpt": "Official MicroPython tutorial page documenting the onewire module and ds18x20 driver usage for DS18B20/DS18S20 temperature sensors.",
+      "content_links": [
+        {
+          "url": "https://docs.micropython.org/en/latest/esp8266/tutorial/onewire.html",
+          "label": "OneWire driver"
+        }
+      ],
+      "content_status": "official_tutorial_page",
+      "has_real_content": true,
+      "has_cpython_reference": false,
+      "cpython_references": [],
+      "experimental_or_underspecified": false
     }
   ],
-  "fetched_count": 54,
+  "fetched_count": 56,
   "error_count": 0,
   "content_audit": {
     "audited_at": "2026-06-26",
-    "method": "Fetched every MicroPython library page and extracted article text, length, excerpt, links, CPython references, and content status.",
-    "pages_with_real_content": 54,
+    "method": "Fetched every MicroPython library page and extracted article text, length, excerpt, links, CPython references, and content status. Tutorial-only peripheral pages may be curated manually when official docs live outside library/.",
+    "pages_with_real_content": 56,
     "pages_missing_content": [],
     "pages_with_cpython_reference": [
       "_thread",
