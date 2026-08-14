@@ -35,6 +35,9 @@ STRONG_CHECKS = {
 STRONG_LINT = {"flake8", "pylint"}
 STRONG_TESTS = {"pc_unittest"}
 REQUIRED_MANIFEST_KEYS = {"requirements", "devices", "mcu", "generate"}
+# The permission entry types that satisfy GIT_PERMISSION_RECORD_MISSING. Named in the error
+# so the model is not asked for a record whose shape appears nowhere in the message.
+GIT_PERMISSION_TYPES = {"git_commit", "git_operation"}
 REQUIRED_OPTIONAL_PHASES = {"upy-diagram-plugin", "upy-wiring-plugin"}
 SESSION_STATE_FILE = "session_state.upy_generate_plugin.json"
 GIT_SHA40_LENGTH = 40
@@ -431,6 +434,21 @@ def deploy_plan_errors(deploy_plan: Any) -> list[dict[str, Any]]:
     return errors
 
 
+def comparable_manifest_value(key: str, value: Any) -> Any:
+    """The part of a manifest field that must match the tracked project-manifest.json.
+
+    `generate.git.commit` is excluded because it cannot match and be true at the same time:
+    final_git_consistency_errors() requires it to equal HEAD, and project-manifest.json is
+    tracked, so writing HEAD into it produces a NEW head and invalidates what was just
+    written. Measured on a run against this commit: the model spent 6 commits circling that,
+    and still ended on GIT_COMMIT_NOT_HEAD. The commit is still verified -- against HEAD, in
+    final_git_consistency_errors -- just not against the tracked file.
+    """
+    if key != "generate" or not isinstance(value, dict):
+        return value
+    return {inner: item for inner, item in value.items() if inner != "git"}
+
+
 def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = []
     manifest = payload.get("manifest_content")
@@ -541,7 +559,11 @@ def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[d
                             }
                         )
                     for key in REQUIRED_MANIFEST_KEYS | {"pinout"}:
-                        if key in project_manifest and manifest.get(key) != project_manifest.get(key):
+                        if key not in project_manifest:
+                            continue
+                        if comparable_manifest_value(key, manifest.get(key)) != comparable_manifest_value(
+                            key, project_manifest.get(key)
+                        ):
                             errors.append(
                                 {
                                     "code": "MANIFEST_PROJECT_MISMATCH",
@@ -902,7 +924,18 @@ def session_state_check_errors(
                                     "field": field,
                                     "embedded": embedded_state.get(field),
                                     "disk": disk_state.get(field),
-                                    "message": "phase_complete embedded session_state_checkpoint must match disk session_state",
+                                    # Which side to change was never stated, so a run can
+                                    # "fix" it by editing the file and drift again on the
+                                    # next write. Disk is authoritative: it is what
+                                    # update_session_state.py --check just validated.
+                                    "authoritative": "disk",
+                                    "message": (
+                                        f"phase_complete embedded session_state_checkpoint.state.{field} "
+                                        "does not match the disk session_state. The DISK value is "
+                                        "authoritative: re-run update_session_state.py --check and embed "
+                                        "its result under checks.session_state_checkpoint rather than "
+                                        "editing the payload by hand."
+                                    ),
                                 }
                             )
     artifacts = payload.get("artifacts")
@@ -1033,10 +1066,24 @@ def git_commit_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
         git_permissions = [
             item
             for item in permissions
-            if isinstance(item, dict) and item.get("type") in {"git_commit", "git_operation"}
+            if isinstance(item, dict) and item.get("type") in GIT_PERMISSION_TYPES
         ]
         if not git_permissions:
-            errors.append({"code": "GIT_PERMISSION_RECORD_MISSING", "message": "success must record the git commit permission decision"})
+            errors.append(
+                {
+                    "code": "GIT_PERMISSION_RECORD_MISSING",
+                    # The filter above accepts exactly two type values and the message named
+                    # neither, so "record the git commit permission decision" left the model
+                    # guessing the shape of an entry it had never seen.
+                    "accepted_types": sorted(GIT_PERMISSION_TYPES),
+                    "expected_entry": {"type": "git_commit", "approved": True},
+                    "message": (
+                        "success must record the git commit permission decision in payload.permissions[]: "
+                        "an entry whose type is one of " + ", ".join(sorted(GIT_PERMISSION_TYPES))
+                        + ', e.g. {"type": "git_commit", "approved": true}'
+                    ),
+                }
+            )
         elif not any(item.get("approved") is True for item in git_permissions):
             errors.append({"code": "GIT_PERMISSION_NOT_APPROVED", "message": "success requires an approved git commit permission record"})
     return errors
