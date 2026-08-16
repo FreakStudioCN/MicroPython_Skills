@@ -61,7 +61,16 @@ def load_script_module(name: str, path: Path) -> Any:
     if spec is None or spec.loader is None:
         raise AssertionError(f"cannot load script module: {path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    script_dir = str(path.parent)
+    inserted = False
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+        inserted = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if inserted:
+            sys.path.remove(script_dir)
     return module
 
 
@@ -93,6 +102,7 @@ def assert_skill_text_contract() -> None:
         "deploy_result_feedback",
         "deploy_fail_next_action",
         "do not call `project/tools/flash_device.py` through generic `script_run`",
+        "Do not pass `--wait-json`",
         "shared-plugin-scripts/mpremote/list_serial_ports.py",
         "scripts/mpremote_runtime.py",
         "scripts/check_environment.py",
@@ -223,9 +233,11 @@ def assert_clean_device_mock_modes() -> None:
         raise AssertionError(f"clean dry-run failed: {clean}")
     if any(path.startswith("data/") or path.startswith("secrets/") for path in clean["delete_targets"]):
         raise AssertionError("project_files clean must not include mock user data")
-    for stale in ("conf.mpy", "drivers/sht30_driver/mock.mpy"):
+    for stale in ("conf.mpy", "drivers/sht30_driver/mock.mpy", "lib/logger/logging.py", "lib/scheduler/timer_sched.py", "lib/time_helper.py"):
         if stale not in clean["delete_targets"]:
             raise AssertionError(f"project_files clean must remove stale deploy artifact {stale}: {clean}")
+    if any(path == "lib/unittest" or path.startswith("lib/unittest/") for path in clean["delete_targets"]):
+        raise AssertionError(f"project_files clean must preserve mip-installed lib/unittest: {clean}")
     erase = run_json([
         sys.executable,
         str(SCRIPTS / "clean_device_project.py"),
@@ -364,7 +376,7 @@ def assert_reset_capture_traceback_fails_deploy_result() -> None:
             raise AssertionError(f"reset-first mock capture did not include startup traceback: {serial}")
         upload_json.write_text(json.dumps({"status": "success"}, ensure_ascii=False), encoding="utf-8")
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
-        result = run_json([
+        rc, result = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -378,6 +390,8 @@ def assert_reset_capture_traceback_fails_deploy_result() -> None:
             "--port",
             "COM88",
         ])
+        if rc == 0:
+            raise AssertionError(f"failed deploy verdict must return non-zero exit code: {result}")
         codes = {error.get("code") for error in result.get("errors", [])}
         if result.get("status") != "FAIL" or not {"python_traceback", "python_value_error"} <= codes:
             raise AssertionError(f"startup traceback must fail deploy result: {result}")
@@ -417,7 +431,7 @@ def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
         )
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
         serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
-        result = run_json([
+        rc, result = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -431,6 +445,8 @@ def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
             "--port",
             "COM3",
         ])
+        if rc == 0:
+            raise AssertionError(f"forbidden upload deploy verdict must return non-zero exit code: {result}")
         if result["status"] != "FAIL":
             raise AssertionError(f"forbidden upload artifacts must fail deploy result: {result}")
         matches = [error for error in result.get("errors", []) if error.get("code") == "forbidden_runtime_upload"]
@@ -464,7 +480,7 @@ def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
         )
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
         serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
-        result = run_json([
+        rc, result = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -478,6 +494,8 @@ def assert_forbidden_upload_artifacts_fail_deploy_result() -> None:
             "--port",
             "COM3",
         ])
+        if rc == 0:
+            raise AssertionError(f"legacy forbidden upload deploy verdict must return non-zero exit code: {result}")
         if result["status"] != "FAIL" or "forbidden_runtime_upload" not in json.dumps(result):
             raise AssertionError(f"legacy upload summary must still expose forbidden artifacts: {result}")
 
@@ -492,7 +510,7 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
         upload_json.write_text(json.dumps({"status": "success"}, ensure_ascii=False), encoding="utf-8")
         serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
-        result = run_json([
+        rc, result = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -506,16 +524,79 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             "--port",
             "COM3",
         ])
-        if result["status"] != "PASS_WITH_WARNINGS":
-            raise AssertionError(f"empty serial output should be warning-only: {result}")
-        if "serial capture produced no output" not in result.get("warnings", []):
-            raise AssertionError(f"warning must mention empty serial output: {result}")
+        if rc == 0 or result["status"] != "FAIL":
+            raise AssertionError(f"empty serial output must not pass deploy result: {result}")
+        if not any(error.get("code") == "serial_capture_empty" for error in result.get("errors", [])):
+            raise AssertionError(f"empty serial output error missing: {result}")
+
+        serial_json.write_text(
+            json.dumps(
+                {
+                    "status": "success",
+                    "output": (
+                        "[monitor] DHT11 read failed: [Errno 110] ETIMEDOUT\n"
+                        "[monitor] DHT11 read failed: [Errno 110] ETIMEDOUT\n"
+                        "[monitor] DHT11 read failed: [Errno 110] ETIMEDOUT\n"
+                    ),
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        rc, timeout_failed = run_json_allow_failure([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if rc == 0 or timeout_failed["status"] != "FAIL":
+            raise AssertionError(f"repeated sensor timeouts with no reading must fail: {timeout_failed}")
+        if not any(error.get("code") == "device_io_timeout" for error in timeout_failed.get("errors", [])):
+            raise AssertionError(f"device timeout error missing: {timeout_failed}")
+
+        serial_json.write_text(
+            json.dumps(
+                {
+                    "status": "success",
+                    "output": (
+                        "[monitor] DHT11 read failed: [Errno 110] ETIMEDOUT\n"
+                        "[monitor] temperature=24 humidity=52\n"
+                    ),
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        recovered = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if recovered["status"] != "PASS_WITH_WARNINGS" or not any("sensor I/O timeout" in item for item in recovered.get("warnings", [])):
+            raise AssertionError(f"single timeout with successful reading should warn, not fail: {recovered}")
 
         tests_json.write_text(
             json.dumps({"status": "failed", "failed": 1, "errors": [{"code": "device_test_failed"}]}, ensure_ascii=False),
             encoding="utf-8",
         )
-        failed = run_json([
+        rc, failed = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -531,7 +612,7 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             "--port",
             "COM3",
         ])
-        if failed["status"] != "FAIL":
+        if rc == 0 or failed["status"] != "FAIL":
             raise AssertionError(f"failed device tests must fail deploy result: {failed}")
         if not any(error.get("code") == "device_tests_failed" for error in failed.get("errors", [])):
             raise AssertionError(f"device test failure code missing: {failed}")
@@ -547,7 +628,7 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             ),
             encoding="utf-8",
         )
-        runtime_failed = run_json([
+        rc, runtime_failed = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -563,10 +644,12 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             "--port",
             "COM3",
         ])
+        if rc == 0:
+            raise AssertionError(f"runtime unavailable deploy verdict must return non-zero exit code: {runtime_failed}")
         if not any(error.get("code") == "device_tests_runtime_unavailable" for error in runtime_failed.get("errors", [])):
             raise AssertionError(f"runtime unavailable device-test code missing: {runtime_failed}")
 
-        missing = run_json([
+        rc, missing = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -580,6 +663,8 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             "--port",
             "COM3",
         ])
+        if rc == 0:
+            raise AssertionError(f"missing upload JSON deploy verdict must return non-zero exit code: {missing}")
         if not any(error.get("code") == "upload_json_missing" for error in missing.get("errors", [])):
             raise AssertionError(f"missing upload json must be structured, not traceback: {missing}")
 
@@ -680,7 +765,7 @@ def assert_install_mip_dependencies_mock() -> None:
         upload_json.write_text(json.dumps({"status": "success"}), encoding="utf-8")
         serial_json.write_text(json.dumps({"status": "success", "output": "boot ok"}), encoding="utf-8")
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}), encoding="utf-8")
-        deploy_result = run_json([
+        rc, deploy_result = run_json_allow_failure([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
@@ -696,8 +781,69 @@ def assert_install_mip_dependencies_mock() -> None:
             "--port",
             "COM3",
         ])
+        if rc == 0:
+            raise AssertionError(f"failed mip install deploy verdict must return non-zero exit code: {deploy_result}")
         if not any(error.get("code") == "runtime_dependency_install_network_unavailable" for error in deploy_result.get("errors", [])):
             raise AssertionError(f"deploy result must classify mip network/proxy failure: {deploy_result}")
+
+
+def assert_mip_already_available_requires_fs_evidence() -> None:
+    module = load_script_module("deploy_install_mip_dependencies_live", SCRIPTS / "install_mip_dependencies.py")
+    calls = {"verify": 0, "fs": 0, "install": 0}
+
+    def fake_verify_import(_port: str, module_name: str, _timeout_ms: int) -> dict[str, Any]:
+        calls["verify"] += 1
+        return {"returncode": 0, "ok": True, "stdout_excerpt": f"MPY_IMPORT_OK:{module_name}"}
+
+    def fake_fs_verify(_port: str, dep: dict[str, Any], _timeout_ms: int) -> dict[str, Any]:
+        calls["fs"] += 1
+        if calls["fs"] == 1:
+            return {
+                "status": "failed",
+                "target": dep["target"],
+                "package_path": "/lib/unittest",
+                "matched_files": [],
+                "ok": False,
+            }
+        return {
+            "status": "success",
+            "target": dep["target"],
+            "package_path": "/lib/unittest",
+            "matched_files": ["__init__.mpy"],
+            "ok": True,
+        }
+
+    def fake_install_package(_port: str, package: str, target: str, _timeout_ms: int) -> dict[str, Any]:
+        calls["install"] += 1
+        return {"returncode": 0, "ok": True, "command_args": ["mip", "install", f"--target={target}", package]}
+
+    module.verify_import = fake_verify_import
+    module.fs_verify_dependency = fake_fs_verify
+    module.install_package = fake_install_package
+
+    with tempfile.TemporaryDirectory(prefix="mip-pre-fs-") as temp_dir:
+        project = Path(temp_dir)
+        manifest = {
+            "runtime_dependencies": {
+                "mip": [
+                    {
+                        "package": "unittest",
+                        "target": "/lib",
+                        "install_phase": "deploy",
+                        "verify_import": "unittest",
+                    }
+                ]
+            }
+        }
+        (project / "project-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        result = module.install_dependencies(project, None, "COM3", 1000)
+    if result["status"] != "success" or result["installed"] != 1 or result["already_available"] != 0:
+        raise AssertionError(f"missing pre-existing fs evidence must fall through to install: {result}")
+    if calls != {"verify": 2, "fs": 2, "install": 1}:
+        raise AssertionError(f"unexpected mip verification/install calls: {calls}")
+    record = result["records"][0]
+    if not record.get("pre_verify_fs_missing") or not record.get("pre_fs_verify") or not record.get("install"):
+        raise AssertionError(f"record must retain pre-verify fs miss before install: {record}")
 
 
 def assert_run_device_tests_mock() -> None:
@@ -811,6 +957,7 @@ def main() -> int:
         assert_forbidden_upload_artifacts_fail_deploy_result,
         assert_deploy_result_warnings_and_device_tests,
         assert_install_mip_dependencies_mock,
+        assert_mip_already_available_requires_fs_evidence,
         assert_run_device_tests_mock,
         assert_shared_serial_mock,
         assert_shared_descriptorless_serial_filter_fixture,

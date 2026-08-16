@@ -1400,6 +1400,9 @@ def assert_phase_complete_consistency() -> None:
         )
         if rc == 0 or "DEPLOY_TOOL_INCOMPATIBLE" not in stdout:
             raise AssertionError("deploy handoff must reject old project/tools deploy helpers")
+        for expected in ("apply_scaffold", "do not author it by hand", "generic script_run", "project/tools/*.py", "next_phase=null"):
+            if expected not in stdout:
+                raise AssertionError(f"deploy handoff error must explain {expected}: {stdout}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         bad_path = Path(temp_dir) / "bad_failed_gate.json"

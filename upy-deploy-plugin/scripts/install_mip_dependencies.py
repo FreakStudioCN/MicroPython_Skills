@@ -369,9 +369,14 @@ def install_dependencies(project_root: Path, manifest_path: str | None, port: st
         pre_verify = verify_import(port, module, timeout_ms)
         record["pre_verify"] = pre_verify
         if pre_verify["ok"]:
-            record["status"] = "already_available"
-            records.append(record)
-            continue
+            pre_fs_verify = fs_verify_dependency(port, dep, timeout_ms)
+            record["fs_verify"] = pre_fs_verify
+            if pre_fs_verify["ok"]:
+                record["status"] = "already_available"
+                records.append(record)
+                continue
+            record["pre_verify_fs_missing"] = True
+            record["pre_fs_verify"] = pre_fs_verify
         install = install_package(port, dep["package"], dep["target"], timeout_ms)
         record["install"] = install
         if not install["ok"]:

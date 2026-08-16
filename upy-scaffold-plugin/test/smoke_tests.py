@@ -419,6 +419,8 @@ def async_manifest_modules_match_plugin_default_and_pass_flake8() -> None:
                 "device": "DHT11 temperature and humidity sensor",
                 "pin_name": "DATA",
                 "gpio": 14,
+                "bus": None,
+                "i2c_addr": None,
                 "type": "gpio_in",
                 "source": "user_wiring",
                 "notes": (
@@ -456,6 +458,10 @@ def async_manifest_modules_match_plugin_default_and_pass_flake8() -> None:
     board_py = content(output, "firmware/board.py")
     if "pull-up resistor" in board_py or "3V3 OUT pin" in board_py:
         raise AssertionError("board.py must not embed unbounded pinout notes prose")
+    if "null" in board_py:
+        raise AssertionError(f"board.py must render Python None, not JSON null:\n{board_py}")
+    if "'bus': None" not in board_py or "'i2c_addr': None" not in board_py:
+        raise AssertionError(f"board.py must preserve missing bus/address as Python None:\n{board_py}")
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
         write_output_to_project(output, project)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -31,6 +32,14 @@ FORBIDDEN_UPLOAD_SUFFIXES = (
     "/mock.py",
     "/mock.mpy",
     ".pyc",
+)
+SENSOR_TIMEOUT_MARKERS = (
+    "ETIMEDOUT",
+    "[Errno 110]",
+)
+SENSOR_READING_PATTERNS = (
+    re.compile(r"\b(?:temp|temperature|humidity|rh)\b\s*(?:=|:)\s*-?\d+(?:\.\d+)?", re.IGNORECASE),
+    re.compile(r"\b(?:read|sample|measurement)\b.*\b(?:ok|success|succeeded)\b", re.IGNORECASE),
 )
 
 
@@ -183,6 +192,28 @@ def forbidden_uploads(upload: dict[str, Any]) -> list[str]:
     return sorted(set(bad))
 
 
+def sensor_timeout_count(output: str) -> int:
+    count = 0
+    for line in output.splitlines():
+        if any(marker in line for marker in SENSOR_TIMEOUT_MARKERS):
+            count += 1
+    return count
+
+
+def has_successful_sensor_reading(output: str) -> bool:
+    for line in output.splitlines():
+        lowered = line.lower()
+        if any(marker in lowered for marker in ("failed", "error", "timeout", "boot", "driver ready", "scheduler")):
+            continue
+        if any(pattern.search(line) for pattern in SENSOR_READING_PATTERNS):
+            return True
+        if re.search(r"\b(?:t|temp)\s*=\s*-?\d", line, re.IGNORECASE) and re.search(
+            r"\b(?:h|rh|humidity)\s*=\s*-?\d", line, re.IGNORECASE
+        ):
+            return True
+    return False
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upload-json")
@@ -256,9 +287,23 @@ def main() -> int:
     if serial and serial.get("returncode") not in (None, 0):
         warnings.append(f"serial capture process exited with returncode {serial.get('returncode')}")
     if serial.get("stalled"):
-        warnings.append("serial capture stalled before a ready marker")
+        errors.append({"code": "serial_capture_stalled", "message": "serial capture stalled before a ready marker"})
     if serial and not output:
-        warnings.append("serial capture produced no output")
+        errors.append({"code": "serial_capture_empty", "message": "serial capture produced no output"})
+    timeout_count = sensor_timeout_count(output)
+    if timeout_count >= 2:
+        if has_successful_sensor_reading(output):
+            warnings.append(f"serial output reported {timeout_count} sensor I/O timeout(s) but also captured a successful reading")
+        else:
+            errors.append(
+                {
+                    "code": "device_io_timeout",
+                    "message": "serial output reports repeated sensor I/O timeouts and no successful reading",
+                    "timeout_count": timeout_count,
+                }
+            )
+    elif timeout_count == 1:
+        warnings.append("serial output reported one sensor I/O timeout")
     for pattern, code in FAIL_PATTERNS:
         if pattern in output:
             errors.append({"code": code, "message": f"serial output contains {pattern}"})
@@ -306,7 +351,7 @@ def main() -> int:
     if args.output_json:
         write_json(args.output_json, result)
     print_json(result)
-    return 0
+    return 2 if status == "FAIL" else 0
 
 
 if __name__ == "__main__":

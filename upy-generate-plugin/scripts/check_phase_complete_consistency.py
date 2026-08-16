@@ -704,8 +704,14 @@ def deploy_tool_compat_errors(project_dir: Path | None, next_phase: Any) -> list
     return [
         {
             "code": "DEPLOY_TOOL_INCOMPATIBLE",
-            "message": "next_phase=upy-deploy-plugin requires project deploy tools with the stable deploy-plugin interface",
+            "message": "next_phase=upy-deploy-plugin requires scaffold-rendered project deploy tools with the stable deploy-plugin interface",
             "missing": missing,
+            "source_of_truth": "tools/flash_device.py is rendered by apply_scaffold when the flash_device module is selected; do not author it by hand.",
+            "script_run_scope": "generic script_run resolves bundled plugin/shared scripts only, not project/tools/*.py",
+            "accepted_resolutions": [
+                "restore or re-run scaffold/apply_scaffold with the flash_device module selected, then preserve the scaffold-rendered tools/flash_device.py",
+                "set payload.next_phase=null and record next_phase_decision for code-only/manual-flash delivery",
+            ],
         }
     ]
 

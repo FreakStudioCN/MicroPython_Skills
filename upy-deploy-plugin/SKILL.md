@@ -137,7 +137,7 @@ payload.manifest_content.phase == "generate"
    - 用户选择运行时调用 `scripts/run_device_tests.py --project-root <project_root> --port <port> --output-json ... --log-file ...`。
    - 测试文件来源为 `project/device/tests/test_*.py` 和 `project/test/device/test_*.py`。
    - 如果设备测试需要 `firmware/drivers/**/mock.py`，只能由 `run_device_tests.py` 作为临时测试 artifact 上传到设备、运行后删除，并用 `mpremote fs ls` 校验删除；不要把 mock 纳入生产 upload summary。
-14. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定。
+14. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定；只传脚本支持的 flags：`--upload-json`、`--clean-json`、`--serial-json`、`--log-report-json`、`--device-tests-json`、`--mip-install-json`、`--strategy`、`--port`、`--output-json/--out-json`。Do not pass `--wait-json`、`--probe-json`、`--feedback-json`、`--phase` 或 `--manifest`。
 15. 展示结果选项卡：
    - PASS 或 PASS_WITH_WARNINGS: `approval_request(deploy_result_feedback)`
    - FAIL 或 NEEDS_USER_CONFIRMATION: `approval_request(deploy_fail_next_action)`
@@ -229,7 +229,7 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 
 ## 结果判定
 
-`scripts/deploy_result.py` 必须综合 upload summary、clean result、wait/probe result、REPL capture、device log report、device tests result 和用户人工反馈。
+`scripts/deploy_result.py` 必须综合 upload summary、clean result、REPL/serial capture、device log report、mip install result 和 device tests result。用户人工反馈属于 `deploy_result_feedback` / `deploy_fail_next_action` 的 `error_context`，不要作为 `deploy_result.py` 参数传入。
 
 硬 FAIL 信号：
 
