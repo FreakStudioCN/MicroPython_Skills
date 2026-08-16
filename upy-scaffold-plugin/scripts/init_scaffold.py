@@ -23,6 +23,7 @@ import tempfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from pprint import pformat
 from string import Template
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 
@@ -262,7 +263,7 @@ def pinout_for_source(pinout: Any) -> Any:
 
 
 def py_literal(value: Any, *, indent: int = 0) -> str:
-    text = json.dumps(value, ensure_ascii=False, indent=4)
+    text = pformat(value, width=max(40, 100 - indent), sort_dicts=False)
     if indent <= 0:
         return text
     return text.replace("\n", "\n" + (" " * indent))

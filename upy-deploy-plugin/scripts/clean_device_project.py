@@ -22,9 +22,12 @@ PROJECT_TARGETS = [
     "conf.mpy",
     "board.py",
     "board.mpy",
-    "lib",
     "drivers",
     "tasks",
+    "lib/logger",
+    "lib/scheduler",
+    "lib/time_helper.py",
+    "lib/time_helper.mpy",
 ]
 
 
@@ -42,7 +45,10 @@ def mock_inventory(mode: str) -> list[str]:
             "conf.mpy",
             "board.py",
             "drivers/sht30_driver/mock.mpy",
+            "lib/unittest/__init__.mpy",
             "lib/logger/logging.py",
+            "lib/scheduler/timer_sched.py",
+            "lib/time_helper.py",
             "drivers/sht30_driver/__init__.py",
             "tasks/main_task.py",
         ]
@@ -102,8 +108,7 @@ def select_targets(inventory: list[str], mode: str, include_logs: bool) -> list[
         roots.add("log")
     targets: list[str] = []
     for item in normalized:
-        first = item.split("/", 1)[0]
-        if item in roots or first in roots:
+        if any(item == root or item.startswith(root + "/") for root in roots):
             targets.append(item)
     return sorted(set(targets), key=lambda value: (value.count("/"), value), reverse=True)
 
