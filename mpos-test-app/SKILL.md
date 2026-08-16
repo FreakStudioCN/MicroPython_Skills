@@ -98,6 +98,10 @@ scripts/run_desktop.sh <fullname>
 
 ## 默认测试
 
+硬件相关测试先读 `mpos-dev/reference/docs-hardware-capabilities.md`。对每个 `required_capabilities[]` 记录 probe、`available|unavailable|emulated|unsupported_in_preview|not_tested`、fallback 结果和证据。`portable_api=false` 不能用桌面 mock 冒充支持。
+
+静态测试必须拒绝普通 App 中的 `mpos.board.*` 和直接 GPIO/I2C/SPI/UART/I2S/ADC/NeoPixel 构造。交互 App 至少验证 pointer 路径和 focus/keypad 路径；硬件 Activity 退出后验证 Launcher 输入和另一 App 仍可使用。
+
 默认运行目标 App 桌面模拟器冒烟测试，分两层：
 
 1. 必须先尝试内置 desktop runner：

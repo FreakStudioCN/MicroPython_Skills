@@ -166,7 +166,7 @@ docs 描述了 ESP32 QEMU 路径，用于更深层 OS 测试，可模拟 WiFi、
 
 ## 支持硬件说明
 
-docs 列出多个 ESP32/ESP32-S3 设备以及 browser/desktop target。App 依赖 sensor、button、camera、display、LED 或 radio hardware 时，进入依赖准备阶段；目标设备未知时要询问用户。
+docs 列出多个 ESP32/ESP32-S3 设备以及 browser/desktop target。生成阶段不要求用户选择板卡；App 依赖硬件时先按 `docs-hardware-capabilities.md` 解析为抽象 capability。只有明确的外接配件才进入驱动依赖准备；板载能力在连接设备后通过 MPOS manager 探测。
 
 ## 来自 AGENTS 的安全规则
 

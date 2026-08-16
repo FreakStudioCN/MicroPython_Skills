@@ -14,6 +14,13 @@
     "binary": "<repo-root>/lvgl_micropython/build/lvgl_micropy_unix",
     "heapsize": "32M"
   },
+  "hardware_capability_results": [],
+  "hardware_policy": {
+    "forbidden_direct_access": [],
+    "pointer_path": "not_tested",
+    "focus_path": "not_tested",
+    "post_exit_resource_recovery": "not_tested"
+  },
   "checks": [
     {
       "name": "generation_result_static_gates",

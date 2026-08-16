@@ -38,6 +38,13 @@
       "adapter_path": "assets/sync_sensor_driver_adapter.py"
     }
   ],
+  "hardware_policy": {
+    "required_capabilities_checked": true,
+    "runtime_fallbacks_present": true,
+    "forbidden_direct_access": [],
+    "input_modalities_checked": [],
+    "lifecycle_cleanup_checked": true
+  },
   "validation": {
     "gates": [
       {
@@ -67,6 +74,12 @@
       {
         "name": "api_usage",
         "command": "check_app_api_usage.py --repo <repo-root> --app-fullname com.micropythonos.example",
+        "returncode": 0,
+        "required": true
+      },
+      {
+        "name": "hardware_policy",
+        "command": "check_app_hardware_policy.py --repo <repo-root> --app-fullname com.micropythonos.example",
         "returncode": 0,
         "required": true
       },

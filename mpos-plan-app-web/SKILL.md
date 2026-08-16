@@ -18,6 +18,7 @@ mpos-dev-web/reference/error_codes.md
 mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
+mpos-dev-web/reference/board_capabilities.json
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -31,6 +32,7 @@ Accept `start_phase`, `resume`, `retry`, and `cancel` messages. Required payload
 - `prompt` or `source_phase_complete_path` for a new or resumed workflow.
 - `runtime_context.session_root`, `project_root`, `artifact_root`, `repo_root`, and `skills_root`.
 - `capabilities` object from the host.
+- Persisted `required_capabilities`, `required_accessories`, `runtime_fallbacks`, and `physical_validation_required` when analysis has completed. These are App feature requirements, not a selected board.
 
 If required fields are missing, emit `MISSING_FIELD` and `phase_complete(result=blocked)`.
 
@@ -39,7 +41,7 @@ If required fields are missing, emit `MISSING_FIELD` and `phase_complete(result=
 1. Validate `protocol_version == "mpos-ai-app/v1"`.
 2. Create or read `session_state.json` and `activity_log.jsonl`.
 3. Normalize requested App identity if already known: `fullname`, `publisher`, `version`, `name`.
-4. Select the next phase from the state machine:
+4. Select the next phase from the state machine. Never insert a board-selection phase; board metadata is consulted only after a device connection or for test diagnostics:
    - New natural-language request: `mpos-analyze-app-web`.
    - Dependency handoff required: `mpos-prepare-deps-web`.
    - Confirmed analysis: `mpos-gen-app-web`.

@@ -9,6 +9,8 @@
 - `docs-app-model.md`：App 模型、Activity、Service、Intent、内置 App、native app。
 - `docs-packaging.md`：MPK、app index 元数据、AppStore、BadgeHub、upystore 打包检查。
 - `docs-frameworks.md`：framework 架构和 manager/service API。
+- `docs-camera-apps.md`：跨设备相机 App、运行时能力探测和硬件验证规则。
+- `docs-hardware-capabilities.md`：全部板载硬件的能力合同、生成边界、降级和验证规则。
 - `docs-deploy-targets.md`：运行目标、桌面端、设备安装、固件烧录、QEMU、WebSerial、浏览器预览。
 - `docs-os-development.md`：编译、测试、移植、release/merge checklist、文件格式。
 - `docs-web-port.md`：WebAssembly/browser runtime 和 web build target。

@@ -31,6 +31,8 @@ Also read:
 ```text
 mpos-dev/reference/docs-app-model.md
 mpos-dev/reference/docs-frameworks.md
+mpos-dev/reference/docs-hardware-capabilities.md
+mpos-dev/reference/docs-camera-apps.md
 mpos-dev/reference/docs-packaging.md
 ```
 
@@ -40,6 +42,9 @@ mpos-dev/reference/docs-packaging.md
 - Do not modify `internal_filesystem/lib`, `mpos`, `lvgl_micropython`, or MicroPythonOS build files.
 - Do not install host dependencies unless the host sends a `dependency_install` permission grant.
 - Do not write API keys or tokens.
+- `CameraManager` and `CameraActivity` are built into MPOS. Do not search for or vendor GC2145/OV3660/OV5640 drivers for a generated App. A missing runtime camera is a capability result, not a dependency-install request.
+- Apply the same rule to every onboard peripheral. Do not vendor board modules, pin maps, or low-level audio/sensor/radio/input/storage drivers. `portable_api=false` returns `MPOS_CAPABILITY_API_MISSING`.
+- Driver search is allowed only for an explicit `required_accessories[]` item with protocol, wiring confirmation, conflict review, permission requirements, and physical validation recorded in the handoff.
 
 ## Workflow
 

@@ -17,6 +17,13 @@
       }
     ]
   },
+  "hardware_boundary": {
+    "onboard_capabilities_use_mpos_only": true,
+    "required_accessories": [],
+    "wiring_confirmed": false,
+    "resource_conflicts_checked": false,
+    "forbidden_board_dependencies": []
+  },
   "search_policy": {
     "sources": [
       "mpos_builtin",

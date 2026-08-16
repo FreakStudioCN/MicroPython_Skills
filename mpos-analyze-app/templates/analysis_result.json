@@ -54,6 +54,13 @@
     "non_goals": [],
     "risks": []
   },
+  "hardware_capabilities": {
+    "required_capabilities": [],
+    "required_accessories": [],
+    "runtime_fallbacks": {},
+    "physical_validation_required": false,
+    "blocked_nonportable_capabilities": []
+  },
   "manifest_draft": {
     "fullname": "com.micropythonos.example",
     "name": "Example",

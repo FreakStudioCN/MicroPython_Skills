@@ -115,6 +115,8 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-dev/scripts/extract_lvgl_api.p
 |------|------|
 | 生成/修改 App、需求分析、Activity/Service/Intent | `reference/docs-app-model.md` |
 | 使用系统 managers、持久化、下载、后台任务、通知、音频、传感器 | `reference/docs-frameworks.md` |
+| 所有板载硬件能力、禁止底层硬件访问、输入兼容和生命周期 | `reference/docs-hardware-capabilities.md` |
+| 生成跨设备相机 App、运行时能力探测、摄像头验证 | `reference/docs-camera-apps.md` |
 | 打包 `.mpk`、校验 manifest、生成 app_index、准备 upystore/BadgeHub | `reference/docs-packaging.md` |
 | Linux 桌面仿真、安装 App 到设备、固件烧录、目标设备选择 | `reference/docs-deploy-targets.md` |
 | 修改 OS 内核、构建系统、测试基础设施、板级移植、发布流程 | `reference/docs-os-development.md` |
@@ -122,6 +124,8 @@ python3 /home/leeqingshui/MicroPython_Skills/mpos-dev/scripts/extract_lvgl_api.p
 | 审计 docs 61 个页面是否已纳入 reference 路由 | `reference/docs-site-index.md` |
 
 这些 reference 已结合 `<repo-root>/AGENTS.md` 的本地规则；当官方 docs 示例与本地仓库测试冲突时，优先遵守当前仓库和 AGENTS。
+
+生成普通 App 时禁止 `mpos.board.*` 和直接实例化 `machine.Pin/I2C/SPI/UART/I2S/ADC`、`neopixel.NeoPixel`。只有用户明确要求外接硬件、分析结果包含 `required_accessories`、依赖阶段确认接线/冲突并获得设备操作许可时，才允许受控的 App-local 驱动方案。
 
 ## App 与 MPK 基本契约
 
@@ -207,6 +211,8 @@ internal_filesystem/apps/<fullname>/
 ## Native MicroPython 模块速查
 
 ### webcam 模块
+`webcam` 是 Linux/macOS 桌面端的 Video4Linux2 原生模块，不是 ESP32 或通用 App 的跨设备相机 API。通用 App 必须按 `reference/docs-camera-apps.md` 使用 `CameraManager`/`CameraActivity`。
+
 ```python
 import webcam
 

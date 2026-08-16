@@ -31,6 +31,9 @@ Also read:
 ```text
 mpos-dev/reference/docs-app-model.md
 mpos-dev/reference/docs-frameworks.md
+mpos-dev/reference/docs-hardware-capabilities.md
+mpos-dev/reference/docs-camera-apps.md
+mpos-dev-web/reference/board_capabilities.json
 mpos-dev/reference/docs-packaging.md
 mpos-gen-app/SKILL.md
 ```
@@ -54,6 +57,13 @@ Before broad code writes:
 - `buttonmatrix.set_map()` must use `"\n"` row separators and `""` terminator.
 - Avoid unsupported CPython runtime modules.
 - Prefer proven `lv.button` + flex/grid for simple controls.
+- Generate capability-based, cross-device code. Do not write board IDs, GPIO maps, camera models, byte swaps, mirroring, rotation, or board imports into an App.
+- Camera Apps use `CameraManager.has_camera()` and preferably `CameraActivity`. Keep a usable non-camera state when no camera is registered. The desktop `webcam` module is not a portable ESP32 API.
+- Reject normal generated Apps that import `mpos.board.*`, instantiate direct GPIO/I2C/SPI/UART/I2S/ADC/NeoPixel hardware, or use board-specific drivers. Emit `DIRECT_HARDWARE_ACCESS_FORBIDDEN`; only a confirmed external-accessory handoff may allow a narrow exception.
+- Generate runtime probes and fallbacks for audio, IMU, lights, battery, SD configuration, input modes, and network. Do not fabricate sensor values when hardware is unavailable.
+- Every interactive App needs a visible LVGL focus path in addition to pointer interaction. Hardware sessions must stop or restore resources on pause/exit.
+
+Run or request `mpos-gen-app/scripts/check_app_hardware_policy.py` as a required gate. Use `--allow-direct-hardware` only for a confirmed external accessory and preserve all findings for review.
 
 ## Workflow
 
@@ -62,9 +72,10 @@ Before broad code writes:
 3. Request `file_write` permission if the host requires it.
 4. Generate or repair only target App files.
 5. Run or request static gates: manifest, syntax, API usage, app-only changes, lint when available.
-6. Classify tool gaps such as missing `uv`, `ruff`, or `mpy-cross` as `TOOLCHAIN_MISSING`, not App failure.
-7. Write `generation_result.json` and artifact manifest.
-8. Route to `mpos-test-app-web` on success or partial with usable files.
+6. Run hardware policy gates: capability contract, forbidden direct access, runtime fallbacks, input modality, and lifecycle cleanup.
+7. Classify tool gaps such as missing `uv`, `ruff`, or `mpy-cross` as `TOOLCHAIN_MISSING`, not App failure.
+8. Write `generation_result.json` and artifact manifest.
+9. Route to `mpos-test-app-web` on success or partial with usable files.
 
 ## Output
 

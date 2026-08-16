@@ -28,6 +28,9 @@ Core error codes:
 | `MPOS_NOT_INSTALLED_ON_DEVICE` | device | true | Physical target does not have MicroPythonOS installed |
 | `LVGL_API_MISSING` | app | true | Generated LVGL call is not in summary/current source evidence |
 | `MPOS_API_MISSING` | app | true | Generated MPOS call is not in summary/current source evidence |
+| `MPOS_CAPABILITY_API_MISSING` | micropythonos | false | Hardware may exist, but current MPOS has no portable App-level capability API |
+| `DIRECT_HARDWARE_ACCESS_FORBIDDEN` | skill | true | Generated App bypasses MPOS with a board import, GPIO/bus constructor, or board-specific driver |
+| `HARDWARE_CAPABILITY_UNAVAILABLE` | device | false | A valid portable App ran on a device that does not expose a required capability |
 | `WIDGET_ZERO_REFERENCE` | app | true | Widget has no existing App usage in current repo |
 | `MANIFEST_MISSING_FIELD` | app | true | `MANIFEST.JSON` lacks required metadata such as `publisher` |
 | `MPK_RELEASE_NAME_INVALID` | app | true | MPK filename does not use `<fullname>_rN.mpk` |

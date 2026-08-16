@@ -32,6 +32,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 For publish flow without physical hardware, `desktop-preview` or `web-preview` is an acceptable deploy record only after the user confirms no physical device/serial port is available. Device copy or `mpk-install` remains preferred when hardware is available.
 
+For hardware-dependent Apps, read `required_capabilities` from analysis/test artifacts and probe them after connecting to MicroPythonOS. A missing device capability is `HARDWARE_CAPABILITY_UNAVAILABLE`, not an App repair request. A capability with no portable MPOS API remains `MPOS_CAPABILITY_API_MISSING` and cannot be cleared by selecting a board.
+
 ## Read first
 
 - `mpos-dev/reference/mpos_api_summary.json`

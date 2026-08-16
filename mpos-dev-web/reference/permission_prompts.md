@@ -36,6 +36,9 @@ web_serve
 serial_scan
 device_read
 device_write
+microphone_access
+destructive_storage
+external_hardware_wiring
 firmware_flash
 network_read
 network_upload
@@ -49,3 +52,6 @@ Rules:
 - Do not ask for API keys or store credentials in artifacts.
 - If denied, emit `PERMISSION_DENIED` and preserve session state.
 - Firmware flash and erase require explicit user confirmation; no default allow.
+- Microphone capture/recording requires `microphone_access`, even when the browser has already granted its own media permission.
+- SD format, filesystem erase, and similar destructive operations require `destructive_storage`; mounting or reading must not imply format permission.
+- Direct GPIO/bus access for an explicit external accessory requires `external_hardware_wiring` after the wiring and conflict plan is shown. This permission is never valid for silently bypassing an onboard MPOS manager.

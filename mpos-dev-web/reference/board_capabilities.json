@@ -1,0 +1,63 @@
+{
+  "schema_version": "mpos-board-capabilities-v1",
+  "generated_at": "2026-08-16",
+  "source": {
+    "repository": "MicroPythonOS/MicroPythonOS",
+    "snapshot_commit": "0f3c15cb12c7ab952583f1fa460305af4e7b1382",
+    "paths": [
+      "internal_filesystem/lib/mpos/main.py",
+      "internal_filesystem/lib/mpos/board/*.py",
+      "internal_filesystem/lib/mpos/*manager.py",
+      "internal_filesystem/lib/mpos/audio/audiomanager.py",
+      "internal_filesystem/lib/mpos/ui/input_manager.py",
+      "internal_filesystem/lib/mpos/lights.py",
+      "internal_filesystem/lib/mpos/sdcard.py"
+    ]
+  },
+  "selection_policy": {
+    "user_board_selection_required": false,
+    "generation_strategy": "capability-based",
+    "runtime_probe_authoritative": true,
+    "unknown_board_allowed": true,
+    "board_metadata_is_advisory": true
+  },
+  "feature_contracts": {
+    "camera": {"portable_api": true, "availability_probe": "CameraManager.has_camera()", "preferred_api": "CameraManager/CameraActivity", "allow_direct_driver": false, "web_preview": "unsupported_without_emulation", "physical_validation_required": true},
+    "input.pointer": {"portable_api": true, "availability_probe": "InputManager.has_pointer()", "preferred_api": "InputManager/LVGL focus", "web_preview": "emulated"},
+    "input.keypad": {"portable_api": true, "availability_probe": "InputManager.has_indev_type(lv.INDEV_TYPE.KEYPAD)", "preferred_api": "InputManager/LVGL focus", "web_preview": "emulated"},
+    "input.encoder": {"portable_api": true, "availability_probe": "InputManager.has_indev_type(lv.INDEV_TYPE.ENCODER)", "preferred_api": "InputManager/LVGL focus", "web_preview": "emulated"},
+    "audio.output": {"portable_api": true, "availability_probe": "bool(AudioManager.get_outputs())", "preferred_api": "AudioManager", "allow_direct_driver": false, "physical_validation_required": true},
+    "audio.input": {"portable_api": true, "availability_probe": "bool(AudioManager.get_inputs())", "preferred_api": "AudioManager", "allow_direct_driver": false, "permission_required": "microphone", "physical_validation_required": true},
+    "sensor.imu": {"portable_api": true, "availability_probe": "SensorManager.get_default_sensor(sensor_type) is not None", "preferred_api": "SensorManager", "allow_direct_driver": false, "physical_validation_required": true},
+    "sensor.environmental": {"portable_api": false, "reason": "No generic registration/read contract for temperature, humidity, and ambient light across current board modules.", "error_code": "MPOS_CAPABILITY_API_MISSING"},
+    "lights.rgb": {"portable_api": true, "availability_probe": "LightsManager.is_available()", "preferred_api": "LightsManager", "allow_direct_driver": false, "physical_validation_required": true},
+    "battery": {"portable_api": true, "availability_probe": "BatteryManager.has_battery()", "preferred_api": "BatteryManager"},
+    "storage.sdcard": {"portable_api": true, "contract_status": "partial", "availability_probe": "SDCardManager.get_mode() is not None", "preferred_api": "SDCardManager", "limitations": ["Configured, media-present, and mounted states are not fully separated."], "destructive_operations": ["format"]},
+    "network": {"portable_api": true, "availability_probe": "ConnectivityManager.is_online()", "preferred_api": "ConnectivityManager/WifiService"},
+    "gps": {"portable_api": false, "reason": "GPSManager exposes board configuration fields but no portable lifecycle/read API.", "error_code": "MPOS_CAPABILITY_API_MISSING"},
+    "infrared": {"portable_api": false, "reason": "IRManager exposes pins but no portable send/receive lifecycle API.", "error_code": "MPOS_CAPABILITY_API_MISSING"},
+    "lora": {"portable_api": false, "reason": "LoRaManager exposes a raw radioChip object but no portable service API.", "error_code": "MPOS_CAPABILITY_API_MISSING"},
+    "direct_gpio_bus": {"portable_api": false, "reason": "Board GPIO and bus ownership belongs to MicroPythonOS; only an explicit external-accessory workflow may use it.", "error_code": "DIRECT_HARDWARE_ACCESS_FORBIDDEN"}
+  },
+  "boards": [
+    {"id": "freenove_esp32s3_display", "name": "Freenove ESP32-S3 Display", "chip_family": "ESP32-S3", "os_registrations": ["input", "audio.output", "audio.input", "battery", "sensor.imu", "lights.rgb", "storage.sdcard"]},
+    {"id": "fri3d_2024", "name": "Fri3d Camp 2024 Badge", "chip_family": "ESP32-S3", "os_registrations": ["input", "audio.output", "audio.input", "battery", "sensor.imu", "lights.rgb", "storage.sdcard", "infrared.board_private"]},
+    {"id": "fri3d_2026", "name": "Fri3d Camp 2026 Badge", "chip_family": "ESP32-S3", "os_registrations": ["input", "audio.output", "audio.input", "battery", "sensor.imu", "lights.rgb", "storage.sdcard", "infrared.board_private", "lora.board_private"]},
+    {"id": "lilygo_t_display_s3", "name": "LilyGO T-Display S3", "chip_family": "ESP32-S3", "os_registrations": ["input"]},
+    {"id": "lilygo_t_hmi", "name": "LilyGO T-HMI", "chip_family": "ESP32-S3", "os_registrations": ["battery", "storage.sdcard"]},
+    {"id": "lilygo_t_watch_s3_plus", "name": "LilyGO T-Watch S3 Plus", "chip_family": "ESP32-S3", "os_registrations": ["input", "audio.output", "audio.input", "battery", "sensor.imu", "gps.board_private", "infrared.board_private", "lora.board_private"]},
+    {"id": "lilygo_t4", "name": "LilyGO T4", "chip_family": "ESP32", "os_registrations": ["input", "audio.output", "battery", "storage.sdcard"]},
+    {"id": "m5stack_core2", "name": "M5Stack Core2", "chip_family": "ESP32", "os_registrations": ["input", "audio.output", "audio.input", "battery", "sensor.imu"]},
+    {"id": "m5stack_fire", "name": "M5Stack Fire", "chip_family": "ESP32", "os_registrations": ["input", "audio.output", "sensor.imu"]},
+    {"id": "matouch_esp32_s3_spi_ips_2_8_with_camera_ov3660", "name": "Makerfabs MaTouch ESP32-S3 SPI IPS 2.8 with Camera", "chip_family": "ESP32-S3", "os_registrations": ["input", "camera", "lights.rgb", "storage.sdcard"], "camera": {"model": "OV3660", "lens_facing": "front"}},
+    {"id": "odroid_go", "name": "Hardkernel ODROID-GO", "chip_family": "ESP32", "os_registrations": ["input", "audio.output"]},
+    {"id": "unphone", "name": "unPhone", "chip_family": "ESP32", "os_registrations": ["input"]},
+    {"id": "squixl", "name": "Unexpected Maker SQUiXL", "chip_family": "ESP32-S3", "os_registrations": ["input", "audio.output", "battery", "sensor.imu", "storage.sdcard"]},
+    {"id": "unihiker_k10", "name": "DFRobot UNIHIKER K10", "chip_family": "ESP32-S3", "os_registrations": ["input.keypad", "camera", "sensor.environmental.board_private", "lights.rgb.board_private"], "camera": {"model": "GC2145", "lens_facing": "front", "physical_validation_notes": ["Camera and input share board resources; validate lifecycle recovery on hardware."]}},
+    {"id": "waveshare_esp32_s3_touch_lcd_2", "name": "Waveshare ESP32-S3-Touch-LCD-2", "chip_family": "ESP32-S3", "os_registrations": ["input", "camera", "battery", "sensor.imu"], "camera": {"model": "OV5640", "lens_facing": "back", "rotation_degrees": -90}}
+  ],
+  "runtime_targets": [
+    {"id": "linux", "kind": "desktop", "camera": {"registered_by_board": true, "model": "Video4Linux2 Camera", "webcam_module_supported": true}},
+    {"id": "web", "kind": "browser", "camera": {"registered_by_board": false, "emulated": false}}
+  ]
+}

@@ -3161,3 +3161,24 @@ GitHub：
 - [ ] 背景音乐音量控制在 -20dB 到 -25dB，不能盖过人声
 - [ ] 导出前全片过一遍，确认所有文字无错别字
 - [ ] 导出横版和竖版两个版本
+
+---
+
+## 30. 跨设备硬件能力接入要求
+
+浏览器产品不增加板卡选择器。用户描述需要的功能，后端把它解析成 `camera`、`audio.output`、`sensor.imu`、`input.keypad` 等抽象能力；设备连接并授权后，再由 MicroPythonOS manager 探测实际能力。
+
+机器可读合同位于 `mpos-dev-web/reference/board_capabilities.json`。完整前后端字段、生成器门禁、错误分类、预览/真机测试和文件级修改清单放在浏览器项目仓库：
+
+```text
+micropythonos-ai-app-builder/docs/cross-device-capability-integration.md
+```
+
+必须遵守：
+
+- `portable_api=true` 才允许自动生成板载硬件功能，并必须有运行时 fallback。
+- `portable_api=false` 返回 `MPOS_CAPABILITY_API_MISSING`，不能让模型改成板卡私有代码。
+- 普通 App 禁止 `mpos.board.*` 和直接 GPIO/I2C/SPI/UART/I2S/ADC/NeoPixel；后端必须运行 `mpos-gen-app/scripts/check_app_hardware_policy.py`。
+- 只有用户明确提出外接模块、确认接线和资源冲突并授权后，才允许外接配件驱动例外。
+- Web/桌面无真实硬件属于 partial/preview limitation；连接设备后缺少能力属于 `HARDWARE_CAPABILITY_UNAVAILABLE`，二者都不能触发无限 AI 修复。
+- 前端只显示能力状态和权限提示，不要求用户先理解或选择具体开发板。

@@ -103,6 +103,10 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 先判断 MPOS 内置能力是否足够。若 `mpos-dev` 已提供 manager/framework/native MPY 能力，优先使用内置能力并标记 `source: "mpos_builtin"`，不要下载外部库。
 
+板载硬件遵守 `mpos-dev/reference/docs-hardware-capabilities.md`：不得为板载摄像头、音频、输入、IMU、灯光、电池、SD、GPS、红外、LoRa 或环境传感器下载板卡驱动，也不得把 `mpos.board.*` 当依赖。能力合同为 `portable_api=false` 时返回 `MPOS_CAPABILITY_API_MISSING`。
+
+只有 `analysis_result.json.required_accessories[]` 明确声明外接硬件时，才允许搜索 App-local 驱动；handoff 必须包含连接协议、待确认接线、总线/引脚冲突、阻塞行为、设备权限和真机验证要求。未确认接线时不得把 GPIO/I2C/SPI/UART 数值写入运行时代码。
+
 外部搜索按以下来源顺序：
 
 1. `mpos_builtin`

@@ -32,6 +32,8 @@ Also read:
 mpos-dev/reference/docs-deploy-targets.md
 mpos-dev/reference/docs-web-port.md
 mpos-dev-web/reference/web_preview_limits.md
+mpos-dev/reference/docs-hardware-capabilities.md
+mpos-dev/reference/docs-camera-apps.md
 mpos-test-app/SKILL.md
 ```
 
@@ -47,6 +49,10 @@ mpos-test-app/SKILL.md
 - App traceback or invalid API: route to `mpos-gen-app-web` repair.
 - Missing desktop binary, missing `_webrepl`, `lvgl_micropy_unix` segfault, missing `emcc`, or Web port linker errors: external/toolchain warning or blocked result.
 - `machine_timer_type` Web link/build errors belong to Web port/toolchain unless logs show App code caused them.
+- A browser target without camera emulation must return `WEB_PREVIEW_UNSUPPORTED` (or equivalent partial result) for the camera path. Do not route valid portable App code to repair merely because Web preview has no camera.
+- For camera claims, require physical evidence that preview/capture works and that exiting restores launcher input and other Apps. Desktop layout smoke alone is insufficient.
+- Record a result for every required hardware capability. Missing Web/desktop emulation is `unsupported_in_preview`/partial; missing capability on a connected device is `HARDWARE_CAPABILITY_UNAVAILABLE`; neither is an App repair request.
+- Reject forbidden direct hardware access statically. Test pointer and focus/keypad navigation separately, and verify audio/light/camera cleanup after leaving the Activity.
 
 ## Screenshots
 

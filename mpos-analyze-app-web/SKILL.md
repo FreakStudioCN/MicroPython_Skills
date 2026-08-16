@@ -31,6 +31,8 @@ Also read:
 ```text
 mpos-dev/reference/docs-app-model.md
 mpos-dev/reference/docs-frameworks.md
+mpos-dev/reference/docs-hardware-capabilities.md
+mpos-dev/reference/docs-camera-apps.md
 mpos-dev/reference/docs-packaging.md
 mpos-dev-web/reference/board_capabilities.md
 mpos-dev-web/reference/web_preview_limits.md
@@ -40,6 +42,10 @@ mpos-dev-web/reference/web_preview_limits.md
 
 `payload.input.prompt` is required. Prefer explicit `fullname`, `name`, `publisher`, and `version`. If missing, derive safe defaults and record them. If `fullname` cannot be derived, emit `MISSING_FIELD`.
 
+Do not ask for a board as a generation prerequisite. Extract abstract `required_capabilities` and `runtime_fallbacks`. For a camera request, record `camera`, keep non-camera behavior usable, and require physical validation without binding the App to a camera model.
+
+Resolve every hardware requirement against `board_capabilities.json`. A `portable_api=false` contract produces `MPOS_CAPABILITY_API_MISSING` and blocks automatic hardware implementation. Only explicit external modules become `required_accessories`; onboard hardware never becomes a dependency-search request.
+
 ## Workflow
 
 1. Validate request and capabilities.
@@ -48,7 +54,7 @@ mpos-dev-web/reference/web_preview_limits.md
    - `publisher`: default to the organization prefix, for example `com.example`.
    - `version`: default `1.0.0` for new Apps.
 3. Produce manifest draft using the flat MPOS layout.
-4. Identify LVGL widgets, MPOS APIs, system managers, images, networking, storage, camera, audio, sensor, and hardware needs.
+4. Identify LVGL widgets, MPOS APIs, system managers, images, networking, storage, and abstract hardware capabilities. Resolve built-in camera support through `CameraManager`/`CameraActivity`, not an App-local driver.
 5. Decide whether `mpos-prepare-deps-web` is required.
 6. Produce test, package, deploy, and publish plans.
 7. Warn when physical hardware validation is needed.
@@ -65,7 +71,12 @@ Write `analysis_result.json` with:
   "result": "success",
   "app": {},
   "manifest_draft": {},
-  "requirements": {},
+  "requirements": {
+    "required_capabilities": [],
+    "required_accessories": [],
+    "runtime_fallbacks": {},
+    "physical_validation_required": false
+  },
   "api_plan": {},
   "dependency_plan": {},
   "test_plan": {},

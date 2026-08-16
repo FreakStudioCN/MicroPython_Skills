@@ -32,6 +32,7 @@ Also read:
 mpos-dev/reference/docs-deploy-targets.md
 mpos-dev/reference/docs-web-port.md
 mpos-dev-web/reference/board_capabilities.md
+mpos-dev-web/reference/board_capabilities.json
 mpos-dev-web/reference/web_preview_limits.md
 mpos-deploy-app/SKILL.md
 ```
@@ -57,12 +58,16 @@ local-flash
 ## Workflow
 
 1. Confirm target mode from payload. Do not silently choose desktop or Web preview.
-2. If physical mode is requested, confirm board, serial port, and whether MicroPythonOS is installed.
+2. If physical mode is requested, request serial permission, connect to the device, detect `DeviceInfo.hardware_id` and runtime capabilities, and confirm whether MicroPythonOS is installed. Do not require the user to choose a board first.
 3. If MicroPythonOS is missing or unknown, route to `install-site` guidance using `https://install.micropythonos.com/`.
 4. Prefer `device-copy` for iteration when `mpremote` works.
 5. Treat `deploy_mpk_install.py` or AIOREPL probe failure as `DEVICE_PROBE_FAILED`; if direct `mpremote` copy succeeds, record `device-copy` success/partial instead of App failure.
 6. Use `desktop-preview` or `web-preview` as deploy records only when the user/session explicitly accepts no physical hardware validation.
 7. Write `deploy_result.json` and route to `mpos-publish-app-web` when acceptable.
+
+The connected device's runtime probe is authoritative. An unknown board ID is allowed, and a positive manager probe overrides stale or missing `board_capabilities.json` metadata.
+
+Probe every `required_capabilities[]` entry through its portable MPOS API and record `runtime_capability_results`. Do not clear `MPOS_CAPABILITY_API_MISSING` with board metadata. Missing hardware on the connected device is `HARDWARE_CAPABILITY_UNAVAILABLE`, while destructive SD/device operations require a separate permission prompt.
 
 ## Output
 

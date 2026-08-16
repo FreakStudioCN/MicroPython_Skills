@@ -1,6 +1,6 @@
-# Capability Negotiation
+# Host Capability Negotiation
 
-The backend host must pass capabilities. The skill must adapt instead of assuming tools exist.
+The backend host must pass workflow/tool capabilities. These fields describe what the browser and runner can do; they are different from the hardware features required by an App.
 
 Example:
 
@@ -35,3 +35,22 @@ Rules:
 - If `web_preview=false`, skip Web preview with a warning.
 - If `network_read=false`, skip upystore version comparison and mark it `unknown_unverified`.
 - If `network_upload=false`, never upload; current publish skill is manual guidance only.
+
+App requirements use a separate field:
+
+```json
+{
+  "required_capabilities": ["camera"],
+  "runtime_fallbacks": {
+    "camera": "Show a camera-unavailable state while keeping the rest of the App usable."
+  }
+}
+```
+
+Do not add `target_board` to generation requests. Resolve device capabilities after connection through MPOS runtime managers; use `board_capabilities.json` only as advisory diagnostics.
+
+Before generation, look up every required hardware capability in `board_capabilities.json`:
+
+- `portable_api=true`: generate with the listed MPOS API and fallback.
+- `portable_api=false`: return `MPOS_CAPABILITY_API_MISSING` rather than inventing a driver.
+- Unknown capability: block automatic hardware generation and request backend/OS capability review.

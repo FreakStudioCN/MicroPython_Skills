@@ -45,6 +45,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 - App/Activity/Service/Intent：`mpos-dev/reference/docs-app-model.md`
 - 系统 manager、TaskManager、DownloadManager、WebServer、Service：`mpos-dev/reference/docs-frameworks.md`
+- 全部硬件能力合同和禁止直接硬件访问：`mpos-dev/reference/docs-hardware-capabilities.md`
+- 跨设备相机 App 和能力探测：`mpos-dev/reference/docs-camera-apps.md`
 - 打包和 manifest 校验：`mpos-dev/reference/docs-packaging.md`
 - MPOS API 精确索引：`mpos-dev/reference/mpos_api_summary.json`
 - LVGL API 精确索引：`mpos-dev/reference/lvgl_api_summary.json`
@@ -76,6 +78,20 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 - 图标计划：用 `scripts/generate_icon.py` 根据用户功能说明生成根目录 `icon_64x64.png`。
 - 版本策略：新 App `1.0.0`；功能修改 bump patch；测试失败修复不 bump。
 - API 风险：逐项列出 `lv.*`、`mpos.*` 和 LVGL widget method 调用；任何不在 summary 中的 API 必须在计划阶段警告并换方案。
+- 硬件能力：生成跨设备代码，不写板卡型号、GPIO、相机芯片或方向补丁。相机功能使用 `CameraManager.has_camera()` 和 `CameraActivity`，缺少能力时保留 App 其余功能并给用户可理解的提示。
+- 硬件策略门禁：扫描 import、构造器和常量，普通 App 出现 `mpos.board.*`、`machine.Pin/I2C/SPI/UART/I2S/ADC`、`neopixel.NeoPixel` 或板卡专用驱动时必须失败为 `DIRECT_HARDWARE_ACCESS_FORBIDDEN`。只有已确认的 `required_accessories` handoff 可例外。
+- 输入门禁：所有主要操作可通过 LVGL focus 到达，焦点状态可见；不能把触摸作为唯一操作方式。
+- 生命周期门禁：音频、摄像头和灯光使用已有 manager 的停止/释放/恢复接口，Activity 暂停或退出后不得继续占用硬件。
+
+执行阶段必须运行：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
+  /home/leeqingshui/MicroPython_Skills/mpos-gen-app/scripts/check_app_hardware_policy.py \
+  --repo <repo-root> --app-fullname <fullname>
+```
+
+仅当已确认的外接配件 handoff 明确允许底层访问时才加 `--allow-direct-hardware`，并把扫描到的访问保留在结果中供人工审查。
 - 零参考 widget 风险：如果某个 LVGL widget 在仓库现有 App 中没有用例，必须 warning 并给出更简单替代方案。
 - 校验计划：列出执行阶段要跑的门禁，必须包含 `api_usage` 和 `app_only_changes`。
 - 需要确认的问题；没有阻塞问题时也必须询问“确认后我再写文件”。

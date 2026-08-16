@@ -102,7 +102,7 @@ Service 用于无 UI 的长期运行任务或启动时任务。Service 有 `onCr
 
 - `AudioManager`：播放和录音；协调音频优先级和硬件输出。
 - `BatteryManager`：电池/电压状态。
-- `CameraManager`：相机访问；相机功能要检查 C module 是否可用。
+- `CameraManager`、`CameraActivity`：跨设备相机能力和标准相机 UI。使用 `CameraManager.has_camera()` 做运行时探测，不直接依赖板卡、GPIO、相机芯片或桌面 `webcam` 模块。完整规则见 `docs-camera-apps.md`。
 - `ConnectivityManager`：网络感知 App 行为和重连流程。
 - `InputManager`、`InputActivity`、focus helpers：键盘、触摸、按钮和焦点导航。
 - `LightsManager`：LED/NeoPixel 类设备灯光。
@@ -111,6 +111,8 @@ Service 用于无 UI 的长期运行任务或启动时任务。Service 有 `onCr
 - `AppearanceManager`、`DisplayMetrics`、`FontManager`、`WidgetAnimator`：UI 尺寸、主题、字体和动画。
 - `WebServer`、`WifiService`：网络服务。
 - `BuildInfo`、`DeviceInfo`、`TimeZone`、`NumberFormat`：系统元数据和工具。
+
+所有硬件 manager 的能力探测、禁止直接板级访问、输入兼容、生命周期和预览限制统一遵守 `docs-hardware-capabilities.md`。Manager 只暴露 pin 或原始驱动对象时，不等于已有可生成的跨设备 API。
 
 ## 来自 AGENTS 的 UI/LVGL 规则
 

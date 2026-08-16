@@ -43,6 +43,8 @@ PYTHONDONTWRITEBYTECODE=1 /home/leeqingshui/mp_env/bin/python \
 
 - App/Activity/Service/Intent：`mpos-dev/reference/docs-app-model.md`
 - 系统 manager、持久化、网络、音频、相机、传感器、后台任务：`mpos-dev/reference/docs-frameworks.md`
+- 全部硬件能力合同和生成边界：`mpos-dev/reference/docs-hardware-capabilities.md`
+- 跨设备相机 App 和能力探测：`mpos-dev/reference/docs-camera-apps.md`
 - MPOS API 精确索引：`mpos-dev/reference/mpos_api_summary.json`
 - LVGL API 精确索引：`mpos-dev/reference/lvgl_api_summary.json`
 - 目标设备、OS 安装、桌面仿真、Web 运行：`mpos-dev/reference/docs-deploy-targets.md`
@@ -65,11 +67,14 @@ API 判断优先用 JSON。LVGL `type_aliases[]` 只解释签名类型，不是�
 
 ## 工作流
 
-1. 读取用户需求和已有上下文，保留用户明确指定的 App 名、功能、目标设备、硬件、发布意图。
+1. 读取用户需求和已有上下文，保留用户明确指定的 App 名、功能、硬件能力和发布意图。默认不要求选择板卡；把硬件需求记录为 `required_capabilities`，只在真机部署或板级故障诊断时询问设备信息。
 2. 生成默认 App 身份。缺少 `fullname` 时按功能名建议 `com.micropythonos.<slug>`；缺少 `name`、`category`、`version`、`publisher` 时给合理默认值，不因此阻塞。`publisher` 默认从 `fullname` 组织前缀派生，例如 `com.example.calc` -> `com.example`。
 3. 拆分功能边界：MVP、后续功能、非目标、风险点。
 4. 判断 App 结构：需要哪些 Activity，是否需要 Service，是否需要 `boot_completed`、Intent、持久化、后台任务。
-5. 判断内置 API 是否足够：优先使用 MPOS managers/frameworks 和 LVGL MicroPython API；只标记是否需要外部驱动，不在本阶段搜索或生成驱动实现。
+5. 判断内置 API 是否足够：优先使用 MPOS managers/frameworks 和 LVGL MicroPython API；相机等已由 MPOS manager 抽象的能力不得误判为 App 外部驱动。只标记真正的 App 依赖，不在本阶段搜索或生成板级驱动实现。
+   - 将板载需求写入 `required_capabilities[]`，逐项标记 `portable_api`、运行时 probe、fallback 和真机验证要求。
+   - `portable_api=false` 时返回 `MPOS_CAPABILITY_API_MISSING`，不能通过指定板卡、导入 `mpos.board.*` 或下载驱动继续生成。
+   - 只有用户明确提出外接模块时才写入 `required_accessories[]`，并记录协议、接线待确认项和资源冲突风险。
 6. 产出测试计划：语法、manifest、API 交叉校验、App-only 变更检查、普通 unittest、GraphicalTestCase、Linux SDL 桌面仿真、可选 Web smoke、设备硬件验证。
 7. 产出部署/运行计划：桌面优先；Web 可预览；真机前确认设备、串口和 MicroPythonOS 是否已安装；安装 App 与烧录固件分开。
 8. 只问阻塞问题。分析阶段可以用默认值继续；只有马上进入代码生成且缺少必要身份、硬件或目标限制时才阻塞。
