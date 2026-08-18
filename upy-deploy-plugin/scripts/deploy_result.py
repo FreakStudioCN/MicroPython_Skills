@@ -41,6 +41,7 @@ SENSOR_READING_PATTERNS = (
     re.compile(r"\b(?:temp|temperature|humidity|rh)\b\s*(?:=|:)\s*-?\d+(?:\.\d+)?", re.IGNORECASE),
     re.compile(r"\b(?:read|sample|measurement)\b.*\b(?:ok|success|succeeded)\b", re.IGNORECASE),
 )
+SUCCESS_STATUSES = {"success", "ok"}
 
 
 def load_optional(path: str | None, label: str, errors: list[dict[str, Any]]) -> dict[str, Any]:
@@ -76,6 +77,23 @@ def infer_status(report: dict[str, Any], default: str = "unknown") -> str:
     except (TypeError, ValueError):
         pass
     return "success"
+
+
+def report_output(report: dict[str, Any]) -> str:
+    return str(report.get("output") or report.get("stdout") or "")
+
+
+def compact_capture(report: dict[str, Any]) -> dict[str, Any]:
+    if not report:
+        return {}
+    result = dict(report)
+    output = report_output(report)
+    if output:
+        result["output_excerpt"] = output[:2000]
+        result["output_bytes"] = len(output.encode("utf-8", errors="replace"))
+        result.pop("output", None)
+        result.pop("stdout", None)
+    return result
 
 
 def text_contains_runtime_import_error(value: Any) -> bool:
@@ -214,11 +232,79 @@ def has_successful_sensor_reading(output: str) -> bool:
     return False
 
 
+def validate_capture_health(
+    output: str,
+    errors: list[dict[str, Any]],
+    warnings: list[str],
+    *,
+    prefix: str,
+    empty_code: str,
+) -> None:
+    if not output:
+        errors.append({"code": empty_code, "message": f"{prefix} capture produced no output"})
+        return
+    timeout_count = sensor_timeout_count(output)
+    if timeout_count >= 2:
+        if has_successful_sensor_reading(output):
+            warnings.append(
+                f"{prefix} output reported {timeout_count} sensor I/O timeout(s) but also captured a successful reading"
+            )
+        else:
+            errors.append(
+                {
+                    "code": "device_io_timeout",
+                    "message": f"{prefix} output reports repeated sensor I/O timeouts and no successful reading",
+                    "timeout_count": timeout_count,
+                }
+            )
+    elif timeout_count == 1:
+        warnings.append(f"{prefix} output reported one sensor I/O timeout")
+    for pattern, code in FAIL_PATTERNS:
+        if pattern in output:
+            errors.append({"code": code, "message": f"{prefix} output contains {pattern}"})
+
+
+def validate_final_reset(
+    final_reset: dict[str, Any],
+    errors: list[dict[str, Any]],
+    warnings: list[str],
+) -> str:
+    output = report_output(final_reset)
+    final_status = infer_status(final_reset)
+    if final_status not in SUCCESS_STATUSES:
+        errors.append(
+            {
+                "code": "final_reset_failed",
+                "message": "final reset capture did not report success",
+                "detail": final_reset.get("errors"),
+            }
+        )
+    if final_reset.get("reset_first") is not True:
+        errors.append(
+            {
+                "code": "final_reset_not_reset_first",
+                "message": "final reset capture must run capture_repl.py --reset-first after device tests",
+            }
+        )
+    if final_reset.get("stalled"):
+        errors.append(
+            {
+                "code": "final_reset_capture_stalled",
+                "message": "final reset capture stalled; board may still be in REPL or not running main.py",
+            }
+        )
+    if final_reset.get("returncode") not in (None, 0):
+        warnings.append(f"final reset capture process exited with returncode {final_reset.get('returncode')}")
+    validate_capture_health(output, errors, warnings, prefix="final reset", empty_code="final_reset_capture_empty")
+    return output
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upload-json")
     parser.add_argument("--clean-json")
     parser.add_argument("--serial-json")
+    parser.add_argument("--final-reset-json")
     parser.add_argument("--log-report-json")
     parser.add_argument("--device-tests-json")
     parser.add_argument("--mip-install-json")
@@ -236,6 +322,7 @@ def main() -> int:
     upload = load_optional(args.upload_json, "upload", errors)
     clean = load_optional(args.clean_json, "clean", errors)
     serial = load_optional(args.serial_json, "serial", errors)
+    final_reset = load_optional(args.final_reset_json, "final_reset", errors)
     log_report = load_optional(args.log_report_json, "log_report", errors)
     device_tests = load_optional(args.device_tests_json, "device_tests", errors)
     mip_install = load_optional(args.mip_install_json, "mip_install", errors)
@@ -281,37 +368,21 @@ def main() -> int:
                 }
             )
 
-    output = str(serial.get("output") or serial.get("stdout") or "")
+    output = report_output(serial)
     if serial and serial.get("status") != "success":
         errors.append({"code": "serial_capture_failed", "message": "serial capture failed", "detail": serial.get("errors")})
     if serial and serial.get("returncode") not in (None, 0):
         warnings.append(f"serial capture process exited with returncode {serial.get('returncode')}")
     if serial.get("stalled"):
         errors.append({"code": "serial_capture_stalled", "message": "serial capture stalled before a ready marker"})
-    if serial and not output:
-        errors.append({"code": "serial_capture_empty", "message": "serial capture produced no output"})
-    timeout_count = sensor_timeout_count(output)
-    if timeout_count >= 2:
-        if has_successful_sensor_reading(output):
-            warnings.append(f"serial output reported {timeout_count} sensor I/O timeout(s) but also captured a successful reading")
-        else:
-            errors.append(
-                {
-                    "code": "device_io_timeout",
-                    "message": "serial output reports repeated sensor I/O timeouts and no successful reading",
-                    "timeout_count": timeout_count,
-                }
-            )
-    elif timeout_count == 1:
-        warnings.append("serial output reported one sensor I/O timeout")
-    for pattern, code in FAIL_PATTERNS:
-        if pattern in output:
-            errors.append({"code": code, "message": f"serial output contains {pattern}"})
+    if serial:
+        validate_capture_health(output, errors, warnings, prefix="serial", empty_code="serial_capture_empty")
 
     error_count = log_report.get("error_count")
     if isinstance(error_count, int) and error_count > 0:
         errors.append({"code": "device_log_errors", "message": f"device log report has {error_count} errors", "detail": log_report.get("errors")})
 
+    final_reset_required = False
     if device_tests:
         test_status = infer_status(device_tests)
         try:
@@ -331,6 +402,33 @@ def main() -> int:
             warnings.append("device-side tests were skipped")
         elif test_status not in {"success", "ok"}:
             errors.append({"code": "device_tests_unavailable", "message": "device-side tests did not complete", "detail": device_tests})
+        if test_status in SUCCESS_STATUSES:
+            final_reset_required = True
+
+    final_reset_output = ""
+    if final_reset:
+        final_reset_output = validate_final_reset(final_reset, errors, warnings)
+    elif final_reset_required and not args.final_reset_json:
+        errors.append(
+            {
+                "code": "final_reset_missing",
+                "message": (
+                    "device tests leave the board in raw REPL; run capture_repl.py --reset-first after tests "
+                    "and pass --final-reset-json before reporting deploy success"
+                ),
+            }
+        )
+
+    steps = [step for step in upload.get("steps", []) if isinstance(step, dict)]
+    if final_reset:
+        steps.append(
+            {
+                "type": "final_reset",
+                "status": infer_status(final_reset),
+                "reset_first": final_reset.get("reset_first"),
+                "matched_stop": final_reset.get("matched_stop"),
+            }
+        )
 
     status = "FAIL" if errors else ("PASS_WITH_WARNINGS" if warnings else "PASS")
     result: dict[str, Any] = {
@@ -340,8 +438,12 @@ def main() -> int:
         "port": args.port or None,
         "upload_result": upload,
         "clean_result": clean,
+        "steps": steps,
         "serial_excerpt": output[:2000],
         "serial_output_bytes": len(output.encode("utf-8", errors="replace")),
+        "final_reset": compact_capture(final_reset),
+        "final_reset_excerpt": final_reset_output[:2000],
+        "final_reset_output_bytes": len(final_reset_output.encode("utf-8", errors="replace")),
         "log_report": log_report,
         "mip_install": mip_install,
         "device_tests": device_tests,

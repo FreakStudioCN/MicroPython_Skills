@@ -12,8 +12,30 @@
       "status": "PASS_WITH_WARNINGS",
       "strategy": "clean_then_upload",
       "port": "COM3",
-      "serial_excerpt": "",
-      "serial_output_bytes": 0,
+      "steps": [
+        {
+          "type": "upload",
+          "status": "success"
+        },
+        {
+          "type": "final_reset",
+          "status": "success",
+          "reset_first": true,
+          "matched_stop": "starting scheduler"
+        }
+      ],
+      "serial_excerpt": "MPY: soft reboot\n[t=120ms] temperature_alarm booting\nstarting scheduler\n",
+      "serial_output_bytes": 68,
+      "final_reset": {
+        "status": "success",
+        "mode": "mock",
+        "reset_first": true,
+        "matched_stop": "starting scheduler",
+        "output_excerpt": "MPY: soft reboot\n[t=180ms] temperature_alarm booting\nstarting scheduler\n",
+        "output_bytes": 68
+      },
+      "final_reset_excerpt": "MPY: soft reboot\n[t=180ms] temperature_alarm booting\nstarting scheduler\n",
+      "final_reset_output_bytes": 68,
       "device_tests": {
         "status": "success",
         "test_count": 2,
@@ -22,9 +44,7 @@
         "tests": []
       },
       "errors": [],
-      "warnings": [
-        "serial capture produced no output"
-      ]
+      "warnings": []
     },
     "manifest_content": {
       "schema_version": "1.0",
@@ -65,14 +85,13 @@
           {"path": "sessions/demo-session/clean_result.json", "status": "new"},
           {"path": "sessions/demo-session/mip_install_result.json", "status": "new"},
           {"path": "sessions/demo-session/serial_capture.log", "status": "new"},
+          {"path": "sessions/demo-session/final_reset_capture.json", "status": "new"},
           {"path": "sessions/demo-session/device_log_report.json", "status": "new"},
           {"path": "sessions/demo-session/device_tests_result.json", "status": "new"}
         ]
       }
     ],
     "errors": [],
-    "warnings": [
-      "serial capture produced no output"
-    ]
+    "warnings": []
   }
 }

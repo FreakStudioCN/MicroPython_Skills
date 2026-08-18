@@ -20,6 +20,7 @@ SUCCESS_REQUIRED_ARTIFACT_BASENAMES = {
 }
 SUCCESS_REQUIRED_ARTIFACT_KEYWORDS = {
     "serial": ("serial", "repl", "capture"),
+    "final reset": ("final_reset", "post_test_reset", "post_device_test_reset"),
     "log": ("log", "device_log", "log_report"),
 }
 
@@ -93,6 +94,25 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
         require("strategy" in deploy_result, errors, "deploy_result.strategy is required")
     if payload.get("result") == "success":
         require(not payload.get("structured_errors"), errors, "success payload.structured_errors must be empty")
+        if isinstance(deploy_result, dict):
+            final_reset = deploy_result.get("final_reset")
+            require(
+                isinstance(final_reset, dict) and bool(final_reset),
+                errors,
+                "success deploy_result.final_reset object is required",
+            )
+            if isinstance(final_reset, dict) and final_reset:
+                require(
+                    final_reset.get("status") in {"success", "ok"},
+                    errors,
+                    "success deploy_result.final_reset.status must be success or ok",
+                )
+                require(final_reset.get("reset_first") is True, errors, "success deploy_result.final_reset.reset_first must be true")
+                require(
+                    bool(deploy_result.get("final_reset_excerpt") or final_reset.get("output_excerpt") or final_reset.get("output")),
+                    errors,
+                    "success deploy_result.final_reset must include boot/run output evidence",
+                )
         require(
             has_artifact_basename(artifact_paths, "deploy_result.json"),
             errors,

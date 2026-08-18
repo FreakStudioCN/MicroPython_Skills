@@ -354,7 +354,21 @@ def gate_ok(name: str, result: Any, strict_pylint: bool) -> tuple[bool, dict[str
                 "gate": name,
                 "returncode": returncode,
                 "categories": pylint_exit_categories(returncode),
-                "message": "nonzero pylint can pass only when the gate result explicitly records ok=true",
+                "accepted_policy": "fail_on_fatal_error_usage",
+                "blocking_categories": ["fatal", "error", "usage", "unknown-bit"],
+                "accepted_result_shape": {
+                    "ok": True,
+                    "returncode": returncode,
+                    "policy": "fail_on_fatal_error_usage",
+                    "categories": pylint_exit_categories(returncode),
+                },
+                "source_of_truth": "copy the pylint gate result from scripts/run_quality_gates.py; do not hand-invent a thin success record",
+                "message": (
+                    "nonzero pylint can pass only when the embedded pylint gate result records "
+                    "ok=true under policy fail_on_fatal_error_usage. Fatal/error/usage or unknown "
+                    "pylint categories still block generate success; copy returncode, policy, "
+                    "categories, and ok from run_quality_gates.py."
+                ),
             }
         return True, None
     if result.get("ok") is False:

@@ -110,6 +110,9 @@ def assert_skill_text_contract() -> None:
         "python -m pip install mpremote",
         "requirements-runtime.txt",
         "scripts/capture_repl.py",
+        "--final-reset-json",
+        "final_reset_capture.json",
+        "测试结束后必须再次让设备运行刚部署的应用",
         "scripts/run_device_tests.py",
         "mpremote connect <port> resume fs",
         "mpremote_runtime.py --run --port <port> --",
@@ -591,6 +594,73 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
         ])
         if recovered["status"] != "PASS_WITH_WARNINGS" or not any("sensor I/O timeout" in item for item in recovered.get("warnings", [])):
             raise AssertionError(f"single timeout with successful reading should warn, not fail: {recovered}")
+
+        serial_json.write_text(
+            json.dumps({"status": "success", "output": "MPY: soft reboot\napplication boot ok\n"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        tests_json.write_text(
+            json.dumps({"status": "success", "test_count": 1, "passed": 1, "failed": 0}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        rc, missing_reset = run_json_allow_failure([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--log-report-json",
+            str(log_json),
+            "--device-tests-json",
+            str(tests_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if rc == 0 or missing_reset["status"] != "FAIL":
+            raise AssertionError(f"successful device tests without final reset must fail deploy result: {missing_reset}")
+        if not any(error.get("code") == "final_reset_missing" for error in missing_reset.get("errors", [])):
+            raise AssertionError(f"missing final reset error missing: {missing_reset}")
+
+        final_reset_json = temp / "final_reset.json"
+        final_reset_json.write_text(
+            json.dumps(
+                {
+                    "status": "success",
+                    "reset_first": True,
+                    "matched_stop": "starting scheduler",
+                    "output": "MPY: soft reboot\napplication boot ok\nstarting scheduler\n",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        with_final_reset = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--serial-json",
+            str(serial_json),
+            "--final-reset-json",
+            str(final_reset_json),
+            "--log-report-json",
+            str(log_json),
+            "--device-tests-json",
+            str(tests_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if with_final_reset["status"] != "PASS":
+            raise AssertionError(f"final reset evidence should allow clean deploy pass: {with_final_reset}")
+        if with_final_reset.get("final_reset", {}).get("reset_first") is not True:
+            raise AssertionError(f"final reset evidence must be retained in deploy result: {with_final_reset}")
+        if not any(step.get("type") == "final_reset" for step in with_final_reset.get("steps", [])):
+            raise AssertionError(f"deploy result must record final reset step: {with_final_reset}")
 
         tests_json.write_text(
             json.dumps({"status": "failed", "failed": 1, "errors": [{"code": "device_test_failed"}]}, ensure_ascii=False),

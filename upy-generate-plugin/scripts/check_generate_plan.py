@@ -314,7 +314,17 @@ def check_project(project_dir: Path, plan_path: str = "", require_plan: bool = F
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
     if not path.exists():
-        record = {"code": "GENERATE_PLAN_MISSING", "path": str(path), "message": "generate_plan.json is missing"}
+        record = {
+            "code": "GENERATE_PLAN_MISSING",
+            "path": str(path),
+            "written_by_phase": "upy-generate-plugin",
+            "message": (
+                "generate_plan.json is missing. It is written during the generate phase "
+                "(upy-generate-plugin), so these gates cannot pass before then. If the current "
+                "phase is scaffold, its own gate is apply_scaffold.py; run_quality_gates.py "
+                "belongs to generate."
+            ),
+        }
         if require_plan:
             errors.append(record)
         else:

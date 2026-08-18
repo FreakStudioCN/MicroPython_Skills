@@ -100,6 +100,7 @@ def assert_references_and_knowledge_docs() -> None:
     required_knowledge_links = [
         "knowledge/esp32_timer_scheduler_api.pitfall.json",
         "knowledge/driver_api_usage.pitfall.json",
+        "knowledge/ldr_photoresistor_polarity.pitfall.json",
         "knowledge/micropython_imports.pitfall.json",
         "knowledge/mip_runtime_dependencies.pitfall.json",
         "knowledge/micropython_official_library_index.json",
@@ -139,6 +140,14 @@ def assert_references_and_knowledge_docs() -> None:
     for phrase in ("trusted driver API evidence", "driver.source=micropython_lib", "api_ref"):
         if phrase not in driver_api_text:
             raise AssertionError(f"driver API pitfall missing rule: {phrase}")
+    ldr_pitfall = load_json(ROOT / "knowledge" / "ldr_photoresistor_polarity.pitfall.json")
+    ldr_text = json.dumps(ldr_pitfall, ensure_ascii=False)
+    for phrase in ("GL5516", "raw ADC", "get_calibrated_light", "RAW_ADC_DECREASES_WITH_LIGHT"):
+        if phrase not in ldr_text:
+            raise AssertionError(f"LDR polarity pitfall missing rule: {phrase}")
+    for phrase in ("builtin_runtime", "MicroPython builtin modules", "writing a wrapper", "does not by itself trigger driver_ready"):
+        if phrase not in skill_text:
+            raise AssertionError(f"SKILL.md must document builtin driver workflow boundary: {phrase}")
     mip_pitfall = load_json(ROOT / "knowledge" / "mip_runtime_dependencies.pitfall.json")
     mip_text = json.dumps(mip_pitfall, ensure_ascii=False)
     for phrase in ("mpremote fs ls", "runtime_dependency_install_network_unavailable", "Do not copy micropython-lib source"):
@@ -933,6 +942,17 @@ def assert_check_scripts_negative_cases() -> None:
         )
         if rc == 0 or "GENERATE_PLAN_MISSING" not in stdout:
             raise AssertionError("check_generate_plan.py must reject missing required plan")
+        payload = json.loads(stdout)
+        record = payload["errors"][0]
+        if record.get("written_by_phase") != "upy-generate-plugin" or "apply_scaffold" not in record.get("message", ""):
+            raise AssertionError(f"missing plan error must name generate phase and scaffold gate: {payload}")
+        rc, stdout, _stderr = run_cmd([sys.executable, str(ROOT / "scripts" / "check_generate_plan.py"), "--project-dir", str(project)])
+        payload = json.loads(stdout)
+        if rc != 0 or payload.get("errors") or not any(
+            item.get("code") == "GENERATE_PLAN_MISSING" and item.get("written_by_phase") == "upy-generate-plugin"
+            for item in payload.get("warnings", [])
+        ):
+            raise AssertionError(f"missing plan without --require-plan must remain a warning with phase hint: {payload}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
@@ -1456,6 +1476,24 @@ def assert_phase_complete_consistency() -> None:
         )
         if rc == 0 or "PYLINT_SKIPPED_ON_SUCCESS" not in stdout:
             raise AssertionError("success phase_complete with skipped pylint must be rejected")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_pylint_policy_not_confirmed.json"
+        bad = load_json(sample_path)
+        bad["payload"]["lint"]["pylint"] = {"returncode": 12, "policy": "fail_on_fatal_error_usage"}
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "PYLINT_POLICY_NOT_CONFIRMED" not in stdout:
+            raise AssertionError("success phase_complete must reject nonzero pylint without ok=true")
+        payload = json.loads(stdout)
+        error = next(item for item in payload.get("errors", []) if item.get("code") == "PYLINT_POLICY_NOT_CONFIRMED")
+        if error.get("accepted_policy") != "fail_on_fatal_error_usage" or error.get("accepted_result_shape", {}).get("ok") is not True:
+            raise AssertionError(f"pylint policy error must name accepted result shape: {error}")
+        for expected in ("fatal", "error", "usage", "run_quality_gates.py"):
+            if expected not in json.dumps(error, ensure_ascii=False):
+                raise AssertionError(f"pylint policy error must explain {expected}: {error}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         bad_path = Path(temp_dir) / "bad_optional_phases.json"

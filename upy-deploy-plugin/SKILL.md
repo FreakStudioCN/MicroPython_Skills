@@ -137,11 +137,12 @@ payload.manifest_content.phase == "generate"
    - 用户选择运行时调用 `scripts/run_device_tests.py --project-root <project_root> --port <port> --output-json ... --log-file ...`。
    - 测试文件来源为 `project/device/tests/test_*.py` 和 `project/test/device/test_*.py`。
    - 如果设备测试需要 `firmware/drivers/**/mock.py`，只能由 `run_device_tests.py` 作为临时测试 artifact 上传到设备、运行后删除，并用 `mpremote fs ls` 校验删除；不要把 mock 纳入生产 upload summary。
-14. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定；只传脚本支持的 flags：`--upload-json`、`--clean-json`、`--serial-json`、`--log-report-json`、`--device-tests-json`、`--mip-install-json`、`--strategy`、`--port`、`--output-json/--out-json`。Do not pass `--wait-json`、`--probe-json`、`--feedback-json`、`--phase` 或 `--manifest`。
-15. 展示结果选项卡：
+14. 设备测试会通过 raw REPL 控制设备，测试结束后必须再次让设备运行刚部署的应用。调用 `scripts/capture_repl.py --reset-first --duration-ms <ms> --output-json final_reset_capture.json --log-file final_reset_capture.log`，把 Ctrl-D soft reset 后的启动输出保存为 final reset 证据。deploy success 表示“文件已上传且板子正在跑新应用”，不是只表示 `main.py` 存在于设备文件系统。
+15. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定；只传脚本支持的 flags：`--upload-json`、`--clean-json`、`--serial-json`、`--final-reset-json`、`--log-report-json`、`--device-tests-json`、`--mip-install-json`、`--strategy`、`--port`、`--output-json/--out-json`。Do not pass `--wait-json`、`--probe-json`、`--feedback-json`、`--phase` 或 `--manifest`。
+16. 展示结果选项卡：
    - PASS 或 PASS_WITH_WARNINGS: `approval_request(deploy_result_feedback)`
    - FAIL 或 NEEDS_USER_CONFIRMATION: `approval_request(deploy_fail_next_action)`
-16. 输出 `phase_complete` 前必须运行 `scripts/deploy_manifest.py --input <phase_complete> --validate-phase-complete`；失败时不得把 deploy 判为 success。
+17. 输出 `phase_complete` 前必须运行 `scripts/deploy_manifest.py --input <phase_complete> --validate-phase-complete`；失败时不得把 deploy 判为 success。
 
 ## approval_request
 
@@ -243,8 +244,9 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 | REPL Traceback/panic/MemoryError/ValueError/OSError/ImportError/AttributeError | `FAIL` |
 | log_report.error_count > 0 | `FAIL` |
 | device tests failed | `FAIL` |
+| device tests 后缺少 final reset evidence、final reset 捕获为空或卡住 | `FAIL` |
 
-REPL 空输出不应直接判 FAIL。如果 serial 捕获为空，但上传/清理成功、日志报告 `error_count=0` 且 device tests 未失败，则输出 `PASS_WITH_WARNINGS` 并加入 warning，例如 `serial capture produced no output`。这是因为应用可能只写 rotating file logger，或运行时没有 stdout。
+上传后串口/REPL 捕获为空不能作为 success 证据。如果已经上传代码但 `serial_capture` 或 `final_reset_capture` 为空、卡住，或者 device tests 后没有执行 `capture_repl.py --reset-first`，必须判 `FAIL` 或 `partial`，不能只凭设备上存在 `main.py` 报 PASS。对于 DHT11 等偶发读数超时，单次 timeout 可作为 warning；只有反复 timeout 且整段 capture 中没有任何成功读数时，才用 `device_io_timeout` 判 FAIL。
 
 ## 设备工具区
 
@@ -309,7 +311,7 @@ REPL 空输出不应直接判 FAIL。如果 serial 捕获为空，但上传/清�
 
 `phase_complete.payload.deploy_result` 必须来自 `scripts/deploy_result.py` 的结构化结果或与其逐字段一致。LLM 可以总结结果，但不得把底层 `mip_install_result.json`、upload summary、device tests、log report 或 REPL capture 的 blocking failure 手工改写成 PASS。
 
-success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_result.json`、`upload_summary.json`、`clean_result.json`、`mip_install_result.json`、`device_tests_result.json`，以及串口/REPL capture 和设备日志报告。只把叙述性摘要或 `phase_complete` 自身列为 artifact 不合格。
+success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_result.json`、`upload_summary.json`、`clean_result.json`、`mip_install_result.json`、`device_tests_result.json`、`final_reset_capture.json`，以及串口/REPL capture 和设备日志报告。只把叙述性摘要或 `phase_complete` 自身列为 artifact 不合格。
 
 ## 强约束
 
@@ -326,11 +328,11 @@ success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_r
 - Deploy success means deployment-observation success, not code-generation correctness. A PASS requires upload/clean/mip/device probes/log report/device tests to have no blocking errors. A PASS does not authorize manual source edits during deploy.
 - Deploy must not fix generated source code or mark success after ad-hoc debugging changes. Runtime code fixes go through `upy-autofix-plugin` or `upy-generate-plugin(mode=fix)` with a structured `error_context`.
 - Deploy must not add broad Timer or peripheral semantic preflight. Timer and peripheral API correctness are generate gates. Deploy records evidence from upload summary, REPL capture, device logs, device tests, and user observation.
-- Empty REPL output, COM re-enumeration, or missing logs after the user unplugged/replugged a device is observation-incomplete, not proof of firmware failure. If upload succeeded and there is no traceback/log error/test failure, return `PASS_WITH_WARNINGS` and record the observation limitation.
+- Empty REPL output after upload is observation-incomplete, not proof that the deployed app is running. A deploy success path must have non-empty startup/final-reset evidence; otherwise return `FAIL` or `partial` and record the observation limitation. COM re-enumeration or user unplug/replug events should be recorded separately instead of being treated as successful runtime evidence.
 - Forbidden runtime uploads are blocking even if the project upload tool says success: `:main.mpy`, `:boot.mpy`, `:conf.mpy`, `:firmware/**`, `__pycache__`, `*.pyc`, and `drivers/**/mock.py|mock.mpy`.
 - Before upload, project_files clean must remove old deploy artifacts such as `main.mpy`, `boot.mpy`, `conf.mpy`, `board.mpy`, stale `drivers/**/mock.py|mock.mpy`, and old wrong-root `firmware/**` paths when present on device.
 - MicroPython runtime packages from micropython-lib must be installed with `mpremote mip install`, then verified with import probes and `mpremote fs ls` on the relevant target folders such as `:lib` and `:lib/unittest`. Network/proxy/VPN failure is `runtime_dependency_install_network_unavailable`, not a generate code bug.
 - `runtime_dependencies.mip[].asset_files` must also be checked during filesystem verification; for example, BMA423's uPyPi package must leave `bma423conf.bin` in `/lib` after `mpremote mip install`.
 - Device-side unittest mocks are temporary test artifacts only. `scripts/run_device_tests.py` must record upload, cleanup, and cleanup verification for `firmware/drivers/**/mock.py`; production upload must still reject mocks.
-- REPL capture should prefer reset-first capture when safe so startup tracebacks are visible. Device file logs supplement REPL output; they do not replace startup traceback capture.
+- REPL capture should prefer reset-first capture when safe so startup tracebacks are visible. After device tests, run a final `capture_repl.py --reset-first` and include `final_reset_capture.json`; device file logs supplement REPL output but do not prove the board is running `main.py`.
 - `deploy_fail_next_action` and `deploy_result_feedback` must carry `error_context` with deploy result path, serial excerpt, device log excerpt/report, device tests result path, mip install result, forbidden upload list, user observation, and previous generate commit when available.

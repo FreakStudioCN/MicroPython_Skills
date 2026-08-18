@@ -75,6 +75,8 @@ upy-select-hw-plugin/scripts/select_hw_manifest.py
 upy-select-hw-plugin/sample/phase_complete.select_hw.success.json
 ```
 
+插件正式运行时不要把这段理解成模型可以用 `file_operation` 读取 skill/resource 目录。`file_operation` 只面向 artifact/project workspace。select-hw 模型可读的板卡事实来自宿主在 `RESOLVED DATA` 中注入的 `Board profile` 和 `Board candidates`；`resource_root/upy-analyze-plugin/boards` 只作为宿主和 `select_hw_manifest.py --board-root` 的只读校验资源。
+
 产物写入必须以 `artifact_root` 或 `session_root` 为基准使用相对路径，例如：
 
 ```text
@@ -470,7 +472,7 @@ payload 必须包含：
 
 ## 板卡数据
 
-V0 复用相对路径：
+V0 脚本校验复用相对路径：
 
 ```text
 upy-analyze-plugin/boards
@@ -478,12 +480,25 @@ upy-analyze-plugin/boards
 
 不要复制板卡数据到 `artifact_root`，除非后续 select-hw 需要独立扩展 schema。测试 staging 如确需复制，必须复制完整 `boards` 目录（至少包含所有 board json 与 `matching-rules.json`），不得只复制当前选中的单个 board JSON；否则会破坏未指定 MCU、候选排序、相似板卡推荐和 board_unavailable 流程。
 
+正式插件运行时，模型不得通过 `file_operation` 读取 `upy-analyze-plugin/boards`。宿主会在 `RESOLVED DATA` 中注入两个可读标签：
+
+- `Board profile`：宿主已解析出 canonical board id 时注入的完整 board JSON；未选板时可为状态对象，例如 `support_status="no_board_selected"`；宿主无法读取板卡库时可为 `support_status="board_library_unreadable"`。
+- `Board candidates`：宿主无法唯一确认板卡时注入的候选完整 board JSON 列表，最多 2 个；空数组表示没有匹配，不表示板卡库为空。
+
+处理这些标签时：
+
+- 有可用 `Board profile` 时，以它作为 readable board fact source。
+- `Board profile.support_status="no_board_selected"` 且 `Board candidates` 非空时，从候选中选 best match，或发 `approval_request(board_select)` 让用户确认；非空候选列表是正常输入，不是 blocker。
+- `Board profile.support_status="board_library_unreadable"` 时，输出 `partial` 并说明宿主板卡库不可读；这不同于“用户指定的板卡不存在”。
+- `Board candidates=[]` 且没有可用 `Board profile` 时，输出 `partial`，要求宿主/UI 提供板卡上下文或用户手动接线描述。
+- 不得因为不能读取 skill 目录、候选不唯一或用户只在自然语言里提到板卡名，就发明 `board_id`、pin layout 或 firmware target。
+
 处理策略：
 
-- 候选生成阶段必须枚举 `resource_root/upy-analyze-plugin/boards/*.json` 的完整板卡库，跳过 `_template.json` 和说明文档；不能只加载 selected board。
-- `requirements.mcu_specified` 存在时，按 `mcu`、`chip_family`、`firmware.board_name` 匹配候选。
+- 候选生成由宿主基于 `resource_root/upy-analyze-plugin/boards/*.json` 完成，跳过 `_template.json` 和说明文档；模型使用注入的 `Board profile` / `Board candidates`，不要自行枚举目录。
+- `requirements.mcu_specified` 不能作为唯一 grounding key；同时参考 `requirements.description`、用户原始 intent、`pre_selected_board`、`Board profile`、`Board candidates`、`mcu`、`chip_family`、`firmware.board_name`。
 - `pre_selected_board` 已来自插件 UI 时可跳过确认，但仍需校验。
-- `selected_board.id` 必须对应 `upy-analyze-plugin/boards/<id>.json`。确认板卡后必须加载完整 board JSON，不允许只凭 MCU 名称或 `selected_board` 摘要分配引脚。
+- `selected_board.id` 必须对应 `upy-analyze-plugin/boards/<id>.json`，并通过 `select_hw_manifest.py --board-root` 校验。确认板卡后必须使用完整 board JSON，不允许只凭 MCU 名称或 `selected_board` 摘要分配引脚。
 - 完整 board JSON 是 `firmware`、`pin_layout`、`restricted_gpio`、`onboard_peripherals` 的事实源。`selected_board` 只能作为 UI 摘要。
 - 未指定 MCU 时，候选池必须优先限制在 Pico/RP2 系列和 ESP32 系列；除非需求明确需要其他系列，不要优先推荐 STM32、Teensy、Pyboard 等板卡。
 - 未指定 MCU 的默认排序：Pico/Pico W、ESP32 DevKit、ESP32-S3、ESP32-C3；按需求加分后输出 Top 1 和 Top 2 备选。
@@ -974,19 +989,21 @@ python upy-select-hw-plugin/scripts/select_hw_manifest.py --validate-manifest-co
 后续测试必须覆盖：
 
 1. 从 `G:\test\test\sessions\022ad742-3269-42e9-ac20-c14f477ecdf2\phase_complete.analyze.json` 的 `payload.manifest_content` 启动，并把 `G:\test\test` 视为 `artifact_root`。
-2. 使用 `resource_root/upy-analyze-plugin/boards` 的完整板卡库匹配 `ESP32-C3` 候选板卡，不在 `G:\test\test` 下创建 `upy-analyze-plugin` 或 `upy-select-hw-plugin` 副本。
-3. `mcu_specified` 存在但无 `pre_selected_board` 时触发 `approval_request(board_select)`。
-4. `pre_selected_board` 来自插件 UI 时可跳过 board_select。
-5. 缺 pin_layout 时换功能类似且有 pin_layout 的已知板卡。
-6. `cold-driver` 不阻塞 MCU 推荐和 pinout，但必须输出 `driver.status="cold_driver_required"`；已硬件验证通过且带 `driver.path` 与 `hardware_marker` 的 `ready` 状态可保留。
-7. 未指定 MCU 时优先推荐 Pico/RP2 与 ESP32 系列。
-8. 板卡库无用户指定板卡时发 `approval_request(board_unavailable)`，提供相似板卡、改选已知板卡、手动描述接线、保存 checkpoint 四个选项。
-9. `select_hw_manifest.py --write-path` 生成的格式化 manifest 能再次被脚本读取校验。
-10. `phase_complete.select_hw.json` 通过脚本校验，且 `--expected-artifact` 覆盖全部直测正式产物。
-11. validator 覆盖 board-root、restricted pins、默认总线偏离、用户接线、板载器件复用、ADC2/WiFi 数字用途 warning。
-12. `phase_complete.payload.artifacts` 覆盖全部正式产物，日志和 artifact 不出现本机插件安装绝对路径。
-13. `pin_plan_review` 的 `approval_response.payload.user_pin_constraints` 能被转换为 `user_wiring` pinout/pin_decisions。
-14. 用户指定非法 GPIO 时不得静默自动改脚，必须输出 partial/checkpoint 或校验失败。
+2. 正式插件运行时从 `RESOLVED DATA` 的 `Board profile` / `Board candidates` 消费板卡事实；不得用 `file_operation` 读取 `resource_root/upy-analyze-plugin/boards`，也不得在 `G:\test\test` 下创建 `upy-analyze-plugin` 或 `upy-select-hw-plugin` 副本。
+3. `select_hw_manifest.py --board-root upy-analyze-plugin/boards` 仍负责用完整板卡库做确定性校验。
+4. `mcu_specified` 不能作为唯一 grounding key；`pre_selected_board`、`requirements.description`、用户 intent、`Board profile` 和 `Board candidates` 都必须参与判断。
+5. `Board candidates` 非空时不是 blocker；选择 best match 或触发 `approval_request(board_select)`，只有没有可用 `Board profile` 且候选为空/不可用时才 partial。
+6. `pre_selected_board` 来自插件 UI 时可跳过 board_select。
+7. 缺 pin_layout 时换功能类似且有 pin_layout 的已知板卡。
+8. `cold-driver` 不阻塞 MCU 推荐和 pinout，但必须输出 `driver.status="cold_driver_required"`；已硬件验证通过且带 `driver.path` 与 `hardware_marker` 的 `ready` 状态可保留。
+9. 未指定 MCU 时优先推荐 Pico/RP2 与 ESP32 系列。
+10. 板卡库无用户指定板卡时发 `approval_request(board_unavailable)`，提供相似板卡、改选已知板卡、手动描述接线、保存 checkpoint 四个选项。
+11. `select_hw_manifest.py --write-path` 生成的格式化 manifest 能再次被脚本读取校验。
+12. `phase_complete.select_hw.json` 通过脚本校验，且 `--expected-artifact` 覆盖全部直测正式产物。
+13. validator 覆盖 board-root、restricted pins、默认总线偏离、用户接线、板载器件复用、ADC2/WiFi 数字用途 warning。
+14. `phase_complete.payload.artifacts` 覆盖全部正式产物，日志和 artifact 不出现本机插件安装绝对路径。
+15. `pin_plan_review` 的 `approval_response.payload.user_pin_constraints` 能被转换为 `user_wiring` pinout/pin_decisions。
+16. 用户指定非法 GPIO 时不得静默自动改脚，必须输出 partial/checkpoint 或校验失败。
 
 ## 维护原则
 

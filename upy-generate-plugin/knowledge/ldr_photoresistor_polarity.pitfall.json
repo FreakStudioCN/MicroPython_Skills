@@ -1,0 +1,49 @@
+{
+  "id": "ldr-photoresistor-polarity",
+  "title": "LDR raw ADC polarity is circuit-dependent",
+  "category": "driver",
+  "applies_to": {
+    "modes": ["full", "fix"],
+    "scheduler_modes": ["timer", "async", "thread"],
+    "device_types": ["ldr", "photoresistor", "light_sensor", "gl5516"],
+    "files": ["firmware/**/*.py", "firmware/conf.py", "generate_plan.json"]
+  },
+  "symptoms": [
+    "Generated light threshold logic is inverted.",
+    "Code assumes raw ADC increases with brightness without calibration evidence.",
+    "GL5516/GraftSense light projects compare raw ADC values directly."
+  ],
+  "wrong_pattern": "Treating raw ADC > threshold as brighter light, or raw ADC < threshold as darker light, without naming and validating the divider polarity.",
+  "correct_pattern": "Prefer calibrated driver APIs such as set_min_light(), set_max_light(), and get_calibrated_light(). If raw ADC thresholds are unavoidable, put the polarity assumption in conf.py and generated logs/comments, for example RAW_ADC_DECREASES_WITH_LIGHT = True, and ask the user to calibrate or confirm the divider direction.",
+  "detection": {
+    "script": "",
+    "grep": "GL5516|gl5516|photoresistor|LDR|ldr|光敏|raw ADC|ADC",
+    "structured_error_code": ""
+  },
+  "fix_guidance": [
+    "For GraftSense GL5516, treat the README statement as concrete evidence: stronger light gives a smaller ADC value.",
+    "Use calibration APIs when the selected driver exposes them: set_min_light(), set_max_light(), and get_calibrated_light().",
+    "Do not generate naked raw ADC comparisons unless the polarity is explicitly represented in configuration and user-facing logs.",
+    "When the divider circuit is unknown, require calibration or user confirmation before claiming a bright/dark threshold is correct.",
+    "Name threshold constants by calibrated meaning, such as LIGHT_PERCENT_THRESHOLD, instead of ambiguous raw ADC names when using calibrated values."
+  ],
+  "references": [
+    {
+      "label": "GraftSense GL5516 README",
+      "path": "third_party/GraftSense-Drivers-MicroPython/sensors/gl5516_driver/README.md",
+      "evidence": "The README states that as light intensity increases, ADC value decreases, and documents set_min_light(), set_max_light(), and get_calibrated_light()."
+    },
+    {
+      "label": "GraftSense GL5516 driver context",
+      "path": "mpyhw-api/content/packages/driver_context/gl5516_driver-1.0.0.json",
+      "evidence": "Driver context exposes GL5516 calibration and calibrated light APIs."
+    }
+  ],
+  "verified_by": [
+    "Generated code uses calibrated light percentage APIs when available.",
+    "Any raw ADC threshold declares its polarity assumption in conf.py.",
+    "Generated logs or README text ask for calibration when the divider direction is unknown."
+  ],
+  "confidence": "high",
+  "last_seen": "2026-08-18"
+}
