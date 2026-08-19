@@ -118,9 +118,10 @@ payload.manifest_content.phase == "generate"
    - 安装后必须用 `mpremote fs ls` 校验目标目录和包目录确实存在，例如 `:lib`、`:lib/unittest`，并把 `fs_verify` 写入结果。mip 可能安装预编译 `__init__.mpy` 而不是 `__init__.py`，这是合法落盘形式；校验脚本应接受 `.py` 或 `.mpy`，但必须保留 `matched_files` 证据。
    - 如果 `mip install` 因网络、代理或翻墙环境不可用失败，标记 `runtime_dependency_install_network_unavailable`，提示用户修复网络后重试，不要把它误判为 generate 代码错误。
    - 安装失败、导入验证失败或设备空间不足必须作为独立错误写入 `mip_install_result.json`，并交给 `deploy_result.py --mip-install-json ...` 汇总。
-9. 运行项目工具：
+9. 上传项目文件：
    - `script_run` only resolves bundled plugin/shared scripts; do not call `project/tools/flash_device.py` through generic `script_run`. A project flash runner requires a dedicated plugin action.
-   - `--json-summary` 是必需接口，deploy-plugin 只消费结构化结果。
+   - In the current plugin loop, upload with bundled deploy scripts and `scripts/mpremote_runtime.py`; treat scaffold-rendered `project/tools/flash_device.py` as a user-facing convenience script for manual restore/debug outside the generic `script_run` resolver.
+   - 上传步骤必须输出结构化 `upload_summary.json`，deploy-plugin 只消费结构化结果。
    - 上传 summary 必须记录 `compiled_files`、`uploaded_files`、`skipped_files`。`conf.py`、`boot.py`、`main.py` 应作为 `.py` 上传，不得部署 `:conf.mpy` 或 `:boot.mpy`；`firmware/drivers/**/mock.py`/`mock.mpy` 是测试替身，不得部署到设备。
    - 即使项目工具返回 success，若 upload summary 或 `mpremote fs cp` 命令显示上传了 `:conf.mpy`、`:boot.mpy`、`:drivers/*/mock.py` 或 `:drivers/*/mock.mpy`，`deploy_result.py` 必须判 `FAIL`。
 10. 软复位并等待重连：
@@ -197,7 +198,7 @@ PASS 或 `PASS_WITH_WARNINGS` 后展示：
 - 串口/设备。
 - 部署策略。
 - 清理结果。
-- `flash_device.py --json-summary`。
+- upload summary / `scripts/mpremote_runtime.py` 文件上传结果；不要把 `project/tools/flash_device.py` 当作插件循环里的 `script_run` 目标。
 - soft reset / wait result。
 - REPL 输出摘要。
 - 设备端日志报告。

@@ -102,6 +102,8 @@ def assert_skill_text_contract() -> None:
         "deploy_result_feedback",
         "deploy_fail_next_action",
         "do not call `project/tools/flash_device.py` through generic `script_run`",
+        "user-facing convenience script",
+        "upload_summary.json",
         "Do not pass `--wait-json`",
         "shared-plugin-scripts/mpremote/list_serial_ports.py",
         "scripts/mpremote_runtime.py",

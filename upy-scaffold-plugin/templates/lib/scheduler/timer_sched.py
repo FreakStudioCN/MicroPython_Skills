@@ -7,8 +7,25 @@
 
 from machine import Timer
 
+try:
+    from machine import idle as _machine_idle
+except ImportError:
+    _machine_idle = None
+
+try:
+    from time import sleep_ms as _sleep_ms
+except ImportError:
+    _sleep_ms = None
+
 _RUN = const(0)
 _STOP = const(1)
+
+
+def _yield_runtime():
+    if _machine_idle:
+        _machine_idle()
+    elif _sleep_ms:
+        _sleep_ms(1)
 
 
 class Scheduler:
@@ -65,6 +82,7 @@ class Scheduler:
                             self._error_cb(tid, e)
             if self._idle_cb:
                 self._idle_cb()
+            _yield_runtime()
 
     def stop(self):
         self._timer.deinit()

@@ -327,6 +327,9 @@ def timer_scaffold_is_esp32_safe_and_logs_fatal_startup() -> None:
         "try:\n    _main()\nexcept Exception as exc:",
         "Scheduler(timer_id=0, tick_ms=100",
         "from machine import Timer",
+        "from machine import idle as _machine_idle",
+        "def _yield_runtime():",
+        "_yield_runtime()",
         "self._timer = Timer(timer_id)",
     ]
     missing = [item for item in required if item not in combined]

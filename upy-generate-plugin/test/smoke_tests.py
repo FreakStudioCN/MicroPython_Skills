@@ -1230,6 +1230,26 @@ def assert_phase_complete_consistency() -> None:
         raise AssertionError(f"valid success sample failed consistency check:\nSTDOUT={stdout}\nSTDERR={stderr}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        bad_path = Path(temp_dir) / "bad_permissions_dict.json"
+        bad = load_json(sample_path)
+        bad["payload"]["permissions"] = {
+            "file_write": {"granted": True, "approval_id": "approve-file-write"},
+            "script_run": {"granted": True, "approval_id": "approve-script-run"},
+            "git_commit": {"granted": True, "approval_id": "approve-git-commit"},
+        }
+        bad_path.write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(bad_path)]
+        )
+        if rc == 0 or "PERMISSIONS_MISSING" not in stdout:
+            raise AssertionError(f"dict-shaped permissions must fail with PERMISSIONS_MISSING:\n{stdout}")
+        payload = json.loads(stdout)
+        text = json.dumps(payload, ensure_ascii=False)
+        for expected in ("accepted_container", "list", "git_commit", "git_operation", "approved", "payload.permissions"):
+            if expected not in text:
+                raise AssertionError(f"PERMISSIONS_MISSING must name the accepted list entry shape {expected}: {payload}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
         session_dir = Path(temp_dir) / "sessions" / "valid-session"
         project = session_dir / "project"
         session_dir.mkdir(parents=True)

@@ -1081,7 +1081,22 @@ def git_commit_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
         )
     permissions = payload.get("permissions")
     if not isinstance(permissions, list):
-        errors.append({"code": "PERMISSIONS_MISSING", "message": "success must record file/script/git permission decisions"})
+        errors.append(
+            {
+                "code": "PERMISSIONS_MISSING",
+                "accepted_container": "list",
+                "accepted_types": sorted(GIT_PERMISSION_TYPES),
+                "expected_entry": {"type": "git_commit", "approved": True},
+                "source_of_truth": "copy the shape from sample/phase_complete.upy_generate_plugin.success.json payload.permissions",
+                "message": (
+                    "payload.permissions must be a list of permission decision objects, each carrying a "
+                    '"type" field; a dict keyed by permission type is rejected. success requires at least '
+                    "one entry whose type is one of "
+                    + ", ".join(sorted(GIT_PERMISSION_TYPES))
+                    + ' with approved=true, e.g. [{"type": "git_commit", "approved": true}]'
+                ),
+            }
+        )
     else:
         git_permissions = [
             item
