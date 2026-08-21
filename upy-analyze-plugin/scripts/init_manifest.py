@@ -593,7 +593,9 @@ def build_manifest(data: dict[str, Any]) -> dict[str, Any]:
 def maybe_write_manifest(manifest: dict[str, Any], write_path: Optional[str]) -> Optional[str]:
     if not write_path:
         return None
-    os.makedirs(os.path.dirname(write_path), exist_ok=True)
+    write_dir = os.path.dirname(write_path)
+    if write_dir:
+        os.makedirs(write_dir, exist_ok=True)
     with open(write_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
     return write_path

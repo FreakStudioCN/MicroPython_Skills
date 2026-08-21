@@ -283,7 +283,17 @@ def validate_final_reset(
         errors.append(
             {
                 "code": "final_reset_not_reset_first",
-                "message": "final reset capture must run capture_repl.py --reset-first after device tests",
+                "message": "final reset capture must run capture_repl.py --reset-first after upload and device tests",
+            }
+        )
+    elif final_reset.get("observed_soft_reboot") is not True:
+        errors.append(
+            {
+                "code": "final_reset_soft_reboot_not_observed",
+                "message": (
+                    "final reset requested Ctrl-D but the capture did not observe 'MPY: soft reboot'. "
+                    "Report this separately or run an explicit reset fallback before treating deploy as complete."
+                ),
             }
         )
     if final_reset.get("stalled"):
@@ -382,7 +392,7 @@ def main() -> int:
     if isinstance(error_count, int) and error_count > 0:
         errors.append({"code": "device_log_errors", "message": f"device log report has {error_count} errors", "detail": log_report.get("errors")})
 
-    final_reset_required = False
+    final_reset_required = upload_status in SUCCESS_STATUSES
     if device_tests:
         test_status = infer_status(device_tests)
         try:
@@ -413,8 +423,9 @@ def main() -> int:
             {
                 "code": "final_reset_missing",
                 "message": (
-                    "device tests leave the board in raw REPL; run capture_repl.py --reset-first after tests "
-                    "and pass --final-reset-json before reporting deploy success"
+                    "upload and device tests can leave the board in raw REPL; run capture_repl.py "
+                    "--reset-first as the final device operation and pass --final-reset-json before "
+                    "reporting deploy success"
                 ),
             }
         )

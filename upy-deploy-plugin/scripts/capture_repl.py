@@ -17,6 +17,13 @@ from common import configure_stdio, print_json, write_json
 from mpremote_runtime import MpremoteUnavailable, popen_mpremote
 
 
+SOFT_REBOOT_MARKER = "MPY: soft reboot"
+
+
+def observed_soft_reboot(output: str) -> bool:
+    return SOFT_REBOOT_MARKER in output
+
+
 def capture_mock(duration_ms: int, reset_first: bool = False, mock_traceback: bool = False) -> dict[str, Any]:
     if mock_traceback:
         lines = [
@@ -40,6 +47,7 @@ def capture_mock(duration_ms: int, reset_first: bool = False, mock_traceback: bo
         "stalled": False,
         "matched_stop": "starting scheduler",
         "reset_first": reset_first,
+        "observed_soft_reboot": observed_soft_reboot("\n".join(lines)),
     }
 
 
@@ -107,6 +115,7 @@ def capture_windows(port: str, duration_ms: int, stop_patterns: list[str], reset
         "matched_stop": matched_stop,
         "returncode": proc.returncode,
         "reset_first": reset_first,
+        "observed_soft_reboot": observed_soft_reboot(output),
     }
 
 
@@ -146,14 +155,16 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_fir
             for pattern in stop_patterns:
                 if pattern and pattern in text:
                     matched_stop = pattern
+                    output = "".join(chunks)
                     return {
                         "status": "success",
                         "mode": "pty",
-                        "output": "".join(chunks),
+                        "output": output,
                         "duration_ms": int(duration_ms - max(0, deadline - time.monotonic()) * 1000),
                         "stalled": False,
                         "matched_stop": matched_stop,
                         "reset_first": reset_first,
+                        "observed_soft_reboot": observed_soft_reboot(output),
                     }
     finally:
         try:
@@ -172,6 +183,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_fir
         "matched_stop": matched_stop,
         "returncode": proc.returncode,
         "reset_first": reset_first,
+        "observed_soft_reboot": observed_soft_reboot(output),
     }
 
 
@@ -219,6 +231,7 @@ def main() -> int:
             "output": "",
             "errors": [{"code": "capture_failed", "message": str(exc)}],
         }
+    result["observed_soft_reboot"] = observed_soft_reboot(str(result.get("output") or ""))
     result["started_at"] = started
     result["finished_at"] = datetime.now(timezone.utc).isoformat()
     if args.log_file:

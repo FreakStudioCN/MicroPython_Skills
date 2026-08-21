@@ -26,7 +26,11 @@ def _main():
 ${I2C_INIT_BLOCK_IN_MAIN}
 ${GPIO_INIT_BLOCK_IN_MAIN}
 
+    # Deploy capture waits for this exact line after hardware init.
+    print("MPYHW_READY")
+
     # TODO: upy-generate starts business threads here with _thread.start_new_thread().
+    print("starting scheduler")
     while True:
 ${MAINTENANCE_THREAD_BLOCK}
         time.sleep_ms(100)

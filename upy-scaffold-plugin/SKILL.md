@@ -243,6 +243,11 @@ python -X utf8 upy-scaffold-plugin/scripts/scaffold_manifest.py \
   --validate-phase-complete
 ```
 
+Runtime capture markers are part of the scaffold contract:
+
+- `main.py` MUST print `MPYHW_READY` after hardware initialization and before entering the application loop. Deploy capture uses this exact line as default proof that the uploaded app started.
+- The application loop MUST print `starting scheduler` when it enters the scheduler/main loop. For timer mode this belongs in `firmware/lib/scheduler/timer_sched.py`; for async/thread mode it belongs in `main.py`.
+
 `test/run_local_actual_project.py` is a compatibility wrapper only; formal local actual tests and Claude Code host-side apply/finalize runs should call `scripts/apply_scaffold.py`.
 
 ## Protocol Addendum: project root, idempotency, and final manifest

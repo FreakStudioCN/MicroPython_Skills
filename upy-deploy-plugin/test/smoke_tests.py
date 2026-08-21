@@ -114,7 +114,8 @@ def assert_skill_text_contract() -> None:
         "scripts/capture_repl.py",
         "--final-reset-json",
         "final_reset_capture.json",
-        "测试结束后必须再次让设备运行刚部署的应用",
+        "observed_soft_reboot",
+        "上传和设备测试都会通过 raw REPL 控制设备",
         "scripts/run_device_tests.py",
         "mpremote connect <port> resume fs",
         "mpremote_runtime.py --run --port <port> --",
@@ -321,6 +322,7 @@ def assert_capture_and_result_mock() -> None:
     with tempfile.TemporaryDirectory(prefix="deploy-result-") as temp_dir:
         temp = Path(temp_dir)
         serial_json = temp / "serial.json"
+        final_reset_json = temp / "final_reset.json"
         upload_json = temp / "upload.json"
         log_json = temp / "log.json"
         run_json([
@@ -339,6 +341,16 @@ def assert_capture_and_result_mock() -> None:
             "--output-json",
             str(serial_json),
         ])
+        run_json([
+            sys.executable,
+            str(SCRIPTS / "capture_repl.py"),
+            "--mock",
+            "--reset-first",
+            "--timeout-ms",
+            "10",
+            "--output-json",
+            str(final_reset_json),
+        ])
         upload_json.write_text(json.dumps({"status": "success", "steps": []}, ensure_ascii=False), encoding="utf-8")
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
         result = run_json([
@@ -348,6 +360,8 @@ def assert_capture_and_result_mock() -> None:
             str(upload_json),
             "--serial-json",
             str(serial_json),
+            "--final-reset-json",
+            str(final_reset_json),
             "--log-report-json",
             str(log_json),
             "--strategy",
@@ -357,6 +371,8 @@ def assert_capture_and_result_mock() -> None:
         ])
         if result["status"] != "PASS":
             raise AssertionError(f"mock deploy result should pass: {result}")
+        if result.get("final_reset", {}).get("observed_soft_reboot") is not True:
+            raise AssertionError(f"mock deploy result must retain observed soft reboot evidence: {result}")
 
 
 def assert_reset_capture_traceback_fails_deploy_result() -> None:
@@ -379,6 +395,8 @@ def assert_reset_capture_traceback_fails_deploy_result() -> None:
         serial = json.loads(serial_json.read_text(encoding="utf-8"))
         if not serial.get("reset_first") or "ValueError: invalid Timer number" not in serial.get("output", ""):
             raise AssertionError(f"reset-first mock capture did not include startup traceback: {serial}")
+        if serial.get("observed_soft_reboot") is not True:
+            raise AssertionError(f"reset-first capture must report observed_soft_reboot: {serial}")
         upload_json.write_text(json.dumps({"status": "success"}, ensure_ascii=False), encoding="utf-8")
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
         rc, result = run_json_allow_failure([
@@ -512,6 +530,7 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
         upload_json = temp / "upload.json"
         log_json = temp / "log.json"
         tests_json = temp / "device_tests.json"
+        final_reset_json = temp / "final_reset.json"
         upload_json.write_text(json.dumps({"status": "success"}, ensure_ascii=False), encoding="utf-8")
         serial_json.write_text(json.dumps({"status": "success", "output": ""}, ensure_ascii=False), encoding="utf-8")
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
@@ -580,6 +599,19 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             ),
             encoding="utf-8",
         )
+        final_reset_json.write_text(
+            json.dumps(
+                {
+                    "status": "success",
+                    "reset_first": True,
+                    "observed_soft_reboot": True,
+                    "matched_stop": "starting scheduler",
+                    "output": "MPY: soft reboot\napplication boot ok\nstarting scheduler\n",
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         recovered = run_json([
             sys.executable,
             str(SCRIPTS / "deploy_result.py"),
@@ -587,6 +619,8 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
             str(upload_json),
             "--serial-json",
             str(serial_json),
+            "--final-reset-json",
+            str(final_reset_json),
             "--log-report-json",
             str(log_json),
             "--strategy",
@@ -626,12 +660,12 @@ def assert_deploy_result_warnings_and_device_tests() -> None:
         if not any(error.get("code") == "final_reset_missing" for error in missing_reset.get("errors", [])):
             raise AssertionError(f"missing final reset error missing: {missing_reset}")
 
-        final_reset_json = temp / "final_reset.json"
         final_reset_json.write_text(
             json.dumps(
                 {
                     "status": "success",
                     "reset_first": True,
+                    "observed_soft_reboot": True,
                     "matched_stop": "starting scheduler",
                     "output": "MPY: soft reboot\napplication boot ok\nstarting scheduler\n",
                 },

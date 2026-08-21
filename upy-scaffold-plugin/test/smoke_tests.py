@@ -331,6 +331,8 @@ def timer_scaffold_is_esp32_safe_and_logs_fatal_startup() -> None:
         "def _yield_runtime():",
         "_yield_runtime()",
         "self._timer = Timer(timer_id)",
+        'print("MPYHW_READY")',
+        'print("starting scheduler")',
     ]
     missing = [item for item in required if item not in combined]
     if missing:
@@ -503,6 +505,9 @@ def async_omits_scheduler_when_not_timer() -> None:
         raise AssertionError("async main.py must use uasyncio")
     if "from lib.scheduler" in main_py:
         raise AssertionError("async main.py must not import scheduler")
+    for marker in ('print("MPYHW_READY")', 'print("starting scheduler")'):
+        if marker not in main_py:
+            raise AssertionError(f"async main.py missing deploy capture marker: {marker}")
 
 
 def thread_mode_uses_thread_frame_and_custom_files() -> None:
@@ -535,6 +540,9 @@ def thread_mode_uses_thread_frame_and_custom_files() -> None:
         raise AssertionError("thread main.py must import _thread")
     if "time.sleep_ms(100)" not in main_py:
         raise AssertionError("thread main.py must keep a maintenance loop")
+    for marker in ('print("MPYHW_READY")', 'print("starting scheduler")'):
+        if marker not in main_py:
+            raise AssertionError(f"thread main.py missing deploy capture marker: {marker}")
     if output["manifest_content"].get("scaffold_custom_files") != ["firmware/lib/my_utils.py", "host/gui.py"]:
         raise AssertionError("manifest_content must record custom files")
 

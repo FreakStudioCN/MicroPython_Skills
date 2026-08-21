@@ -26,6 +26,9 @@ def _main():
 ${I2C_INIT_BLOCK_IN_MAIN}
 ${GPIO_INIT_BLOCK_IN_MAIN}
 
+    # Deploy capture waits for this exact line after hardware init.
+    print("MPYHW_READY")
+
     sc = Scheduler(${SCHEDULER_INIT_ARGS})
     # TODO: upy-generate registers business tasks here.
     sc.start()

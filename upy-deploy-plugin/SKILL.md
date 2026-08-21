@@ -121,6 +121,7 @@ payload.manifest_content.phase == "generate"
 9. 上传项目文件：
    - `script_run` only resolves bundled plugin/shared scripts; do not call `project/tools/flash_device.py` through generic `script_run`. A project flash runner requires a dedicated plugin action.
    - In the current plugin loop, upload with bundled deploy scripts and `scripts/mpremote_runtime.py`; treat scaffold-rendered `project/tools/flash_device.py` as a user-facing convenience script for manual restore/debug outside the generic `script_run` resolver.
+   - Upload with one bundled command: `python scripts/mpremote_runtime.py --run --port <port> -- resume fs cp -r <source1> <source2> ... :`. Put all sources before the single final `:` target; do not generate `cp -r a : b : c :`.
    - 上传步骤必须输出结构化 `upload_summary.json`，deploy-plugin 只消费结构化结果。
    - 上传 summary 必须记录 `compiled_files`、`uploaded_files`、`skipped_files`。`conf.py`、`boot.py`、`main.py` 应作为 `.py` 上传，不得部署 `:conf.mpy` 或 `:boot.mpy`；`firmware/drivers/**/mock.py`/`mock.mpy` 是测试替身，不得部署到设备。
    - 即使项目工具返回 success，若 upload summary 或 `mpremote fs cp` 命令显示上传了 `:conf.mpy`、`:boot.mpy`、`:drivers/*/mock.py` 或 `:drivers/*/mock.mpy`，`deploy_result.py` 必须判 `FAIL`。
@@ -138,7 +139,9 @@ payload.manifest_content.phase == "generate"
    - 用户选择运行时调用 `scripts/run_device_tests.py --project-root <project_root> --port <port> --output-json ... --log-file ...`。
    - 测试文件来源为 `project/device/tests/test_*.py` 和 `project/test/device/test_*.py`。
    - 如果设备测试需要 `firmware/drivers/**/mock.py`，只能由 `run_device_tests.py` 作为临时测试 artifact 上传到设备、运行后删除，并用 `mpremote fs ls` 校验删除；不要把 mock 纳入生产 upload summary。
-14. 设备测试会通过 raw REPL 控制设备，测试结束后必须再次让设备运行刚部署的应用。调用 `scripts/capture_repl.py --reset-first --duration-ms <ms> --output-json final_reset_capture.json --log-file final_reset_capture.log`，把 Ctrl-D soft reset 后的启动输出保存为 final reset 证据。deploy success 表示“文件已上传且板子正在跑新应用”，不是只表示 `main.py` 存在于设备文件系统。
+14. 上传和设备测试都会通过 raw REPL 控制设备，结束后必须再次让设备运行刚部署的应用。调用 `scripts/capture_repl.py --reset-first --duration-ms <ms> --output-json final_reset_capture.json --log-file final_reset_capture.log`，把 Ctrl-D soft reset 后的启动输出保存为 final reset 证据。deploy success 表示“文件已上传且板子正在跑新应用”，不是只表示 `main.py` 存在于设备文件系统。`final_reset_capture.json.observed_soft_reboot` 必须为 true；`reset_first=true` 只表示脚本尝试了 Ctrl-D，不表示设备真的 reboot。
+   - The final reset is the last device operation in the deploy phase. Do not run `fs ls`, `resume exec`, another capture, or another test after it; those actions enter raw REPL and can stop `main.py` again. Use `upload_summary.json` and script artifacts for verification instead.
+   - Do not verify startup with `resume exec import main` or `run_on_device.py --file main.py`; an application loop may never return, so those commands can only hang or stop the app.
 15. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定；只传脚本支持的 flags：`--upload-json`、`--clean-json`、`--serial-json`、`--final-reset-json`、`--log-report-json`、`--device-tests-json`、`--mip-install-json`、`--strategy`、`--port`、`--output-json/--out-json`。Do not pass `--wait-json`、`--probe-json`、`--feedback-json`、`--phase` 或 `--manifest`。
 16. 展示结果选项卡：
    - PASS 或 PASS_WITH_WARNINGS: `approval_request(deploy_result_feedback)`
@@ -245,7 +248,7 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 | REPL Traceback/panic/MemoryError/ValueError/OSError/ImportError/AttributeError | `FAIL` |
 | log_report.error_count > 0 | `FAIL` |
 | device tests failed | `FAIL` |
-| device tests 后缺少 final reset evidence、final reset 捕获为空或卡住 | `FAIL` |
+| upload/device tests 后缺少 final reset evidence、final reset 未观察到 soft reboot、final reset 捕获为空或卡住 | `FAIL` |
 
 上传后串口/REPL 捕获为空不能作为 success 证据。如果已经上传代码但 `serial_capture` 或 `final_reset_capture` 为空、卡住，或者 device tests 后没有执行 `capture_repl.py --reset-first`，必须判 `FAIL` 或 `partial`，不能只凭设备上存在 `main.py` 报 PASS。对于 DHT11 等偶发读数超时，单次 timeout 可作为 warning；只有反复 timeout 且整段 capture 中没有任何成功读数时，才用 `device_io_timeout` 判 FAIL。
 
@@ -313,6 +316,7 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 `phase_complete.payload.deploy_result` 必须来自 `scripts/deploy_result.py` 的结构化结果或与其逐字段一致。LLM 可以总结结果，但不得把底层 `mip_install_result.json`、upload summary、device tests、log report 或 REPL capture 的 blocking failure 手工改写成 PASS。
 
 success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_result.json`、`upload_summary.json`、`clean_result.json`、`mip_install_result.json`、`device_tests_result.json`、`final_reset_capture.json`，以及串口/REPL capture 和设备日志报告。只把叙述性摘要或 `phase_complete` 自身列为 artifact 不合格。
+Evidence JSON files must be emitted by their scripts, not written by `file_operation`: `deploy_result.json`, `upload_summary.json`, `clean_result.json`, `mip_install_result.json`, `device_tests_result.json`, and `final_reset_capture.json` are tool evidence, not model-authored summaries.
 
 ## 强约束
 

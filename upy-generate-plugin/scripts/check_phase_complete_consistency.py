@@ -35,6 +35,8 @@ STRONG_CHECKS = {
 STRONG_LINT = {"flake8", "pylint"}
 STRONG_TESTS = {"pc_unittest"}
 REQUIRED_MANIFEST_KEYS = {"requirements", "devices", "mcu", "generate"}
+GATE_SOURCE_KEY = "results_path"
+GATE_SOURCE_MAX_BYTES = 500_000
 # The permission entry types that satisfy GIT_PERMISSION_RECORD_MISSING. Named in the error
 # so the model is not asked for a record whose shape appears nowhere in the message.
 GIT_PERMISSION_TYPES = {"git_commit", "git_operation"}
@@ -313,7 +315,18 @@ def upstream_hardware_boundary_errors(
 
 def gate_ok(name: str, result: Any, strict_pylint: bool) -> tuple[bool, dict[str, Any] | None]:
     if not isinstance(result, dict):
-        return False, {"code": "GATE_RESULT_MISSING", "gate": name, "message": f"{name} result is missing or not an object"}
+        return False, {
+            "code": "GATE_RESULT_MISSING",
+            "gate": name,
+            "source": "scripts/run_quality_gates.py",
+            "message": (
+                f"the {name} gate result object is missing. Preferred: run scripts/run_quality_gates.py "
+                f'--output-json quality_gates_result.json and set payload.<section> = {{"{GATE_SOURCE_KEY}": '
+                f'"quality_gates_result.json"}} for lint, tests and checks alike. Otherwise copy its '
+                f"checks.{name} object verbatim into payload.<section>.{name}; the error's section field "
+                "names lint, tests, or checks."
+            ),
+        }
     if name == "pylint":
         raw_returncode = result.get("returncode")
         status = str(result.get("status", "")).lower()
@@ -388,21 +401,91 @@ def gate_ok(name: str, result: Any, strict_pylint: bool) -> tuple[bool, dict[str
     return True, None
 
 
-def collect_gate_errors(payload: dict[str, Any], strict_pylint: bool) -> list[dict[str, Any]]:
+def resolve_gate_section(section: Any, project_dir: Path | None) -> tuple[Any, dict[str, Any] | None]:
+    if not isinstance(section, dict):
+        return section, None
+    reference = section.get(GATE_SOURCE_KEY)
+    if not isinstance(reference, str) or not reference:
+        return section, None
+    ref_path = Path(reference)
+    if ref_path.is_absolute() or ".." in ref_path.parts:
+        return None, {
+            "code": "GATE_SOURCE_UNREADABLE",
+            "source": "scripts/run_quality_gates.py",
+            "path": reference,
+            "message": "gate results_path must be a project-relative path and must not contain '..'",
+        }
+    base = project_dir or Path(".")
+    target = base / ref_path
+    if not target.is_file():
+        return None, {
+            "code": "GATE_SOURCE_UNREADABLE",
+            "source": "scripts/run_quality_gates.py",
+            "path": reference,
+            "message": (
+                f"gate results_path {reference!r} was not found under {base}; run "
+                "scripts/run_quality_gates.py --output-json <path> and reference that same file"
+            ),
+        }
+    try:
+        raw = target.read_bytes()
+        if len(raw) > GATE_SOURCE_MAX_BYTES:
+            raise ValueError(f"file is larger than {GATE_SOURCE_MAX_BYTES} bytes")
+        loaded = json.loads(raw.decode("utf-8-sig"))
+    except (OSError, ValueError) as exc:
+        return None, {
+            "code": "GATE_SOURCE_UNREADABLE",
+            "source": "scripts/run_quality_gates.py",
+            "path": reference,
+            "message": f"gate results_path {reference!r} could not be read as JSON: {exc}",
+        }
+    gates = loaded.get("checks") if isinstance(loaded, dict) else None
+    return (gates if isinstance(gates, dict) else loaded), None
+
+
+def collect_gate_errors(payload: dict[str, Any], strict_pylint: bool, project_dir: Path | None = None) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = []
     sections = [
         ("lint", STRONG_LINT),
         ("tests", STRONG_TESTS),
         ("checks", STRONG_CHECKS),
     ]
+    referenced = {
+        name: payload[name][GATE_SOURCE_KEY]
+        for name in ("lint", "tests", "checks")
+        if isinstance(payload.get(name), dict) and isinstance(payload[name].get(GATE_SOURCE_KEY), str)
+    }
+    if len(set(referenced.values())) > 1:
+        errors.append(
+            {
+                "code": "GATE_SOURCE_SPLIT",
+                "source": "scripts/run_quality_gates.py",
+                "message": (
+                    "payload.lint, payload.tests and payload.checks must reference the same "
+                    f"{GATE_SOURCE_KEY} file; got "
+                    + ", ".join(f"{key}={value}" for key, value in sorted(referenced.items()))
+                ),
+            }
+        )
     for section_name, names in sections:
-        section = payload.get(section_name)
+        section, reference_error = resolve_gate_section(payload.get(section_name), project_dir)
+        if reference_error is not None:
+            reference_error["section"] = section_name
+            errors.append(reference_error)
+            continue
         if not isinstance(section, dict):
             errors.append(
                 {
                     "code": "GATE_SECTION_MISSING",
                     "section": section_name,
-                    "message": f"payload.{section_name} is required for generate success",
+                    "required_gates": sorted(names),
+                    "source": "scripts/run_quality_gates.py",
+                    "message": (
+                        f"payload.{section_name} is required for generate success. Preferred: set "
+                        f'payload.{section_name} = {{"{GATE_SOURCE_KEY}": "quality_gates_result.json"}} '
+                        "after running scripts/run_quality_gates.py --output-json quality_gates_result.json; "
+                        "the embedded gate-object form is still accepted."
+                    ),
                 }
             )
             continue
@@ -414,9 +497,31 @@ def collect_gate_errors(payload: dict[str, Any], strict_pylint: bool) -> list[di
     return errors
 
 
+def shape_message(path: str, expected: str, value: Any, example: str) -> str:
+    """Explain both the expected JSON shape and the actual shape that was found."""
+    if value is None:
+        seen = "it is absent"
+    elif isinstance(value, (dict, list, str)) and not value:
+        seen = f"it is an empty {type(value).__name__}"
+    else:
+        seen = f"it is a {type(value).__name__}"
+    return f"{path} must be {expected}, and {seen}. Example: {example}"
+
+
 def deploy_plan_errors(deploy_plan: Any) -> list[dict[str, Any]]:
     if not isinstance(deploy_plan, dict):
-        return [{"code": "MANIFEST_DEPLOY_PLAN_MISSING", "message": "manifest_content.generate.deploy_plan is required"}]
+        return [
+            {
+                "code": "MANIFEST_DEPLOY_PLAN_MISSING",
+                "message": shape_message(
+                    "manifest_content.generate.deploy_plan",
+                    "an object",
+                    deploy_plan,
+                    '{"source_only": ["firmware/main.py", "firmware/boot.py", "firmware/conf.py"], '
+                    '"upload_exclude": ["firmware/drivers/**/mock.py", "firmware/drivers/**/mock.mpy"]}',
+                ),
+            }
+        ]
     errors: list[dict[str, Any]] = []
     source_only = deploy_plan.get("source_only")
     source_only_set = {str(item).replace("\\", "/") for item in source_only} if isinstance(source_only, list) else set()
@@ -516,13 +621,43 @@ def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[d
         errors.append({"code": "MANIFEST_SCAFFOLD_CONTEXT_MISSING", "message": "manifest_content must preserve scaffold context"})
     generate = manifest.get("generate")
     if not isinstance(generate, dict):
-        errors.append({"code": "MANIFEST_GENERATE_SECTION_MISSING", "message": "manifest_content.generate is required"})
+        errors.append(
+            {
+                "code": "MANIFEST_GENERATE_SECTION_MISSING",
+                "message": shape_message(
+                    "manifest_content.generate",
+                    "an object",
+                    generate,
+                    '{"behavior_spec": {...}, "deploy_plan": {...}, "simulation_hints": {...}}',
+                ),
+            }
+        )
     else:
         errors.extend(deploy_plan_errors(generate.get("deploy_plan")))
         if not isinstance(generate.get("behavior_spec"), dict):
-            errors.append({"code": "MANIFEST_BEHAVIOR_SPEC_MISSING", "message": "manifest_content.generate.behavior_spec is required"})
+            errors.append(
+                {
+                    "code": "MANIFEST_BEHAVIOR_SPEC_MISSING",
+                    "message": shape_message(
+                        "manifest_content.generate.behavior_spec",
+                        "an object",
+                        generate.get("behavior_spec"),
+                        '{"description": "Toggle the onboard LED every 1000 ms"}',
+                    ),
+                }
+            )
         if not isinstance(generate.get("simulation_hints"), dict):
-            errors.append({"code": "MANIFEST_SIMULATION_HINTS_MISSING", "message": "manifest_content.generate.simulation_hints is required"})
+            errors.append(
+                {
+                    "code": "MANIFEST_SIMULATION_HINTS_MISSING",
+                    "message": shape_message(
+                        "manifest_content.generate.simulation_hints",
+                        "an object",
+                        generate.get("simulation_hints"),
+                        '{"mock_devices": ["led"]}',
+                    ),
+                }
+            )
         manifest_git = generate.get("git")
         if isinstance(manifest_git, dict) and isinstance(manifest_git.get("commit"), str) and manifest_git.get("commit"):
             if not isinstance(manifest_git.get("commit_role"), str) or not manifest_git.get("commit_role"):
@@ -600,15 +735,29 @@ def cloud_integration_errors(generate: dict[str, Any], next_phase: Any) -> list[
         if not isinstance(item, dict):
             errors.append({"code": "CLOUD_INTEGRATION_INVALID", "index": index, "message": "cloud integration item must be an object"})
             continue
-        provider_id = item.get("provider_id")
+        provider_id = item.get("provider_id") or item.get("provider")
         if not provider_id:
-            errors.append({"code": "CLOUD_PROVIDER_ID_MISSING", "index": index, "message": "cloud integration requires provider_id"})
+            errors.append(
+                {
+                    "code": "CLOUD_PROVIDER_ID_MISSING",
+                    "index": index,
+                    "accepted_keys": ["provider_id", "provider"],
+                    "message": "cloud integration requires provider_id; provider is also accepted on the same entry",
+                }
+            )
         category = item.get("category")
         services = item.get("services")
         if not category:
             errors.append({"code": "CLOUD_CATEGORY_MISSING", "index": index, "provider_id": provider_id, "message": "cloud integration requires category"})
         if not isinstance(services, list) or not services:
-            errors.append({"code": "CLOUD_SERVICES_MISSING", "index": index, "provider_id": provider_id, "message": "cloud integration requires services[]"})
+            errors.append(
+                {
+                    "code": "CLOUD_SERVICES_MISSING",
+                    "index": index,
+                    "provider_id": provider_id,
+                    "message": shape_message("cloud_integrations[].services", "a non-empty list", services, '["asr", "tts"]'),
+                }
+            )
         if provider_id != "custom_http_proxy":
             links = item.get("official_links")
             if not isinstance(links, dict) or not (links.get("docs") or links.get("product")) or not links.get("console"):
@@ -627,7 +776,12 @@ def cloud_integration_errors(generate: dict[str, Any], next_phase: Any) -> list[
                     "code": "CLOUD_CREDENTIAL_MANAGEMENT_MISSING",
                     "index": index,
                     "provider_id": provider_id,
-                    "message": "cloud integration requires credential_management",
+                    "message": shape_message(
+                        "cloud_integrations[].credential_management",
+                        "an object",
+                        credential,
+                        '{"status": "deferred_to_deploy", "storage": "env", "keys": ["OPENAI_API_KEY"]}',
+                    ),
                 }
             )
             continue
@@ -756,7 +910,19 @@ def file_manifest_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
     file_manifest = payload.get("file_manifest")
     files = file_manifest.get("files") if isinstance(file_manifest, dict) else None
     if not isinstance(files, list):
-        return [{"code": "FILE_MANIFEST_MISSING", "message": "file_manifest.files must be present on success"}]
+        return [
+            {
+                "code": "FILE_MANIFEST_MISSING",
+                "message": shape_message(
+                    "file_manifest.files",
+                    "a list of file entries",
+                    files,
+                    '[{"path": "project-manifest.json", "role": "manifest"}, '
+                    '{"path": "generate_plan.json", "role": "plan"}, '
+                    '{"path": "session_state.upy_generate_plugin.json", "role": "artifact"}]',
+                ),
+            }
+        ]
     errors: list[dict[str, Any]] = []
     has_project_manifest = any(
         isinstance(item, dict) and item.get("role") == "manifest" and item.get("path") == "project-manifest.json"
@@ -821,8 +987,13 @@ def session_state_check_errors(
                 "message": "success must record checkpoint=phase_completed",
             }
         )
-    checks = payload.get("checks") if isinstance(payload.get("checks"), dict) else {}
-    state_check = checks.get("session_state_checkpoint") if isinstance(checks, dict) else None
+    checks, reference_error = resolve_gate_section(payload.get("checks"), project_dir)
+    if reference_error is not None:
+        reference_error["section"] = "checks"
+        errors.append(reference_error)
+    if not isinstance(checks, dict):
+        checks = {}
+    state_check = checks.get("session_state_checkpoint")
     if not isinstance(state_check, dict):
         errors.append(
             {
@@ -844,7 +1015,12 @@ def session_state_check_errors(
             errors.append(
                 {
                     "code": "SESSION_STATE_CHECKPOINT_STATE_MISSING",
-                    "message": "checks.session_state_checkpoint.state must include the checked session state",
+                    "source": "scripts/update_session_state.py --check",
+                    "message": (
+                        "checks.session_state_checkpoint.state is missing. checks.session_state_checkpoint "
+                        "must be the whole JSON object printed by scripts/update_session_state.py --check; "
+                        "embed that output instead of composing the block."
+                    ),
                 }
             )
         else:
@@ -865,7 +1041,12 @@ def session_state_check_errors(
                         {
                             "code": "SESSION_STATE_CHECKPOINT_FIELD_MISSING",
                             "field": field,
-                            "message": f"session_state checkpoint must record {field}",
+                            "source": "scripts/update_session_state.py --check",
+                            "message": (
+                                f"checks.session_state_checkpoint.state must record {field}. Re-run "
+                                "scripts/update_session_state.py --check and copy its output whole; "
+                                "do not hand-compose the state object."
+                            ),
                         }
                     )
             if state.get("manifest_hash") == "unknown":
@@ -994,6 +1175,18 @@ def session_state_check_errors(
     return errors
 
 
+def recorded_generate_git(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the generate git record from either accepted payload location."""
+    payload_generate = payload.get("generate") if isinstance(payload.get("generate"), dict) else {}
+    git_info = payload_generate.get("git") if isinstance(payload_generate.get("git"), dict) else None
+    if not git_info:
+        manifest = payload.get("manifest_content") if isinstance(payload.get("manifest_content"), dict) else {}
+        manifest_generate = manifest.get("generate") if isinstance(manifest.get("generate"), dict) else {}
+        if isinstance(manifest_generate.get("git"), dict):
+            git_info = manifest_generate.get("git")
+    return git_info if isinstance(git_info, dict) else {}
+
+
 def final_git_consistency_errors(payload: dict[str, Any], project_dir: Path | None, session_dir: Path | None) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = []
     if project_dir is None or not (project_dir / ".git").exists():
@@ -1001,14 +1194,17 @@ def final_git_consistency_errors(payload: dict[str, Any], project_dir: Path | No
     head = git_head(project_dir)
     if not head:
         return errors
-    payload_git = payload.get("generate") if isinstance(payload.get("generate"), dict) else {}
-    git_info = payload_git.get("git") if isinstance(payload_git.get("git"), dict) else {}
+    git_info = recorded_generate_git(payload)
     recorded_commit = git_info.get("commit")
     if not isinstance(recorded_commit, str) or not recorded_commit.strip():
         errors.append(
             {
                 "code": "GIT_COMMIT_MISSING",
-                "message": "payload.generate.git.commit must record the final project HEAD",
+                "accepted_locations": ["payload.generate.git.commit", "payload.manifest_content.generate.git.commit"],
+                "message": (
+                    "the recorded generate git commit must equal the final project HEAD; record it at "
+                    "payload.generate.git.commit. manifest_content.generate.git.commit is also read."
+                ),
             }
         )
     elif recorded_commit != head:
@@ -1017,7 +1213,10 @@ def final_git_consistency_errors(payload: dict[str, Any], project_dir: Path | No
                 "code": "GIT_COMMIT_NOT_HEAD",
                 "recorded": recorded_commit,
                 "head": head,
-                "message": "payload.generate.git.commit must record the final project HEAD",
+                "message": (
+                    "the recorded generate git commit must equal the final project HEAD "
+                    "(payload.generate.git.commit; manifest_content.generate.git.commit is also read)"
+                ),
             }
         )
     disk_session_dir = session_dir or infer_session_dir(project_dir)
@@ -1043,20 +1242,17 @@ def final_git_consistency_errors(payload: dict[str, Any], project_dir: Path | No
 
 def git_commit_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = []
-    manifest = payload.get("manifest_content") if isinstance(payload.get("manifest_content"), dict) else {}
-    manifest_generate = manifest.get("generate") if isinstance(manifest.get("generate"), dict) else {}
-    payload_generate = payload.get("generate") if isinstance(payload.get("generate"), dict) else {}
-    git_info = payload_generate.get("git") if isinstance(payload_generate.get("git"), dict) else None
-    if not git_info and isinstance(manifest_generate.get("git"), dict):
-        git_info = manifest_generate.get("git")
-    if not isinstance(git_info, dict):
-        git_info = {}
+    git_info = recorded_generate_git(payload)
     commit = git_info.get("commit")
     if not isinstance(commit, str) or not commit.strip():
         errors.append(
             {
                 "code": "GIT_COMMIT_MISSING",
-                "message": "generate success must record a git commit after all quality gates pass",
+                "accepted_locations": ["payload.generate.git.commit", "payload.manifest_content.generate.git.commit"],
+                "message": (
+                    "generate success must record the commit sha at payload.generate.git.commit "
+                    "(manifest_content.generate.git.commit is also read) after all quality gates pass"
+                ),
             }
         )
     if git_info.get("committed") is False:
@@ -1200,7 +1396,7 @@ def validate_phase_complete(
                 }
             )
         errors.extend(next_phase_decision_errors(payload))
-        errors.extend(collect_gate_errors(payload, strict_pylint))
+        errors.extend(collect_gate_errors(payload, strict_pylint, project_dir))
         errors.extend(manifest_errors(payload, project_dir))
         errors.extend(upstream_hardware_boundary_errors(payload, phase_complete_path, project_dir, session_dir, upstream_phase_complete_path))
         errors.extend(deploy_tool_compat_errors(project_dir, payload.get("next_phase")))

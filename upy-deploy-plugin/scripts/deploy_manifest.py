@@ -109,6 +109,11 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
                 )
                 require(final_reset.get("reset_first") is True, errors, "success deploy_result.final_reset.reset_first must be true")
                 require(
+                    final_reset.get("observed_soft_reboot") is True,
+                    errors,
+                    "success deploy_result.final_reset.observed_soft_reboot must be true",
+                )
+                require(
                     bool(deploy_result.get("final_reset_excerpt") or final_reset.get("output_excerpt") or final_reset.get("output")),
                     errors,
                     "success deploy_result.final_reset must include boot/run output evidence",

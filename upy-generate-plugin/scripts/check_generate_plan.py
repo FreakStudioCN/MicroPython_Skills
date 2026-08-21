@@ -191,7 +191,16 @@ def validate_plan(plan: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict
     warnings: list[dict[str, Any]] = []
     missing = sorted(section for section in REQUIRED_SECTIONS if section not in plan)
     if missing:
-        errors.append({"code": "GENERATE_PLAN_SECTION_MISSING", "missing": missing, "message": "generate_plan.json is missing required sections"})
+        errors.append(
+            {
+                "code": "GENERATE_PLAN_SECTION_MISSING",
+                "missing": missing,
+                "message": (
+                    "generate_plan.json is missing required sections: " + ", ".join(missing) + ". "
+                    "Add these top-level keys using the same object/list shapes shown in the generate SKILL sample."
+                ),
+            }
+        )
     mode = plan.get("scheduler_mode")
     if mode not in VALID_SCHEDULER_MODES:
         errors.append(

@@ -1230,6 +1230,55 @@ def assert_phase_complete_consistency() -> None:
         raise AssertionError(f"valid success sample failed consistency check:\nSTDOUT={stdout}\nSTDERR={stderr}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        temp = Path(temp_dir)
+        referenced = load_json(sample_path)
+        payload = referenced["payload"]
+        gate_results = {}
+        gate_results.update(payload["lint"])
+        gate_results.update(payload["tests"])
+        gate_results.update(payload["checks"])
+        (temp / "quality_gates_result.json").write_text(
+            json.dumps({"check": "quality_gates", "checks": gate_results, "ok": True}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        for section in ("lint", "tests", "checks"):
+            payload[section] = {"results_path": "quality_gates_result.json"}
+        phase_path = temp / "phase_complete.upy_generate_plugin.json"
+        phase_path.write_text(json.dumps(referenced, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(phase_path)],
+            cwd=temp,
+        )
+        if rc != 0:
+            raise AssertionError(f"results_path gate reference should pass:\nSTDOUT={stdout}\nSTDERR={stderr}")
+
+        split = load_json(sample_path)
+        split["payload"]["lint"] = {"results_path": "quality_gates_result.json"}
+        split["payload"]["tests"] = {"results_path": "older_quality_gates_result.json"}
+        split["payload"]["checks"] = {"results_path": "quality_gates_result.json"}
+        split_path = temp / "split_phase_complete.json"
+        split_path.write_text(json.dumps(split, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(split_path)],
+            cwd=temp,
+        )
+        if rc == 0 or "GATE_SOURCE_SPLIT" not in stdout:
+            raise AssertionError(f"split gate result references must fail:\n{stdout}")
+
+        binary = load_json(sample_path)
+        (temp / "binary_gate_result.json").write_bytes(b"\x80\x81not-json")
+        for section in ("lint", "tests", "checks"):
+            binary["payload"][section] = {"results_path": "binary_gate_result.json"}
+        binary_path = temp / "binary_phase_complete.json"
+        binary_path.write_text(json.dumps(binary, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(binary_path)],
+            cwd=temp,
+        )
+        if rc == 0 or "GATE_SOURCE_UNREADABLE" not in stdout:
+            raise AssertionError(f"unreadable gate result reference must return structured JSON failure:\n{stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
         bad_path = Path(temp_dir) / "bad_permissions_dict.json"
         bad = load_json(sample_path)
         bad["payload"]["permissions"] = {

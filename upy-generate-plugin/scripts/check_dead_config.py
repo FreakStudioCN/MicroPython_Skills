@@ -81,7 +81,7 @@ def check_project(project_dir: Path) -> dict[str, Any]:
                 used[constant].append(rel)
     dead = [name for name in constants if not used[name] and name not in RESERVED_CONSTANTS]
     reserved_unused = [name for name in constants if not used[name] and name in RESERVED_CONSTANTS]
-    warnings = [
+    errors = [
         {
             "code": "DEAD_CONFIG",
             "constant": name,
@@ -89,6 +89,7 @@ def check_project(project_dir: Path) -> dict[str, Any]:
         }
         for name in dead
     ]
+    warnings = []
     warnings.extend(
         {
             "code": "RESERVED_CONFIG_UNUSED",
@@ -105,7 +106,7 @@ def check_project(project_dir: Path) -> dict[str, Any]:
         "dead_config": dead,
         "reserved_unused": reserved_unused,
         "warnings": warnings,
-        "errors": [],
+        "errors": errors,
         "ok": not dead,
     }
 

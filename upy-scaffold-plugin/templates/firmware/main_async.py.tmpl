@@ -26,7 +26,11 @@ async def _main():
 ${I2C_INIT_BLOCK_IN_MAIN}
 ${GPIO_INIT_BLOCK_IN_MAIN}
 
+    # Deploy capture waits for this exact line after hardware init.
+    print("MPYHW_READY")
+
     # TODO: upy-generate creates async business tasks here.
+    print("starting scheduler")
     while True:
 ${MAINTENANCE_ASYNC_BLOCK}
         await asyncio.sleep_ms(100)

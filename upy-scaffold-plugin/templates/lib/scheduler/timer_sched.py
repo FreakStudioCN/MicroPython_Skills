@@ -68,6 +68,7 @@ class Scheduler:
             t['tick_cnt'] = 0
 
     def start(self):
+        print("starting scheduler")
         while True:
             for tid, task in list(self._tasks.items()):
                 if task['state'] != _RUN:

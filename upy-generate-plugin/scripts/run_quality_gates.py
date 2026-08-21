@@ -340,6 +340,12 @@ def main() -> int:
     parser.add_argument("--session-dir", default="", help="Optional session root containing session_state.upy_generate_plugin.json")
     parser.add_argument("--strict-lib-imports", action="store_true", help="Fail on firmware/lib import risks")
     parser.add_argument("--strict-pylint", action="store_true", help="Fail on any nonzero pylint exit code")
+    parser.add_argument(
+        "--output-json",
+        "--out-json",
+        dest="output_json",
+        help="Also write the full gate result JSON to this path for phase_complete results_path references",
+    )
     args = parser.parse_args()
     result = run_quality(
         Path(args.project_dir),
@@ -347,6 +353,11 @@ def main() -> int:
         strict_pylint=args.strict_pylint,
         session_dir=Path(args.session_dir) if args.session_dir else None,
     )
+    if args.output_json:
+        target = Path(args.output_json)
+        if target.parent != Path("."):
+            target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     json_dump(result)
     return 0 if result["ok"] else 2
 

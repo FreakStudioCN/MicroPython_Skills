@@ -195,7 +195,17 @@ def check_state_with_project(session_dir: Path, project_dir: Path | None) -> dic
             "check": "session_state_checkpoint",
             "path": str(state_path),
             "exists": False,
-            "errors": [{"code": "SESSION_STATE_MISSING", "message": "session_state.upy_generate_plugin.json is missing"}],
+            "errors": [
+                {
+                    "code": "SESSION_STATE_MISSING",
+                    "message": (
+                        f"{DEFAULT_STATE_FILE} is missing at the path above. This script creates it: run "
+                        "update_session_state.py --session-dir <dir> --checkpoint <checkpoint> --step <step> "
+                        "--idempotency-key <key> with the same --session-dir later used by --check. "
+                        "Do not write the file by hand."
+                    ),
+                }
+            ],
             "warnings": [],
             "ok": False,
         }
@@ -223,7 +233,16 @@ def check_state_with_project(session_dir: Path, project_dir: Path | None) -> dic
         "usage",
     ):
         if field not in state:
-            errors.append({"code": "SESSION_STATE_FIELD_MISSING", "field": field, "message": f"{field} is required"})
+            errors.append(
+                {
+                    "code": "SESSION_STATE_FIELD_MISSING",
+                    "field": field,
+                    "message": (
+                        f"{field} is required. State fields are written by running update_session_state.py "
+                        "without --check; re-run it rather than editing the file by hand."
+                    ),
+                }
+            )
     if state.get("phase") != "upy-generate-plugin":
         errors.append({"code": "SESSION_STATE_PHASE_INVALID", "phase": state.get("phase"), "message": "phase must be upy-generate-plugin"})
     manifest_hash = state.get("manifest_hash")

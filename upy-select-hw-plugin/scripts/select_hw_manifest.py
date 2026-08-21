@@ -1193,8 +1193,15 @@ def load_board_definition(board_root: Path | None, board_id: str | None, errors:
         return None
     root = board_root or DEFAULT_BOARD_ROOT
     path = root / f"{board_id}.json"
+    if not path.is_file() and root != DEFAULT_BOARD_ROOT:
+        fallback = DEFAULT_BOARD_ROOT / f"{board_id}.json"
+        if fallback.is_file():
+            path = fallback
     if not path.is_file():
-        errors.append(f"board definition not found: {path}")
+        searched = str(path)
+        if root != DEFAULT_BOARD_ROOT:
+            searched = f"{path} (also tried {DEFAULT_BOARD_ROOT / f'{board_id}.json'})"
+        errors.append(f"board definition not found: {searched}")
         return None
     try:
         with open(path, "r", encoding="utf-8-sig") as f:

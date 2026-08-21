@@ -19,10 +19,11 @@
         },
         {
           "type": "final_reset",
-          "status": "success",
-          "reset_first": true,
-          "matched_stop": "starting scheduler"
-        }
+        "status": "success",
+        "reset_first": true,
+        "observed_soft_reboot": true,
+        "matched_stop": "starting scheduler"
+      }
       ],
       "serial_excerpt": "MPY: soft reboot\n[t=120ms] temperature_alarm booting\nstarting scheduler\n",
       "serial_output_bytes": 68,
@@ -30,6 +31,7 @@
         "status": "success",
         "mode": "mock",
         "reset_first": true,
+        "observed_soft_reboot": true,
         "matched_stop": "starting scheduler",
         "output_excerpt": "MPY: soft reboot\n[t=180ms] temperature_alarm booting\nstarting scheduler\n",
         "output_bytes": 68

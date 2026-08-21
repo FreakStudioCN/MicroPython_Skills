@@ -194,13 +194,19 @@ def run_summary(args: argparse.Namespace) -> dict[str, Any]:
         timeout=max(args.timeout_ms, 1) / 1000,
         check=False,
     )
+    already_there = (
+        completed.returncode != 0
+        and "mkdir" in command
+        and "File exists" in f"{completed.stdout}{completed.stderr}"
+    )
     return {
-        "status": "success" if completed.returncode == 0 else "failed",
+        "status": "success" if completed.returncode == 0 or already_there else "failed",
         "mode": "live",
         "command": command,
         "returncode": completed.returncode,
         "stdout": completed.stdout,
         "stderr": completed.stderr,
+        **({"note": "directory already exists; treated as success for idempotent mkdir"} if already_there else {}),
     }
 
 

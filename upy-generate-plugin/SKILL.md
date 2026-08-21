@@ -151,8 +151,10 @@ Additional hard rules:
 - For voice/sensor/cloud/state-machine/pipeline/cross-tick flows, `generate_plan.json` must declare `data_flow_contract[]` with `name`, `producer`, `consumer`, `invariant`, `storage` when cross-stage, and test coverage using `covered_by_tests` or `test_path`. Prefer `covered_by_tests` as a non-empty list of PC unittest node ids. Do not invent alternate keys such as `tests`, `coverage`, `contract_tests`, or `test_coverage`. Simple GPIO blink/direct actuator-only flows should omit `data_flow_contract[]`. Prefer generated contract tests over trying to infer all business semantics from static AST checks.
 - Never mark skipped pylint as success. If `.pylintrc` is missing, run `scripts/ensure_pylintrc.py`; then run pylint and record the real integer return code.
 - `phase_complete.result=success` requires `file_manifest.files` to include both `project-manifest.json` role `manifest` and `generate_plan.json` role `plan`.
+- Quality gate results may be referenced instead of embedded: set `payload.lint`, `payload.tests`, and `payload.checks` to `{"results_path": "quality_gates_result.json"}` after running `scripts/run_quality_gates.py --output-json quality_gates_result.json`. All three sections must name the same project-relative file. Embedded gate objects are still accepted, but the referenced form is preferred because the full checks blob can exceed one model output turn.
 - `phase_complete.result=success` requires `session_state.upy_generate_plugin.json`, `checks.session_state_checkpoint.ok=true`, and an artifact entry with `type=session_state`.
 - Write `session_state.upy_generate_plugin.json` only through `scripts/update_session_state.py`; do not hand-write a simplified JSON state. It must include `protocol_version`, `checkpoint`, `attempt`, `idempotency_key`, `manifest_hash`, `git_commit`, and `usage`.
+- Finish every edit to `project-manifest.json` before running `update_session_state.py`; the script computes `manifest_hash` from the disk file. If a later gate error forces a manifest edit, re-run `update_session_state.py --project-dir <project_root>` and then `--check` before writing phase_complete.
 - `manifest_hash` means the SHA256 of `project/project-manifest.json`, not the git commit. `session_state.git_commit` and `phase_complete.payload.generate.git.commit` must record final deliverable project HEAD. If `project-manifest.json` records an earlier code-generation commit, use `generate.git.code_commit` or include an explicit `commit_role`; do not imply it is final HEAD.
 - `project-manifest.json` must advance consistently: `phase="generate"`, `domain_phase="generate"` when present, and `final_status="generated"` when present.
 - `phase_complete.result=success` requires `payload.artifacts[]` to include both `type=session_state` and `type=file_manifest`.
@@ -235,7 +237,7 @@ MicroPython 官方文档说明其标准库是面向嵌入式的精简子集，�
 
 ```text
 python scripts/update_session_state.py --session-dir <session_root> --checkpoint tests_generated --step quality_gates --status running --idempotency-key <stable-key>
-python scripts/run_quality_gates.py --project-dir <project_root> --session-dir <session_root>
+python scripts/run_quality_gates.py --project-dir <project_root> --session-dir <session_root> --output-json quality_gates_result.json
 ```
 
 该脚本应覆盖：
