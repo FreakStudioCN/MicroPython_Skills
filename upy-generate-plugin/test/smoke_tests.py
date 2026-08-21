@@ -1265,6 +1265,30 @@ def assert_phase_complete_consistency() -> None:
         if rc == 0 or "GATE_SOURCE_SPLIT" not in stdout:
             raise AssertionError(f"split gate result references must fail:\n{stdout}")
 
+        mixed = load_json(sample_path)
+        mixed["payload"]["lint"] = {"results_path": "quality_gates_result.json"}
+        mixed["payload"]["checks"] = {"results_path": "quality_gates_result.json"}
+        mixed["payload"]["tests"] = {"pc_unittest": {"ok": True}}
+        mixed_path = temp / "mixed_phase_complete.json"
+        mixed_path.write_text(json.dumps(mixed, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(mixed_path)],
+            cwd=temp,
+        )
+        if rc == 0 or "GATE_SOURCE_SPLIT" not in stdout:
+            raise AssertionError(f"mixed referenced/embedded gate sections must fail:\n{stdout}")
+
+        misplaced = load_json(sample_path)
+        misplaced["payload"]["tests"]["pc_unittest"] = {"ok": True, "results_path": "quality_gates_result.json"}
+        misplaced_path = temp / "misplaced_phase_complete.json"
+        misplaced_path.write_text(json.dumps(misplaced, ensure_ascii=False), encoding="utf-8")
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_phase_complete_consistency.py"), "--phase-complete", str(misplaced_path)],
+            cwd=temp,
+        )
+        if rc == 0 or "GATE_SOURCE_MISPLACED" not in stdout:
+            raise AssertionError(f"per-gate results_path must fail:\n{stdout}")
+
         binary = load_json(sample_path)
         (temp / "binary_gate_result.json").write_bytes(b"\x80\x81not-json")
         for section in ("lint", "tests", "checks"):

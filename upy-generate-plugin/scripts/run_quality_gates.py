@@ -333,6 +333,17 @@ def run_quality(
     }
 
 
+SESSION_STATE_FILENAME = "session_state.upy_generate_plugin.json"
+
+
+def resolve_session_dir(requested: str, project_dir: Path) -> Path | None:
+    if requested:
+        return Path(requested)
+    if (project_dir / SESSION_STATE_FILENAME).is_file():
+        return project_dir
+    return None
+
+
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(description="Run upy-generate-plugin quality gates")
@@ -351,7 +362,7 @@ def main() -> int:
         Path(args.project_dir),
         warn_only_lib_imports=not args.strict_lib_imports,
         strict_pylint=args.strict_pylint,
-        session_dir=Path(args.session_dir) if args.session_dir else None,
+        session_dir=resolve_session_dir(args.session_dir, Path(args.project_dir)),
     )
     if args.output_json:
         target = Path(args.output_json)

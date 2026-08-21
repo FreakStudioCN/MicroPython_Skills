@@ -440,7 +440,12 @@ def check(project_dir: Path) -> dict[str, Any]:
                     "evidence": required["evidence"],
                     "declare_in": "generate.runtime_dependencies.mip[]",
                     "expected_entry": expected_mip_entry(required),
-                    "message": "generate must declare this complete MicroPython runtime dependency entry for deploy-time mpremote mip install",
+                    "message": (
+                        "add expected_entry exactly to project-manifest.json at "
+                        "generate.runtime_dependencies.mip[] and mirror it in "
+                        "phase_complete.payload.manifest_content.generate.runtime_dependencies.mip[]; "
+                        "deploy uses it for mpremote mip install and verify_import probing"
+                    ),
                 }
             )
             continue

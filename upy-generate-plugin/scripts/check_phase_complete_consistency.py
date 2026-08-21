@@ -314,6 +314,17 @@ def upstream_hardware_boundary_errors(
 
 
 def gate_ok(name: str, result: Any, strict_pylint: bool) -> tuple[bool, dict[str, Any] | None]:
+    if isinstance(result, dict) and GATE_SOURCE_KEY in result:
+        return False, {
+            "code": "GATE_SOURCE_MISPLACED",
+            "gate": name,
+            "source": "scripts/run_quality_gates.py",
+            "message": (
+                f"{GATE_SOURCE_KEY} belongs on the section, not on one gate. Set payload.lint, "
+                f'payload.tests and payload.checks to {{"{GATE_SOURCE_KEY}": "quality_gates_result.json"}} '
+                f"with the same file; a per-gate reference for {name} is never read."
+            ),
+        }
     if not isinstance(result, dict):
         return False, {
             "code": "GATE_RESULT_MISSING",
@@ -455,6 +466,18 @@ def collect_gate_errors(payload: dict[str, Any], strict_pylint: bool, project_di
         for name in ("lint", "tests", "checks")
         if isinstance(payload.get(name), dict) and isinstance(payload[name].get(GATE_SOURCE_KEY), str)
     }
+    if referenced and len(referenced) != len(sections):
+        errors.append(
+            {
+                "code": "GATE_SOURCE_SPLIT",
+                "source": "scripts/run_quality_gates.py",
+                "message": (
+                    "payload.lint, payload.tests and payload.checks must all use results_path when any "
+                    f"one section does; got references for {', '.join(sorted(referenced))}. Pure embedded "
+                    "gate objects are still accepted only when none of the three sections uses results_path."
+                ),
+            }
+        )
     if len(set(referenced.values())) > 1:
         errors.append(
             {
@@ -972,6 +995,12 @@ def file_manifest_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return errors
 
 
+def unwrap_gate_payload(gate: Any) -> Any:
+    if isinstance(gate, dict) and "state" not in gate and isinstance(gate.get("payload"), dict):
+        return gate["payload"]
+    return gate
+
+
 def session_state_check_errors(
     payload: dict[str, Any],
     phase_complete_path: Path | None,
@@ -993,7 +1022,7 @@ def session_state_check_errors(
         errors.append(reference_error)
     if not isinstance(checks, dict):
         checks = {}
-    state_check = checks.get("session_state_checkpoint")
+    state_check = unwrap_gate_payload(checks.get("session_state_checkpoint"))
     if not isinstance(state_check, dict):
         errors.append(
             {
