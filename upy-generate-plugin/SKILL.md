@@ -62,6 +62,12 @@ upy-deploy-plugin
 | 运行质量门禁前 | `references/validation_gates.md` |
 | 输出 success 和 git commit 前 | `references/final_review_checklist.md` |
 
+**不要用 `file_operation` 读上表中的 `references/` 或 `knowledge/` 文件。** 它们位于插件资源目录，
+而 `file_operation` 只能访问项目工作区，所以这类读取在任何阶段都必然失败（宿主返回
+`file_not_found`，这并不表示文件不存在）。这些约束已经作为提示文本随 SKILL 一起提供，宿主解析出的
+事实在 RESOLVED DATA 中。直接使用它们，不要重试这些路径，也不要在项目里另找一份。与 select-hw 对
+`upy-analyze-plugin/boards` 的规定一致。
+
 ## 启动消息
 
 full 模式：
@@ -141,7 +147,7 @@ fix 模式：
 17. 读取 `references/validation_gates.md`，运行完整质量门禁：`.pylintrc`、generate_plan、py_compile、conf_contract、driver compile、flake8、pylint、PC unittest、MicroPython import、dead config、task no-machine、device unittest subset、runtime dependencies、doc evidence、skeleton compliance、generated semantics、cloud integrations、session checkpoint。
 18. 读取 `references/final_review_checklist.md`，逐项做最终审查，并输出结构化 `review_findings`。
 19. 生成 `phase_complete` 草案后运行 `scripts/check_final_review_consistency.py` 与 `scripts/check_phase_complete_consistency.py --phase-complete <phase_complete> --project-dir <project_root>`；如果失败，必须改为 `partial/failed`、`next_phase=null` 并记录 structured error。
-20. 检查和最终审查通过后发起 git commit 权限请求。full 和 fix 每次通过校验都必须 commit。
+20. 提交必须发生在最终校验**之前**，不是之后。顺序是：写好代码和 manifest -> 请求提交权限并提交一次 -> `git rev-parse HEAD` -> 把这个 hash 写进 session_state 和 phase_complete -> 再运行 `check_phase_complete_consistency.py`。校验通过之后**不要再提交**：校验器要求记录的 git_commit 等于最终 HEAD，而通过之后的每一次提交都会移动 HEAD，让刚刚通过的记录立刻失效，下一轮校验就会报 GIT_COMMIT_MISSING 或 SESSION_STATE_DISK_CHECK_FAILED。如果校验失败需要改代码，改完再提交一次，重新记录 hash，再重新校验，顺序不变。
 21. 输出 `phase_complete`，默认 `next_phase=upy-deploy-plugin`；用户可选 `upy-simulate-plugin` 或 `null`。如果云服务是 `mock_only` 或 `blocked`，不得进入 deploy。
 22. 成功后询问是否生成附加产物：`upy-diagram-plugin` 和 `upy-wiring-plugin`。它们只能进入 `optional_next_phases`，不得覆盖主 `next_phase`。
 
@@ -154,7 +160,10 @@ Additional hard rules:
 - Quality gate results may be referenced instead of embedded: set `payload.lint`, `payload.tests`, and `payload.checks` to `{"results_path": "quality_gates_result.json"}` after running `scripts/run_quality_gates.py --output-json quality_gates_result.json`. All three sections must name the same project-relative file. Embedded gate objects are still accepted, but the referenced form is preferred because the full checks blob can exceed one model output turn.
 - `phase_complete.result=success` requires `session_state.upy_generate_plugin.json`, `checks.session_state_checkpoint.ok=true`, and an artifact entry with `type=session_state`.
 - Write `session_state.upy_generate_plugin.json` only through `scripts/update_session_state.py`; do not hand-write a simplified JSON state. It must include `protocol_version`, `checkpoint`, `attempt`, `idempotency_key`, `manifest_hash`, `git_commit`, and `usage`.
-- Finish every edit to `project-manifest.json` before running `update_session_state.py`; the script computes `manifest_hash` from the disk file. If a later gate error forces a manifest edit, re-run `update_session_state.py --project-dir <project_root>` and then `--check` before writing phase_complete.
+- `checks.session_state_checkpoint` must be the VERBATIM JSON that `scripts/update_session_state.py --check` printed, `state` object included, copied whole into the payload. The same rule that governs the state file governs the copy of it you embed: run the script, paste its output, change nothing. Retyping the state from memory is invalid even when the block is present and `ok` is true.
+- Recording HEAD is the LAST git step. The order that converges is: run the quality gates, stage the code with `git add <path>` for each path, commit once, `git rev-parse HEAD`, then write that hash into `session_state.upy_generate_plugin.json` and `phase_complete.payload.generate.git.commit` and STOP touching git. Do NOT run `git add -A` afterwards: it stages the two files that hold the hash, the commit that follows changes HEAD, and the hash you just recorded is stale again, so GIT_COMMIT_MISSING returns.
+- The same freeze order governs the embedded `checks.session_state_checkpoint`: it is a snapshot of `--check` output, so ANY later `update_session_state.py` run (including one that records `git_commit`) stales it and `SESSION_STATE_PHASE_COMPLETE_MISMATCH` returns. The full order that converges: finish `project-manifest.json` -> the git steps in the rule above -> `update_session_state.py` (records `manifest_hash` and `git_commit`) -> `--check` -> embed its output verbatim -> write the `phase_complete` file, its `manifest_content` copied from the tracked manifest -> validate. Editing anything earlier in this chain invalidates everything after it: restart from that point, not from scratch.
+- Finish every edit to `project-manifest.json` before running `update_session_state.py`; the script computes `manifest_hash` from the disk file. If a later gate error forces a manifest edit, re-run `update_session_state.py --project-dir <project_root>` and then `--check` before writing phase_complete. **And re-run `run_quality_gates.py --output-json <the referenced file>` as well.** When `payload.checks` references the gate results file, the checkpoint the checker reads is the snapshot inside that file, not the state on disk: refreshing the session state alone leaves the snapshot stale and `SESSION_STATE_PHASE_COMPLETE_MISMATCH` keeps returning. Embedding the checkpoint instead is not an escape either, because a per-gate object under `payload.checks` is refused as `GATE_SOURCE_MISPLACED` and mixing the two forms is refused as `GATE_SOURCE_SPLIT`.
 - `manifest_hash` means the SHA256 of `project/project-manifest.json`, not the git commit. `session_state.git_commit` and `phase_complete.payload.generate.git.commit` must record final deliverable project HEAD. If `project-manifest.json` records an earlier code-generation commit, use `generate.git.code_commit` or include an explicit `commit_role`; do not imply it is final HEAD.
 - `project-manifest.json` must advance consistently: `phase="generate"`, `domain_phase="generate"` when present, and `final_status="generated"` when present.
 - `phase_complete.result=success` requires `payload.artifacts[]` to include both `type=session_state` and `type=file_manifest`.

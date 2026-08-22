@@ -77,12 +77,22 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
         require(isinstance(manifest, dict), errors, "success payload.manifest_content is required")
         if isinstance(manifest, dict):
             require(manifest.get("phase") == PHASE, errors, f"manifest_content.phase must be {PHASE}")
-            require(manifest.get("deploy") or manifest.get("deploy_result"), errors, "manifest_content.deploy or deploy_result is required")
+            require(
+                manifest.get("deploy") or manifest.get("deploy_result"),
+                errors,
+                "manifest_content.deploy (or manifest_content.deploy_result) is required: a section "
+                "summarizing the scripts/deploy_result.py output (status, strategy, port)",
+            )
     artifacts = payload.get("artifacts")
     require(isinstance(artifacts, list), errors, "payload.artifacts must be a list")
     artifact_paths = artifact_file_paths(artifacts) if isinstance(artifacts, list) else []
     deploy_result = payload.get("deploy_result")
-    require(isinstance(deploy_result, dict), errors, "payload.deploy_result object is required")
+    require(
+        isinstance(deploy_result, dict),
+        errors,
+        "payload.deploy_result object is required: embed VERBATIM the JSON that scripts/deploy_result.py "
+        "printed (also written via --output-json deploy_result.json); do not compose it by hand",
+    )
     if isinstance(deploy_result, dict):
         require("status" in deploy_result, errors, "deploy_result.status is required")
         if "status" in deploy_result:
@@ -133,7 +143,8 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
             require(
                 has_artifact_keyword(artifact_paths, keywords),
                 errors,
-                f"success payload.artifacts must include {label} capture/report artifact",
+                f"success payload.artifacts must include {label} capture/report artifact "
+                f"(an artifact path containing one of: {', '.join(keywords)})",
             )
     elif payload.get("result") in {"failed", "partial"}:
         require(

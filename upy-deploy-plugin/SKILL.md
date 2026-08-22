@@ -296,6 +296,7 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 - 上传与文件系统操作必须优先使用 `mpremote connect <port> resume fs ...`，避免文件传输前隐式 soft reset。
 - `scripts/mpremote_runtime.py` 支持人工调试 passthrough，例如 `mpremote_runtime.py --run --port <port> -- resume exec "print('hello')"`。
 - 长时间监听、运行后输出采集和多轮交互必须使用持久会话模型；`scripts/capture_repl.py` 是 deploy 阶段的独立入口。
+- `capture_repl.py` 默认等待 `MPYHW_READY` 或 `starting scheduler`。scaffold 模板会打印这两个标记；如果被部署的 `main.py` 两者都不打印，采集只会一直等到超时，此时的 `stalled` 并不能证明板子没跑起来。遇到这种情况用 `--stop-pattern` 指定该 `main.py` 真正会打印的字符串，不要把 `stalled` 直接当成部署失败。
 - `mpremote resume exec` 只用于短探测或部署前清理这类一次性动作；不要用反复 `resume exec` 代替持久 REPL 监听。
 - Windows 使用显式 `COMn`；macOS 使用 `/dev/tty.usbmodem*` 或 `/dev/tty.usbserial*`；Linux 优先 `/dev/serial/by-id/*` 或 mpy-dev 解析出的稳定路径。
 
@@ -318,6 +319,8 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_result.json`、`upload_summary.json`、`clean_result.json`、`mip_install_result.json`、`device_tests_result.json`、`final_reset_capture.json`，以及串口/REPL capture 和设备日志报告。只把叙述性摘要或 `phase_complete` 自身列为 artifact 不合格。
 Evidence JSON files must be emitted by their scripts, not written by `file_operation`: `deploy_result.json`, `upload_summary.json`, `clean_result.json`, `mip_install_result.json`, `device_tests_result.json`, and `final_reset_capture.json` are tool evidence, not model-authored summaries.
 
+`scripts/run_device_tests.py` 和 `scripts/deploy_result.py` 必须在本阶段真实执行过，然后才允许发 `phase_complete`。没有跑 `deploy_result.py` 就没有判定，这个阶段没有可以结束的依据，只会一路烧到 turn 上限。把脚本打印到 stdout 的内容再抄进同名文件，看起来一样，但证据链已经断了：时间戳、返回码、失败分类全部变成模型手写的值，校验对着这种文件只能全部通过，却什么都没有证明。脚本缺少落盘参数时，报 `action_required` 说明缺哪个参数，不要用手写文件替代。
+
 ## 强约束
 
 - 不覆盖旧 `upy-deploy`。
@@ -327,6 +330,9 @@ Evidence JSON files must be emitted by their scripts, not written by `file_opera
 - 所有本地动作走 `script_run`、`device_command`、`file_operation` 或 `approval_request`。
 - `erase_then_upload` 必须 dry-run 和二次确认。
 - 长时间串口输出采集必须用持久会话思路，避免反复 `resume exec`。
+- 证据文件一律由脚本落盘，不用 `file_operation write` 手工写；`run_device_tests.py` 与 `deploy_result.py` 未执行则不得 `phase_complete`。
+- 不用 `resume exec` 导入应用入口（`import main` 等）；确认运行状态只用 `capture_repl.py --reset-first`。
+
 ## Final Boundary Addendum
 
 - Treat `runtime_context.session_root`, `runtime_context.project_root`, and explicit `source_phase_complete_path` as the `workflow_session_root`. A separate session containing logs is a `diagnostic_log_session` and must not receive deploy artifacts unless the user explicitly makes it the workflow target.

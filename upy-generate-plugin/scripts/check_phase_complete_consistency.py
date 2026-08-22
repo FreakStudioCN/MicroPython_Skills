@@ -244,6 +244,19 @@ def infer_upstream_phase_complete_path(
     return None, bool(source_values)
 
 
+def upstream_difference_detail(field: str, upstream_value: Any, manifest_value: Any) -> str:
+    """Where the two values differ, not merely that they do."""
+    if isinstance(upstream_value, dict) and isinstance(manifest_value, dict):
+        differs = ", ".join(sorted(
+            key for key in set(upstream_value) | set(manifest_value)
+            if normalized_json(upstream_value.get(key)) != normalized_json(manifest_value.get(key))
+        ))
+        return f"{field} differs at: {differs}"
+    if isinstance(upstream_value, list) and isinstance(manifest_value, list):
+        return f"{field} differs (upstream has {len(upstream_value)} item(s), payload has {len(manifest_value)})"
+    return f"{field} differs (upstream={upstream_value!r}, payload={manifest_value!r})"
+
+
 def upstream_hardware_boundary_errors(
     payload: dict[str, Any],
     phase_complete_path: Path | None,
@@ -296,15 +309,20 @@ def upstream_hardware_boundary_errors(
     for field in UPSTREAM_HARDWARE_FIELDS:
         if field not in upstream_manifest and field not in manifest:
             continue
-        if normalized_json(upstream_manifest.get(field)) == normalized_json(manifest.get(field)):
+        upstream_value = upstream_manifest.get(field)
+        manifest_value = manifest.get(field)
+        if normalized_json(upstream_value) == normalized_json(manifest_value):
             continue
+        detail = upstream_difference_detail(field, upstream_value, manifest_value)
         errors.append(
             {
                 "code": hardware_error_code(field),
                 "field": field,
+                "differs": detail,
                 "upstream_phase_complete": str(upstream_path),
                 "message": (
-                    "generate success must preserve upstream hardware facts. "
+                    f"generate success must preserve upstream hardware facts ({detail}). "
+                    "Copy the upstream value back unless the hardware truly changed. "
                     "New/replaced devices, MCU/board changes, and pinout changes must go back through "
                     "analyze/select-hw/scaffold; scaffold incremental output is valid only when it is the upstream baseline."
                 ),
@@ -314,28 +332,36 @@ def upstream_hardware_boundary_errors(
 
 
 def gate_ok(name: str, result: Any, strict_pylint: bool) -> tuple[bool, dict[str, Any] | None]:
+    # A reference on the GATE rather than on the section. The model generalises the documented
+    # payload.checks = {"results_path": ...} down one level, which reads as reasonable and is
+    # not resolved here, so say where the key belongs instead of describing the value it lacks.
     if isinstance(result, dict) and GATE_SOURCE_KEY in result:
         return False, {
             "code": "GATE_SOURCE_MISPLACED",
             "gate": name,
             "source": "scripts/run_quality_gates.py",
             "message": (
-                f"{GATE_SOURCE_KEY} belongs on the section, not on one gate. Set payload.lint, "
-                f'payload.tests and payload.checks to {{"{GATE_SOURCE_KEY}": "quality_gates_result.json"}} '
-                f"with the same file; a per-gate reference for {name} is never read."
+                f'{GATE_SOURCE_KEY} belongs on the SECTION, not on one gate: set payload.checks = '
+                f'{{"{GATE_SOURCE_KEY}": "quality_gates_result.json"}} (and payload.lint and '
+                f"payload.tests to that same file), which covers {name} along with every other "
+                "gate in it. A per-gate reference is not read, because separate files could "
+                "disagree about the same gate."
             ),
         }
     if not isinstance(result, dict):
+        # Name the source and the destination; this value is copied from run_quality_gates.py.
         return False, {
             "code": "GATE_RESULT_MISSING",
             "gate": name,
             "source": "scripts/run_quality_gates.py",
             "message": (
                 f"the {name} gate result object is missing. Preferred: run scripts/run_quality_gates.py "
+                f"--project-dir <project_root> --session-dir <session_root> "
                 f'--output-json quality_gates_result.json and set payload.<section> = {{"{GATE_SOURCE_KEY}": '
                 f'"quality_gates_result.json"}} for lint, tests and checks alike. Otherwise copy its '
-                f"checks.{name} object verbatim into payload.<section>.{name}; the error's section field "
-                "names lint, tests, or checks."
+                f"checks.{name} object VERBATIM into payload.<section>.{name} (this error's 'section' field "
+                "names the section: lint, tests, or checks). Either way the value comes from that script; "
+                "do not compose it by hand."
             ),
         }
     if name == "pylint":
@@ -466,6 +492,9 @@ def collect_gate_errors(payload: dict[str, Any], strict_pylint: bool, project_di
         for name in ("lint", "tests", "checks")
         if isinstance(payload.get(name), dict) and isinstance(payload[name].get(GATE_SOURCE_KEY), str)
     }
+    # Partial adoption is the hole the same-file rule missed: reference the real gates file for
+    # checks and lint, leave tests embedded as {"pc_unittest": {"ok": true}}, and the payload
+    # validates clean while the file it named says that gate failed. Needs no forged file at all.
     if referenced and len(referenced) != len(sections):
         errors.append(
             {
@@ -582,13 +611,30 @@ def comparable_manifest_value(key: str, value: Any) -> Any:
     `generate.git.commit` is excluded because it cannot match and be true at the same time:
     final_git_consistency_errors() requires it to equal HEAD, and project-manifest.json is
     tracked, so writing HEAD into it produces a NEW head and invalidates what was just
-    written. Measured on a run against this commit: the model spent 6 commits circling that,
-    and still ended on GIT_COMMIT_NOT_HEAD. The commit is still verified -- against HEAD, in
-    final_git_consistency_errors -- just not against the tracked file.
+    written. The commit is still verified against HEAD in final_git_consistency_errors,
+    just not against the tracked manifest copy.
     """
     if key != "generate" or not isinstance(value, dict):
         return value
     return {inner: item for inner, item in value.items() if inner != "git"}
+
+
+def manifest_difference_detail(payload_value: Any, project_value: Any) -> str:
+    """Where the payload copy and the tracked file diverge, as a message suffix."""
+    if isinstance(payload_value, dict) and isinstance(project_value, dict):
+        inner = sorted(
+            key for key in set(payload_value) | set(project_value)
+            if payload_value.get(key) != project_value.get(key)
+        )
+        return f" (differs at: {', '.join(inner)})" if inner else ""
+    if isinstance(payload_value, list) and isinstance(project_value, list):
+        if len(payload_value) != len(project_value):
+            return f" (payload has {len(payload_value)} entries, project has {len(project_value)})"
+        at = next((i for i, (a, b) in enumerate(zip(payload_value, project_value)) if a != b), None)
+        return f" (differs at index {at})" if at is not None else ""
+    if isinstance(payload_value, (str, int, float, bool)) or payload_value is None:
+        return f" (payload={payload_value!r}, project={project_value!r})"
+    return ""
 
 
 def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[dict[str, Any]]:
@@ -733,15 +779,19 @@ def manifest_errors(payload: dict[str, Any], project_dir: Path | None) -> list[d
                     for key in REQUIRED_MANIFEST_KEYS | {"pinout"}:
                         if key not in project_manifest:
                             continue
-                        if comparable_manifest_value(key, manifest.get(key)) != comparable_manifest_value(
-                            key, project_manifest.get(key)
-                        ):
+                        payload_value = comparable_manifest_value(key, manifest.get(key))
+                        project_value = comparable_manifest_value(key, project_manifest.get(key))
+                        if payload_value != project_value:
+                            where = manifest_difference_detail(payload_value, project_value)
                             errors.append(
                                 {
                                     "code": "MANIFEST_PROJECT_MISMATCH",
                                     "field": key,
                                     "path": str(manifest_path),
-                                    "message": f"payload.manifest_content.{key} must match project-manifest.json",
+                                    "message": (
+                                        f"payload.manifest_content.{key} must match project-manifest.json{where}. "
+                                        "Copy the tracked file's value rather than regenerating it."
+                                    ),
                                 }
                             )
     return errors
@@ -849,7 +899,13 @@ def next_phase_decision_errors(payload: dict[str, Any]) -> list[dict[str, Any]]:
         return [
             {
                 "code": "NEXT_PHASE_NULL_WITHOUT_DECISION",
-                "message": "success with next_phase=null must record next_phase_decision explaining the user stop choice or blocker",
+                "message": shape_message(
+                    "payload.next_phase_decision",
+                    "an object with value=null and a reason string (a bare sentence is not enough, "
+                    "the explanation goes inside reason)",
+                    decision,
+                    '{"value": null, "reason": "the user asked to stop after generate"}',
+                ),
             }
         ]
     errors: list[dict[str, Any]] = []
@@ -1013,10 +1069,25 @@ def session_state_check_errors(
             {
                 "code": "CHECKPOINT_NOT_PHASE_COMPLETED",
                 "checkpoint": payload.get("checkpoint"),
-                "message": "success must record checkpoint=phase_completed",
+                "message": (
+                    'payload.checkpoint must be the string "phase_completed" (a top-level payload field, '
+                    "distinct from checks.session_state_checkpoint). Record the checkpoint first with "
+                    "update_session_state.py --checkpoint phase_completed --status completed, then mirror it here."
+                ),
             }
         )
-    checks, reference_error = resolve_gate_section(payload.get("checks"), project_dir)
+    # Which form the payload used decides what the remedy below can legally be. In the
+    # referenced form the checkpoint gate is a SNAPSHOT inside quality_gates_result.json, so
+    # "embed the --check output under checks.session_state_checkpoint" is not performable:
+    # a per-gate object there is now GATE_SOURCE_MISPLACED, and mixing forms is
+    # GATE_SOURCE_SPLIT. The only way to refresh it is to re-run the gates.
+    raw_checks = payload.get("checks")
+    gates_reference = (
+        raw_checks.get(GATE_SOURCE_KEY)
+        if isinstance(raw_checks, dict) and isinstance(raw_checks.get(GATE_SOURCE_KEY), str)
+        else None
+    )
+    checks, reference_error = resolve_gate_section(raw_checks, project_dir)
     if reference_error is not None:
         reference_error["section"] = "checks"
         errors.append(reference_error)
@@ -1027,7 +1098,14 @@ def session_state_check_errors(
         errors.append(
             {
                 "code": "SESSION_STATE_CHECKPOINT_MISSING",
-                "message": "success must include checks.session_state_checkpoint from update_session_state.py --check",
+                "message": (
+                    "success must include checks.session_state_checkpoint. It is one gate INSIDE the "
+                    "checks object, so produce it with the same command as the rest: run "
+                    "scripts/run_quality_gates.py --project-dir <project_root> --session-dir <session_root> "
+                    "--output-json quality_gates_result.json. Without --session-dir that file has 18 gates "
+                    "and no session_state_checkpoint, and referencing it can never satisfy this check. Keep "
+                    "the checks object WHOLE: replacing it with only this gate drops the other 18."
+                ),
             }
         )
     elif state_check.get("ok") is not True:
@@ -1082,7 +1160,11 @@ def session_state_check_errors(
                 errors.append(
                     {
                         "code": "SESSION_STATE_CHECKPOINT_MANIFEST_HASH_UNKNOWN",
-                        "message": "success session_state checkpoint must record the manifest hash",
+                        "message": (
+                            "success session_state checkpoint must record the manifest hash. Re-run "
+                            "update_session_state.py with --project-dir set (it computes the SHA256 of "
+                            "project-manifest.json itself), then --check, and embed that output."
+                        ),
                     }
                 )
             if state.get("manifest_hash") == state.get("git_commit") and looks_like_git_sha(state.get("manifest_hash")):
@@ -1097,7 +1179,10 @@ def session_state_check_errors(
                 errors.append(
                     {
                         "code": "SESSION_STATE_CHECKPOINT_GIT_COMMIT_MISSING",
-                        "message": "success session_state checkpoint must record the generate git commit",
+                        "message": (
+                            "success session_state checkpoint must record the generate git commit. Record it via "
+                            "update_session_state.py --git-commit <sha>, then re-run --check and embed that output."
+                        ),
                     }
                 )
             usage = state.get("usage")
@@ -1105,7 +1190,12 @@ def session_state_check_errors(
                 errors.append(
                     {
                         "code": "SESSION_STATE_CHECKPOINT_USAGE_INVALID",
-                        "message": "success session_state checkpoint must record usage.token_budget_status and usage.remaining_budget",
+                        "message": (
+                            "success session_state checkpoint must record usage.token_budget_status and "
+                            'usage.remaining_budget. Record them via update_session_state.py --usage-json '
+                            '\'{"token_budget_status": "ok", "remaining_budget": <n>}\', then re-run --check '
+                            "and embed that output; do not add the keys by hand."
+                        ),
                     }
                 )
     _ = phase_complete_path
@@ -1159,12 +1249,32 @@ def session_state_check_errors(
                                     # next write. Disk is authoritative: it is what
                                     # update_session_state.py --check just validated.
                                     "authoritative": "disk",
+                                    "results_path": gates_reference,
                                     "message": (
                                         f"phase_complete embedded session_state_checkpoint.state.{field} "
                                         "does not match the disk session_state. The DISK value is "
-                                        "authoritative: re-run update_session_state.py --check and embed "
-                                        "its result under checks.session_state_checkpoint rather than "
-                                        "editing the payload by hand."
+                                        "authoritative. "
+                                        + (
+                                            # The referenced form cannot be fixed by embedding:
+                                            # the gate is a snapshot taken when the gates ran, so
+                                            # anything that touched project-manifest.json or the
+                                            # session state afterwards stales it, and only a fresh
+                                            # gate run rewrites the file.
+                                            f"payload.checks references {gates_reference!r}, and the gate "
+                                            "inside it is a SNAPSHOT from when that file was written, "
+                                            "which a later manifest edit or update_session_state.py run "
+                                            "has since staled. Re-run scripts/run_quality_gates.py "
+                                            "--project-dir <project_root> --session-dir <session_root> "
+                                            f"--output-json {gates_reference} so the file is rewritten, "
+                                            "then validate again. Do NOT embed the gate under "
+                                            "payload.checks instead: a per-gate object there is refused as "
+                                            "GATE_SOURCE_MISPLACED, and mixing the two forms is refused as "
+                                            "GATE_SOURCE_SPLIT."
+                                            if gates_reference
+                                            else "Re-run update_session_state.py --check and embed its "
+                                            "result under checks.session_state_checkpoint rather than "
+                                            "editing the payload by hand."
+                                        )
                                     ),
                                 }
                             )
@@ -1186,7 +1296,11 @@ def session_state_check_errors(
         errors.append(
             {
                 "code": "SESSION_STATE_ARTIFACT_MISSING",
-                "message": f"payload.artifacts must include {SESSION_STATE_FILE}",
+                "expected_entry": {"type": "session_state", "path": f"<session dir>/{SESSION_STATE_FILE}"},
+                "message": (
+                    f"payload.artifacts must include an entry with type=\"session_state\" whose path ends in "
+                    f"{SESSION_STATE_FILE}; a path-only entry without that type does not count."
+                ),
             }
         )
     if isinstance(artifacts, list) and not any(
@@ -1198,7 +1312,11 @@ def session_state_check_errors(
         errors.append(
             {
                 "code": "FILE_MANIFEST_ARTIFACT_MISSING",
-                "message": "payload.artifacts must include a file_manifest artifact",
+                "expected_entry": {"type": "file_manifest", "path": "<path of the file manifest json>"},
+                "message": (
+                    'payload.artifacts must include an entry with type="file_manifest" and a string path; '
+                    "an entry with another type does not count."
+                ),
             }
         )
     return errors

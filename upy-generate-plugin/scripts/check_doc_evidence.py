@@ -262,10 +262,18 @@ def check(project_dir: Path) -> dict[str, Any]:
                     "line": item.get("line"),
                     "reason": item.get("reason"),
                     "accepted_url": accepted_url_for(index, module),
+                    # Name the entry SHAPE and the file it is read from. "cite <url> in
+                    # generate.doc_evidence" left two things unsaid that both cost turns: the
+                    # evidence is read from project-manifest.json ON DISK (not the payload),
+                    # and for machine.<Class> the entry's module must be EXACTLY that string
+                    # (a parent "machine" entry is rejected by evidence_matches()).
+                    "expected_entry": {"module": module, "url": accepted_url_for(index, module)},
                     "message": (
-                        "hardware/peripheral MicroPython API usage must cite official MicroPython docs in "
-                        "generate.doc_evidence; cite "
+                        f"{module} usage must be cited in generate.doc_evidence of project-manifest.json "
+                        "(the file on disk under --project-dir). Add an object entry whose module field is "
+                        f"EXACTLY '{module}' and whose url is "
                         + (accepted_url_for(index, module) or "an indexed official page for this module")
+                        + "; for machine.<Class> requirements a parent 'machine' entry is not accepted."
                     ),
                 }
             )

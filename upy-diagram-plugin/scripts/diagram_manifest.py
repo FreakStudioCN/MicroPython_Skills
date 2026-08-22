@@ -229,7 +229,13 @@ def validate_phase_complete(path: Path, artifact_root: Path | None, session_root
         if not isinstance(manifest, dict):
             errors.append(error("MANIFEST_CONTENT_MISSING", "success requires payload.manifest_content"))
         elif not isinstance(manifest.get("diagrams"), dict):
-            errors.append(error("DIAGRAMS_MISSING", "success manifest_content.diagrams is required"))
+            diagrams = manifest.get("diagrams")
+            seen = "it is absent" if diagrams is None else f"it is a {type(diagrams).__name__}"
+            errors.append(error(
+                "DIAGRAMS_MISSING",
+                f"success manifest_content.diagrams must be an object keyed by diagram name, and {seen}. "
+                'Example: {"block": {"path": "docs/diagrams/block.mmd"}}',
+            ))
         checks = payload.get("checks", {})
         if not isinstance(checks, dict) or not checks.get("diagram_schema", {}).get("ok"):
             errors.append(error("SCHEMA_CHECK_MISSING", "success requires checks.diagram_schema.ok=true"))

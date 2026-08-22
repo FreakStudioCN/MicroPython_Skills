@@ -264,6 +264,61 @@ def validate_capture_health(
             errors.append({"code": code, "message": f"{prefix} output contains {pattern}"})
 
 
+def artifact_time(artifact: dict[str, Any] | None, *keys: str) -> datetime | None:
+    """The newest timezone-aware timestamp an artifact reports, or None.
+
+    Parsed, not string-compared. A stamp that is missing, unparseable, or naive is treated
+    as "no evidence of when", never as "earlier".
+    """
+    if not isinstance(artifact, dict):
+        return None
+    seen: list[datetime] = []
+    for key in keys:
+        raw = artifact.get(key)
+        if not isinstance(raw, str):
+            continue
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except ValueError:
+            continue
+        if parsed.tzinfo is not None:
+            seen.append(parsed)
+    return max(seen) if seen else None
+
+
+def validate_final_reset_is_last(
+    final_reset: dict[str, Any],
+    others: dict[str, dict[str, Any] | None],
+    errors: list[dict[str, Any]],
+) -> None:
+    """The final reset must be the LAST thing that touched the board.
+
+    This can only see artifacts it is handed. The SKILL rule that final reset is the last
+    device operation closes non-artifact gaps; this catches ordered artifacts that prove a
+    later device operation occurred.
+    """
+    reset_at = artifact_time(final_reset, "finished_at", "generated_at", "started_at")
+    if not reset_at:
+        return
+    for name, artifact in others.items():
+        other_at = artifact_time(artifact, "generated_at", "finished_at")
+        if not other_at or other_at <= reset_at:
+            continue
+        errors.append(
+            {
+                "code": "final_reset_not_last",
+                "message": (
+                    f"{name} is stamped {other_at.isoformat()}, AFTER the final reset at "
+                    f"{reset_at.isoformat()}, so the reset was not the last step. Anything that "
+                    "reaches the board after it -- device tests, a log pull, a re-probe, any "
+                    "mpremote fs call -- re-enters the raw REPL and stops main.py, leaving the "
+                    "board idle. Run capture_repl.py --reset-first LAST, after the tests and after "
+                    "any log download, then pass that capture as --final-reset-json."
+                ),
+            }
+        )
+
+
 def validate_final_reset(
     final_reset: dict[str, Any],
     errors: list[dict[str, Any]],
@@ -300,7 +355,16 @@ def validate_final_reset(
         errors.append(
             {
                 "code": "final_reset_capture_stalled",
-                "message": "final reset capture stalled; board may still be in REPL or not running main.py",
+                "matched_stop": final_reset.get("matched_stop"),
+                "output_bytes": len(report_output(final_reset).encode("utf-8", errors="replace")),
+                "message": (
+                    "final reset capture stalled: output arrived but no stop pattern matched "
+                    "(capture_repl.py defaults: 'MPYHW_READY', 'starting scheduler') and the board then "
+                    "went quiet past the idle threshold. Either make firmware/main.py print one of those "
+                    "markers at startup, or re-run capture_repl.py --reset-first "
+                    "--stop-pattern '<a line main.py actually prints>' - and run it LAST, after tests and "
+                    "log pulls, since any later mpremote fs call re-enters the REPL and stops main.py."
+                ),
             }
         )
     if final_reset.get("returncode") not in (None, 0):
@@ -384,7 +448,19 @@ def main() -> int:
     if serial and serial.get("returncode") not in (None, 0):
         warnings.append(f"serial capture process exited with returncode {serial.get('returncode')}")
     if serial.get("stalled"):
-        errors.append({"code": "serial_capture_stalled", "message": "serial capture stalled before a ready marker"})
+        errors.append(
+            {
+                "code": "serial_capture_stalled",
+                "matched_stop": serial.get("matched_stop"),
+                "message": (
+                    "serial capture stalled: the 'stalled' flag in the --serial-json artifact means output "
+                    "arrived but none of capture_repl.py's stop patterns ('MPYHW_READY', 'starting scheduler' "
+                    "by default) ever matched and the board then went quiet past the idle threshold. Either "
+                    "make firmware/main.py print one of those markers, or re-run capture_repl.py with "
+                    "--stop-pattern '<a line main.py actually prints>'."
+                ),
+            }
+        )
     if serial:
         validate_capture_health(output, errors, warnings, prefix="serial", empty_code="serial_capture_empty")
 
@@ -392,7 +468,8 @@ def main() -> int:
     if isinstance(error_count, int) and error_count > 0:
         errors.append({"code": "device_log_errors", "message": f"device log report has {error_count} errors", "detail": log_report.get("errors")})
 
-    final_reset_required = upload_status in SUCCESS_STATUSES
+    # A device-test artifact requires the reset whatever its status, not only on success.
+    final_reset_required = upload_status in SUCCESS_STATUSES or bool(device_tests)
     if device_tests:
         test_status = infer_status(device_tests)
         try:
@@ -418,6 +495,12 @@ def main() -> int:
     final_reset_output = ""
     if final_reset:
         final_reset_output = validate_final_reset(final_reset, errors, warnings)
+        # Order, not just presence: see validate_final_reset_is_last.
+        validate_final_reset_is_last(
+            final_reset,
+            {"device tests": device_tests, "device log report": log_report},
+            errors,
+        )
     elif final_reset_required and not args.final_reset_json:
         errors.append(
             {

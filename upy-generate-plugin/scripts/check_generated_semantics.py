@@ -503,7 +503,13 @@ def check_i2c_assembly_contract(project_dir: Path, manifest: dict[str, Any]) -> 
                     "path": "firmware/main.py",
                     "line": node.lineno,
                     "pins": pins,
-                    "message": "main.py creates/scans I2C even though manifest has no I2C device; do not generate default I2C scan unless hardware facts require it",
+                    "message": (
+                        "main.py creates/scans I2C but the manifest read by this check (--manifest, else "
+                        "project-manifest.json) declares no I2C device in devices[] or pinout[]. Either "
+                        "delete the I2C(...) construction from firmware/main.py, or declare the device in "
+                        "the manifest (a devices[] entry naming i2c, or a pinout[] entry whose type/bus "
+                        "starts with i2c). Do not generate a default I2C scan unless hardware facts require it."
+                    ),
                 }
             )
         conflicts = {
@@ -825,7 +831,14 @@ def check_timer_scheduler_contract(project_dir: Path, manifest: dict[str, Any]) 
                     "line": node.lineno,
                     "method": method,
                     "available_methods": sorted(methods),
-                    "message": "main.py must call methods implemented by firmware/lib/scheduler/timer_sched.py Scheduler; use add_task(...) for task registration",
+                    # Derive the remedy from what the scaffold Scheduler actually implements:
+                    # hardcoding add_task(...) contradicted available_methods on scaffolds
+                    # whose Scheduler exposes run()/register() instead.
+                    "message": (
+                        f"main.py calls Scheduler.{method}(), which firmware/lib/scheduler/timer_sched.py "
+                        "does not implement. Call one of the methods it DOES implement: "
+                        + ", ".join(sorted(methods))
+                    ),
                 }
             )
     return errors

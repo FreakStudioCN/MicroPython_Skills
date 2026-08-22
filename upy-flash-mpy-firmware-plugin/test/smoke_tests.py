@@ -819,6 +819,28 @@ def find_uf2_mount_reports_candidate_without_copying() -> None:
         assert data["mounts"][0]["path"] == str(mount)
         assert data["label"] == "RPI-RP2"
         assert output.is_file()
+        assert "error" not in data, "a found mount must not carry an error"
+
+
+def find_uf2_mount_not_found_names_the_remedy() -> None:
+    """not_found used to be a bare status with no message, so a model reading it learned
+    nothing about what to do. The exit code stays 0 on purpose: SKILL.md says a missing mount
+    must not auto-fail the Pico flow, so the remedy has to travel in the report."""
+    with tempfile.TemporaryDirectory(prefix="flash-uf2-none-") as temp_dir:
+        missing = Path(temp_dir) / "no-such-volume"
+        data = run_json(
+            [
+                sys.executable,
+                str(SCRIPTS / "find_uf2_mount.py"),
+                "--candidate",
+                str(missing),
+            ]
+        )
+        assert data["status"] == "not_found"
+        assert data["error"]["code"] == "uf2_mount_not_found"
+        message = data["error"]["message"]
+        assert "BOOTSEL" in message, "the model must be told how to mount the volume"
+        assert str(missing) in message, "the paths actually checked must be named"
 
 
 def bootstrap_missing_is_action_required_not_failure() -> None:
@@ -1231,6 +1253,7 @@ def main() -> int:
         list_serial_ports_posix_fallback_deduplicates_candidates,
         list_serial_ports_descriptorless_filter_fixture,
         find_uf2_mount_reports_candidate_without_copying,
+        find_uf2_mount_not_found_names_the_remedy,
         bootstrap_missing_is_action_required_not_failure,
         esp32_flash_plan_uses_page_offset_and_skill_local_esptool_path,
         esp32_flash_accepts_out_json_alias,

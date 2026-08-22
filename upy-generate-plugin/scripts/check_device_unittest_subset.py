@@ -175,7 +175,11 @@ def check_file(path: Path, project_dir: Path) -> list[dict[str, Any]]:
                         "path": rel,
                         "line": node.lineno,
                         "assert_method": node.attr,
-                        "message": "device tests must use MicroPython unittest assert subset",
+                        "allowed_asserts": sorted(ALLOWED_ASSERTS),
+                        "message": (
+                            f"{node.attr} is not in the MicroPython unittest assert subset; "
+                            "use one of allowed_asserts (e.g. rewrite assertGreater(a, b) as assertTrue(a > b))"
+                        ),
                     }
                 )
         if isinstance(node, ast.Attribute) and is_unittest_name(node.value):
@@ -186,7 +190,11 @@ def check_file(path: Path, project_dir: Path) -> list[dict[str, Any]]:
                         "path": rel,
                         "line": node.lineno,
                         "unittest_attr": node.attr,
-                        "message": "device tests must use MicroPython unittest module subset",
+                        "allowed_attrs": sorted(ALLOWED_UNITTEST_ATTRS),
+                        "message": (
+                            f"unittest.{node.attr} is not in the MicroPython unittest module subset; "
+                            "use one of allowed_attrs"
+                        ),
                     }
                 )
     if not has_behavior_import(tree):

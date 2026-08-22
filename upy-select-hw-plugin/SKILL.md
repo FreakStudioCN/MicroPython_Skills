@@ -75,6 +75,9 @@ upy-select-hw-plugin/scripts/select_hw_manifest.py
 upy-select-hw-plugin/sample/phase_complete.select_hw.success.json
 ```
 
+宿主还会在 `RESOLVED DATA` 里注入 `Required phase_complete shape`：`phase_complete` 需要的字段骨架
+（键名与类型，不是某块板子的真实值）。直接照它填，不要去读 `sample/` 下的示例文件，那些路径同样不可达。
+
 插件正式运行时不要把这段理解成模型可以用 `file_operation` 读取 skill/resource 目录。`file_operation` 只面向 artifact/project workspace。select-hw 模型可读的板卡事实来自宿主在 `RESOLVED DATA` 中注入的 `Board profile` 和 `Board candidates`；`resource_root/upy-analyze-plugin/boards` 只作为宿主和 `select_hw_manifest.py --board-root` 的只读校验资源。
 
 产物写入必须以 `artifact_root` 或 `session_root` 为基准使用相对路径，例如：

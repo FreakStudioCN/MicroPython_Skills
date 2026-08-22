@@ -925,8 +925,21 @@ def validate(
         if hardware_verified is not True and not verification_skipped and not mock_verification:
             errors.append("success must set hardware_verified=true, verification_skipped_by_user=true, or verification_mode=mock")
     if payload.get("result") == "partial":
-        if not isinstance(checkpoint, dict) or checkpoint.get("resume_phase") != PHASE:
-            errors.append("partial must include a resumable checkpoint")
+        # Two different faults, and merging them told a model with a perfectly good checkpoint
+        # that it had none. The wrong-resume_phase case is the common one on a partial, which is
+        # exactly when the model is already trying to recover, so the message has to name the
+        # field it means rather than the object it sits in.
+        if not isinstance(checkpoint, dict):
+            seen = "it is absent" if checkpoint is None else f"it is a {type(checkpoint).__name__}"
+            errors.append(
+                f"partial must include a resumable checkpoint: payload.checkpoint must be an object, and {seen}. "
+                f'Example: {{"resume_phase": "{PHASE}"}}'
+            )
+        elif checkpoint.get("resume_phase") != PHASE:
+            errors.append(
+                f'payload.checkpoint.resume_phase must be "{PHASE}" so the run can resume this phase, '
+                f"and it is {checkpoint.get('resume_phase')!r}"
+            )
         has_trusted_file = False
         if isinstance(file_manifest, dict) and isinstance(file_manifest.get("files"), list):
             has_trusted_file = bool(file_manifest["files"])

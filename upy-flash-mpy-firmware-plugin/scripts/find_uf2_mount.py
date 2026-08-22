@@ -93,16 +93,31 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     candidates = [*args.candidate, *default_candidates(args.label)]
     mounts = find_mounts(candidates)
-    write_json(
-        {
-            "status": "found" if mounts else "not_found",
-            "label": args.label,
-            "platform": host_platform(),
-            "mounts": mounts,
-            "checked": candidates,
-        },
-        args.output_json,
-    )
+    result = {
+        "status": "found" if mounts else "not_found",
+        "label": args.label,
+        "platform": host_platform(),
+        "mounts": mounts,
+        "checked": candidates,
+    }
+    if not mounts:
+        # not_found used to carry no message at all, so a model got a bare status and no idea
+        # what to do next. Exit stays 0 deliberately: SKILL.md says a missing mount must not
+        # auto-fail the Pico flow, because the user may have copied the UF2 without the host
+        # ever seeing the volume. The remedy rides in the report instead of the returncode.
+        # Singular "error", not an "errors" array: an array would be picked up as a quality-gate
+        # failure and inject a corrective for what is an OPTIONAL probe.
+        result["error"] = {
+            "code": "uf2_mount_not_found",
+            "message": (
+                f"no UF2 volume labeled '{args.label}' is mounted (checked: "
+                + (", ".join(candidates) if candidates else "<none of the known paths apply on this platform>")
+                + "). Put the board in bootloader mode: unplug it, hold BOOTSEL while plugging it back in, and "
+                "wait for the volume to appear. If the board mounts under a different label, pass --label; if it "
+                "mounts at an unusual path, pass --candidate <path>."
+            ),
+        }
+    write_json(result, args.output_json)
     return 0
 
 

@@ -85,7 +85,11 @@ def check_project(project_dir: Path) -> dict[str, Any]:
         {
             "code": "DEAD_CONFIG",
             "constant": name,
-            "message": f"{name} is defined in firmware/conf.py but not referenced by firmware or tests",
+            "message": (
+                f"{name} is defined in firmware/conf.py but not referenced under firmware/ or test/ "
+                "(firmware/lib/ and device/tests/ are NOT scanned). Either wire it into "
+                "firmware/tasks|drivers|main.py or delete it from firmware/conf.py."
+            ),
         }
         for name in dead
     ]

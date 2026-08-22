@@ -1194,10 +1194,16 @@ def load_board_definition(board_root: Path | None, board_id: str | None, errors:
     root = board_root or DEFAULT_BOARD_ROOT
     path = root / f"{board_id}.json"
     if not path.is_file() and root != DEFAULT_BOARD_ROOT:
+        # A caller-supplied --board-root that does not hold the board falls back to the packaged
+        # one. DEFAULT_BOARD_ROOT is derived from this file's own location, so it is right no
+        # matter where the process was started; a RELATIVE --board-root is resolved against the
+        # cwd, which during a build is the user's project, and no project contains
+        # upy-analyze-plugin/boards.
         fallback = DEFAULT_BOARD_ROOT / f"{board_id}.json"
         if fallback.is_file():
             path = fallback
     if not path.is_file():
+        # Name both roots so callers can distinguish a bad caller root from a missing board.
         searched = str(path)
         if root != DEFAULT_BOARD_ROOT:
             searched = f"{path} (also tried {DEFAULT_BOARD_ROOT / f'{board_id}.json'})"
@@ -1231,14 +1237,24 @@ def validate_selected_board_against_definition(
         errors.append(f"selected_board.id '{selected_board.get('id')}' does not match board definition '{board.get('id')}'")
     firmware = board.get("firmware", {})
     selected_firmware = selected_board.get("firmware", {})
-    if firmware.get("board_name") and selected_firmware.get("board_name") != firmware.get("board_name"):
-        errors.append("selected_board.firmware.board_name does not match board definition")
-    if firmware.get("url") and selected_firmware.get("url") != firmware.get("url"):
-        errors.append("selected_board.firmware.url does not match board definition")
-    if firmware.get("board_name") and mcu.get("firmware_board_name") != firmware.get("board_name"):
-        errors.append("hardware_plan.mcu.firmware_board_name does not match board definition")
-    if firmware.get("url") and mcu.get("firmware_url") != firmware.get("url"):
-        errors.append("hardware_plan.mcu.firmware_url does not match board definition")
+
+    def mismatch(field: str, yours: Any, expected: Any) -> str:
+        # Show BOTH values. The selected_board.id check above has always done this; these four
+        # said only "does not match board definition", so a typo, a case difference and the wrong
+        # board entirely all produced the identical sentence. It fired in five archived runs.
+        return (
+            f"{field} is {yours!r} but the board definition says {expected!r}. "
+            "The board definition is authoritative: copy its value."
+        )
+
+    for field, yours, expected in (
+        ("selected_board.firmware.board_name", selected_firmware.get("board_name"), firmware.get("board_name")),
+        ("selected_board.firmware.url", selected_firmware.get("url"), firmware.get("url")),
+        ("hardware_plan.mcu.firmware_board_name", mcu.get("firmware_board_name"), firmware.get("board_name")),
+        ("hardware_plan.mcu.firmware_url", mcu.get("firmware_url"), firmware.get("url")),
+    ):
+        if expected and yours != expected:
+            errors.append(mismatch(field, yours, expected))
 
 
 def restricted_pin_sets(board: dict[str, Any]) -> dict[str, set[str]]:
@@ -1286,7 +1302,13 @@ def pin_source(item: dict[str, Any]) -> str:
 def validate_pin_source(item: dict[str, Any], prefix: str, errors: list[str]) -> None:
     source = item.get("source")
     if source is not None and source not in PIN_SOURCES:
-        errors.append(f"{prefix}.source invalid value '{source}', valid values: {sorted(PIN_SOURCES)}")
+        hint = (
+            "; supply pins in pinout use source='power' ('fixed_power' is a pin_decisions source, "
+            "not a pinout source)"
+            if source == "fixed_power"
+            else ""
+        )
+        errors.append(f"{prefix}.source invalid value '{source}', valid values: {sorted(PIN_SOURCES)}{hint}")
 
 
 def default_bus_expected_pins(board: dict[str, Any]) -> dict[tuple[str, str], str]:
@@ -1702,9 +1724,17 @@ def validate_pin_review(
         )
         if phase_timestamp is not None and confirmed_at is not None:
             if confirmed_at > phase_timestamp:
-                errors.append("hardware_plan.pin_review.confirmed_at must not be later than phase_complete.timestamp")
+                errors.append(
+                    "hardware_plan.pin_review.confirmed_at must not be later than phase_complete.timestamp "
+                    f"(confirmed_at={confirmed_at.isoformat()}, phase timestamp={phase_timestamp.isoformat()})"
+                )
             if phase_timestamp - confirmed_at > PIN_REVIEW_MAX_PHASE_AGE:
-                errors.append("hardware_plan.pin_review.confirmed_at is too old for this phase_complete")
+                errors.append(
+                    "hardware_plan.pin_review.confirmed_at is too old for this phase_complete "
+                    f"(confirmed_at={confirmed_at.isoformat()}, phase timestamp={phase_timestamp.isoformat()}, "
+                    f"max age={PIN_REVIEW_MAX_PHASE_AGE}). Re-confirm the pin review and record the NEW "
+                    "approval time; do not backdate the timestamp."
+                )
             if confirmed_at.time() == datetime.min.time():
                 errors.append("hardware_plan.pin_review.confirmed_at must be the actual approval time, not a date-only placeholder")
 
@@ -1888,9 +1918,10 @@ def phase_payload(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def validate_structured_errors(value: Any, errors: list[str]) -> None:
-    items = require_list(value, "phase_complete.structured_errors", errors)
-    if items is None:
+    if not isinstance(value, list):
+        errors.append("phase_complete.structured_errors must be an array; use [] when there are no errors")
         return
+    items = value
     for index, raw in enumerate(items):
         prefix = f"phase_complete.structured_errors[{index}]"
         item = require_object(raw, prefix, errors)
@@ -1909,9 +1940,17 @@ def validate_structured_errors(value: Any, errors: list[str]) -> None:
 
 
 def validate_runtime_context(value: Any, errors: list[str], session_id: str | None) -> dict[str, Any] | None:
-    context = require_object(value, "phase_complete.runtime_context", errors)
-    if context is None:
+    if not isinstance(value, dict):
+        # Name the whole required shape at once instead of disclosing one missing key per run.
+        expected_root = f"sessions/{session_id}" if session_id else "sessions/<session_id>"
+        errors.append(
+            "phase_complete.runtime_context must be an object with all of: "
+            "artifact_root_mode ('cwd' or 'session_root'), artifact_root, "
+            f"session_root (relative; '{expected_root}' when artifact_root_mode=cwd), "
+            "and resource_root - all non-empty strings"
+        )
         return None
+    context = value
     mode = context.get("artifact_root_mode")
     if mode not in ARTIFACT_ROOT_MODES:
         errors.append(
@@ -2014,7 +2053,13 @@ def validate_expected_artifacts(value: Any, expected: list[str], errors: list[st
     declared = artifact_file_paths(value)
     for path in expected:
         if path not in declared:
-            errors.append(f"phase_complete.artifacts missing expected file: {path}")
+            # Exact-string match against files[].path. Show what WAS declared so a
+            # near-miss (different session dir, leading "./") is visible in one turn.
+            errors.append(
+                f"phase_complete.artifacts missing expected file: {path}. A type=file_list artifact must "
+                f"declare files[].path equal to this EXACT string, and the file must exist under the "
+                f"artifact root. Declared paths: {sorted(declared) or '<none>'}"
+            )
 
 
 def core_manifest(value: dict[str, Any]) -> dict[str, Any]:
@@ -2081,7 +2126,13 @@ def validate_phase_complete(
         if next_phase is not None:
             errors.append("payload.next_phase must be null when result=partial")
         if not isinstance(payload.get("checkpoint"), dict):
-            errors.append("payload.checkpoint is required when result=partial")
+            checkpoint = payload.get("checkpoint")
+            seen = "it is absent" if checkpoint is None else f"it is a {type(checkpoint).__name__}"
+            errors.append(
+                "payload.checkpoint must be an object when result=partial, and "
+                f"{seen}. Example: "
+                '{"resume_phase": "select-hw", "blocked_on": "board_selection"}'
+            )
     if result == "failed" and next_phase is not None:
         errors.append("payload.next_phase must be null when result=failed")
 
@@ -2130,7 +2181,36 @@ def validate_phase_complete(
         errors.extend(f"manifest_content: {item}" for item in manifest_errors)
         warnings.extend(f"manifest_content: {item}" for item in manifest_warnings)
         if compare_manifest is not None and core_manifest(compare_manifest) != core_manifest(manifest):
-            errors.append("payload.manifest_content core fields differ from compare manifest")
+            # Name the fields, and for a scalar name both values.
+            compare_core = core_manifest(compare_manifest)
+            payload_core = core_manifest(manifest)
+            details: list[str] = []
+            # core_manifest() builds from a fixed key list, so both sides always carry the same
+            # keys; a "keys only in payload" pass can never yield and is not written here.
+            for key in [k for k in compare_core if compare_core.get(k) != payload_core.get(k)]:
+                mine, theirs = payload_core.get(key), compare_core.get(key)
+                if isinstance(mine, dict) and isinstance(theirs, dict):
+                    inner = sorted({k for k in set(mine) | set(theirs) if mine.get(k) != theirs.get(k)})
+                    details.append(f"{key} (differs at: {', '.join(inner)})" if inner else key)
+                elif isinstance(mine, (str, int, float, bool)) or mine is None:
+                    details.append(f"{key} (payload={mine!r}, compare={theirs!r})")
+                elif isinstance(mine, list) and isinstance(theirs, list):
+                    # `bom` is a list and used to report as a bare key: the model was told a
+                    # basket differed and nothing about which item.
+                    if len(mine) != len(theirs):
+                        details.append(f"{key} (payload has {len(mine)} entries, compare has {len(theirs)})")
+                    else:
+                        at = next((i for i, (a, b) in enumerate(zip(mine, theirs)) if a != b), None)
+                        details.append(f"{key} (differs at index {at})" if at is not None else key)
+                else:
+                    details.append(key)
+            errors.append(
+                "payload.manifest_content core fields differ from compare manifest: "
+                + "; ".join(details)
+                + ". Copy these from the compare manifest rather than regenerating them: a value"
+                " you recompute (a fresh timestamp, a re-derived id) differs even when nothing"
+                " about the decision changed."
+            )
 
     validate_artifacts(payload.get("artifacts"), errors, artifact_root, runtime_context)
     if expected_artifacts:

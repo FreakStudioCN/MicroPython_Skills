@@ -197,7 +197,10 @@ def validate_plan(plan: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict
                 "missing": missing,
                 "message": (
                     "generate_plan.json is missing required sections: " + ", ".join(missing) + ". "
-                    "Add these top-level keys using the same object/list shapes shown in the generate SKILL sample."
+                    "scheduler_mode is one of timer/async/thread; tasks, drivers and tests are non-empty "
+                    "lists of objects each declaring a project-relative generated file path that must "
+                    "exist on disk; config_constants is a non-empty list of {name, value|source}; "
+                    "main_assembly is an object with imports, drivers, tasks."
                 ),
             }
         )
@@ -213,7 +216,18 @@ def validate_plan(plan: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict
     for section in ("tasks", "drivers", "tests"):
         value = plan.get(section)
         if not isinstance(value, list) or not value:
-            errors.append({"code": "GENERATE_PLAN_LIST_EMPTY", "section": section, "message": f"{section} must be a non-empty list"})
+            errors.append(
+                {
+                    "code": "GENERATE_PLAN_LIST_EMPTY",
+                    "section": section,
+                    "item_shape": {"path": "firmware/<section>/<name>.py"},
+                    "message": (
+                        f"generate_plan.json {section} must be a non-empty list of objects, each declaring "
+                        "the generated file it covers via one of path/file/adapter_path/files[] - a "
+                        "project-relative path that must exist on disk under the project root."
+                    ),
+                }
+            )
     constants = plan.get("config_constants")
     if not isinstance(constants, list) or not constants:
         errors.append({"code": "GENERATE_PLAN_CONFIG_EMPTY", "message": "config_constants must be a non-empty list"})
