@@ -121,7 +121,7 @@ payload.manifest_content.phase == "generate"
 9. 上传项目文件：
    - `script_run` only resolves bundled plugin/shared scripts; do not call `project/tools/flash_device.py` through generic `script_run`. A project flash runner requires a dedicated plugin action.
    - In the current plugin loop, upload with bundled deploy scripts and `scripts/mpremote_runtime.py`; treat scaffold-rendered `project/tools/flash_device.py` as a user-facing convenience script for manual restore/debug outside the generic `script_run` resolver.
-   - Upload with one bundled command: `python scripts/mpremote_runtime.py --run --port <port> -- resume fs cp -r <source1> <source2> ... :`. Put all sources before the single final `:` target; do not generate `cp -r a : b : c :`.
+   - Upload with one bundled command: `python scripts/mpremote_runtime.py --run --port <port> --output-json upload_summary.json -- resume fs cp -r <source1> <source2> ... :`. Put all sources before the single final `:` target; do not generate `cp -r a : b : c :`.
    - 上传步骤必须输出结构化 `upload_summary.json`，deploy-plugin 只消费结构化结果。
    - 上传 summary 必须记录 `compiled_files`、`uploaded_files`、`skipped_files`。`conf.py`、`boot.py`、`main.py` 应作为 `.py` 上传，不得部署 `:conf.mpy` 或 `:boot.mpy`；`firmware/drivers/**/mock.py`/`mock.mpy` 是测试替身，不得部署到设备。
    - 即使项目工具返回 success，若 upload summary 或 `mpremote fs cp` 命令显示上传了 `:conf.mpy`、`:boot.mpy`、`:drivers/*/mock.py` 或 `:drivers/*/mock.mpy`，`deploy_result.py` 必须判 `FAIL`。

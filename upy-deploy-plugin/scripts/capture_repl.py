@@ -18,10 +18,28 @@ from mpremote_runtime import MpremoteUnavailable, popen_mpremote
 
 
 SOFT_REBOOT_MARKER = "MPY: soft reboot"
+# The scaffold prints this after hardware init, so seeing it INSIDE a capture window means the
+# firmware started during the window: the board came up fresh, it was not already running.
+FRESH_BOOT_MARKER = "MPYHW_READY"
 
 
 def observed_soft_reboot(output: str) -> bool:
     return SOFT_REBOOT_MARKER in output
+
+
+def observed_fresh_boot(output: str) -> bool:
+    """True when the deployed firmware started up inside this capture.
+
+    A USB-serial bridge (CP210x, CH340, FTDI) drives the auto-reset circuit, so opening the port
+    reboots the chip. By the time --reset-first sends Ctrl-D the board is already running main.py,
+    and MicroPython only prints SOFT_REBOOT_MARKER when Ctrl-D reaches an idle REPL. On those
+    boards the startup marker is the reset evidence.
+
+    This does not weaken the check it stands in for. The case that field exists to reject is a
+    capture that attached to an app already running mid-loop; such a capture holds task output but
+    no startup marker, because the firmware printed it before the capture opened.
+    """
+    return FRESH_BOOT_MARKER in output
 
 
 def capture_mock(duration_ms: int, reset_first: bool = False, mock_traceback: bool = False) -> dict[str, Any]:
@@ -48,6 +66,7 @@ def capture_mock(duration_ms: int, reset_first: bool = False, mock_traceback: bo
         "matched_stop": "starting scheduler",
         "reset_first": reset_first,
         "observed_soft_reboot": observed_soft_reboot("\n".join(lines)),
+        "observed_fresh_boot": observed_fresh_boot("\n".join(lines)),
     }
 
 
@@ -116,6 +135,7 @@ def capture_windows(port: str, duration_ms: int, stop_patterns: list[str], reset
         "returncode": proc.returncode,
         "reset_first": reset_first,
         "observed_soft_reboot": observed_soft_reboot(output),
+        "observed_fresh_boot": observed_fresh_boot(output),
     }
 
 
@@ -165,6 +185,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_fir
                         "matched_stop": matched_stop,
                         "reset_first": reset_first,
                         "observed_soft_reboot": observed_soft_reboot(output),
+                        "observed_fresh_boot": observed_fresh_boot(output),
                     }
     finally:
         try:
@@ -184,6 +205,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_fir
         "returncode": proc.returncode,
         "reset_first": reset_first,
         "observed_soft_reboot": observed_soft_reboot(output),
+        "observed_fresh_boot": observed_fresh_boot(output),
     }
 
 
@@ -232,6 +254,7 @@ def main() -> int:
             "errors": [{"code": "capture_failed", "message": str(exc)}],
         }
     result["observed_soft_reboot"] = observed_soft_reboot(str(result.get("output") or ""))
+    result["observed_fresh_boot"] = observed_fresh_boot(str(result.get("output") or ""))
     result["started_at"] = started
     result["finished_at"] = datetime.now(timezone.utc).isoformat()
     if args.log_file:

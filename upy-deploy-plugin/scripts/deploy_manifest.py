@@ -119,9 +119,11 @@ def validate_phase_complete(data: dict[str, Any]) -> dict[str, Any]:
                 )
                 require(final_reset.get("reset_first") is True, errors, "success deploy_result.final_reset.reset_first must be true")
                 require(
-                    final_reset.get("observed_soft_reboot") is True,
+                    final_reset.get("observed_soft_reboot") is True or final_reset.get("observed_fresh_boot") is True,
                     errors,
-                    "success deploy_result.final_reset.observed_soft_reboot must be true",
+                    "success deploy_result.final_reset needs observed_soft_reboot or observed_fresh_boot true: "
+                    "a board behind a USB-serial bridge resets when the port opens, so Ctrl-D lands in a running "
+                    "main.py and never prints the soft-reboot line",
                 )
                 require(
                     bool(deploy_result.get("final_reset_excerpt") or final_reset.get("output_excerpt") or final_reset.get("output")),

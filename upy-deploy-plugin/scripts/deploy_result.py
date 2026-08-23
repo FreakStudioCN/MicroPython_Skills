@@ -341,13 +341,17 @@ def validate_final_reset(
                 "message": "final reset capture must run capture_repl.py --reset-first after upload and device tests",
             }
         )
-    elif final_reset.get("observed_soft_reboot") is not True:
+    elif not (final_reset.get("observed_soft_reboot") is True or final_reset.get("observed_fresh_boot") is True):
         errors.append(
             {
                 "code": "final_reset_soft_reboot_not_observed",
                 "message": (
-                    "final reset requested Ctrl-D but the capture did not observe 'MPY: soft reboot'. "
-                    "Report this separately or run an explicit reset fallback before treating deploy as complete."
+                    "final reset requested Ctrl-D but the capture observed neither 'MPY: soft reboot' nor the "
+                    "firmware's own startup marker, so nothing shows the board restarted. On a board behind a "
+                    "USB-serial bridge the port open already reset it and Ctrl-D reaches a running main.py "
+                    "instead of an idle REPL, so the soft-reboot line never appears and the startup marker is "
+                    "the evidence to look for. A capture holding only task output attached to an app that was "
+                    "already running: re-run capture_repl.py --reset-first as the final device operation."
                 ),
             }
         )
