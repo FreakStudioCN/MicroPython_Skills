@@ -80,10 +80,17 @@ def _trigger_soft_reset(proc: subprocess.Popen[bytes]) -> None:
         return
 
 
-def capture_windows(port: str, duration_ms: int, stop_patterns: list[str], reset_first: bool = False) -> dict[str, Any]:
+def capture_windows(
+    port: str,
+    duration_ms: int,
+    stop_patterns: list[str],
+    reset_first: bool = False,
+    no_resume: bool = False,
+) -> dict[str, Any]:
+    mpremote_args = ["repl"] if no_resume else ["resume", "repl"]
     proc = popen_mpremote(
         port,
-        ["resume", "repl"],
+        mpremote_args,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -134,18 +141,26 @@ def capture_windows(port: str, duration_ms: int, stop_patterns: list[str], reset
         "matched_stop": matched_stop,
         "returncode": proc.returncode,
         "reset_first": reset_first,
+        "no_resume": no_resume,
         "observed_soft_reboot": observed_soft_reboot(output),
         "observed_fresh_boot": observed_fresh_boot(output),
     }
 
 
-def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_first: bool = False) -> dict[str, Any]:
+def capture_pty(
+    port: str,
+    duration_ms: int,
+    stop_patterns: list[str],
+    reset_first: bool = False,
+    no_resume: bool = False,
+) -> dict[str, Any]:
     import pty
 
     master_fd, slave_fd = pty.openpty()
+    mpremote_args = [] if no_resume else ["resume"]
     proc = popen_mpremote(
         port,
-        ["resume"],
+        mpremote_args,
         stdin=slave_fd,
         stdout=slave_fd,
         stderr=slave_fd,
@@ -184,6 +199,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_fir
                         "stalled": False,
                         "matched_stop": matched_stop,
                         "reset_first": reset_first,
+                        "no_resume": no_resume,
                         "observed_soft_reboot": observed_soft_reboot(output),
                         "observed_fresh_boot": observed_fresh_boot(output),
                     }
@@ -204,6 +220,7 @@ def capture_pty(port: str, duration_ms: int, stop_patterns: list[str], reset_fir
         "matched_stop": matched_stop,
         "returncode": proc.returncode,
         "reset_first": reset_first,
+        "no_resume": no_resume,
         "observed_soft_reboot": observed_soft_reboot(output),
         "observed_fresh_boot": observed_fresh_boot(output),
     }
@@ -216,6 +233,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-ms", type=int, default=None, help="Compatibility alias for --duration-ms")
     parser.add_argument("--stop-pattern", action="append", default=["MPYHW_READY", "starting scheduler"])
     parser.add_argument("--reset-first", action="store_true", help="Enter REPL, send Ctrl-D soft reset, then capture boot output")
+    parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help=(
+            "Drop mpremote resume so connect interrupts a running main.py, letting the following "
+            "Ctrl-D soft reset actually restart it"
+        ),
+    )
     parser.add_argument("--mock-traceback", action="store_true", help="Mock mode: emit a startup traceback")
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--output-json", "--out-json", dest="output_json")
@@ -236,9 +261,21 @@ def main() -> int:
         elif not args.port:
             raise ValueError("--port is required unless --mock is used")
         elif os.name == "nt":
-            result = capture_windows(args.port, args.duration_ms, args.stop_pattern, reset_first=args.reset_first)
+            result = capture_windows(
+                args.port,
+                args.duration_ms,
+                args.stop_pattern,
+                reset_first=args.reset_first,
+                no_resume=args.no_resume,
+            )
         else:
-            result = capture_pty(args.port, args.duration_ms, args.stop_pattern, reset_first=args.reset_first)
+            result = capture_pty(
+                args.port,
+                args.duration_ms,
+                args.stop_pattern,
+                reset_first=args.reset_first,
+                no_resume=args.no_resume,
+            )
     except MpremoteUnavailable as exc:
         result = {
             "status": "action_required",
@@ -255,6 +292,7 @@ def main() -> int:
         }
     result["observed_soft_reboot"] = observed_soft_reboot(str(result.get("output") or ""))
     result["observed_fresh_boot"] = observed_fresh_boot(str(result.get("output") or ""))
+    result.setdefault("no_resume", bool(args.no_resume))
     result["started_at"] = started
     result["finished_at"] = datetime.now(timezone.utc).isoformat()
     if args.log_file:

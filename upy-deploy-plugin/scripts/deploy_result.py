@@ -42,6 +42,8 @@ SENSOR_READING_PATTERNS = (
     re.compile(r"\b(?:read|sample|measurement)\b.*\b(?:ok|success|succeeded)\b", re.IGNORECASE),
 )
 SUCCESS_STATUSES = {"success", "ok"}
+FIRMWARE_TRACEBACK_FILES = {"main.py", "boot.py", "conf.py"}
+TRACEBACK_FRAME_RE = re.compile(r'File "([^"]+)"')
 
 
 def load_optional(path: str | None, label: str, errors: list[dict[str, Any]]) -> dict[str, Any]:
@@ -232,6 +234,16 @@ def has_successful_sensor_reading(output: str) -> bool:
     return False
 
 
+def has_firmware_traceback(output: str) -> bool:
+    if "Traceback (most recent call last)" not in output:
+        return False
+    for match in TRACEBACK_FRAME_RE.finditer(output):
+        frame = match.group(1).replace("\\", "/").rsplit("/", 1)[-1]
+        if frame in FIRMWARE_TRACEBACK_FILES:
+            return True
+    return False
+
+
 def validate_capture_health(
     output: str,
     errors: list[dict[str, Any]],
@@ -355,7 +367,8 @@ def validate_final_reset(
                 ),
             }
         )
-    if final_reset.get("stalled"):
+    final_reset_firmware_traceback = has_firmware_traceback(output)
+    if final_reset.get("stalled") and not final_reset_firmware_traceback:
         errors.append(
             {
                 "code": "final_reset_capture_stalled",
@@ -451,7 +464,8 @@ def main() -> int:
         errors.append({"code": "serial_capture_failed", "message": "serial capture failed", "detail": serial.get("errors")})
     if serial and serial.get("returncode") not in (None, 0):
         warnings.append(f"serial capture process exited with returncode {serial.get('returncode')}")
-    if serial.get("stalled"):
+    serial_firmware_traceback = has_firmware_traceback(output)
+    if serial.get("stalled") and not serial_firmware_traceback:
         errors.append(
             {
                 "code": "serial_capture_stalled",

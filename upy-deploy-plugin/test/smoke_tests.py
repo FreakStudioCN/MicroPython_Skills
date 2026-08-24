@@ -115,6 +115,8 @@ def assert_skill_text_contract() -> None:
         "--final-reset-json",
         "final_reset_capture.json",
         "observed_soft_reboot",
+        "observed_fresh_boot",
+        "--no-resume",
         "上传和设备测试都会通过 raw REPL 控制设备",
         "scripts/run_device_tests.py",
         "mpremote connect <port> resume fs",

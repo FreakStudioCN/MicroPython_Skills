@@ -733,6 +733,100 @@ def check_rotating_logger_timestamp_contract(project_dir: Path, tree: ast.Module
     return errors
 
 
+def format_helper_convention(node: ast.FunctionDef) -> str:
+    """'percent', 'brace' or '' for a helper that formats its first param with *args.
+
+    The generated log helper is written fresh each run and picks its own convention. The
+    scaffold offers both: init_scaffold.py emits `_log_info(message)` with `.format()` at the
+    call site, while templates/lib/logger applies `message % args`. A helper that takes the
+    percent half and is then called with `{}` templates cannot format anything.
+    """
+    if len(node.args.args) != 1 or node.args.vararg is None:
+        return ""
+    param, varargs = node.args.args[0].arg, node.args.vararg.arg
+    percent = brace = False
+    for child in ast.walk(node):
+        if (isinstance(child, ast.BinOp) and isinstance(child.op, ast.Mod)
+                and isinstance(child.left, ast.Name) and child.left.id == param
+                and isinstance(child.right, ast.Name) and child.right.id == varargs):
+            percent = True
+        if (isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute)
+                and child.func.attr == "format"
+                and isinstance(child.func.value, ast.Name) and child.func.value.id == param
+                and any(isinstance(a, ast.Starred) for a in child.args)):
+            brace = True
+    if percent == brace:  # neither, or both: nothing unambiguous to enforce
+        return ""
+    return "percent" if percent else "brace"
+
+
+# Both typings are tried before a template is called broken, so a correctly written "%d" is not
+# failed for being handed a string. Only a template that no plausible argument can satisfy fails.
+FORMAT_PROBE_ARGS = ("X", 1)
+
+
+def format_template_fails(template: str, convention: str, count: int) -> str:
+    reason = ""
+    for filler in FORMAT_PROBE_ARGS:
+        try:
+            if convention == "percent":
+                template % ((filler,) * count)
+            else:
+                template.format(*((filler,) * count))
+            return ""
+        except Exception as exc:  # noqa: BLE001 - any failure to format is the finding
+            reason = f"{type(exc).__name__}: {exc}"
+    return reason
+
+
+def check_format_helper_convention(project_dir: Path, path: Path, tree: ast.Module) -> list[dict[str, Any]]:
+    """Call every literal template against the convention its helper actually applies.
+
+    The template is formatted directly instead of calling generated helper code.
+    """
+    rel = rel_path(project_dir, path)
+    conventions = {
+        node.name: convention
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and (convention := format_helper_convention(node))
+    }
+    if not conventions:
+        return []
+    errors: list[dict[str, Any]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+            continue
+        convention = conventions.get(node.func.id)
+        # A call with no extra arguments never reaches the formatting branch.
+        if convention is None or len(node.args) < 2:
+            continue
+        template = node.args[0]
+        if not isinstance(template, ast.Constant) or not isinstance(template.value, str):
+            continue
+        reason = format_template_fails(template.value, convention, len(node.args) - 1)
+        if not reason:
+            continue
+        wanted = "%s/%d conversions" if convention == "percent" else "{} placeholders"
+        errors.append(
+            {
+                "code": "FORMAT_HELPER_CONVENTION_MISMATCH",
+                "path": rel,
+                "line": node.lineno,
+                "helper": node.func.id,
+                "helper_convention": convention,
+                "template": template.value,
+                "detail": reason,
+                "message": (
+                    f"{node.func.id}() formats its message with {convention} style, so this template must use "
+                    f"{wanted}; formatting it with {len(node.args) - 1} argument(s) raises {reason}. "
+                    "Make the template and the helper agree: either rewrite the template, or change the helper "
+                    "to the other convention and every one of its call sites with it."
+                ),
+            }
+        )
+    return errors
+
+
 def check_startup_exception_logging_contract(tree: ast.Module) -> list[dict[str, Any]]:
     if not uses_rotating_logger(tree) or has_startup_exception_guard(tree):
         return []
@@ -860,6 +954,7 @@ def check_project(project_dir: Path, manifest_path: str = "") -> dict[str, Any]:
         errors.extend(check_async_sync_calls(project_dir, path, tree))
         errors.extend(check_state_reset(project_dir, path, tree))
         errors.extend(check_discarded_sensor_data(project_dir, path, tree))
+        errors.extend(check_format_helper_convention(project_dir, path, tree))
         warnings.extend(check_unused_generated_params(project_dir, path, tree))
     manifest = load_manifest(project_dir, manifest_path)
     errors.extend(check_resource_plan(project_dir, manifest))
