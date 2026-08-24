@@ -1,0 +1,4 @@
+interface:
+  display_name: "MPOS Robot App"
+  short_description: "Build resumable six-servo voice robot apps"
+  default_prompt: "Use $mpos-robot-app to create a MicroPythonOS app for the Waveshare six-servo voice robot."

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "profile_id": "waveshare_esp32_s3_touch_lcd_2_no_camera_six_servo_voice",
+  "board_id": "waveshare_esp32_s3_touch_lcd_2",
+  "camera": {
+    "enabled": false,
+    "physically_connected": false
+  },
+  "reserved_pins": [0, 1, 5, 19, 20, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 47, 48],
+  "servos": [
+    {"servo_id": 1, "joint": "left_arm", "pin": 8, "frequency_hz": 50, "min_us": 500, "center_us": 1500, "max_us": 2500, "min_angle": 0, "max_angle": 180, "safe_angle": 90, "inverted": false, "max_speed_deg_s": 120},
+    {"servo_id": 2, "joint": "right_arm", "pin": 9, "frequency_hz": 50, "min_us": 500, "center_us": 1500, "max_us": 2500, "min_angle": 0, "max_angle": 180, "safe_angle": 90, "inverted": true, "max_speed_deg_s": 120},
+    {"servo_id": 3, "joint": "left_leg_upper", "pin": 7, "frequency_hz": 50, "min_us": 500, "center_us": 1500, "max_us": 2500, "min_angle": 0, "max_angle": 180, "safe_angle": 90, "inverted": false, "max_speed_deg_s": 90},
+    {"servo_id": 4, "joint": "right_leg_upper", "pin": 14, "frequency_hz": 50, "min_us": 500, "center_us": 1500, "max_us": 2500, "min_angle": 0, "max_angle": 180, "safe_angle": 90, "inverted": true, "max_speed_deg_s": 90},
+    {"servo_id": 5, "joint": "left_leg_lower", "pin": 10, "frequency_hz": 50, "min_us": 500, "center_us": 1500, "max_us": 2500, "min_angle": 0, "max_angle": 180, "safe_angle": 90, "inverted": false, "max_speed_deg_s": 90},
+    {"servo_id": 6, "joint": "right_leg_lower", "pin": 15, "frequency_hz": 50, "min_us": 500, "center_us": 1500, "max_us": 2500, "min_angle": 0, "max_angle": 180, "safe_angle": 90, "inverted": true, "max_speed_deg_s": 90}
+  ],
+  "audio": {
+    "i2s_id": 0,
+    "sample_rate_hz": 16000,
+    "bits": 16,
+    "channels": 1,
+    "ibuf_bytes": 16000,
+    "speaker": {"sck": 2, "ws": 4, "sd": 6, "gain": 16, "shutdown": 17, "gain_level": 0, "shutdown_active_level": 1},
+    "microphone": {"sck": 12, "ws": 11, "sd": 13}
+  }
+}
