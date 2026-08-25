@@ -30,10 +30,9 @@ def observed_soft_reboot(output: str) -> bool:
 def observed_fresh_boot(output: str) -> bool:
     """True when the deployed firmware started up inside this capture.
 
-    A USB-serial bridge (CP210x, CH340, FTDI) drives the auto-reset circuit, so opening the port
-    reboots the chip. By the time --reset-first sends Ctrl-D the board is already running main.py,
-    and MicroPython only prints SOFT_REBOOT_MARKER when Ctrl-D reaches an idle REPL. On those
-    boards the startup marker is the reset evidence.
+    Some boards do not show SOFT_REBOOT_MARKER even though the firmware restarted during the
+    capture. The scaffold startup marker is separate evidence that the deployed app began inside
+    this capture window.
 
     This does not weaken the check it stands in for. The case that field exists to reject is a
     capture that attached to an app already running mid-loop; such a capture holds task output but
@@ -70,13 +69,44 @@ def capture_mock(duration_ms: int, reset_first: bool = False, mock_traceback: bo
     }
 
 
+# A running main.py has to be INTERRUPTED before it can be soft rebooted. Ctrl-D only reboots an
+# idle REPL; a board running an app swallows it, which is the state a successful deploy leaves the
+# board in. So Ctrl-C first, then Ctrl-D.
+#
+# And both have to arrive after mpremote is attached. Sent immediately after spawn they can land
+# ahead of the "Connected to MicroPython" banner and be echoed into nothing.
+_ATTACH_MARKERS = ("Connected to MicroPython", "Use Ctrl-]")
+# If the banner never arrives (a board mid-boot, a port that prints nothing), reset anyway rather
+# than silently skipping it: no worse than the previous behaviour, and the capture still records
+# whether a reboot was observed.
+_ATTACH_FALLBACK_S = 3.0
+# Long enough for the KeyboardInterrupt traceback and a fresh prompt before the Ctrl-D lands.
+_INTERRUPT_SETTLE_S = 0.4
+
+
+def _attached(text: str) -> bool:
+    return any(marker in text for marker in _ATTACH_MARKERS)
+
+
 def _trigger_soft_reset(proc: subprocess.Popen[bytes]) -> None:
     if proc.stdin is None:
         return
     try:
+        proc.stdin.write(b"\x03")
+        proc.stdin.flush()
+        time.sleep(_INTERRUPT_SETTLE_S)
         proc.stdin.write(b"\x04")
         proc.stdin.flush()
     except Exception:
+        return
+
+
+def _trigger_soft_reset_fd(master_fd: int) -> None:
+    try:
+        os.write(master_fd, b"\x03")
+        time.sleep(_INTERRUPT_SETTLE_S)
+        os.write(master_fd, b"\x04")
+    except OSError:
         return
 
 
@@ -119,11 +149,13 @@ def capture_windows(
 
     thread = threading.Thread(target=reader, daemon=True)
     thread.start()
-    if reset_first:
-        time.sleep(0.2)
-        _trigger_soft_reset(proc)
     deadline = time.monotonic() + duration_ms / 1000
+    reset_pending = reset_first
+    attach_deadline = time.monotonic() + _ATTACH_FALLBACK_S
     while time.monotonic() < deadline and not done.is_set():
+        if reset_pending and (_attached("".join(chunks)) or time.monotonic() >= attach_deadline):
+            _trigger_soft_reset(proc)
+            reset_pending = False
         time.sleep(0.05)
     done.set()
     try:
@@ -171,10 +203,13 @@ def capture_pty(
     matched_stop = None
     last_output = time.monotonic()
     deadline = time.monotonic() + duration_ms / 1000
-    if reset_first:
-        os.write(master_fd, b"\x04")
+    reset_pending = reset_first
+    attach_deadline = time.monotonic() + _ATTACH_FALLBACK_S
     try:
         while time.monotonic() < deadline:
+            if reset_pending and (_attached("".join(chunks)) or time.monotonic() >= attach_deadline):
+                _trigger_soft_reset_fd(master_fd)
+                reset_pending = False
             ready, _, _ = select.select([master_fd], [], [], 0.1)
             if not ready:
                 continue
@@ -237,8 +272,11 @@ def parse_args() -> argparse.Namespace:
         "--no-resume",
         action="store_true",
         help=(
-            "Drop mpremote resume so connect interrupts a running main.py, letting the following "
-            "Ctrl-D soft reset actually restart it"
+            "Drop the mpremote resume command from the capture invocation. Note this does NOT by "
+            "itself restart a running board: resume only suppresses the auto soft reset that "
+            "raw-REPL commands perform, and the capture uses the friendly REPL, which never "
+            "interrupts either way. The restart comes from the Ctrl-C + Ctrl-D this script sends "
+            "once mpremote has attached."
         ),
     )
     parser.add_argument("--mock-traceback", action="store_true", help="Mock mode: emit a startup traceback")
