@@ -128,7 +128,7 @@ payload.manifest_content.phase == "generate"
 10. 软复位并等待重连：
    - `device_command(soft_reset)` 或白名单脚本。
    - `scripts/wait_for_device.py --port <port> --output-json ...`
-11. 使用独立 `scripts/capture_repl.py` 捕获持久 REPL 输出。推荐在上传后调用 `scripts/capture_repl.py --reset-first --duration-ms <ms>`，让脚本先进入 REPL、发送 Ctrl-D 软复位并持续读取启动期输出；不要先 reset/wait 再开始监听，否则会错过 `main.py` 启动期 traceback。
+11. 使用独立 `scripts/capture_repl.py` 捕获持久 REPL 输出。推荐在上传后调用 `scripts/capture_repl.py --reset-first --duration-ms <ms>`，让脚本等 mpremote attach 后先用 Ctrl-C interrupt 正在运行的 `main.py`，再发送 Ctrl-D soft reset，并持续读取启动期输出；不要先 reset/wait 再开始监听，否则会错过 `main.py` 启动期 traceback。
 12. 读取设备端日志：
    - 部署前应提供日志策略选项：保留旧日志、读取并下载旧日志、清除旧日志后部署。
    - `project/tools/read_device_log.py`
@@ -139,8 +139,8 @@ payload.manifest_content.phase == "generate"
    - 用户选择运行时调用 `scripts/run_device_tests.py --project-root <project_root> --port <port> --output-json ... --log-file ...`。
    - 测试文件来源为 `project/device/tests/test_*.py` 和 `project/test/device/test_*.py`。
    - 如果设备测试需要 `firmware/drivers/**/mock.py`，只能由 `run_device_tests.py` 作为临时测试 artifact 上传到设备、运行后删除，并用 `mpremote fs ls` 校验删除；不要把 mock 纳入生产 upload summary。
-14. 上传和设备测试都会通过 raw REPL 控制设备，结束后必须再次让设备运行刚部署的应用。调用 `scripts/capture_repl.py --reset-first --no-resume --duration-ms <ms> --output-json final_reset_capture.json --log-file final_reset_capture.log`，把 Ctrl-D soft reset 后的启动输出保存为 final reset 证据。deploy success 表示“文件已上传且板子正在跑新应用”，不是只表示 `main.py` 存在于设备文件系统。final reset evidence accepts `final_reset_capture.json.observed_soft_reboot=true` or `final_reset_capture.json.observed_fresh_boot=true`；`reset_first=true` 只表示脚本尝试了 Ctrl-D，不表示设备真的 reboot。
-   - Use `--no-resume` only for the final reset capture: dropping `mpremote resume` lets mpremote interrupt a running `main.py` on connect, so the following Ctrl-D can soft reboot instead of being swallowed by the running scheduler.
+14. 上传和设备测试都会通过 raw REPL 控制设备，结束后必须再次让设备运行刚部署的应用。调用 `scripts/capture_repl.py --reset-first --no-resume --duration-ms <ms> --output-json final_reset_capture.json --log-file final_reset_capture.log`，把 Ctrl-C interrupt + Ctrl-D soft reset 后的启动输出保存为 final reset 证据。deploy success 表示“文件已上传且板子正在跑新应用”，不是只表示 `main.py` 存在于设备文件系统。final reset evidence accepts `final_reset_capture.json.observed_soft_reboot=true` or `final_reset_capture.json.observed_fresh_boot=true`；`reset_first=true` 只表示脚本尝试了 interrupt + soft reset，不表示设备真的 reboot。
+   - The final reset restarts a board that is already running an app by sending Ctrl-C and then Ctrl-D, after mpremote has attached. Ctrl-D alone only reboots an IDLE REPL, so a running `main.py` swallows it, and keystrokes sent before the connect banner are echoed into nothing. `--no-resume` does not affect this: `mpremote resume` only suppresses the auto soft reset that raw-REPL commands perform, and the capture uses the friendly REPL either way.
    - The final reset is the last device operation in the deploy phase. Do not run `fs ls`, `resume exec`, another capture, or another test after it; those actions enter raw REPL and can stop `main.py` again. Use `upload_summary.json` and script artifacts for verification instead.
    - Do not verify startup with `resume exec import main` or `run_on_device.py --file main.py`; an application loop may never return, so those commands can only hang or stop the app.
 15. 运行 `scripts/deploy_result.py` 生成结构化 deploy 判定；只传脚本支持的 flags：`--upload-json`、`--clean-json`、`--serial-json`、`--final-reset-json`、`--log-report-json`、`--device-tests-json`、`--mip-install-json`、`--strategy`、`--port`、`--output-json/--out-json`。Do not pass `--wait-json`、`--probe-json`、`--feedback-json`、`--phase` 或 `--manifest`。
