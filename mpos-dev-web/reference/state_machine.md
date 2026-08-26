@@ -35,7 +35,7 @@ blocked
 cancelled
 ```
 
-Each checkpoint records `protocol_version`, `session_id`, `phase`, `checkpoint_id`, `attempt`, `idempotency_key`, `input_hash`, `repo_commit`, `skills_commit`, `api_summary_generated_at`, `result`, `artifacts`, `warnings`, `structured_errors`, and `next_phase`.
+Each checkpoint records `protocol_version`, `session_id`, `phase`, `checkpoint_id`, `attempt`, `idempotency_key`, `input_hash`, `repo_commit`, `skills_commit`, `api_summary_generated_at`, `visual_asset_plan_hash`, `result`, `artifacts`, `warnings`, `structured_errors`, and `next_phase`.
 
 ## Session State
 
@@ -60,6 +60,8 @@ Write `activity_log.jsonl` for all state changes. Each line is one JSON object.
 ## Idempotency
 
 Before writing files, compare `session_id`, `phase`, `idempotency_key`, `input_hash`, and target artifact paths. If the same key already completed with success and inputs match, return the existing phase result instead of writing again.
+
+Persist `visual_asset_plan` after analysis. Reuse an existing runtime image only when its plan/spec hash, source URL/content hash, renderer version, converter version, and output hash still match. A changed visual plan or changed Web source marks the runtime image, screenshots, MPK, deploy result, and publish result stale before generation resumes.
 
 ## Timeout
 

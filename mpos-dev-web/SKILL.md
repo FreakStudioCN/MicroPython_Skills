@@ -51,6 +51,7 @@ Read the relevant reference before acting:
 | Capability negotiation fields | `reference/capabilities.md` |
 | Cross-device policy and known board facts | `reference/board_capabilities.md` and `reference/board_capabilities.json` |
 | Web preview scope and known limits | `reference/web_preview_limits.md` |
+| Automatic host-rendered App artwork and LVGL runtime images | `reference/visual_assets.md` |
 
 For App/API rules, also load classic shared references from `mpos-dev`:
 
@@ -81,6 +82,9 @@ The API summary JSON files are mandatory for every mpos-*-web phase. Read them c
 - For camera Apps, use `CameraManager`/`CameraActivity`; never generate board drivers, GPIO mappings, sensor-specific orientation fixes, or direct `webcam` use for ESP32.
 - Apply the same boundary to every onboard peripheral: no `mpos.board.*`, direct GPIO/bus constructors, or board-specific drivers in normal generated Apps. A non-portable contract returns `MPOS_CAPABILITY_API_MISSING`.
 - Interactive Apps must remain operable with pointer and LVGL focus navigation; do not assume a touchscreen.
+- Automatically choose `lvgl_native`, `raster_asset`, or `hybrid` for requested visuals. Keep controls, dynamic text, focus state, and live data native; use the fixed visual-asset pipeline only for complex static artwork.
+- For a named character, logo, meme, product, or other subject whose recognizable original appearance matters, automatically prefer a rights-verifiable Web source over a rough procedural imitation when Web search/fetch capabilities and `network_read` permission are available. User-uploaded image conversion is out of scope.
+- Never execute model-provided Python, shell, SVG script, or plugin code to create artwork. Models emit declarative asset specs; only runner-whitelisted renderers and converters may execute.
 - Always expose the real hardware path. Desktop preview and Web preview are not replacements for physical validation.
 - Web preview is optional and may fail due to Web port, browser, or toolchain issues. Classify those failures as external/tooling unless logs prove an App bug.
 - If a browser workflow touches `internal_filesystem/builtin/`, OS/framework/build files, board support, filesystem images, or firmware artifacts, treat it as an OS-level operation: require explicit permission, rebuild `.mpy`/freezefs/firmware, flash the full image, record USB/BOOT state, and require physical-device evidence before claiming hardware success.
@@ -96,8 +100,11 @@ sessions/<session_id>/
   session_state.json
   activity_log.jsonl
   artifacts/
+    visual-assets/
   phase_complete.<phase>.json
   project/
 ```
+
+Runtime artwork lives in the generated App under `assets/images/*.bin`; source PNG/JPEG/WebP previews and Web source records remain browser artifacts unless the runtime plan explicitly requires attribution inside the App.
 
 When adapting to the existing classic local workflow, map classic artifacts into the same protocol fields instead of changing their classic schemas.

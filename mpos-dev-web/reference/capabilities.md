@@ -17,6 +17,11 @@ Example:
     "timeout": true,
     "desktop_preview": true,
     "web_preview": true,
+    "visual_asset_render": true,
+    "lvgl_image_convert": true,
+    "web_image_search": true,
+    "remote_image_fetch": true,
+    "external_image_generation": false,
     "physical_device": false,
     "serial_port_scan": false,
     "mpremote": true,
@@ -33,6 +38,10 @@ Rules:
 - If `script_run=false`, emit command plans and block required script phases with structured errors.
 - If `physical_device=false`, do not claim hardware validation.
 - If `web_preview=false`, skip Web preview with a warning.
+- If `visual_asset_render=false` or `lvgl_image_convert=false`, use native LVGL fallbacks for optional artwork and block required raster artwork with `VISUAL_ASSET_TOOLCHAIN_MISSING`.
+- If `web_image_search=false`, do not select `generation_mode=web`; use procedural artwork, external generation when separately allowed, or native LVGL.
+- If `remote_image_fetch=false` or `network_read=false`, do not download a search result. Preserve the source candidate record and use the declared fallback.
+- If `external_image_generation=false`, use the fixed procedural renderer or native LVGL. Do not silently call an external image provider.
 - If `network_read=false`, skip upystore version comparison and mark it `unknown_unverified`.
 - If `network_upload=false`, never upload; current publish skill is manual guidance only.
 

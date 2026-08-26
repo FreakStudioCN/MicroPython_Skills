@@ -19,6 +19,7 @@ mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
 mpos-dev-web/reference/board_capabilities.json
+mpos-dev-web/reference/visual_assets.md
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -33,6 +34,7 @@ Accept `start_phase`, `resume`, `retry`, and `cancel` messages. Required payload
 - `runtime_context.session_root`, `project_root`, `artifact_root`, `repo_root`, and `skills_root`.
 - `capabilities` object from the host.
 - Persisted `required_capabilities`, `required_accessories`, `runtime_fallbacks`, and `physical_validation_required` when analysis has completed. These are App feature requirements, not a selected board.
+- Persisted `visual_asset_plan`, its hash, runtime image metadata, and stale state after analysis has completed. Rendering strategy is normally selected automatically by analysis, not by a required frontend question.
 
 If required fields are missing, emit `MISSING_FIELD` and `phase_complete(result=blocked)`.
 
@@ -50,7 +52,8 @@ If required fields are missing, emit `MISSING_FIELD` and `phase_complete(result=
    - Packaged: `mpos-deploy-app-web`.
    - Deploy/preview record exists: `mpos-publish-app-web`.
 5. Preserve artifacts and errors from prior attempts.
-6. Emit `phase_complete` with `next_phase` and checkpoint.
+6. Reuse unchanged visual assets by plan/spec/source hash. When a revision changes visual intent, selected Web source, source bytes, dimensions, transparency, renderer, or converter, mark runtime images, screenshots, MPKs, deploy results, and publish results stale.
+7. Emit `phase_complete` with `next_phase` and checkpoint.
 
 ## Batch / Final Artifact Mode
 

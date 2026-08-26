@@ -36,6 +36,11 @@ generation_result
 app_manifest
 app_source
 app_icon
+visual_asset_spec
+visual_asset_source_record
+visual_asset_source
+app_runtime_image
+visual_asset_build_log
 app_test_result
 desktop_screenshot
 web_preview_url
@@ -52,6 +57,6 @@ activity_log
 session_state
 ```
 
-Image artifacts for screenshots or upload guidance must be PNG, JPEG, or WebP. BMP may be stored as raw test evidence but is not publish-ready.
+Browser-visible source artwork and screenshots must use PNG, JPEG, or WebP. Every Web-fetched image also has a JSON `visual_asset_source_record` containing its search query, source page, resolved image URL, license/attribution evidence, retrieval timestamp, media type, byte length, and SHA-256. LVGL `.bin` files use role `app_runtime_image` and MIME `application/octet-stream`; they are runtime assets, not browser previews. BMP may be stored as raw test evidence but is not publish-ready.
 
 For batch/final-artifact sessions, the browser must not infer readiness from source files or MPKs alone. The manifest must include at least one `store_screenshot` artifact per App and either per-App `publish_result` artifacts or one batch `upystore_upload_manifest` artifact.

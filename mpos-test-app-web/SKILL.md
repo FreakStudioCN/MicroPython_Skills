@@ -18,6 +18,7 @@ mpos-dev-web/reference/error_codes.md
 mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
+mpos-dev-web/reference/visual_assets.md
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -43,6 +44,9 @@ mpos-test-app/SKILL.md
 - Use classic `mpos-test-app` scripts or equivalent host actions.
 - Web preview is optional. Run it only when requested and `capabilities.web_preview=true`.
 - Always provide manual reproduction commands in `app_test_result.json`.
+- For every `app_runtime_image`, validate the LVGL v9 header, declared dimensions/stride/format, file hash, App reference, and packaged path before launch.
+- For every Web-sourced runtime image, validate that its `visual_asset_source_record` matches the downloaded source hash and contains sufficient source-page, license, and attribution evidence for packaging.
+- Launch the App and capture screenshot evidence that planned required artwork rendered. When feasible, temporarily make a required asset unavailable and verify the declared native LVGL fallback without modifying the final App tree.
 
 ## Failure Classification
 
@@ -53,6 +57,8 @@ mpos-test-app/SKILL.md
 - For camera claims, require physical evidence that preview/capture works and that exiting restores launcher input and other Apps. Desktop layout smoke alone is insufficient.
 - Record a result for every required hardware capability. Missing Web/desktop emulation is `unsupported_in_preview`/partial; missing capability on a connected device is `HARDWARE_CAPABILITY_UNAVAILABLE`; neither is an App repair request.
 - Reject forbidden direct hardware access statically. Test pointer and focus/keypad navigation separately, and verify audio/light/camera cleanup after leaving the Activity.
+- A missing or corrupt App runtime image, invalid `M:` path, blank render, or missing fallback is `VISUAL_ASSET_LOAD_FAILED` and routes to generation repair. A missing fixed renderer/converter is `VISUAL_ASSET_TOOLCHAIN_MISSING`; do not ask the code model to repair tooling.
+- A failed search or fetch is an external acquisition failure, not an App-code repair. Missing redistribution evidence is `VISUAL_ASSET_RIGHTS_UNVERIFIED` and must select another source or use the fallback before packaging.
 
 ## Screenshots
 
@@ -72,7 +78,7 @@ Write `screenshot_manifest.json` and add each PNG/JPEG/WebP file to `artifact_ma
 
 ## Output
 
-Write `app_test_result.json` with desktop launch result, controller smoke result, optional Web preview result, screenshots, visible text/widget tree when available, manual commands, warnings, structured errors, and `handoff.next_phase`.
+Write `app_test_result.json` with desktop launch result, controller smoke result, optional Web preview result, visual asset validation results, screenshots, visible text/widget tree when available, manual commands, warnings, structured errors, and `handoff.next_phase`.
 
 Route:
 

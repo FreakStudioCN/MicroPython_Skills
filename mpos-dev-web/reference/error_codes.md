@@ -30,6 +30,14 @@ Core error codes:
 | `MPOS_API_MISSING` | app | true | Generated MPOS call is not in summary/current source evidence |
 | `MPOS_CAPABILITY_API_MISSING` | micropythonos | false | Hardware may exist, but current MPOS has no portable App-level capability API |
 | `DIRECT_HARDWARE_ACCESS_FORBIDDEN` | skill | true | Generated App bypasses MPOS with a board import, GPIO/bus constructor, or board-specific driver |
+| `VISUAL_ASSET_SPEC_INVALID` | app | true | Automatic visual plan or declarative asset spec is invalid or tries to rasterize forbidden interactive/dynamic content |
+| `VISUAL_ASSET_TOOLCHAIN_MISSING` | toolchain | true | Fixed host renderer or LVGL image converter is unavailable |
+| `VISUAL_ASSET_BUILD_FAILED` | skill | true | A valid declarative asset failed deterministic rendering or conversion |
+| `VISUAL_ASSET_BUDGET_EXCEEDED` | app | true | Visual asset dimensions, shape count, or runtime bytes exceed policy |
+| `VISUAL_ASSET_LOAD_FAILED` | app | true | A packaged runtime image cannot be loaded or rendered by the App |
+| `VISUAL_ASSET_SEARCH_FAILED` | external | true | Web image search returned no usable source or the search provider failed |
+| `VISUAL_ASSET_FETCH_FAILED` | external | true | A selected remote image failed URL, redirect, media, size, hash, or download validation |
+| `VISUAL_ASSET_RIGHTS_UNVERIFIED` | external | false | A Web image lacks sufficient license or attribution evidence for packaging and redistribution |
 | `HARDWARE_CAPABILITY_UNAVAILABLE` | device | false | A valid portable App ran on a device that does not expose a required capability |
 | `WIDGET_ZERO_REFERENCE` | app | true | Widget has no existing App usage in current repo |
 | `MANIFEST_MISSING_FIELD` | app | true | `MANIFEST.JSON` lacks required metadata such as `publisher` |

@@ -18,6 +18,7 @@ mpos-dev-web/reference/error_codes.md
 mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
+mpos-dev-web/reference/visual_assets.md
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -38,13 +39,15 @@ mpos-package-app/SKILL.md
 - `MANIFEST.JSON` exists and includes non-empty `fullname`, `name`, `publisher`, and `version`.
 - Activity entrypoints exist and class names are present.
 - `icon_64x64.png` exists or warning/error policy is explicit.
+- Every `generation_result.visual_assets[]` runtime path exists under `assets/images/`, matches its recorded SHA-256, and is included in the package. Source previews and host drawing specs remain session artifacts unless explicitly required at runtime.
+- Every Web-sourced runtime image has a matching source record and verified redistribution/attribution decision. Include required attribution in the App/package; do not package unknown-rights artwork.
 - MPK filename uses `<fullname>_rN.mpk` such as `com.example.app_r1.mpk`.
 - MPK has a single top-level directory and valid local headers.
 
 ## Workflow
 
 1. Read `generation_result.json` and `app_test_result.json` when available.
-2. Validate App layout and manifest.
+2. Validate App layout, manifest, runtime image references, asset hashes, and total runtime visual-asset bytes.
 3. Request `script_run` and `file_write` permissions if required.
 4. Run classic package scripts or host-equivalent commands.
 5. Write `package_result.json`, `app_index_entry.json`, and artifact manifest entries.

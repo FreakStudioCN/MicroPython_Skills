@@ -18,6 +18,7 @@ mpos-dev-web/reference/error_codes.md
 mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
+mpos-dev-web/reference/visual_assets.md
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -45,6 +46,7 @@ Before broad code writes:
 - Read `analysis_result.json`.
 - Read `dependency_handoff.json` when present.
 - Read both API summary JSON files completely.
+- Read and validate `visual_asset_plan`; if absent, treat the strategy as `lvgl_native` rather than inventing unplanned assets.
 - List every planned `lv.*`, widget method, and `mpos.*` call.
 - Check each planned API against the summaries or current source evidence.
 - For zero-reference LVGL widgets, emit `WIDGET_ZERO_REFERENCE` warning and suggest simpler alternatives.
@@ -62,20 +64,26 @@ Before broad code writes:
 - Reject normal generated Apps that import `mpos.board.*`, instantiate direct GPIO/I2C/SPI/UART/I2S/ADC/NeoPixel hardware, or use board-specific drivers. Emit `DIRECT_HARDWARE_ACCESS_FORBIDDEN`; only a confirmed external-accessory handoff may allow a narrow exception.
 - Generate runtime probes and fallbacks for audio, IMU, lights, battery, SD configuration, input modes, and network. Do not fabricate sensor values when hardware is unavailable.
 - Every interactive App needs a visible LVGL focus path in addition to pointer interaction. Hardware sessions must stop or restore resources on pause/exit.
+- Follow the analyzer's automatic `lvgl_native`, `raster_asset`, or `hybrid` strategy. Raster assets are App-local static artwork; never rasterize controls, dynamic text, focus state, or live values.
+- For `generation_mode=web`, request `network_read`, use only the host-owned image search/fetch action, record provenance and redistribution rights, and pass only the registered downloaded artifact to the fixed decoder/converter. Do not accept user uploads or let the model fetch arbitrary URLs.
+- Never execute Python, shell, SVG script, or plugin code emitted by a model. Convert a procedural `mpos-visual-asset-spec-v1` only through the fixed runner-whitelisted `scripts/build_visual_asset.py` pipeline; convert registered Web source artifacts only through the host-owned fixed image decoder/converter.
+- Keep source PNG/JPEG/WebP previews under the session artifact root and runtime LVGL images under `assets/images/*.bin`. Use `M:apps/<fullname>/assets/images/<id>.bin` and provide a native LVGL fallback for every runtime load.
+- Use `RGB565` for opaque color artwork, `RGB565A8` for transparent color artwork, and `A8` for recolorable masks. Do not embed large image byte arrays in Python source or add board-specific byte swaps.
 
 Run or request `mpos-gen-app/scripts/check_app_hardware_policy.py` as a required gate. Use `--allow-direct-hardware` only for a confirmed external accessory and preserve all findings for review.
 
 ## Workflow
 
 1. Validate protocol and input artifacts.
-2. Build a generation plan and emit it as a status/artifact.
+2. Build a generation plan and emit it as a status/artifact. Include the semantic visual plan, runtime byte budget, and reuse/stale decisions.
 3. Request `file_write` permission if the host requires it.
-4. Generate or repair only target App files.
-5. Run or request static gates: manifest, syntax, API usage, app-only changes, lint when available.
-6. Run hardware policy gates: capability contract, forbidden direct access, runtime fallbacks, input modality, and lifecycle cleanup.
-7. Classify tool gaps such as missing `uv`, `ruff`, or `mpy-cross` as `TOOLCHAIN_MISSING`, not App failure.
-8. Write `generation_result.json` and artifact manifest.
-9. Route to `mpos-test-app-web` on success or partial with usable files.
+4. For each procedural asset, emit a declarative spec and run or request the fixed builder. For each Web asset, search, select, rights-check, fetch, normalize, and record the source through host-owned actions before fixed conversion. Validate the LVGL v9 header, dimensions, stride, size, source hash, and runtime hash before code generation. Use the source preview and source record as browser artifacts and the `.bin` as an App runtime file.
+5. Generate or repair only target App files. Give the code generator the actual validated runtime paths, dimensions, and formats; do not let it guess them.
+6. Run or request static gates: manifest, syntax, API usage, app-only changes, asset references, lint when available.
+7. Run hardware policy gates: capability contract, forbidden direct access, runtime fallbacks, input modality, and lifecycle cleanup.
+8. Classify missing search results, rejected downloads, unverified rights, and a missing fixed visual pipeline with their specific `VISUAL_ASSET_*` codes; use `TOOLCHAIN_MISSING` for unrelated tools such as `uv`, `ruff`, or `mpy-cross`.
+9. Write `generation_result.json` and artifact manifest with `visual_assets[]` metadata.
+10. Route to `mpos-test-app-web` on success or partial with usable files.
 
 ## Output
 
@@ -90,6 +98,7 @@ Run or request `mpos-gen-app/scripts/check_app_hardware_policy.py` as a required
   "app": {},
   "files_written": [],
   "api_usage": {"checked": true, "missing": []},
+  "visual_assets": [],
   "validation": {"gates": []},
   "warnings": [],
   "structured_errors": [],

@@ -18,6 +18,7 @@ mpos-dev-web/reference/error_codes.md
 mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
+mpos-dev-web/reference/visual_assets.md
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -44,6 +45,8 @@ mpos-dev-web/reference/web_preview_limits.md
 
 Do not ask for a board as a generation prerequisite. Extract abstract `required_capabilities` and `runtime_fallbacks`. For a camera request, record `camera`, keep non-camera behavior usable, and require physical validation without binding the App to a camera model.
 
+Automatically classify requested visuals as `lvgl_native`, `raster_asset`, or `hybrid`. Users do not need to select a rendering path. Keep text, controls, focus state, live data, and responsive layout native; propose App-local raster assets only for complex static artwork. For a named recognizable subject whose original appearance matters, select `generation_mode=web` and emit a specific `search_query` when Web search/fetch and network-read capabilities are available. Do not select or request uploaded artwork. Explicit user preferences may override the automatic choice.
+
 Resolve every hardware requirement against `board_capabilities.json`. A `portable_api=false` contract produces `MPOS_CAPABILITY_API_MISSING` and blocks automatic hardware implementation. Only explicit external modules become `required_accessories`; onboard hardware never becomes a dependency-search request.
 
 ## Workflow
@@ -55,10 +58,11 @@ Resolve every hardware requirement against `board_capabilities.json`. A `portabl
    - `version`: default `1.0.0` for new Apps.
 3. Produce manifest draft using the flat MPOS layout.
 4. Identify LVGL widgets, MPOS APIs, system managers, images, networking, storage, and abstract hardware capabilities. Resolve built-in camera support through `CameraManager`/`CameraActivity`, not an App-local driver.
-5. Decide whether `mpos-prepare-deps-web` is required.
-6. Produce test, package, deploy, and publish plans.
-7. Warn when physical hardware validation is needed.
-8. Emit `analysis_result.json` and update artifact manifest.
+5. Emit a semantic `visual_asset_plan`: explain every automatic raster decision, dimensions, transparency, generation mode, Web search query when applicable, required/optional state, and native LVGL fallback. Do not emit executable drawing code, source URLs, request headers, or board-specific image formats. Run or request `scripts/validate_visual_asset_plan.py` with `--allow-web` only when the host has Web search/fetch plus `network_read`; invalid plans emit `VISUAL_ASSET_SPEC_INVALID` and remain in analysis repair.
+6. Decide whether `mpos-prepare-deps-web` is required. Host-only visual rendering is not an App dependency and does not route through dependency preparation.
+7. Produce test, package, deploy, and publish plans, including runtime image load and screenshot evidence when assets are planned.
+8. Warn when physical hardware validation is needed.
+9. Emit `analysis_result.json` and update artifact manifest.
 
 ## Output
 
@@ -76,6 +80,13 @@ Write `analysis_result.json` with:
     "required_accessories": [],
     "runtime_fallbacks": {},
     "physical_validation_required": false
+  },
+  "visual_asset_plan": {
+    "schema_version": "mpos-visual-asset-plan-v1",
+    "decision_mode": "automatic",
+    "render_strategy": "lvgl_native",
+    "assets": [],
+    "lvgl_elements": []
   },
   "api_plan": {},
   "dependency_plan": {},

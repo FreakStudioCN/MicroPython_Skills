@@ -39,6 +39,7 @@ device_write
 microphone_access
 destructive_storage
 external_hardware_wiring
+external_asset_generation
 firmware_flash
 network_read
 network_upload
@@ -55,3 +56,5 @@ Rules:
 - Microphone capture/recording requires `microphone_access`, even when the browser has already granted its own media permission.
 - SD format, filesystem erase, and similar destructive operations require `destructive_storage`; mounting or reading must not imply format permission.
 - Direct GPIO/bus access for an explicit external accessory requires `external_hardware_wiring` after the wiring and conflict plan is shown. This permission is never valid for silently bypassing an onboard MPOS manager.
+- A local fixed procedural renderer uses the existing `script_run` and `file_write` decisions. Sending prompts or source artwork to an external image-generation provider additionally requires `external_asset_generation`; show the provider action and intended artifact paths before requesting it.
+- Searching for and downloading public Web artwork uses `network_read`, not `external_asset_generation`. Show the search purpose, selected source page/domain, direct image URL, expected artifact path, and whether the source license permits redistribution before fetching. Never attach cookies, credentials, or arbitrary model-provided headers.

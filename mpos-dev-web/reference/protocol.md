@@ -48,6 +48,54 @@ Every `start_phase` payload must include:
 
 Do not infer these paths from host-specific absolute paths when the runner provides them.
 
+## Binary File Operations
+
+When the host applies files instead of allowing direct project writes, binary App assets use an explicit encoding and role:
+
+```json
+{
+  "type": "file_operation",
+  "phase": "mpos-gen-app-web",
+  "session_id": "sess_20260723_001",
+  "payload": {
+    "operation": "write_binary",
+    "path": "internal_filesystem/apps/com.example.game/assets/images/player_ship.bin",
+    "encoding": "base64",
+    "content_base64": "...",
+    "mime": "application/octet-stream",
+    "role": "app_runtime_image",
+    "sha256": "..."
+  }
+}
+```
+
+The host validates the decoded byte length and SHA-256, rejects absolute paths and `..`, and writes only below `runtime_context.file_operation_root`. Prefer registering a runtime file already produced by a whitelisted script instead of copying a large base64 payload through multiple protocol messages.
+
+## Web Image Acquisition
+
+For `generation_mode=web`, the host owns search and download. The model emits a search query and selection criteria, not a command, credential, request header, or unvalidated URL fetch. After `network_read` permission, record the selected source before conversion:
+
+```json
+{
+  "schema_version": "mpos-visual-asset-source-v1",
+  "asset_id": "named_character",
+  "search_query": "official named character transparent artwork",
+  "source_page_url": "https://example.org/artwork-page",
+  "image_url": "https://cdn.example.org/artwork.png",
+  "resolved_image_url": "https://cdn.example.org/artwork.png",
+  "source_domain": "example.org",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Creator name",
+  "retrieved_at": "2026-08-26T12:00:00Z",
+  "mime": "image/png",
+  "size": 12345,
+  "sha256": "..."
+}
+```
+
+The host must require HTTPS, resolve and block loopback/private/link-local targets, revalidate every redirect, cap redirects, response bytes, decoded pixels, and time, accept only configured image MIME types, verify decoded content rather than trusting extensions, and strip metadata before packaging. Do not package a source with unknown redistribution rights. Prefer official or primary source pages, but an official page is provenance evidence rather than automatic redistribution permission.
+
 ## Phase Complete
 
 Every phase ends with `phase_complete`:

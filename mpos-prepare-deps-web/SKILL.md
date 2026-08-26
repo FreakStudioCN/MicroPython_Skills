@@ -18,6 +18,7 @@ mpos-dev-web/reference/error_codes.md
 mpos-dev-web/reference/artifact_manifest.md
 mpos-dev-web/reference/permission_prompts.md
 mpos-dev-web/reference/capabilities.md
+mpos-dev-web/reference/visual_assets.md
 ```
 
 Also read `mpos-dev/reference/mpos_api_summary.json` and `mpos-dev/reference/lvgl_api_summary.json` completely. Do not skip them because this phase appears simple.
@@ -45,6 +46,7 @@ mpos-dev/reference/docs-packaging.md
 - `CameraManager` and `CameraActivity` are built into MPOS. Do not search for or vendor GC2145/OV3660/OV5640 drivers for a generated App. A missing runtime camera is a capability result, not a dependency-install request.
 - Apply the same rule to every onboard peripheral. Do not vendor board modules, pin maps, or low-level audio/sensor/radio/input/storage drivers. `portable_api=false` returns `MPOS_CAPABILITY_API_MISSING`.
 - Driver search is allowed only for an explicit `required_accessories[]` item with protocol, wiring confirmation, conflict review, permission requirements, and physical validation recorded in the handoff.
+- Web image search/fetch, trusted image decoders, Pillow, pypng, LVGL image converters, procedural renderers, and external image providers are host toolchain concerns, not MicroPython runtime dependencies. Do not vendor them into the App or add them to `dependency_handoff.json`; `mpos-gen-app-web` owns visual asset acquisition and rendering.
 
 ## Workflow
 
