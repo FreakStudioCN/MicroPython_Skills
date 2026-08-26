@@ -11,6 +11,7 @@ from pathlib import Path
 
 ASSET_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 MAX_OUTPUT_PIXELS = 262_144
+MAX_APP_RUNTIME_BYTES = 1_048_576
 
 
 class PlanError(ValueError):
@@ -35,7 +36,17 @@ def _required_size(value, name):
     return value
 
 
-def validate(plan, allow_external=False, allow_web=False):
+def _required_budget(value, name):
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0 or value > MAX_APP_RUNTIME_BYTES:
+        raise PlanError(f"{name} must be an integer from 1 to {MAX_APP_RUNTIME_BYTES}")
+    return value
+
+
+def validate(
+    plan,
+    allow_external=False,
+    allow_web=False,
+):
     if not isinstance(plan, dict):
         raise PlanError("visual_asset_plan must be an object")
     if plan.get("schema_version") != "mpos-visual-asset-plan-v1":
@@ -45,6 +56,7 @@ def validate(plan, allow_external=False, allow_web=False):
     strategy = plan.get("render_strategy")
     if strategy not in {"lvgl_native", "raster_asset", "hybrid"}:
         raise PlanError("render_strategy must be lvgl_native, raster_asset, or hybrid")
+    runtime_byte_budget = _required_budget(plan.get("runtime_byte_budget"), "runtime_byte_budget")
     assets = plan.get("assets")
     if not isinstance(assets, list):
         raise PlanError("assets must be a list")
@@ -59,6 +71,7 @@ def validate(plan, allow_external=False, allow_web=False):
         raise PlanError("lvgl_elements must be a list of non-empty strings")
     seen = set()
     normalized = []
+    estimated_runtime_bytes = 0
     for index, asset in enumerate(assets):
         prefix = f"assets[{index}]"
         if not isinstance(asset, dict):
@@ -92,6 +105,7 @@ def validate(plan, allow_external=False, allow_web=False):
         height = _required_size(asset.get("height"), f"{prefix}.height")
         if width * height > MAX_OUTPUT_PIXELS:
             raise PlanError(f"{prefix} exceeds output pixel budget")
+        estimated_runtime_bytes += 12 + width * height * (3 if transparent else 2)
         generation_mode = asset.get("generation_mode")
         if generation_mode not in {"procedural", "web", "external"}:
             raise PlanError(f"{prefix}.generation_mode is invalid")
@@ -116,10 +130,17 @@ def validate(plan, allow_external=False, allow_web=False):
         if search_query is not None:
             normalized_asset["search_query"] = search_query
         normalized.append(normalized_asset)
+    if estimated_runtime_bytes > runtime_byte_budget:
+        raise PlanError(
+            "visual assets exceed total runtime byte budget: "
+            f"estimated {estimated_runtime_bytes}, budget {runtime_byte_budget}"
+        )
     return {
         "schema_version": "mpos-visual-asset-plan-validation-v1",
         "result": "success",
         "render_strategy": strategy,
+        "runtime_byte_budget": runtime_byte_budget,
+        "estimated_runtime_bytes": estimated_runtime_bytes,
         "asset_count": len(normalized),
         "assets": normalized,
     }
@@ -134,7 +155,11 @@ def main():
     try:
         payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
         plan = payload.get("visual_asset_plan") if isinstance(payload, dict) and "visual_asset_plan" in payload else payload
-        result = validate(plan, allow_external=args.allow_external, allow_web=args.allow_web)
+        result = validate(
+            plan,
+            allow_external=args.allow_external,
+            allow_web=args.allow_web,
+        )
     except (PlanError, json.JSONDecodeError, OSError) as exc:
         print(json.dumps({"result": "failed", "error": str(exc)}, ensure_ascii=True))
         return 2

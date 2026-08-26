@@ -24,6 +24,7 @@ Analysis emits a semantic plan; it does not choose board-specific byte order or 
     "schema_version": "mpos-visual-asset-plan-v1",
     "decision_mode": "automatic",
     "render_strategy": "hybrid",
+    "runtime_byte_budget": 262144,
     "assets": [
       {
         "id": "player_ship",
@@ -46,7 +47,7 @@ Analysis emits a semantic plan; it does not choose board-specific byte order or 
 }
 ```
 
-Asset IDs use `^[a-z][a-z0-9_]{0,63}$`. Every asset records a purpose, reason, dimensions, whether it is required, transparency, and an LVGL fallback. `contains_text=true`, `dynamic=true`, or `interactive=true` normally forces `lvgl_native` unless the raster is only a decorative layer behind a native element.
+Asset IDs use `^[a-z][a-z0-9_]{0,63}$`. Every asset records a purpose, reason, dimensions, whether it is required, transparency, and an LVGL fallback. `runtime_byte_budget` is the host/device limit for all runtime images in the App, not a per-file estimate. `contains_text=true`, `dynamic=true`, or `interactive=true` normally forces `lvgl_native` unless the raster is only a decorative layer behind a native element.
 
 Choose `generation_mode` automatically:
 
@@ -67,14 +68,18 @@ PYTHONDONTWRITEBYTECODE=1 python3 \
   --preview-output <artifact-root>/visual-assets/<id>.png \
   --runtime-output <project-root>/internal_filesystem/apps/<fullname>/assets/images/<id>.bin \
   --metadata-output <artifact-root>/visual-assets/<id>.build.json \
+  --allowed-root <session-root> \
+  --max-runtime-bytes <per-asset-budget> \
   --format auto
 ```
 
-The bundled renderer supports constrained rectangles, circles, lines, polygons, and linear gradients with optional 2x/4x supersampling. It has no network access, imports, text rendering, arbitrary file reads, or model-provided executable code.
+The host constructs every argument. Models and browser clients never call this script directly or choose `--allowed-root`. The script rejects specs and outputs outside that root, including resolved symlink escapes. The wrapper still provides process isolation because a caller able to choose an arbitrary allowed root is outside the script's security boundary.
+
+The bundled renderer supports constrained rectangles, circles, lines, polygons, and linear gradients with optional 2x/4x supersampling. It bounds coordinates/extents, clips loops to the canvas, and enforces a cumulative draw-work budget. It has no network access, imports, text rendering, arbitrary file reads, or model-provided executable code.
 
 ## Web Source Acquisition
 
-When `generation_mode=web`, require `capabilities.web_image_search=true`, `capabilities.remote_image_fetch=true`, `capabilities.lvgl_image_convert=true`, and `capabilities.network_read=true`. Request `network_read` before search or download.
+When `generation_mode=web`, require the host Web acquisition path and `network_read`; the plan validator uses the combined `--allow-web` gate. Request `network_read` before search or download.
 
 Use a host-owned image search provider. The model supplies only the query and selection criteria. Prefer an official/primary source page or a source with explicit reusable licensing. Select an image only when the source page, direct image URL, creator/attribution when applicable, license evidence, MIME type, size, and dimensions can be recorded. An “official” image is not automatically redistributable; do not put it into an MPK when redistribution rights are unknown.
 
@@ -119,14 +124,18 @@ PNG files can be used directly when current MPOS source and preview evidence pro
 
 - Default output pixel budget per asset: 262,144 pixels.
 - Default shape budget per procedural asset: 512.
+- Procedural shape coordinates, extents, radius, and line width are bounded to 4,096 source units.
+- Default cumulative procedural draw-work budget: 8,000,000 work units.
+- Maximum declarative spec size: 1 MiB.
 - Default remote download limit per source: 8 MiB; the host may set a lower limit.
 - Supported supersampling factors: 1, 2, and 4.
 - Prefer small sprites, masks, tiles, and local decoration over multiple full-screen transparent images.
 - `320x240 RGB565` is about 150 KiB; `RGB565A8` is about 225 KiB before MPK compression.
-- Record each runtime byte size and the total App visual-asset size. A host may apply a stricter session or device budget.
+- Default maximum total App runtime-image budget: 1 MiB; a host/device may set a stricter value in `runtime_byte_budget`.
+- Before rendering, conservatively estimate total bytes from dimensions/formats. After rendering, run `scripts/validate_visual_asset_bundle.py` against the actual files, hashes, and total bytes. Estimated checks never replace the actual bundle gate.
 - Use `DisplayMetrics` and native LVGL layout around images. Do not infer a board or assume every display is 320x240.
 
-If a required asset exceeds budget, emit `VISUAL_ASSET_BUDGET_EXCEEDED`. For an optional decorative asset, use its LVGL fallback and continue with `partial` plus a warning.
+If an asset or actual App total exceeds budget, emit `VISUAL_ASSET_BUDGET_EXCEEDED`. For optional artwork, use its declared fallback and continue with `partial` plus a warning.
 
 ## Artifacts and Staleness
 
@@ -142,7 +151,7 @@ For each asset, register:
 
 ## Required Validation
 
-Generation validates the spec, safe paths, pixel/shape budgets, LVGL v9 header, dimensions, stride, byte length, and hashes. Testing launches the App and captures a screenshot that proves the image rendered. It separately tests the fallback for required asset-load failures when feasible.
+Generation validates the spec, allowed root, pixel/shape/work/per-file budgets, LVGL v9 header, dimensions, stride, byte length, and hashes. It then runs `scripts/validate_visual_asset_bundle.py` to validate actual total runtime bytes and hashes before testing or packaging. Testing launches the App and captures a screenshot that proves the image rendered and tests the declared fallback when feasible.
 
 Classify failures as follows:
 

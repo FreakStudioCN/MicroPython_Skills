@@ -35,7 +35,7 @@ blocked
 cancelled
 ```
 
-Each checkpoint records `protocol_version`, `session_id`, `phase`, `checkpoint_id`, `attempt`, `idempotency_key`, `input_hash`, `repo_commit`, `skills_commit`, `api_summary_generated_at`, `visual_asset_plan_hash`, `result`, `artifacts`, `warnings`, `structured_errors`, and `next_phase`.
+Each checkpoint records `protocol_version`, `session_id`, `phase`, `checkpoint_id`, `attempt`, `idempotency_key`, `input_hash`, `repo_commit`, `skills_commit`, `api_summary_generated_at`, `visual_asset_plan_hash`, runtime-byte budget/actual bytes, `result`, `artifacts`, `warnings`, `structured_errors`, and `next_phase`.
 
 ## Session State
 

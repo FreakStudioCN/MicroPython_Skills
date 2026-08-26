@@ -41,6 +41,7 @@ visual_asset_source_record
 visual_asset_source
 app_runtime_image
 visual_asset_build_log
+visual_asset_bundle_validation
 app_test_result
 desktop_screenshot
 web_preview_url

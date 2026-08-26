@@ -47,7 +47,7 @@ mpos-package-app/SKILL.md
 ## Workflow
 
 1. Read `generation_result.json` and `app_test_result.json` when available.
-2. Validate App layout, manifest, runtime image references, asset hashes, and total runtime visual-asset bytes.
+2. Validate App layout, manifest, runtime image references, rights decisions, and asset hashes. Run `mpos-gen-app-web/scripts/validate_visual_asset_bundle.py` against actual files and block when actual total runtime bytes exceed the plan budget.
 3. Request `script_run` and `file_write` permissions if required.
 4. Run classic package scripts or host-equivalent commands.
 5. Write `package_result.json`, `app_index_entry.json`, and artifact manifest entries.

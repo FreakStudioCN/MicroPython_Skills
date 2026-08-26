@@ -19,6 +19,10 @@ ASSET_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 MAX_OUTPUT_PIXELS = 262_144
 MAX_RENDER_PIXELS = 4_194_304
 MAX_SHAPES = 512
+MAX_SHAPE_BOUND = 4096
+MAX_DRAW_WORK_UNITS = 8_000_000
+MAX_SPEC_BYTES = 1_048_576
+MAX_RUNTIME_BYTES = 1_048_576
 SUPPORTED_SHAPES = {"rect", "circle", "line", "polygon", "gradient"}
 COLOR_FORMATS = {
     "A8": 0x0E,
@@ -55,6 +59,13 @@ def _reject_extra_fields(item, allowed, context):
         raise AssetSpecError(f"unsupported fields for {context}: {', '.join(extra)}")
 
 
+def _shape_integer(value, name, minimum=-MAX_SHAPE_BOUND, maximum=MAX_SHAPE_BOUND):
+    try:
+        return _integer(value, name, minimum, maximum)
+    except AssetSpecError as exc:
+        raise AssetSpecError(f"{name} exceeds shape bound: {exc}") from exc
+
+
 class Canvas:
     def __init__(self, width, height, background, scale):
         self.output_width = width
@@ -65,6 +76,12 @@ class Canvas:
         if self.width * self.height > MAX_RENDER_PIXELS:
             raise AssetSpecError("supersampled image exceeds render pixel budget")
         self.pixels = bytearray(background * (self.width * self.height))
+        self.work_units = 0
+
+    def consume_work(self, amount):
+        self.work_units += max(0, amount)
+        if self.work_units > MAX_DRAW_WORK_UNITS:
+            raise AssetSpecError("visual asset exceeds draw work budget")
 
     def blend(self, x, y, source):
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
@@ -94,15 +111,20 @@ class Canvas:
             {"type", "x", "y", "width", "height", "color", "radius"},
             "rect",
         )
-        x = _integer(shape.get("x"), "rect.x") * self.scale
-        y = _integer(shape.get("y"), "rect.y") * self.scale
-        width = _integer(shape.get("width"), "rect.width", 1) * self.scale
-        height = _integer(shape.get("height"), "rect.height", 1) * self.scale
-        radius = _integer(shape.get("radius", 0), "rect.radius", 0) * self.scale
+        x = _shape_integer(shape.get("x"), "rect.x") * self.scale
+        y = _shape_integer(shape.get("y"), "rect.y") * self.scale
+        width = _shape_integer(shape.get("width"), "rect.width", 1) * self.scale
+        height = _shape_integer(shape.get("height"), "rect.height", 1) * self.scale
+        radius = _shape_integer(shape.get("radius", 0), "rect.radius", 0) * self.scale
         color = _color(shape.get("color"), "rect.color")
         radius = min(radius, width // 2, height // 2)
-        for yy in range(y, y + height):
-            for xx in range(x, x + width):
+        start_x = max(0, x)
+        end_x = min(self.width, x + width)
+        start_y = max(0, y)
+        end_y = min(self.height, y + height)
+        self.consume_work(max(0, end_x - start_x) * max(0, end_y - start_y))
+        for yy in range(start_y, end_y):
+            for xx in range(start_x, end_x):
                 if radius:
                     cx = x + radius if xx < x + radius else x + width - radius - 1 if xx >= x + width - radius else xx
                     cy = y + radius if yy < y + radius else y + height - radius - 1 if yy >= y + height - radius else yy
@@ -112,26 +134,33 @@ class Canvas:
 
     def draw_circle(self, shape):
         _reject_extra_fields(shape, {"type", "cx", "cy", "radius", "color"}, "circle")
-        cx = _integer(shape.get("cx"), "circle.cx") * self.scale
-        cy = _integer(shape.get("cy"), "circle.cy") * self.scale
-        radius = _integer(shape.get("radius"), "circle.radius", 1) * self.scale
+        cx = _shape_integer(shape.get("cx"), "circle.cx") * self.scale
+        cy = _shape_integer(shape.get("cy"), "circle.cy") * self.scale
+        radius = _shape_integer(shape.get("radius"), "circle.radius", 1) * self.scale
         color = _color(shape.get("color"), "circle.color")
         radius_squared = radius * radius
-        for yy in range(cy - radius, cy + radius + 1):
-            for xx in range(cx - radius, cx + radius + 1):
+        start_x = max(0, cx - radius)
+        end_x = min(self.width - 1, cx + radius)
+        start_y = max(0, cy - radius)
+        end_y = min(self.height - 1, cy + radius)
+        self.consume_work(max(0, end_x - start_x + 1) * max(0, end_y - start_y + 1))
+        for yy in range(start_y, end_y + 1):
+            for xx in range(start_x, end_x + 1):
                 if (xx - cx) ** 2 + (yy - cy) ** 2 <= radius_squared:
                     self.blend(xx, yy, color)
 
     def draw_line(self, shape):
         _reject_extra_fields(shape, {"type", "x1", "y1", "x2", "y2", "width", "color"}, "line")
-        x1 = _integer(shape.get("x1"), "line.x1") * self.scale
-        y1 = _integer(shape.get("y1"), "line.y1") * self.scale
-        x2 = _integer(shape.get("x2"), "line.x2") * self.scale
-        y2 = _integer(shape.get("y2"), "line.y2") * self.scale
-        line_width = _integer(shape.get("width", 1), "line.width", 1) * self.scale
+        x1 = _shape_integer(shape.get("x1"), "line.x1") * self.scale
+        y1 = _shape_integer(shape.get("y1"), "line.y1") * self.scale
+        x2 = _shape_integer(shape.get("x2"), "line.x2") * self.scale
+        y2 = _shape_integer(shape.get("y2"), "line.y2") * self.scale
+        line_width = _shape_integer(shape.get("width", 1), "line.width", 1) * self.scale
         color = _color(shape.get("color"), "line.color")
         steps = max(abs(x2 - x1), abs(y2 - y1), 1)
         radius = max(0, line_width // 2)
+        diameter = radius * 2 + 1
+        self.consume_work((steps + 1) * diameter * diameter)
         for index in range(steps + 1):
             x = round(x1 + (x2 - x1) * index / steps)
             y = round(y1 + (y2 - y1) * index / steps)
@@ -151,13 +180,15 @@ class Canvas:
                 raise AssetSpecError(f"polygon.points[{index}] must be [x, y]")
             points.append(
                 (
-                    _integer(point[0], f"polygon.points[{index}].x") * self.scale,
-                    _integer(point[1], f"polygon.points[{index}].y") * self.scale,
+                    _shape_integer(point[0], f"polygon.points[{index}].x") * self.scale,
+                    _shape_integer(point[1], f"polygon.points[{index}].y") * self.scale,
                 )
             )
         color = _color(shape.get("color"), "polygon.color")
-        minimum_y = min(point[1] for point in points)
-        maximum_y = max(point[1] for point in points)
+        minimum_y = max(0, min(point[1] for point in points))
+        maximum_y = min(self.height - 1, max(point[1] for point in points))
+        scanlines = max(0, maximum_y - minimum_y + 1)
+        self.consume_work(scanlines * len(points) + self.width * scanlines)
         for yy in range(minimum_y, maximum_y + 1):
             scan_y = yy + 0.5
             intersections = []
@@ -168,8 +199,8 @@ class Canvas:
                 intersections.append(x1 + (scan_y - y1) * (x2 - x1) / (y2 - y1))
             intersections.sort()
             for index in range(0, len(intersections) - 1, 2):
-                start = math.ceil(intersections[index])
-                end = math.floor(intersections[index + 1])
+                start = max(0, math.ceil(intersections[index]))
+                end = min(self.width - 1, math.floor(intersections[index + 1]))
                 for xx in range(start, end + 1):
                     self.blend(xx, yy, color)
 
@@ -179,24 +210,29 @@ class Canvas:
             {"type", "x", "y", "width", "height", "start_color", "end_color", "direction"},
             "gradient",
         )
-        x = _integer(shape.get("x"), "gradient.x") * self.scale
-        y = _integer(shape.get("y"), "gradient.y") * self.scale
-        width = _integer(shape.get("width"), "gradient.width", 1) * self.scale
-        height = _integer(shape.get("height"), "gradient.height", 1) * self.scale
+        x = _shape_integer(shape.get("x"), "gradient.x") * self.scale
+        y = _shape_integer(shape.get("y"), "gradient.y") * self.scale
+        width = _shape_integer(shape.get("width"), "gradient.width", 1) * self.scale
+        height = _shape_integer(shape.get("height"), "gradient.height", 1) * self.scale
         start = _color(shape.get("start_color"), "gradient.start_color")
         end = _color(shape.get("end_color"), "gradient.end_color")
         direction = shape.get("direction", "vertical")
         if direction not in {"horizontal", "vertical"}:
             raise AssetSpecError("gradient.direction must be horizontal or vertical")
         span = max(1, width - 1 if direction == "horizontal" else height - 1)
-        for yy in range(height):
-            for xx in range(width):
-                position = xx if direction == "horizontal" else yy
+        start_x = max(0, x)
+        end_x = min(self.width, x + width)
+        start_y = max(0, y)
+        end_y = min(self.height, y + height)
+        self.consume_work(max(0, end_x - start_x) * max(0, end_y - start_y))
+        for yy in range(start_y, end_y):
+            for xx in range(start_x, end_x):
+                position = xx - x if direction == "horizontal" else yy - y
                 color = tuple(
                     (start[channel] * (span - position) + end[channel] * position + span // 2) // span
                     for channel in range(4)
                 )
-                self.blend(x + xx, y + yy, color)
+                self.blend(xx, yy, color)
 
     def draw(self, shape):
         if not isinstance(shape, dict):
@@ -317,8 +353,25 @@ def _write(path, data):
     path.write_bytes(data)
 
 
+def _confined_path(allowed_root, value, name, must_exist=False):
+    path = Path(value).resolve(strict=must_exist)
+    try:
+        path.relative_to(allowed_root)
+    except ValueError as exc:
+        raise AssetSpecError(f"{name} must stay inside allowed root") from exc
+    return path
+
+
 def build(args):
-    spec_path = Path(args.spec).resolve()
+    allowed_root = Path(args.allowed_root).resolve(strict=True)
+    if not allowed_root.is_dir():
+        raise AssetSpecError("allowed root must be a directory")
+    spec_path = _confined_path(allowed_root, args.spec, "spec", must_exist=True)
+    if spec_path.stat().st_size > MAX_SPEC_BYTES:
+        raise AssetSpecError("visual asset spec exceeds byte budget")
+    preview_path = _confined_path(allowed_root, args.preview_output, "preview output")
+    runtime_path = _confined_path(allowed_root, args.runtime_output, "runtime output")
+    metadata_path = _confined_path(allowed_root, args.metadata_output, "metadata output")
     payload = json.loads(spec_path.read_text(encoding="utf-8"))
     asset_id, width, height, background, supersample, shapes, spec_format = validate_spec(payload)
     canvas = Canvas(width, height, background, supersample)
@@ -328,9 +381,8 @@ def build(args):
     preview = png_bytes(width, height, pixels)
     requested_format = spec_format if args.runtime_format == "auto" and spec_format != "auto" else args.runtime_format
     runtime, selected_format, has_alpha = lvgl_bin_bytes(width, height, pixels, requested_format)
-    preview_path = Path(args.preview_output).resolve()
-    runtime_path = Path(args.runtime_output).resolve()
-    metadata_path = Path(args.metadata_output).resolve()
+    if len(runtime) > args.max_runtime_bytes:
+        raise AssetSpecError("runtime byte budget exceeded")
     _write(preview_path, preview)
     _write(runtime_path, runtime)
     canonical_spec = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -360,9 +412,12 @@ def main():
     parser.add_argument("--preview-output", required=True)
     parser.add_argument("--runtime-output", required=True)
     parser.add_argument("--metadata-output", required=True)
+    parser.add_argument("--allowed-root", required=True)
+    parser.add_argument("--max-runtime-bytes", type=int, default=1_048_576)
     parser.add_argument("--format", dest="runtime_format", choices=["auto", *COLOR_FORMATS], default="auto")
     args = parser.parse_args()
     try:
+        _integer(args.max_runtime_bytes, "max runtime bytes", 1, MAX_RUNTIME_BYTES)
         build(args)
     except (AssetSpecError, json.JSONDecodeError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)

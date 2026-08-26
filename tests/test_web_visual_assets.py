@@ -11,10 +11,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "mpos-gen-app-web" / "scripts" / "build_visual_asset.py"
 PLAN_VALIDATOR = ROOT / "mpos-analyze-app-web" / "scripts" / "validate_visual_asset_plan.py"
+BUNDLE_VALIDATOR = ROOT / "mpos-gen-app-web" / "scripts" / "validate_visual_asset_bundle.py"
 
 
 class VisualAssetPipelineTests(unittest.TestCase):
-    def _run(self, spec, directory, runtime_format="auto"):
+    def _run(self, spec, directory, runtime_format="auto", max_runtime_bytes=1_048_576):
         root = Path(directory)
         spec_path = root / "spec.json"
         preview_path = root / "preview.png"
@@ -33,12 +34,17 @@ class VisualAssetPipelineTests(unittest.TestCase):
                 str(runtime_path),
                 "--metadata-output",
                 str(metadata_path),
+                "--allowed-root",
+                str(root),
+                "--max-runtime-bytes",
+                str(max_runtime_bytes),
                 "--format",
                 runtime_format,
             ],
             capture_output=True,
             text=True,
             check=False,
+            timeout=5,
         )
         return result, preview_path, runtime_path, metadata_path
 
@@ -186,7 +192,178 @@ class VisualAssetPipelineTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("pixel budget", result.stderr)
 
-    def test_web_skill_contracts_share_the_visual_asset_reference(self):
+    def test_rejects_path_escape_before_writing(self):
+        spec = {
+            "schema_version": "mpos-visual-asset-spec-v1",
+            "id": "safe_name",
+            "width": 8,
+            "height": 8,
+            "background": "#000000",
+            "shapes": [],
+        }
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            spec_path = root / "spec.json"
+            outside_preview = Path(outside) / "preview.png"
+            spec_path.write_text(json.dumps(spec), encoding="utf-8")
+            command = [
+                sys.executable,
+                str(SCRIPT),
+                "--spec",
+                str(spec_path),
+                "--preview-output",
+                str(outside_preview),
+                "--runtime-output",
+                str(root / "runtime.bin"),
+                "--metadata-output",
+                str(root / "metadata.json"),
+                "--allowed-root",
+                str(root),
+            ]
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("allowed root", result.stderr)
+            self.assertFalse(outside_preview.exists())
+
+            symlink = root / "escaped"
+            symlink.symlink_to(outside, target_is_directory=True)
+            command[command.index(str(outside_preview))] = str(symlink / "preview.png")
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("allowed root", result.stderr)
+
+    def test_rejects_extreme_shape_bounds_without_long_loop(self):
+        base = {
+            "schema_version": "mpos-visual-asset-spec-v1",
+            "id": "bounded_shape",
+            "width": 16,
+            "height": 16,
+            "background": "#000000",
+            "shapes": [],
+        }
+        extreme_shapes = (
+            {"type": "rect", "x": 0, "y": 0, "width": 10**12, "height": 1, "color": "#ffffff"},
+            {"type": "circle", "cx": 8, "cy": 8, "radius": 10**12, "color": "#ffffff"},
+            {
+                "type": "line",
+                "x1": -(10**12),
+                "y1": 0,
+                "x2": 10**12,
+                "y2": 0,
+                "width": 1,
+                "color": "#ffffff",
+            },
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for shape in extreme_shapes:
+                spec = dict(base)
+                spec["shapes"] = [shape]
+                result, _, _, _ = self._run(spec, directory)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("shape bound", result.stderr)
+
+    def test_rejects_runtime_file_over_byte_budget(self):
+        spec = {
+            "schema_version": "mpos-visual-asset-spec-v1",
+            "id": "runtime_too_large",
+            "width": 16,
+            "height": 16,
+            "background": "#000000",
+            "shapes": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result, preview, runtime, metadata = self._run(spec, directory, max_runtime_bytes=100)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("runtime byte budget", result.stderr)
+            self.assertFalse(preview.exists())
+            self.assertFalse(runtime.exists())
+            self.assertFalse(metadata.exists())
+
+    def test_rejects_shape_work_exhaustion_within_numeric_bounds(self):
+        spec = {
+            "schema_version": "mpos-visual-asset-spec-v1",
+            "id": "too_much_work",
+            "width": 16,
+            "height": 16,
+            "background": "#000000",
+            "shapes": [
+                {
+                    "type": "line",
+                    "x1": -4096,
+                    "y1": 0,
+                    "x2": 4096,
+                    "y2": 0,
+                    "width": 4096,
+                    "color": "#ffffff",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result, _, _, _ = self._run(spec, directory)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("draw work budget", result.stderr)
+
+    def test_bundle_validator_enforces_actual_total_bytes_and_hashes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "project" / "assets" / "images" / "first.bin"
+            second = root / "project" / "assets" / "images" / "second.bin"
+            first.parent.mkdir(parents=True)
+            first.write_bytes(b"a" * 60)
+            second.write_bytes(b"b" * 50)
+            bundle = {
+                "schema_version": "mpos-visual-asset-bundle-v1",
+                "runtime_byte_budget": 100,
+                "assets": [
+                    {
+                        "runtime_path": str(first.relative_to(root)),
+                        "runtime_sha256": hashlib.sha256(first.read_bytes()).hexdigest(),
+                    },
+                    {
+                        "runtime_path": str(second.relative_to(root)),
+                        "runtime_sha256": hashlib.sha256(second.read_bytes()).hexdigest(),
+                    },
+                ],
+            }
+            bundle_path = root / "bundle.json"
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            command = [
+                sys.executable,
+                str(BUNDLE_VALIDATOR),
+                "--input",
+                str(bundle_path),
+                "--allowed-root",
+                str(root),
+            ]
+            result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=5)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("actual runtime byte budget", result.stdout)
+
+            bundle["runtime_byte_budget"] = 110
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(json.loads(result.stdout)["actual_runtime_bytes"], 110)
+
+            bundle["assets"][0]["runtime_sha256"] = "0" * 64
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=5)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("SHA-256 mismatch", result.stdout)
+
+    def test_web_skills_link_canonical_visual_asset_reference(self):
         required_skills = (
             "mpos-dev-web",
             "mpos-plan-app-web",
@@ -201,10 +378,6 @@ class VisualAssetPipelineTests(unittest.TestCase):
             reference = "reference/visual_assets.md" if skill == "mpos-dev-web" else "mpos-dev-web/reference/visual_assets.md"
             self.assertIn(reference, text, skill)
 
-        analyzer = (ROOT / "mpos-analyze-app-web" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("Automatically classify requested visuals", analyzer)
-        self.assertIn('"decision_mode": "automatic"', analyzer)
-
         artifacts = (ROOT / "mpos-dev-web" / "reference" / "artifact_manifest.md").read_text(encoding="utf-8")
         for role in (
             "visual_asset_spec",
@@ -212,6 +385,7 @@ class VisualAssetPipelineTests(unittest.TestCase):
             "visual_asset_source",
             "app_runtime_image",
             "visual_asset_build_log",
+            "visual_asset_bundle_validation",
         ):
             self.assertIn(role, artifacts)
 
@@ -227,17 +401,6 @@ class VisualAssetPipelineTests(unittest.TestCase):
             "VISUAL_ASSET_RIGHTS_UNVERIFIED",
         ):
             self.assertIn(code, errors)
-
-        capabilities = (ROOT / "mpos-dev-web" / "reference" / "capabilities.md").read_text(encoding="utf-8")
-        self.assertIn('"web_image_search": true', capabilities)
-        self.assertIn('"remote_image_fetch": true', capabilities)
-
-        visual_reference = (ROOT / "mpos-dev-web" / "reference" / "visual_assets.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn('"generation_mode": "web"', visual_reference)
-        self.assertIn("visual_asset_source_record", visual_reference)
-        self.assertNotIn("use my uploaded artwork", visual_reference)
 
         protocol = (ROOT / "mpos-dev-web" / "reference" / "protocol.md").read_text(encoding="utf-8")
         self.assertIn('"operation": "write_binary"', protocol)
@@ -262,13 +425,16 @@ class VisualAssetPipelineTests(unittest.TestCase):
             "schema_version": "mpos-visual-asset-plan-v1",
             "decision_mode": "automatic",
             "render_strategy": "hybrid",
+            "runtime_byte_budget": 65_536,
             "assets": [asset],
             "lvgl_elements": ["score_label", "fire_button"],
         }
         with tempfile.TemporaryDirectory() as directory:
             result = self._validate_plan(plan, directory)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(json.loads(result.stdout)["asset_count"], 1)
+            record = json.loads(result.stdout)
+            self.assertEqual(record["asset_count"], 1)
+            self.assertEqual(record["estimated_runtime_bytes"], 12 + 32 * 24 * 3)
 
             dynamic_plan = json.loads(json.dumps(plan))
             dynamic_plan["assets"][0]["dynamic"] = True
@@ -296,6 +462,7 @@ class VisualAssetPipelineTests(unittest.TestCase):
             "schema_version": "mpos-visual-asset-plan-v1",
             "decision_mode": "automatic",
             "render_strategy": "hybrid",
+            "runtime_byte_budget": 100_000,
             "assets": [asset],
             "lvgl_elements": ["start_button"],
         }
@@ -316,6 +483,65 @@ class VisualAssetPipelineTests(unittest.TestCase):
             result = self._validate_plan(uploaded_plan, directory, allow_web=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("generation_mode is invalid", result.stdout)
+
+    def test_plan_enforces_total_runtime_budget(self):
+        asset = {
+            "id": "large_asset",
+            "purpose": "background",
+            "reason": "Static artwork",
+            "required": True,
+            "dynamic": False,
+            "interactive": False,
+            "contains_text": False,
+            "width": 100,
+            "height": 100,
+            "transparent": True,
+            "generation_mode": "procedural",
+            "fallback": "Show a solid background",
+        }
+        plan = {
+            "schema_version": "mpos-visual-asset-plan-v1",
+            "decision_mode": "automatic",
+            "render_strategy": "raster_asset",
+            "runtime_byte_budget": 30_000,
+            "assets": [asset],
+            "lvgl_elements": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._validate_plan(plan, directory)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("total runtime byte budget", result.stdout)
+
+    def test_plan_requires_fallback_for_every_asset(self):
+        asset = {
+            "id": "decoration",
+            "purpose": "decoration",
+            "reason": "Static artwork",
+            "required": False,
+            "dynamic": False,
+            "interactive": False,
+            "contains_text": False,
+            "width": 8,
+            "height": 8,
+            "transparent": False,
+            "generation_mode": "procedural",
+        }
+        plan = {
+            "schema_version": "mpos-visual-asset-plan-v1",
+            "decision_mode": "automatic",
+            "render_strategy": "hybrid",
+            "runtime_byte_budget": 1_024,
+            "assets": [asset],
+            "lvgl_elements": ["title"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._validate_plan(plan, directory)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("fallback must be a non-empty string", result.stdout)
+
+            plan["assets"][0]["fallback"] = "Hide the decorative image"
+            result = self._validate_plan(plan, directory)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

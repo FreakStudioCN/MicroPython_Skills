@@ -77,9 +77,9 @@ Run or request `mpos-gen-app/scripts/check_app_hardware_policy.py` as a required
 1. Validate protocol and input artifacts.
 2. Build a generation plan and emit it as a status/artifact. Include the semantic visual plan, runtime byte budget, and reuse/stale decisions.
 3. Request `file_write` permission if the host requires it.
-4. For each procedural asset, emit a declarative spec and run or request the fixed builder. For each Web asset, search, select, rights-check, fetch, normalize, and record the source through host-owned actions before fixed conversion. Validate the LVGL v9 header, dimensions, stride, size, source hash, and runtime hash before code generation. Use the source preview and source record as browser artifacts and the `.bin` as an App runtime file.
+4. For each procedural asset, emit a declarative spec and request the fixed builder with a host-supplied session root and per-file byte budget. For each Web asset, search, select, rights-check, fetch, normalize, and record the source through host-owned actions before fixed conversion. Validate the LVGL v9 header, dimensions, stride, size, source hash, and runtime hash before code generation.
 5. Generate or repair only target App files. Give the code generator the actual validated runtime paths, dimensions, and formats; do not let it guess them.
-6. Run or request static gates: manifest, syntax, API usage, app-only changes, asset references, lint when available.
+6. Build a runtime bundle manifest and run `scripts/validate_visual_asset_bundle.py` against actual files, hashes, and `runtime_byte_budget`. Then run or request static gates: manifest, syntax, API usage, app-only changes, asset references, lint when available.
 7. Run hardware policy gates: capability contract, forbidden direct access, runtime fallbacks, input modality, and lifecycle cleanup.
 8. Classify missing search results, rejected downloads, unverified rights, and a missing fixed visual pipeline with their specific `VISUAL_ASSET_*` codes; use `TOOLCHAIN_MISSING` for unrelated tools such as `uv`, `ruff`, or `mpy-cross`.
 9. Write `generation_result.json` and artifact manifest with `visual_assets[]` metadata.

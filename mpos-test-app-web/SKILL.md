@@ -46,7 +46,7 @@ mpos-test-app/SKILL.md
 - Always provide manual reproduction commands in `app_test_result.json`.
 - For every `app_runtime_image`, validate the LVGL v9 header, declared dimensions/stride/format, file hash, App reference, and packaged path before launch.
 - For every Web-sourced runtime image, validate that its `visual_asset_source_record` matches the downloaded source hash and contains sufficient source-page, license, and attribution evidence for packaging.
-- Launch the App and capture screenshot evidence that planned required artwork rendered. When feasible, temporarily make a required asset unavailable and verify the declared native LVGL fallback without modifying the final App tree.
+- Run `mpos-gen-app-web/scripts/validate_visual_asset_bundle.py` against actual runtime files and hashes. Launch the App and capture screenshot evidence that planned required artwork rendered. When feasible, test the declared fallback for an unavailable asset.
 
 ## Failure Classification
 
