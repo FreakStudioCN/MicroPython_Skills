@@ -790,11 +790,22 @@ def list_serial_ports_descriptorless_filter_fixture() -> None:
     script = REPO / "shared-plugin-scripts" / "mpremote" / "list_serial_ports.py"
     module = load_script_module("flash_shared_list_serial_ports", script)
     cases = load_json(SHARED_SERIAL_CASES)
-    for case in cases.get("shared_core_cases", []):
+    # Both sections must be present and non-empty. `.get(name, [])` iterated nothing when a
+    # section was renamed or dropped upstream, so the suite went green having asserted the shared
+    # contract ZERO times -- the exact drift this fixture exists to catch, reported as a pass. The
+    # shim side already fails loud on a missing fixture (test_serial_port_contract.py); this makes
+    # the scanner side agree, so the contract cannot be half-asserted from either end.
+    for section in ("shared_core_cases", "scanner_source_exemption_cases"):
+        if not cases.get(section):
+            raise AssertionError(
+                f"{SHARED_SERIAL_CASES}: {section} is missing or empty -- the shared "
+                "descriptorless contract would be asserted zero times"
+            )
+    for case in cases["shared_core_cases"]:
         survivors = module.filter_descriptorless_ports(_descriptorless_records(case))
         actual = [item["name"] for item in survivors]
         assert actual == case["expected"], f"{case['name']} survivors mismatch: {actual} != {case['expected']}"
-    for case in cases.get("scanner_source_exemption_cases", []):
+    for case in cases["scanner_source_exemption_cases"]:
         survivors = module.filter_descriptorless_ports(_descriptorless_records(case))
         actual = [item["name"] for item in survivors]
         assert actual == case["expected"], f"{case['name']} survivors mismatch: {actual} != {case['expected']}"
