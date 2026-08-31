@@ -7,6 +7,7 @@ import argparse
 import ast
 import json
 from pathlib import Path
+from string import Formatter
 from typing import Any
 
 from common import configure_stdio, json_dump
@@ -733,7 +734,23 @@ def check_rotating_logger_timestamp_contract(project_dir: Path, tree: ast.Module
     return errors
 
 
-def format_helper_convention(node: ast.FunctionDef) -> str:
+def _mentions(node: ast.AST, name: str) -> bool:
+    """True when `name` is read anywhere inside `node`.
+
+    The helper does not always hand its *args straight to the formatter -- `message % tuple(args)`
+    is the same intent written defensively -- and requiring a bare Name made the convention
+    undetectable there, which silently switched this whole check off for that helper rather than
+    failing loudly.
+
+    Only the `%` side needs this. `message.format(*...)` is already unambiguous from the splat
+    alone, and demanding that the splatted expression mention the varargs by name would go the
+    wrong way: a helper that formats an augmented list (`message.format(*(list(args) + [ts]))`)
+    would stop being recognised, re-opening the same silent hole one step over.
+    """
+    return any(isinstance(child, ast.Name) and child.id == name for child in ast.walk(node))
+
+
+def format_helper_convention(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     """'percent', 'brace' or '' for a helper that formats its first param with *args.
 
     The generated log helper is written fresh each run and picks its own convention. The
@@ -748,7 +765,7 @@ def format_helper_convention(node: ast.FunctionDef) -> str:
     for child in ast.walk(node):
         if (isinstance(child, ast.BinOp) and isinstance(child.op, ast.Mod)
                 and isinstance(child.left, ast.Name) and child.left.id == param
-                and isinstance(child.right, ast.Name) and child.right.id == varargs):
+                and _mentions(child.right, varargs)):
             percent = True
         if (isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute)
                 and child.func.attr == "format"
@@ -765,6 +782,26 @@ def format_helper_convention(node: ast.FunctionDef) -> str:
 FORMAT_PROBE_ARGS = ("X", 1)
 
 
+def brace_positional_fields(template: str) -> int | None:
+    """How many positional arguments `template.format(*args)` actually consumes.
+
+    None when the template uses NAMED fields, which positional arguments can never satisfy --
+    .format() raises KeyError there, so the exception probe already reports it and this need not.
+    """
+    auto, explicit = 0, -1
+    for _, field, _, _ in Formatter().parse(template):
+        if field is None:
+            continue
+        head = field.split(".")[0].split("[")[0]
+        if head == "":
+            auto += 1
+        elif head.isdigit():
+            explicit = max(explicit, int(head))
+        else:
+            return None
+    return max(auto, explicit + 1)
+
+
 def format_template_fails(template: str, convention: str, count: int) -> str:
     reason = ""
     for filler in FORMAT_PROBE_ARGS:
@@ -773,6 +810,16 @@ def format_template_fails(template: str, convention: str, count: int) -> str:
                 template % ((filler,) * count)
             else:
                 template.format(*((filler,) * count))
+            # str.format() IGNORES arguments it has no field for, so the mismatch this check is
+            # named for -- a brace helper handed "temp=%d" -- raises nothing at all and logs the
+            # template verbatim with the reading silently dropped. Only the percent half of the
+            # bug is loud enough for the probe above to see; this is the quiet half, and it is the
+            # one that costs a debugging session because the log looks like it printed something.
+            if convention == "brace":
+                consumed = brace_positional_fields(template)
+                if consumed is not None and consumed < count:
+                    return (f"the template has {consumed} placeholder(s) for {count} argument(s), "
+                            f"so str.format() drops the rest without raising")
             return ""
         except Exception as exc:  # noqa: BLE001 - any failure to format is the finding
             reason = f"{type(exc).__name__}: {exc}"
@@ -788,7 +835,8 @@ def check_format_helper_convention(project_dir: Path, path: Path, tree: ast.Modu
     conventions = {
         node.name: convention
         for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef) and (convention := format_helper_convention(node))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and (convention := format_helper_convention(node))
     }
     if not conventions:
         return []
@@ -799,6 +847,12 @@ def check_format_helper_convention(project_dir: Path, path: Path, tree: ast.Modu
         convention = conventions.get(node.func.id)
         # A call with no extra arguments never reaches the formatting branch.
         if convention is None or len(node.args) < 2:
+            continue
+        # `_log_info("%d/%d", *readings)` passes as many arguments as `readings` holds at runtime,
+        # which is not knowable here -- counting the Starred node as one argument failed CORRECT
+        # code ("not enough arguments for format string"), and a gate that blocks a good deploy is
+        # worse than one that stays quiet. Nothing is decidable about these, so skip them.
+        if any(isinstance(a, ast.Starred) for a in node.args):
             continue
         template = node.args[0]
         if not isinstance(template, ast.Constant) or not isinstance(template.value, str):
