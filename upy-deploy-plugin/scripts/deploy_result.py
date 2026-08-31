@@ -44,6 +44,9 @@ SENSOR_READING_PATTERNS = (
 SUCCESS_STATUSES = {"success", "ok"}
 FIRMWARE_TRACEBACK_FILES = {"main.py", "boot.py", "conf.py"}
 TRACEBACK_FRAME_RE = re.compile(r'File "([^"]+)"')
+SOFT_REBOOT_MARKER = "MPY: soft reboot"
+BOOT_MARKERS = ("MPYHW_READY", "starting scheduler")
+TRACEBACK_MARKER = "Traceback (most recent call last)"
 
 
 def load_optional(path: str | None, label: str, errors: list[dict[str, Any]]) -> dict[str, Any]:
@@ -235,13 +238,39 @@ def has_successful_sensor_reading(output: str) -> bool:
 
 
 def has_firmware_traceback(output: str) -> bool:
-    if "Traceback (most recent call last)" not in output:
+    if TRACEBACK_MARKER not in output:
         return False
     for match in TRACEBACK_FRAME_RE.finditer(output):
         frame = match.group(1).replace("\\", "/").rsplit("/", 1)[-1]
         if frame in FIRMWARE_TRACEBACK_FILES:
             return True
     return False
+
+
+def _traceback_recovered(segment: str) -> bool:
+    reboot = segment.find(SOFT_REBOOT_MARKER)
+    if reboot < 0:
+        return False
+    tail = segment[reboot:]
+    return any(marker in tail for marker in BOOT_MARKERS)
+
+
+def all_tracebacks_recovered_after_interrupt(output: str) -> bool:
+    """True when every traceback is followed by a reboot and firmware startup marker.
+
+    The final reset intentionally interrupts a running app before sending Ctrl-D. That interrupt
+    can produce a traceback whose frames name main.py, so frame matching alone cannot distinguish it
+    from a startup crash. Recovery is proven per traceback by ordering: traceback, soft reboot, then
+    boot marker, before any later traceback appears.
+    """
+    starts = [match.start() for match in re.finditer(re.escape(TRACEBACK_MARKER), output)]
+    if not starts:
+        return False
+    for index, start in enumerate(starts):
+        end = starts[index + 1] if index + 1 < len(starts) else len(output)
+        if not _traceback_recovered(output[start:end]):
+            return False
+    return True
 
 
 def validate_capture_health(
@@ -271,9 +300,16 @@ def validate_capture_health(
             )
     elif timeout_count == 1:
         warnings.append(f"{prefix} output reported one sensor I/O timeout")
+    recovered_after_interrupt = all_tracebacks_recovered_after_interrupt(output)
     for pattern, code in FAIL_PATTERNS:
-        if pattern in output:
-            errors.append({"code": code, "message": f"{prefix} output contains {pattern}"})
+        if pattern not in output:
+            continue
+        if code == "python_traceback" and recovered_after_interrupt:
+            warnings.append(
+                f"{prefix} output contains an interrupt traceback followed by soft reboot and boot marker"
+            )
+            continue
+        errors.append({"code": code, "message": f"{prefix} output contains {pattern}"})
 
 
 def artifact_time(artifact: dict[str, Any] | None, *keys: str) -> datetime | None:
