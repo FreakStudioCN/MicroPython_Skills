@@ -1,0 +1,4 @@
+interface:
+  display_name: "uPy Norm Async Driver"
+  short_description: "Create async driver package variants."
+  default_prompt: "Convert this MicroPython driver package into a separately named async driver package."
