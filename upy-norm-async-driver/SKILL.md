@@ -380,6 +380,12 @@ Do not write custom metadata that would break existing package tooling unless th
 
 Before final output, check generated Python files.
 
+Run the bundled checker on the generated output package when available:
+
+```bash
+python scripts/check_async_driver.py <output-package-dir>
+```
+
 Strong failures inside `async def`:
 
 - `time.sleep(`
