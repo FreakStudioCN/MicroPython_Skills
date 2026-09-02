@@ -958,7 +958,6 @@ def check_timer_scheduler_contract(project_dir: Path, manifest: dict[str, Any]) 
                 }
             )
     scheduler_vars = collect_scheduler_vars(tree)
-    inline_scheduler_calls = {"add_task", "register", "register_task", "start", "run"}
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
             continue
@@ -969,7 +968,9 @@ def check_timer_scheduler_contract(project_dir: Path, manifest: dict[str, Any]) 
             is_scheduler_call = True
         elif isinstance(value, ast.Call) and call_name(value.func) == "Scheduler":
             is_scheduler_call = True
-        if not is_scheduler_call or method not in inline_scheduler_calls:
+        # Check every method on a confirmed Scheduler instance. A fixed list only catches invented
+        # names that have already been seen, while scheduler_methods() gives the real scaffold API.
+        if not is_scheduler_call:
             continue
         if method not in methods:
             errors.append(

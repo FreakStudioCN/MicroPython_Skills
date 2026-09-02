@@ -191,6 +191,29 @@ def assert_generated_semantics_negative_cases() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         project = Path(temp_dir)
         make_project(project, mode="timer")
+        main_py = project / "firmware" / "main.py"
+        main_py.write_text(
+            "import sys\n"
+            "import time\n"
+            "from lib.scheduler.timer_sched import Scheduler\n"
+            "from lib import logger\n"
+            "def _on_scheduler_error(tid, exc):\n"
+            "    sys.print_exception(exc)\n"
+            "    logger.exception(exc, '[t=%dms] task failed' % time.ticks_ms())\n"
+            "def tick(): pass\n"
+            "sc = Scheduler(timer_id=0, error_cb=_on_scheduler_error)\n"
+            "sc.schedule_every(tick, 100)\n",
+            encoding="utf-8",
+        )
+        rc, stdout, _stderr = run_cmd(
+            [sys.executable, str(ROOT / "scripts" / "check_generated_semantics.py"), "--project-dir", str(project)]
+        )
+        if rc == 0 or "SCHEDULER_API_METHOD_MISSING" not in stdout:
+            raise AssertionError(f"semantic check must reject any missing Scheduler method: {stdout}")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir)
+        make_project(project, mode="timer")
         (project / "firmware" / "lib" / "scheduler" / "timer_sched.py").write_text(
             "from machine import Timer\n\n"
             "class Scheduler:\n"
