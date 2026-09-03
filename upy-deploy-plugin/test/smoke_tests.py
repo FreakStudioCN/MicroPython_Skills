@@ -353,7 +353,10 @@ def assert_capture_and_result_mock() -> None:
             "--output-json",
             str(final_reset_json),
         ])
-        upload_json.write_text(json.dumps({"status": "success", "steps": []}, ensure_ascii=False), encoding="utf-8")
+        upload_json.write_text(
+            json.dumps({"status": "success", "mode": "mock", "steps": []}, ensure_ascii=False),
+            encoding="utf-8",
+        )
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
         result = run_json([
             sys.executable,
@@ -371,8 +374,14 @@ def assert_capture_and_result_mock() -> None:
             "--port",
             "COM3",
         ])
-        if result["status"] != "PASS":
-            raise AssertionError(f"mock deploy result should pass: {result}")
+        if result["status"] != "PASS_WITH_WARNINGS":
+            raise AssertionError(f"mock deploy result should warn, not pass silently: {result}")
+        expected_mock_steps = {"upload", "serial capture", "final reset"}
+        if set(result.get("mock_steps", [])) != expected_mock_steps:
+            raise AssertionError(f"mock deploy result must name mocked evidence steps: {result}")
+        warnings_text = json.dumps(result.get("warnings", []), ensure_ascii=False)
+        if "mode=mock" not in warnings_text or "live device evidence" not in warnings_text:
+            raise AssertionError(f"mock deploy result must explain mock evidence warnings: {result}")
         if result.get("final_reset", {}).get("observed_soft_reboot") is not True:
             raise AssertionError(f"mock deploy result must retain observed soft reboot evidence: {result}")
 

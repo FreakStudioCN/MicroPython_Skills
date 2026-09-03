@@ -84,6 +84,14 @@ def infer_status(report: dict[str, Any], default: str = "unknown") -> str:
     return "success"
 
 
+def mocked_steps(reports: list[tuple[str, dict[str, Any]]]) -> list[str]:
+    steps: list[str] = []
+    for label, report in reports:
+        if isinstance(report, dict) and report.get("mode") == "mock":
+            steps.append(label)
+    return steps
+
+
 def report_output(report: dict[str, Any]) -> str:
     return str(report.get("output") or report.get("stdout") or "")
 
@@ -456,6 +464,17 @@ def main() -> int:
 
     upload_status = infer_status(upload, default="skipped")
     clean_status = infer_status(clean, default="skipped")
+    mock_steps = mocked_steps(
+        [
+            ("upload", upload),
+            ("serial capture", serial),
+            ("final reset", final_reset),
+            ("device tests", device_tests),
+            ("mip install", mip_install),
+        ]
+    )
+    for step in mock_steps:
+        warnings.append(f"{step} artifact has mode=mock; this is contract-test evidence, not live device evidence")
     if upload and upload_status not in {"success", "ok", "skipped"}:
         errors.append({"code": "upload_failed", "message": "upload script did not report success", "detail": upload})
     forbidden = forbidden_uploads(upload)
@@ -595,6 +614,7 @@ def main() -> int:
         "log_report": log_report,
         "mip_install": mip_install,
         "device_tests": device_tests,
+        "mock_steps": mock_steps,
         "errors": errors,
         "warnings": warnings,
     }
