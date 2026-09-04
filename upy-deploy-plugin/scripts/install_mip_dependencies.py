@@ -481,6 +481,7 @@ def main() -> int:
             "errors": [exc.to_error()],
             "warnings": [],
         }
+    result["evidence_mode"] = "mock" if args.mock else "live"
     if args.output_json:
         write_json(args.output_json, result)
     print_json(result)

@@ -388,6 +388,7 @@ def main() -> int:
         result = {"status": "action_required", "errors": [exc.to_error()]}
     except Exception as exc:
         result = {"status": "failed", "errors": [{"code": "device_tests_runner_failed", "message": str(exc)}]}
+    result["evidence_mode"] = "mock" if args.mock else "live"
     if args.output_json:
         if args.log_file:
             result["log_file"] = str(Path(args.log_file).resolve()).replace("\\", "/")

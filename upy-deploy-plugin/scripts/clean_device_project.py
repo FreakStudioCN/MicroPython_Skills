@@ -180,8 +180,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     configure_stdio()
     args = parse_args()
+    evidence_mode = "mock" if args.mock else "live"
     if args.dry_run == args.execute:
-        result = {"status": "failed", "errors": ["choose exactly one of --dry-run or --execute"]}
+        result = {
+            "status": "failed",
+            "evidence_mode": evidence_mode,
+            "errors": ["choose exactly one of --dry-run or --execute"],
+        }
         print_json(result)
         return 2
     try:
@@ -203,6 +208,7 @@ def main() -> int:
             "status": status,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "mode": args.mode,
+            "evidence_mode": evidence_mode,
             "operation": "execute" if args.execute else "dry_run",
             "port": args.port or None,
             "inventory_count": len(inventory),
@@ -218,6 +224,7 @@ def main() -> int:
             "status": "action_required",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "mode": args.mode,
+            "evidence_mode": evidence_mode,
             "operation": "execute" if args.execute else "dry_run",
             "port": args.port or None,
             "errors": [exc.to_error()],
@@ -228,6 +235,7 @@ def main() -> int:
             "status": "failed",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "mode": args.mode,
+            "evidence_mode": evidence_mode,
             "operation": "execute" if args.execute else "dry_run",
             "port": args.port or None,
             "errors": [{"code": "clean_device_failed", "message": str(exc)}],

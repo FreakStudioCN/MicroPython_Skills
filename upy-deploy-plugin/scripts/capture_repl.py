@@ -330,6 +330,7 @@ def main() -> int:
         }
     result["observed_soft_reboot"] = observed_soft_reboot(str(result.get("output") or ""))
     result["observed_fresh_boot"] = observed_fresh_boot(str(result.get("output") or ""))
+    result["evidence_mode"] = "mock" if args.mock else "live"
     result.setdefault("no_resume", bool(args.no_resume))
     result["started_at"] = started
     result["finished_at"] = datetime.now(timezone.utc).isoformat()

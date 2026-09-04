@@ -216,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
         result = run_summary(args) if args.run else availability_summary(["mpremote"] if args.mock else None)
     except MpremoteUnavailable as exc:
         result = {"status": "action_required", "errors": [exc.to_error()]}
+    result["evidence_mode"] = "mock" if args.mock else "live"
     write_json(result, args.output_json)
     if args.run:
         return 0 if result["status"] == "success" else 2

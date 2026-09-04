@@ -319,6 +319,7 @@ FAIL 后展示同样的诊断摘要，并允许进入 `upy-autofix-plugin`、`up
 
 success 的 `payload.artifacts` 必须引用独立原始证据文件：`deploy_result.json`、`upload_summary.json`、`clean_result.json`、`mip_install_result.json`、`device_tests_result.json`、`final_reset_capture.json`，以及串口/REPL capture 和设备日志报告。只把叙述性摘要或 `phase_complete` 自身列为 artifact 不合格。
 Evidence JSON files must be emitted by their scripts, not written by `file_operation`: `deploy_result.json`, `upload_summary.json`, `clean_result.json`, `mip_install_result.json`, `device_tests_result.json`, and `final_reset_capture.json` are tool evidence, not model-authored summaries.
+Each evidence artifact records `evidence_mode` as the exact literal `live` or `mock`. `clean_result.json.mode` remains the clean scope such as `project_files` or `erase_all`; do not infer whether evidence is mocked from that field.
 
 `scripts/run_device_tests.py` 和 `scripts/deploy_result.py` 必须在本阶段真实执行过，然后才允许发 `phase_complete`。没有跑 `deploy_result.py` 就没有判定，这个阶段没有可以结束的依据，只会一路烧到 turn 上限。把脚本打印到 stdout 的内容再抄进同名文件，看起来一样，但证据链已经断了：时间戳、返回码、失败分类全部变成模型手写的值，校验对着这种文件只能全部通过，却什么都没有证明。脚本缺少落盘参数时，报 `action_required` 说明缺哪个参数，不要用手写文件替代。
 

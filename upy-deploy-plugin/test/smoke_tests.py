@@ -239,6 +239,8 @@ def assert_clean_device_mock_modes() -> None:
     ])
     if clean["status"] != "success" or clean["operation"] != "dry_run":
         raise AssertionError(f"clean dry-run failed: {clean}")
+    if clean.get("mode") != "project_files" or clean.get("evidence_mode") != "mock":
+        raise AssertionError(f"clean must retain its scope and label mock evidence separately: {clean}")
     if any(path.startswith("data/") or path.startswith("secrets/") for path in clean["delete_targets"]):
         raise AssertionError("project_files clean must not include mock user data")
     for stale in ("conf.mpy", "drivers/sht30_driver/mock.mpy", "lib/logger/logging.py", "lib/scheduler/timer_sched.py", "lib/time_helper.py"):
@@ -256,6 +258,8 @@ def assert_clean_device_mock_modes() -> None:
     ])
     if "data/calibration.json" not in erase["delete_targets"] or "secrets/wifi.json" not in erase["delete_targets"]:
         raise AssertionError("erase_all dry-run must list user data paths")
+    if erase.get("mode") != "erase_all" or erase.get("evidence_mode") != "mock":
+        raise AssertionError(f"erase_all clean must retain its scope and label mock evidence separately: {erase}")
     if not erase.get("warnings"):
         raise AssertionError("erase_all dry-run must warn")
 
@@ -277,7 +281,7 @@ def assert_mpremote_runtime_contract() -> None:
     if command != ["python", "-m", "mpremote", "connect", "COM9", "resume", "exec", "print(1)"]:
         raise AssertionError(f"mpremote command builder mismatch: {command}")
     summary = run_json([sys.executable, str(SCRIPTS / "mpremote_runtime.py"), "--check", "--mock"])
-    if summary["status"] != "available" or summary["command"] != ["mpremote"]:
+    if summary["status"] != "available" or summary["command"] != ["mpremote"] or summary.get("evidence_mode") != "mock":
         raise AssertionError(f"mpremote runtime mock check mismatch: {summary}")
     passthrough = run_json([
         sys.executable,
@@ -291,7 +295,7 @@ def assert_mpremote_runtime_contract() -> None:
         "exec",
         "print(1)",
     ])
-    if passthrough["status"] != "success":
+    if passthrough["status"] != "success" or passthrough.get("evidence_mode") != "mock":
         raise AssertionError(f"mpremote runtime mock passthrough failed: {passthrough}")
     if passthrough["command"] != ["mpremote", "connect", "COM9", "resume", "exec", "print(1)"]:
         raise AssertionError(f"mpremote runtime passthrough command mismatch: {passthrough}")
@@ -326,6 +330,7 @@ def assert_capture_and_result_mock() -> None:
         serial_json = temp / "serial.json"
         final_reset_json = temp / "final_reset.json"
         upload_json = temp / "upload.json"
+        clean_json = temp / "clean.json"
         log_json = temp / "log.json"
         run_json([
             sys.executable,
@@ -343,6 +348,8 @@ def assert_capture_and_result_mock() -> None:
             "--output-json",
             str(serial_json),
         ])
+        if load_json(serial_json).get("evidence_mode") != "mock":
+            raise AssertionError("mock serial capture must label its evidence mode")
         run_json([
             sys.executable,
             str(SCRIPTS / "capture_repl.py"),
@@ -353,8 +360,14 @@ def assert_capture_and_result_mock() -> None:
             "--output-json",
             str(final_reset_json),
         ])
+        if load_json(final_reset_json).get("evidence_mode") != "mock":
+            raise AssertionError("mock final reset capture must label its evidence mode")
         upload_json.write_text(
-            json.dumps({"status": "success", "mode": "mock", "steps": []}, ensure_ascii=False),
+            json.dumps({"status": "success", "mode": "mock", "evidence_mode": "mock", "steps": []}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        clean_json.write_text(
+            json.dumps({"status": "success", "mode": "project_files", "evidence_mode": "mock"}, ensure_ascii=False),
             encoding="utf-8",
         )
         log_json.write_text(json.dumps({"error_count": 0, "errors": []}, ensure_ascii=False), encoding="utf-8")
@@ -363,6 +376,8 @@ def assert_capture_and_result_mock() -> None:
             str(SCRIPTS / "deploy_result.py"),
             "--upload-json",
             str(upload_json),
+            "--clean-json",
+            str(clean_json),
             "--serial-json",
             str(serial_json),
             "--final-reset-json",
@@ -376,14 +391,38 @@ def assert_capture_and_result_mock() -> None:
         ])
         if result["status"] != "PASS_WITH_WARNINGS":
             raise AssertionError(f"mock deploy result should warn, not pass silently: {result}")
-        expected_mock_steps = {"upload", "serial capture", "final reset"}
+        expected_mock_steps = {"upload", "clean", "serial capture", "final reset"}
         if set(result.get("mock_steps", [])) != expected_mock_steps:
             raise AssertionError(f"mock deploy result must name mocked evidence steps: {result}")
         warnings_text = json.dumps(result.get("warnings", []), ensure_ascii=False)
-        if "mode=mock" not in warnings_text or "live device evidence" not in warnings_text:
+        if "evidence_mode=mock" not in warnings_text or "live device evidence" not in warnings_text:
             raise AssertionError(f"mock deploy result must explain mock evidence warnings: {result}")
         if result.get("final_reset", {}).get("observed_soft_reboot") is not True:
             raise AssertionError(f"mock deploy result must retain observed soft reboot evidence: {result}")
+        clean_json.write_text(
+            json.dumps({"status": "success", "mode": "project_files", "evidence_mode": "live"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        mixed_result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--clean-json",
+            str(clean_json),
+            "--serial-json",
+            str(serial_json),
+            "--final-reset-json",
+            str(final_reset_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if "clean" in mixed_result.get("mock_steps", []):
+            raise AssertionError(f"real clean evidence must not be reported as mocked: {mixed_result}")
 
 
 def assert_reset_capture_traceback_fails_deploy_result() -> None:
@@ -813,7 +852,7 @@ def assert_install_mip_dependencies_mock() -> None:
             str(project),
             "--mock",
         ])
-        if result["status"] != "success" or result["installed"] != 1:
+        if result["status"] != "success" or result["installed"] != 1 or result.get("evidence_mode") != "mock":
             raise AssertionError(f"mock mip install should install one dependency: {result}")
         record = result["records"][0]
         if record["package"] != "unittest" or record["install"]["command_args"] != ["mip", "install", "--target=/lib", "unittest"]:
@@ -979,7 +1018,7 @@ def assert_run_device_tests_mock() -> None:
             str(project),
             "--mock",
         ])
-        if result["status"] != "success":
+        if result["status"] != "success" or result.get("evidence_mode") != "mock":
             raise AssertionError(f"mock device test run must succeed: {result}")
         if result["test_count"] != 1 or result["passed"] != 1 or result["failed"] != 0:
             raise AssertionError(f"mock device test counts invalid: {result}")
