@@ -423,6 +423,30 @@ def assert_capture_and_result_mock() -> None:
         ])
         if "clean" in mixed_result.get("mock_steps", []):
             raise AssertionError(f"real clean evidence must not be reported as mocked: {mixed_result}")
+        clean_json.write_text(
+            json.dumps({"status": "success", "mode": "project_files", "evidence_mode": "mocked"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        invalid_mode_result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--clean-json",
+            str(clean_json),
+            "--serial-json",
+            str(serial_json),
+            "--final-reset-json",
+            str(final_reset_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if "clean" in invalid_mode_result.get("mock_steps", []):
+            raise AssertionError(f"only the literal evidence_mode=mock may classify clean as mocked: {invalid_mode_result}")
 
 
 def assert_reset_capture_traceback_fails_deploy_result() -> None:
