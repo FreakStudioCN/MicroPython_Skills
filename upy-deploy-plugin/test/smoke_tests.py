@@ -424,6 +424,30 @@ def assert_capture_and_result_mock() -> None:
         if "clean" in mixed_result.get("mock_steps", []):
             raise AssertionError(f"real clean evidence must not be reported as mocked: {mixed_result}")
         clean_json.write_text(
+            json.dumps({"status": "success", "mode": "mock", "evidence_mode": "live"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        canonical_live_result = run_json([
+            sys.executable,
+            str(SCRIPTS / "deploy_result.py"),
+            "--upload-json",
+            str(upload_json),
+            "--clean-json",
+            str(clean_json),
+            "--serial-json",
+            str(serial_json),
+            "--final-reset-json",
+            str(final_reset_json),
+            "--log-report-json",
+            str(log_json),
+            "--strategy",
+            "clean_then_upload",
+            "--port",
+            "COM3",
+        ])
+        if "clean" in canonical_live_result.get("mock_steps", []):
+            raise AssertionError(f"canonical live evidence must override a stale legacy mock mode: {canonical_live_result}")
+        clean_json.write_text(
             json.dumps({"status": "success", "mode": "project_files", "evidence_mode": "mocked"}, ensure_ascii=False),
             encoding="utf-8",
         )
