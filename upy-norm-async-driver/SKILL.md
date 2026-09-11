@@ -35,6 +35,7 @@ If the output directory already exists, do not overwrite it silently. Use a numb
 - Do not make the async package import files from the original package directory. The output package must be self-contained.
 - Do not put `main.py`, `test_*.py`, `*_test.py`, or `demo_*.py` into `package.json.urls` unless the user explicitly wants to ship them as runtime files.
 - Do not turn hardware-timing microsecond bit-bang primitives into awaited coroutines. Keep those primitive writes synchronous and label the residual blocking.
+- Do not replace a source demo with a metadata-only async `main.py`. Preserve its hardware setup and mapped business action, or state why the source has no runnable demo.
 
 ## Required Reads
 
@@ -44,18 +45,13 @@ Before generating files, read the current contents from disk:
 2. The exact hardware model, transport, mode/firmware, and matching source driver; do not infer compatibility from category names alone.
 3. `package.json`.
 4. `README.md`, `LICENSE`, `main.py`, examples, and all runtime `.py` files under `code/`.
-5. `G:\MicroPython_Skills\upy-norm-driver\SKILL.md`.
-6. `G:\MicroPython_Skills\upy-norm-pkg\SKILL.md`.
-7. `G:\MicroPython_Skills\upy-gen-driver-plugin\references\norm_driver_p0_rules.md`.
+5. Sibling `../upy-norm-driver/SKILL.md`, `../upy-norm-pkg/SKILL.md`, and `../upy-gen-driver-plugin/references/norm_driver_p0_rules.md` when installed beside this skill.
 8. Official MicroPython `asyncio` docs.
 9. Official MicroPython `machine.<Class>` docs for each used peripheral.
 10. Relevant `micropython-lib` async package sources when the protocol matches.
 11. Relevant `awesome-micropython` async/non-blocking candidates when the device/protocol matches.
 
-For local evidence, prefer existing examples in:
-
-- `G:\GraftSense-Drivers-MicroPython#`
-- `G:\micropython-embedded`
+Use task-provided source/output roots and local examples when available. If a sibling normalization skill or external source is unavailable, record the missing dependency and apply this skill's explicit contract; do not invent a filesystem path or silently skip package validation.
 
 Useful local async patterns include UART streams, background reader tasks, async HTTP/WebSocket clients, and I2S `StreamReader` usage.
 
@@ -70,7 +66,7 @@ The output must be a separate package directory:
 │   ├── main.py
 │   └── <support modules if needed>
 ├── examples/
-│   └── <optional async examples>
+│   └── main_sync.py
 ├── README.md
 ├── package.json
 └── LICENSE
@@ -80,9 +76,12 @@ Rules:
 
 - `code/<module>_async.py` is the primary runtime module.
 - `code/main.py` is an async demo/test entrypoint using `uasyncio`.
+- Copy the original synchronous `main.py` byte-for-byte to `examples/main_sync.py`; it is a regression baseline and must not be included in `package.json.urls`.
+- `code/main.py` must instantiate the source demo's relevant hardware types/configuration and call at least one mapped driver business API. A source package with no runnable main must be documented as such.
 - If a cooperative adapter must reuse synchronous logic, copy the needed code into the async package as an internal module such as `code/<module>_sync.py`. Do not depend on importing from the original package path.
 - For multi-driver packages, generate one async runtime module per public driver module when practical. If only part of the package can be async-safe, still create the async package but document unsupported modules and omit unsafe runtime exports.
 - Preserve required support subpackages under `code/` when imports need them; rewrite imports so they resolve within the new output package.
+- Build and validate the internal import graph: every internal module and `from module import symbol` must exist, parse, and resolve to a real symbol. Do not ship path notes, empty files, or placeholder modules as runtime dependencies.
 - `README.md` must describe that this is an async package and state its async level honestly.
 - `package.json.name` must equal the output directory name exactly.
 - `package.json.urls` must cover every runtime `.py` file under `code/`, excluding `main.py`, examples, and tests unless intentionally shipped.
@@ -111,7 +110,7 @@ First classify the source state:
 | `sync_adapter_only` | Only short synchronous operations are available. Async API is an adapter with residual blocking. | most I2C/SPI register sensors, ADC single read, DAC write, PWM duty set, RTC read/write |
 | `not_async_safe` | The operation may block the event loop and cannot be bounded or split safely. | large display flush, SD/block-device read/write, file I/O over storage, blocking HTTP, long scan loops, audio record/play without stream support |
 
-If different APIs in the same package have different levels, classify per method and show the method matrix in the README.
+Show an API async-level matrix in every README. A single-row matrix is sufficient for a uniform package; methods with different blocking models must be separate rows.
 
 Before classifying, inventory source `async def`, tasks, events/IRQs, locks, stream wrappers, and lifecycle methods. Reuse and harden a compatible async implementation; do not wrap it a second time.
 
@@ -134,9 +133,10 @@ Important classification examples from local GraftSense drivers:
 Before implementing from scratch, check for an existing async/non-blocking implementation:
 
 1. MicroPython built-in or official docs.
-2. `micropython-lib`, including `aioble`, `aioespnow`, `aiorepl`, `uaiohttpclient`, `aiohttp`, `lora-async`, `select`, and `socket`.
-3. `awesome-micropython` entries for the chip, protocol, or category.
-4. Existing local packages in `G:\GraftSense-Drivers-MicroPython#` and `G:\micropython-embedded`.
+2. For UART, BLE, network, DMA, PIO, audio, or radio protocols: matching `micropython-lib`, `awesome-micropython`, and task-provided local candidates.
+3. For ordinary I2C/SPI/GPIO register drivers: source code plus official peripheral/device evidence is sufficient unless a candidate is already known.
+
+When offline or candidates are unavailable, record the skipped search and reason. Do not claim an unperformed search found no candidate.
 
 Record accepted and rejected candidates in the output summary. Do not vendor third-party code unless its license permits it and attribution is preserved.
 
@@ -232,6 +232,7 @@ Rules:
 - Prefer ready/status bits over fixed sleeps.
 - If fixed sleeps are required by datasheet, use `await asyncio.sleep_ms(conversion_time + margin)`.
 - Final short I2C/SPI register reads may remain synchronous, but the README and summary must label residual blocking.
+- `sync_adapter_only` is allowed only when each affected API has a documented synchronous region, blocking source, proven maximum duration, timeout, and event-loop impact. Without an evidence-backed bound, classify it as `not_async_safe` or redesign it.
 - For bit-banged protocols, keep low-level clock/data byte primitives synchronous when `sleep_us` or exact edge timing is required. Add async only around long high-level sequences such as scroll, fade, melody, repeated sampling, or retry waits.
 - Do not insert `await` between individual bits or bytes unless the hardware protocol explicitly tolerates that timing.
 - For retry loops copied from synchronous code, replace `time.sleep_ms`, imported `sleep_ms`, or busy waits with `await asyncio.sleep_ms` only in async methods. Keep synchronous internal primitives synchronous and bounded.
@@ -297,6 +298,7 @@ The output README must include:
 10. Hardware verification status.
 11. Sync-to-async behavior mapping: frames/commands, timeout, framing or silence-gap behavior, response/ACK rules, and errors.
 12. Hardware acceptance level: link, basic function, and complete business flow, including uncovered prerequisites.
+13. API async-level matrix and, where applicable, `sync_adapter_only` blocking budget and UART concurrency contract.
 
 For strict timing, UART, protocol fidelity, and dual-endpoint tests, read [timing-uart-and-hardware-validation.md](references/timing-uart-and-hardware-validation.md).
 
@@ -334,6 +336,7 @@ The output package `code/main.py` must be an async demo:
 - Wrap the main coroutine in `try/finally` and call `deinit()`/`aclose()`.
 - Do not use `time.sleep` or `time.sleep_ms`; use `await asyncio.sleep_ms`.
 - Keep `main.py` as a demo/test file. Do not include it in `package.json.urls` by default.
+- Preserve the original demo's relevant initialization, action, output/error meaning, and cleanup; document deviations in the source-demo mapping table.
 
 ## `package.json` Rules
 
@@ -375,6 +378,7 @@ Run the bundled checker on the generated output package when available:
 
 ```bash
 python scripts/check_async_driver.py <output-package-dir>
+python scripts/check_async_package.py <output-package-dir> --source <source-package-dir>
 ```
 
 Strong failures inside `async def`:
@@ -403,6 +407,9 @@ Strong failures inside `async def`:
 - UTF-8 BOM in generated MicroPython `.py` files
 - DMA callbacks that run before completion, allocate in hard IRQ, or let transfer buffers be garbage-collected before completion
 - PIO `StateMachine.put()`/`get()` loops presented as non-blocking without FIFO readiness or bounded polling
+- `main.py` that does not import/call internal driver code, run `asyncio.run(main())`, or preserve required source hardware constructors
+- Internal imports/symbols that do not resolve, invalid Python runtime files, empty imported support modules, or unmapped `package.json.urls`
+- Missing `examples/main_sync.py`, or a baseline that differs from source `main.py`
 
 Lifecycle failures:
 
@@ -440,6 +447,8 @@ Documentation/report failures:
 
 - README does not state source state: `sync_source`, `already_async_source`, or `mixed_source`.
 - README lacks a per-method async level matrix for mixed drivers.
+- README lacks `## API Async Matrix`, `## Source Demo to Async Demo Mapping`, or `## Hardware Acceptance`.
+- A `sync_adapter_only` README lacks `## Sync Adapter Blocking Budget`.
 - README lacks the sync-to-async behavior mapping for a protocol driver.
 - README does not separate link, basic-function, and complete-business-flow acceptance evidence.
 - Residual blocking is hidden or described as fully non-blocking.
@@ -450,7 +459,7 @@ Documentation/report failures:
 1. Announce the source package and planned output package name.
 2. Scan the package tree.
 3. Read source code, docs, package metadata, and license.
-4. Confirm hardware/source-driver identity and inventory existing async features.
+4. Confirm hardware/source-driver identity, preserve source `main.py` as a baseline, and inventory existing async features.
 5. Identify bus/protocol/peripheral usage and whether the source package is already async.
 6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
 7. Build an async feasibility table and behavior mapping per public method.
@@ -464,9 +473,9 @@ Documentation/report failures:
 10. Create the output package directory beside the source package unless the user gave an output path.
 11. Generate async runtime code.
 12. Generate async `code/main.py`.
-13. Generate README, package.json, and preserve LICENSE.
-14. Run static gates and report hardware acceptance levels.
-15. Summarize files, async level, behavior fidelity, residual blocking, and required hardware tests.
+13. Generate README, package.json, preserve LICENSE, and complete the demo/API/blocking-budget tables.
+14. Run both static gates and report hardware acceptance levels.
+15. Summarize files, async level, demo/behavior fidelity, residual blocking, and required hardware tests.
 
 ## Output Summary Format
 

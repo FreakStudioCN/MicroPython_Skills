@@ -73,3 +73,46 @@ Report each level separately. A lower level does not imply a higher one.
 For dual-endpoint protocols, provide separate transmitter and receiver demos or test roles. State both endpoint hardware, wiring/port configuration, module mode and parameters, message format, timeout, expected logs, and the return-path expectation. Run the source synchronous pair first when practical, then prove the async pair preserves the same behavior.
 
 Generated MicroPython `.py` files must be UTF-8 without BOM. If hardware evidence is incomplete, mark exactly which acceptance level passed and what equipment or peer is missing.
+
+## Demo Fidelity and Blocking Budgets
+
+Copy the source package's runnable `main.py` byte-for-byte to `examples/main_sync.py`. The generated async `code/main.py` is not a replacement baseline: it must retain the source demo's relevant peripheral construction, initialization order, business action, visible output/error meaning, and cleanup.
+
+Every generated README must use these headings and tables:
+
+```markdown
+## API Async Matrix
+| API | Level | Async strategy | Residual blocking | Timeout/cancellation |
+
+## Source Demo to Async Demo Mapping
+| Source sync step | Source API/protocol action | Async implementation | Preserved output/error meaning | Residual blocking |
+
+## Hardware Acceptance
+| Level | Evidence | Not covered |
+```
+
+For every `sync_adapter_only` row, include this additional section. A maximum duration needs source code, protocol, or datasheet evidence; an unbounded value is not acceptable.
+
+```markdown
+## Sync Adapter Blocking Budget
+| API | Synchronous region | Blocking source | Maximum duration and evidence | Timeout | Allowed on main event loop |
+```
+
+## UART Concurrency Contract
+
+For packages using UART, choose and document exactly one runtime model:
+
+1. One background reader owns all `uart.read*` calls and dispatches frames/events.
+2. One lock serializes command-response transactions; transparent data access cannot read concurrently.
+3. The package exposes no concurrent read API and documents the caller ownership rule.
+
+Use this README heading when UART is present:
+
+```markdown
+## UART Concurrency Contract
+Model: <single reader | locked transaction | caller-owned>
+Reader owner: <task/method>
+Frame and unsolicited-data policy: <description>
+```
+
+The static checker can flag direct reads of one UART member from multiple async methods. A warning is not proof of a bug when a lock is intentionally used, but it requires the documented contract and manual review.

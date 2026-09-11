@@ -121,6 +121,7 @@ class Checker(ast.NodeVisitor):
         self.source = source
         self.findings: list[Finding] = []
         self.stack: list[ast.AST] = []
+        self.uart_readers: dict[str, list[tuple[str, ast.Call]]] = {}
 
     def add(self, severity: str, node: ast.AST, code: str, message: str) -> None:
         self.findings.append(
@@ -145,6 +146,12 @@ class Checker(ast.NodeVisitor):
             if name in {"Loop.time", "loop.time"} or name.endswith("get_event_loop.time"):
                 self.add("ERROR", c, "NON_PORTABLE_LOOP_TIME", "Loop.time is not portable on MicroPython; use time.ticks_ms/ticks_diff")
 
+        for c in calls:
+            if isinstance(c.func, ast.Attribute) and c.func.attr in {"read", "readinto", "readline"}:
+                receiver = call_name(c.func.value)
+                if "uart" in receiver.lower():
+                    self.uart_readers.setdefault(receiver, []).append((node.name, c))
+
         for child in ast.walk(node):
             if isinstance(child, ast.While) and isinstance(child.test, ast.Constant) and child.test.value is True:
                 if not has_await(child):
@@ -157,6 +164,17 @@ class Checker(ast.NodeVisitor):
                     self.add("WARN", child, "UNSTORED_TASK", "create_task result is not stored for lifecycle cleanup")
 
         self.generic_visit(node)
+
+    def check_uart_readers(self) -> None:
+        for receiver, readers in self.uart_readers.items():
+            methods = {method for method, _ in readers}
+            if len(methods) > 1:
+                self.add(
+                    "WARN",
+                    readers[0][1],
+                    "UART_MULTI_READER",
+                    f"{receiver} is directly read by multiple async methods ({', '.join(sorted(methods))}); verify one-reader or lock contract",
+                )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         lname = node.name.lower()
@@ -228,6 +246,7 @@ def check_file(path: Path) -> list[Finding]:
 
     checker = Checker(path, source)
     checker.visit(tree)
+    checker.check_uart_readers()
     findings.extend(checker.findings)
     return findings
 
