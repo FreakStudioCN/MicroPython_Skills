@@ -88,7 +88,8 @@ def mocked_steps(reports: list[tuple[str, dict[str, Any]]]) -> list[str]:
     steps: list[str] = []
     for label, report in reports:
         if isinstance(report, dict) and (
-            report.get("evidence_mode") == "mock" or report.get("mode") == "mock"
+            report.get("evidence_mode") == "mock"
+            or ("evidence_mode" not in report and report.get("mode") == "mock")
         ):
             steps.append(label)
     return steps
