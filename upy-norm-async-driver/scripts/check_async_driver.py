@@ -139,6 +139,12 @@ class Checker(ast.NodeVisitor):
                 if matches_blocking_call(name, pattern):
                     self.add(severity, c, "ASYNC_BLOCKING_CALL", message)
 
+        for c, name in zip(calls, call_names):
+            if name == "asyncio.get_event_loop" or name == "get_event_loop":
+                self.add("WARN", c, "NON_PORTABLE_LOOP_API", "get_event_loop may be unavailable on MicroPython; use ticks or proven target APIs")
+            if name in {"Loop.time", "loop.time"} or name.endswith("get_event_loop.time"):
+                self.add("ERROR", c, "NON_PORTABLE_LOOP_TIME", "Loop.time is not portable on MicroPython; use time.ticks_ms/ticks_diff")
+
         for child in ast.walk(node):
             if isinstance(child, ast.While) and isinstance(child.test, ast.Constant) and child.test.value is True:
                 if not has_await(child):
@@ -207,8 +213,13 @@ def regex_fallback(path: Path, source: str) -> list[Finding]:
 
 
 def check_file(path: Path) -> list[Finding]:
-    source = path.read_text(encoding="utf-8", errors="replace")
-    findings = regex_fallback(path, source)
+    raw = path.read_bytes()
+    # Strip a detected BOM only for AST recovery; still report it as an error.
+    source = raw.decode("utf-8-sig", errors="replace")
+    findings = []
+    if raw.startswith(b"\xef\xbb\xbf"):
+        findings.append(Finding("ERROR", path, 1, "UTF8_BOM", "MicroPython source must be UTF-8 without BOM"))
+    findings.extend(regex_fallback(path, source))
     try:
         tree = ast.parse(source)
     except SyntaxError as exc:

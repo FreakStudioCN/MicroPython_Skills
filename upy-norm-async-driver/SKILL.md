@@ -41,15 +41,16 @@ If the output directory already exists, do not overwrite it silently. Use a numb
 Before generating files, read the current contents from disk:
 
 1. The input package directory tree.
-2. `package.json`.
-3. `README.md`, `LICENSE`, `main.py`, examples, and all runtime `.py` files under `code/`.
-4. `G:\MicroPython_Skills\upy-norm-driver\SKILL.md`.
-5. `G:\MicroPython_Skills\upy-norm-pkg\SKILL.md`.
-6. `G:\MicroPython_Skills\upy-gen-driver-plugin\references\norm_driver_p0_rules.md`.
-7. Official MicroPython `asyncio` docs.
-8. Official MicroPython `machine.<Class>` docs for each used peripheral.
-9. Relevant `micropython-lib` async package sources when the protocol matches.
-10. Relevant `awesome-micropython` async/non-blocking candidates when the device/protocol matches.
+2. The exact hardware model, transport, mode/firmware, and matching source driver; do not infer compatibility from category names alone.
+3. `package.json`.
+4. `README.md`, `LICENSE`, `main.py`, examples, and all runtime `.py` files under `code/`.
+5. `G:\MicroPython_Skills\upy-norm-driver\SKILL.md`.
+6. `G:\MicroPython_Skills\upy-norm-pkg\SKILL.md`.
+7. `G:\MicroPython_Skills\upy-gen-driver-plugin\references\norm_driver_p0_rules.md`.
+8. Official MicroPython `asyncio` docs.
+9. Official MicroPython `machine.<Class>` docs for each used peripheral.
+10. Relevant `micropython-lib` async package sources when the protocol matches.
+11. Relevant `awesome-micropython` async/non-blocking candidates when the device/protocol matches.
 
 For local evidence, prefer existing examples in:
 
@@ -86,6 +87,7 @@ Rules:
 - `package.json.name` must equal the output directory name exactly.
 - `package.json.urls` must cover every runtime `.py` file under `code/`, excluding `main.py`, examples, and tests unless intentionally shipped.
 - `LICENSE` must be preserved from the source package unless the source license requires different handling.
+- Generated MicroPython `.py` files must be UTF-8 without BOM.
 
 Generated Python files must still follow the GraftSense driver file rules inherited from `upy-norm-driver`: seven-line header, module globals, six top-level sections, MicroPython-safe annotations, dependency injection, English raise/print strings, Chinese standalone comments, bounded polling, wrapped `OSError`, and `deinit()`/`aclose()` cleanup.
 
@@ -110,6 +112,8 @@ First classify the source state:
 | `not_async_safe` | The operation may block the event loop and cannot be bounded or split safely. | large display flush, SD/block-device read/write, file I/O over storage, blocking HTTP, long scan loops, audio record/play without stream support |
 
 If different APIs in the same package have different levels, classify per method and show the method matrix in the README.
+
+Before classifying, inventory source `async def`, tasks, events/IRQs, locks, stream wrappers, and lifecycle methods. Reuse and harden a compatible async implementation; do not wrap it a second time.
 
 Important classification examples from local GraftSense drivers:
 
@@ -184,27 +188,9 @@ Required properties:
 - Every `asyncio.create_task()` result that controls device behavior must be stored on the instance and stopped/cancelled by `stop()`, `deinit()`, or `aclose()`.
 - Long-lived tasks must have a `_running` or equivalent lifecycle flag and must not silently die on ordinary bus exceptions; either propagate through a stored error state or restart only with a documented policy.
 - For UART command/transparent modules, do not let multiple coroutines read the same UART independently. Use one reader coroutine or one lock-protected command transaction path, and separate unsolicited data handling from command responses.
+- Treat `StreamReader`/`StreamWriter` as optional target capabilities. For portable RP2040 UART use, prefer the conservative `uart.any()`/`uart.read()` polling template in [timing-uart-and-hardware-validation.md](references/timing-uart-and-hardware-validation.md); use `time.ticks_ms()`/`time.ticks_diff()`, never `Loop.time()`.
 - For sockets, treat `getaddrinfo`, `connect`, `ssl.wrap_socket`, and large file/body operations as possibly blocking unless the port proves otherwise. Use bounded connect/TLS phases, write-all loops that handle short writes/EAGAIN, and single-consumer response bodies.
 - For I2S streams, use one stream wrapper per device direction, small chunks, `drain()` for TX, bounded reads for RX, and cancellation paths that stop output, close files, and deinit/disable hardware as needed.
-
-UART example shape:
-
-```python
-class FooAsync:
-    def __init__(self, uart, timeout_ms: int = 1000) -> None:
-        if uart is None:
-            raise ValueError("uart cannot be None")
-        if not hasattr(uart, "read") or not hasattr(uart, "write"):
-            raise TypeError("uart must provide read() and write()")
-        self._uart = uart
-        self._reader = asyncio.StreamReader(uart)
-        self._writer = asyncio.StreamWriter(uart, {})
-        self._timeout_ms = timeout_ms
-
-    async def read_async(self, nbytes: int, timeout_ms: int = None) -> bytes:
-        timeout = self._timeout_ms if timeout_ms is None else timeout_ms
-        return await asyncio.wait_for_ms(self._reader.read(nbytes), timeout)
-```
 
 ### Event bridge
 
@@ -250,6 +236,7 @@ Rules:
 - Do not insert `await` between individual bits or bytes unless the hardware protocol explicitly tolerates that timing.
 - For retry loops copied from synchronous code, replace `time.sleep_ms`, imported `sleep_ms`, or busy waits with `await asyncio.sleep_ms` only in async methods. Keep synchronous internal primitives synchronous and bounded.
 - For OneWire, HX711, and similar single-wire/clock-data protocols, never await inside reset slots, bit slots, IRQ-disabled regions, or pulse trains. Add async around ready/conversion/sample loops only.
+- For DHT-style pulse capture and other strict-timing transactions, use a synchronous critical section plus async lock, wait-for-slot, and documented retry/backoff. Use the template in [timing-uart-and-hardware-validation.md](references/timing-uart-and-hardware-validation.md).
 - For display or LED refresh helpers, use explicit names such as `show_async()`, `fill_async()`, or `play_async()` and accept `chunk_pixels`, `chunk_rows`, or `yield_every` options. Do not hide async flushing behind property setters or `auto_write=True`.
 - Do not convert `@micropython.native`, `@micropython.viper`, or timing-critical optimized functions directly to `async def`. Wrap them from an async coordinator when needed.
 - Timer-driven schedulers, button FSMs, watchdogs, and waveform generators are callback systems, not uasyncio by default. Convert them by signaling async tasks, not by running user callbacks or I2C/SPI writes from hard/soft timer context.
@@ -308,6 +295,10 @@ The output README must include:
 8. Timeout and cancellation behavior.
 9. Blocking residuals.
 10. Hardware verification status.
+11. Sync-to-async behavior mapping: frames/commands, timeout, framing or silence-gap behavior, response/ACK rules, and errors.
+12. Hardware acceptance level: link, basic function, and complete business flow, including uncovered prerequisites.
+
+For strict timing, UART, protocol fidelity, and dual-endpoint tests, read [timing-uart-and-hardware-validation.md](references/timing-uart-and-hardware-validation.md).
 
 Minimal usage example:
 
@@ -408,6 +399,8 @@ Strong failures inside `async def`:
 - multiple `StreamReader`/reader wrappers consuming the same UART/I2S/socket direction
 - async property setters that perform I/O or trigger `show()`/refresh implicitly
 - `asyncio.wait_for()` used with millisecond-named timeout values; use `wait_for_ms()` or rename units clearly
+- `Loop.time()` or assumed `asyncio.get_event_loop()` APIs in device runtime; use tick arithmetic unless target support is proven
+- UTF-8 BOM in generated MicroPython `.py` files
 - DMA callbacks that run before completion, allocate in hard IRQ, or let transfer buffers be garbage-collected before completion
 - PIO `StateMachine.put()`/`get()` loops presented as non-blocking without FIFO readiness or bounded polling
 
@@ -447,6 +440,8 @@ Documentation/report failures:
 
 - README does not state source state: `sync_source`, `already_async_source`, or `mixed_source`.
 - README lacks a per-method async level matrix for mixed drivers.
+- README lacks the sync-to-async behavior mapping for a protocol driver.
+- README does not separate link, basic-function, and complete-business-flow acceptance evidence.
 - Residual blocking is hidden or described as fully non-blocking.
 - Hardware verification status is missing.
 
@@ -455,22 +450,23 @@ Documentation/report failures:
 1. Announce the source package and planned output package name.
 2. Scan the package tree.
 3. Read source code, docs, package metadata, and license.
-4. Identify bus/protocol/peripheral usage and whether the source package is already async.
-5. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
-6. Build an async feasibility table per module and public method.
-7. Choose the generation strategy:
+4. Confirm hardware/source-driver identity and inventory existing async features.
+5. Identify bus/protocol/peripheral usage and whether the source package is already async.
+6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
+7. Build an async feasibility table and behavior mapping per public method.
+8. Choose the generation strategy:
    - `native_async`
    - `event_bridge`
    - `cooperative_nonblocking`
    - `sync_adapter_only`
    - `not_async_safe`
-8. If `not_async_safe`, stop with a report unless the user explicitly wants a documented partial package.
-9. Create the output package directory beside the source package unless the user gave an output path.
-10. Generate async runtime code.
-11. Generate async `code/main.py`.
-12. Generate README, package.json, and preserve LICENSE.
-13. Run static gates.
-14. Summarize files, async level, residual blocking, and required hardware tests.
+9. If `not_async_safe`, stop with a report unless the user explicitly wants a documented partial package.
+10. Create the output package directory beside the source package unless the user gave an output path.
+11. Generate async runtime code.
+12. Generate async `code/main.py`.
+13. Generate README, package.json, and preserve LICENSE.
+14. Run static gates and report hardware acceptance levels.
+15. Summarize files, async level, behavior fidelity, residual blocking, and required hardware tests.
 
 ## Output Summary Format
 
@@ -481,11 +477,12 @@ Source package:
 Output package:
 Source state:
 Async level:
+Behavior mapping:
 Generated files:
 Updated docs:
 Static gates:
 Residual blocking:
-Hardware verification:
+Hardware acceptance:
 Next recommended test:
 ```
 
