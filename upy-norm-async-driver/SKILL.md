@@ -82,6 +82,8 @@ Rules:
 - For multi-driver packages, generate one async runtime module per public driver module when practical. If only part of the package can be async-safe, still create the async package but document unsupported modules and omit unsafe runtime exports.
 - Preserve required support subpackages under `code/` when imports need them; rewrite imports so they resolve within the new output package.
 - Build and validate the internal import graph: every internal module and `from module import symbol` must exist, parse, and resolve to a real symbol. Do not ship path notes, empty files, or placeholder modules as runtime dependencies.
+- With the source package available, validate the local-import closure reachable from its runnable `main.py`: preserve required support modules, subpackage `__init__.py` files, and imported/attribute-referenced symbols in the output or make a real, resolvable async-module replacement. Do not require unrelated source modules that the demo cannot reach.
+- Preserve source-demo driver construction and business API calls in async `main.py`. A direct method may become `<method>_async`; lifecycle `deinit()`/`close()` may become `aclose()`. Any other API redesign needs an explicit source-demo mapping and manual review.
 - `README.md` must describe that this is an async package and state its async level honestly.
 - `package.json.name` must equal the output directory name exactly.
 - `package.json.urls` must cover every runtime `.py` file under `code/`, excluding `main.py`, examples, and tests unless intentionally shipped.
@@ -409,6 +411,7 @@ Strong failures inside `async def`:
 - PIO `StateMachine.put()`/`get()` loops presented as non-blocking without FIFO readiness or bounded polling
 - `main.py` that does not import/call internal driver code, run `asyncio.run(main())`, or preserve required source hardware constructors
 - Internal imports/symbols that do not resolve, invalid Python runtime files, empty imported support modules, or unmapped `package.json.urls`
+- Source-demo reachable local modules/subpackages or referenced symbols missing from the output, and omitted source driver constructor/business calls in async `main.py`
 - Missing `examples/main_sync.py`, or a baseline that differs from source `main.py`
 
 Lifecycle failures:

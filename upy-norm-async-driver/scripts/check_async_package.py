@@ -126,7 +126,11 @@ def internal_import_checks(code_dir, trees, findings):
                     add(findings, "ERROR", path, line, "INTERNAL_IMPORT_MISSING", f"internal module '{target}' is absent from code/")
                     continue
                 target_tree = trees[modules[target]]
-                meaningful = [item for item in target_tree.body if not isinstance(item, ast.Expr) or not isinstance(item.value, ast.Constant)] if target_tree else []
+                meaningful = [
+                    item for item in target_tree.body
+                    if not isinstance(item, ast.Pass)
+                    and not (isinstance(item, ast.Expr) and isinstance(item.value, ast.Constant))
+                ] if target_tree else []
                 if not meaningful:
                     add(findings, "ERROR", path, line, "INTERNAL_MODULE_EMPTY", f"internal module '{target}' is empty or a placeholder")
                 if imported_symbol and imported_symbol != "*" and imported_symbol not in symbols[target]:
@@ -139,6 +143,211 @@ def source_main(source):
         if candidate.is_file():
             return candidate
     return None
+
+
+def source_code_dir(source):
+    code_dir = source / "code"
+    return code_dir if code_dir.is_dir() else source
+
+
+def resolve_import_target(current_module, node):
+    """Return the module path named by an import, before local resolution."""
+    if isinstance(node, ast.Import):
+        return [alias.name for alias in node.names]
+    if not isinstance(node, ast.ImportFrom):
+        return []
+    if node.level:
+        base = current_module.split(".")[:-1]
+        if node.level > 1:
+            base = base[: 1 - node.level]
+        if node.module:
+            base.extend(node.module.split("."))
+        return [".".join(part for part in base if part)]
+    return [node.module or ""]
+
+
+def output_module_for(source_module, output_modules):
+    """Map a source module to the usual same-name or top-level async name."""
+    candidates = [source_module]
+    parts = source_module.split(".")
+    if parts and parts[0]:
+        candidates.append(".".join([parts[0] + "_async"] + parts[1:]))
+    return next((candidate for candidate in candidates if candidate in output_modules), None)
+
+
+def output_symbol_for(source_symbol, symbols):
+    """Allow the conventional public class/function Foo -> FooAsync rename."""
+    candidates = [source_symbol]
+    if source_symbol and not source_symbol.startswith("_"):
+        candidates.append(source_symbol + "Async")
+    return next((candidate for candidate in candidates if candidate in symbols), None)
+
+
+def local_driver_calls(tree, local_modules):
+    """Infer direct source-demo calls made through locally imported drivers."""
+    if tree is None:
+        return set(), set()
+    imported_names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "") in local_modules:
+            imported_names.update(alias.asname or alias.name for alias in node.names)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in local_modules:
+                    imported_names.add(alias.asname or alias.name.split(".", 1)[0])
+
+    instances = set()
+    direct_calls = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = call_name(node.func)
+        if name in imported_names:
+            direct_calls.add(name)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and isinstance(getattr(node, "value", None), ast.Call):
+            value = node.value
+            if isinstance(value.func, ast.Name) and value.func.id in imported_names:
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                instances.update(target.id for target in targets if isinstance(target, ast.Name))
+
+    methods = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if isinstance(node.func.value, ast.Name) and node.func.value.id in instances:
+                methods.add(node.func.attr)
+    return direct_calls, methods
+
+
+def constructed_driver_methods(main_tree, output_modules, output_trees, code_dir):
+    """Return methods actually defined by locally imported classes constructed in main.py."""
+    if main_tree is None:
+        return set()
+    imported = {}
+    for node in ast.walk(main_tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "") in output_modules:
+            for alias in node.names:
+                imported[alias.asname or alias.name] = (node.module, alias.name)
+
+    constructed = set()
+    for node in ast.walk(main_tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)) or not isinstance(getattr(node, "value", None), ast.Call):
+            continue
+        constructor = node.value.func
+        if isinstance(constructor, ast.Name) and constructor.id in imported:
+            constructed.add(imported[constructor.id])
+
+    methods = set()
+    for module, class_name in constructed:
+        module_path = output_modules.get(module)
+        tree = output_trees.get(module_path)
+        if tree is None:
+            continue
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name == class_name:
+                methods.update(item.name for item in node.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)))
+    return methods
+
+
+def source_dependency_checks(source, package, code_dir, output_trees, findings):
+    """Check the source demo's reachable local-import closure against output code/."""
+    sync_main = source_main(source)
+    if sync_main is None:
+        return
+    source_dir = source_code_dir(source)
+    source_files = runtime_files(source_dir)
+    source_trees = {path: read_tree(path, findings) for path in source_files}
+    source_modules = {module_name(source_dir, path): path for path in source_trees}
+    output_modules = {module_name(code_dir, path): path for path in output_trees}
+    output_symbols = {
+        name: public_symbols(tree)
+        for name, tree in ((module_name(code_dir, path), tree) for path, tree in output_trees.items())
+    }
+    main_module = module_name(source_dir, sync_main)
+    if main_module not in source_modules:
+        return
+
+    pending = [main_module]
+    visited = set()
+    while pending:
+        current = pending.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        path = source_modules.get(current)
+        tree = source_trees.get(path)
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            for target in resolve_import_target(current, node):
+                if not target or target not in source_modules:
+                    continue
+                mapped = output_module_for(target, output_modules)
+                if mapped is None:
+                    add(findings, "ERROR", path, node.lineno, "SOURCE_DEPENDENCY_MISSING", f"source local module '{target}' reachable from main.py is absent from output code/")
+                    continue
+                pending.append(target)
+                # MicroPython package imports need their parent initializers as well.
+                parts = target.split(".")
+                for index in range(1, len(parts)):
+                    parent = ".".join(parts[:index])
+                    if parent in source_modules:
+                        pending.append(parent)
+                if not isinstance(node, ast.ImportFrom):
+                    continue
+                for alias in node.names:
+                    child = f"{target}.{alias.name}"
+                    if child in source_modules:
+                        pending.append(child)
+                        continue
+                    if alias.name == "*":
+                        continue
+                    if output_symbol_for(alias.name, output_symbols[mapped]) is None:
+                        add(findings, "ERROR", path, node.lineno, "SOURCE_SYMBOL_MISSING", f"source import '{target}.{alias.name}' is absent from output module '{mapped}'")
+
+        # Attribute-style module references are not covered by ImportFrom checks.
+        aliases = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name in source_modules:
+                        aliases[alias.asname or alias.name.split(".", 1)[0]] = alias.name
+            elif isinstance(node, ast.ImportFrom):
+                targets = resolve_import_target(current, node)
+                target = targets[0] if targets else ""
+                for alias in node.names:
+                    child = f"{target}.{alias.name}"
+                    if child in source_modules:
+                        aliases[alias.asname or alias.name] = child
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+                continue
+            target = aliases.get(node.value.id)
+            mapped = output_module_for(target, output_modules) if target else None
+            if mapped and node.attr not in output_symbols[mapped]:
+                add(findings, "ERROR", path, node.lineno, "SOURCE_ATTRIBUTE_MISSING", f"source attribute '{target}.{node.attr}' is absent from output module '{mapped}'")
+
+    source_direct, source_methods = local_driver_calls(source_trees[source_modules[main_module]], set(source_modules))
+    output_main = output_trees.get(code_dir / "main.py")
+    output_direct, output_methods = local_driver_calls(output_main, set(output_modules))
+    output_declared_methods = constructed_driver_methods(output_main, output_modules, output_trees, code_dir)
+    missing_direct = {name for name in source_direct if name not in output_direct and name + "Async" not in output_direct}
+    if missing_direct:
+        add(findings, "ERROR", code_dir / "main.py", 1, "MAIN_DRIVER_CONSTRUCTOR_FIDELITY", "main.py omits source driver constructor(s): " + ", ".join(sorted(missing_direct)))
+    allowed_method_renames = {"deinit": "aclose", "close": "aclose"}
+    missing_methods = {
+        name for name in source_methods
+        if name not in output_methods
+        and name + "_async" not in output_methods
+        and allowed_method_renames.get(name) not in output_methods
+        or (name + "_async" in output_methods and name + "_async" not in output_declared_methods)
+        or (name in output_methods and name not in output_declared_methods)
+        or (allowed_method_renames.get(name) in output_methods and allowed_method_renames.get(name) not in output_declared_methods)
+    }
+    if missing_methods:
+        add(findings, "ERROR", code_dir / "main.py", 1, "MAIN_DRIVER_API_FIDELITY", "main.py omits source driver API call(s): " + ", ".join(sorted(missing_methods)))
 
 
 def machine_calls(tree):
@@ -208,6 +417,7 @@ def main_fidelity(package, source, code_dir, trees, findings):
     missing_hardware = required_hardware - async_hardware
     if missing_hardware:
         add(findings, "ERROR", main_path, 1, "MAIN_HARDWARE_FIDELITY", "main.py omits source hardware constructor(s): " + ", ".join(sorted(missing_hardware)))
+    source_dependency_checks(source, package, code_dir, trees, findings)
 
 
 def package_json_checks(package, code_dir, files, findings):

@@ -78,6 +78,8 @@ Generated MicroPython `.py` files must be UTF-8 without BOM. If hardware evidenc
 
 Copy the source package's runnable `main.py` byte-for-byte to `examples/main_sync.py`. The generated async `code/main.py` is not a replacement baseline: it must retain the source demo's relevant peripheral construction, initialization order, business action, visible output/error meaning, and cleanup.
 
+When the source package is available, use its runnable `main.py` as the root of a recursive local-import check. Every reachable support module, package initializer, and imported or attribute-referenced symbol must remain resolvable in the output package. This is a dependency closure, not a demand to copy unrelated source modules. The async demo must also retain source driver construction and business calls; the static checker accepts the conventional `<method>_async` rename and `deinit()`/`close()` to `aclose()` lifecycle rename, but other API changes require manual review against the demo mapping table.
+
 Every generated README must use these headings and tables:
 
 ```markdown
