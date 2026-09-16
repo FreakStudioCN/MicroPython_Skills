@@ -145,6 +145,42 @@ def source_main(source):
     return None
 
 
+def source_preflight(source, findings, allow_source_main_missing, allow_source_metadata_missing):
+    """Return whether a deliberate source-incomplete conversion is in progress."""
+    incomplete = False
+    sync_main = source_main(source)
+    if sync_main is None:
+        incomplete = True
+        severity = "WARN" if allow_source_main_missing else "ERROR"
+        add(
+            findings,
+            severity,
+            source,
+            1,
+            "SOURCE_MAIN_MISSING",
+            "source main.py is required for a formal fidelity conversion; use --allow-source-main-missing only for an explicitly declared library-only, partial, or user-specified demo",
+        )
+
+    metadata = source / "package.json"
+    if not metadata.is_file():
+        incomplete = True
+        severity = "WARN" if allow_source_metadata_missing else "ERROR"
+        add(
+            findings,
+            severity,
+            metadata,
+            1,
+            "SOURCE_PACKAGE_JSON_MISSING",
+            "source package.json is required to preserve package metadata and deployment boundaries; use --allow-source-metadata-missing only with an explicit README declaration",
+        )
+    else:
+        try:
+            json.loads(metadata.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            add(findings, "ERROR", metadata, 1, "SOURCE_PACKAGE_JSON_INVALID", str(exc))
+    return incomplete
+
+
 def source_code_dir(source):
     code_dir = source / "code"
     return code_dir if code_dir.is_dir() else source
@@ -403,7 +439,6 @@ def main_fidelity(package, source, code_dir, trees, findings):
         return
     sync_main = source_main(source)
     if sync_main is None:
-        add(findings, "WARN", source, 1, "SOURCE_MAIN_MISSING", "source main.py was not found; fidelity baseline cannot be checked")
         return
     baseline = package / "examples" / "main_sync.py"
     if not baseline.is_file():
@@ -451,7 +486,7 @@ def package_json_checks(package, code_dir, files, findings):
             add(findings, "ERROR", metadata, 1, "PACKAGE_URL_UNMAPPED", f"runtime Python file missing from urls: {relative}")
 
 
-def readme_checks(package, findings):
+def readme_checks(package, findings, source_incomplete):
     readme = package / "README.md"
     if not readme.is_file():
         add(findings, "ERROR", readme, 1, "README_MISSING", "README.md is required")
@@ -466,6 +501,15 @@ def readme_checks(package, findings):
     for marker, message in required.items():
         if marker not in text:
             add(findings, "ERROR", readme, 1, "README_CONTRACT", message)
+    if source_incomplete and "## Source Incomplete Declaration" not in text:
+        add(
+            findings,
+            "ERROR",
+            readme,
+            1,
+            "SOURCE_INCOMPLETE_UNDECLARED",
+            "an allowed incomplete source requires a Source Incomplete Declaration with the replacement demo/metadata evidence",
+        )
     if "sync_adapter_only" in text and "## Sync Adapter Blocking Budget" not in text:
         add(findings, "ERROR", readme, 1, "SYNC_ADAPTER_BUDGET", "sync_adapter_only requires a blocking-budget table")
     if re.search(r"\bUART\b", text) and "## UART Concurrency Contract" not in text:
@@ -475,7 +519,9 @@ def readme_checks(package, findings):
 def main(argv):
     parser = argparse.ArgumentParser(description="Validate async package fidelity and internal runtime dependencies.")
     parser.add_argument("package", help="Generated async package directory")
-    parser.add_argument("--source", help="Original synchronous package directory for main.py fidelity checks")
+    parser.add_argument("--source", help="Original synchronous package directory for fidelity and source-completeness checks")
+    parser.add_argument("--allow-source-main-missing", action="store_true", help="Allow a source without main.py only for an explicitly declared library-only, partial, or user-specified demo")
+    parser.add_argument("--allow-source-metadata-missing", action="store_true", help="Allow a source without package.json only with an explicit README declaration")
     parser.add_argument("--warn-as-error", action="store_true")
     args = parser.parse_args(argv)
 
@@ -489,6 +535,14 @@ def main(argv):
         return 2
 
     findings = []
+    source_incomplete = False
+    if source is not None:
+        source_incomplete = source_preflight(
+            source,
+            findings,
+            args.allow_source_main_missing,
+            args.allow_source_metadata_missing,
+        )
     code_dir = package / "code"
     files = runtime_files(code_dir)
     if not files:
@@ -497,7 +551,11 @@ def main(argv):
     internal_import_checks(code_dir, trees, findings)
     package_json_checks(package, code_dir, files, findings)
     main_fidelity(package, source, code_dir, trees, findings)
-    readme_checks(package, findings)
+    readme_checks(
+        package,
+        findings,
+        source_incomplete and (args.allow_source_main_missing or args.allow_source_metadata_missing),
+    )
 
     findings.sort(key=lambda item: (str(item.path), item.line, item.code))
     for item in findings:

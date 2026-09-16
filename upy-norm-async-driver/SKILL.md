@@ -53,6 +53,12 @@ Before generating files, read the current contents from disk:
 
 Use task-provided source/output roots and local examples when available. If a sibling normalization skill or external source is unavailable, record the missing dependency and apply this skill's explicit contract; do not invent a filesystem path or silently skip package validation.
 
+### Incomplete source packages
+
+Classify a source as `source_incomplete` before conversion when it lacks a runnable `main.py`, valid `package.json`, or a parser-compatible source file needed for the intended API. Do not produce a formal source-fidelity async package from it by inference. Stop with an evidence request unless the user explicitly supplies one of: a minimum hardware/business acceptance scenario, a library-only output scope, or a documented partial package scope.
+
+When continuation is explicitly authorized, declare the missing source artifact, the replacement evidence, metadata/deployment decisions, and the excluded behavior in `README.md` under `## Source Incomplete Declaration`. Never infer author, license, version, dependencies, or deployment URLs from a directory name. A source file that the checker cannot parse due to target-specific syntax requires the target MicroPython firmware/parser evidence before conversion.
+
 Useful local async patterns include UART streams, background reader tasks, async HTTP/WebSocket clients, and I2S `StreamReader` usage.
 
 ## Output Package Contract
@@ -103,6 +109,7 @@ First classify the source state:
 | `sync_source` | No coroutine-based public API exists. | Generate a new async package only where the level table below permits it. |
 | `already_async_source` | Source already imports `uasyncio`/`asyncio`, uses `async def`, stream APIs, or creates tasks. | Treat the output as a normalized async fork. Do not double-suffix public APIs or module names such as `_async_async`. Harden lifecycle, timeout, cancellation, packaging, and docs. |
 | `mixed_source` | Some modules or methods are already async and others are synchronous. | Classify per method; preserve already-async methods while converting only eligible sync methods. |
+| `source_incomplete` | Source lacks a runnable demo, valid package metadata, or parser evidence needed for the requested conversion. | Stop for evidence by default; continue only under an explicit library-only, partial, or user-specified-demo scope and add `## Source Incomplete Declaration`. |
 
 | Level | Meaning | Typical cases |
 |---|---|---|
@@ -383,6 +390,12 @@ python scripts/check_async_driver.py <output-package-dir>
 python scripts/check_async_package.py <output-package-dir> --source <source-package-dir>
 ```
 
+For an explicitly authorized incomplete source only:
+
+```bash
+python scripts/check_async_package.py <output-package-dir> --source <source-package-dir> --allow-source-main-missing --allow-source-metadata-missing
+```
+
 Strong failures inside `async def`:
 
 - `time.sleep(`
@@ -411,6 +424,7 @@ Strong failures inside `async def`:
 - PIO `StateMachine.put()`/`get()` loops presented as non-blocking without FIFO readiness or bounded polling
 - `main.py` that does not import/call internal driver code, run `asyncio.run(main())`, or preserve required source hardware constructors
 - Internal imports/symbols that do not resolve, invalid Python runtime files, empty imported support modules, or unmapped `package.json.urls`
+- Missing source `main.py` or `package.json` passed to a formal conversion without an explicit incomplete-source scope and README declaration
 - Source-demo reachable local modules/subpackages or referenced symbols missing from the output, and omitted source driver constructor/business calls in async `main.py`
 - Missing `examples/main_sync.py`, or a baseline that differs from source `main.py`
 
@@ -462,7 +476,7 @@ Documentation/report failures:
 1. Announce the source package and planned output package name.
 2. Scan the package tree.
 3. Read source code, docs, package metadata, and license.
-4. Confirm hardware/source-driver identity, preserve source `main.py` as a baseline, and inventory existing async features.
+4. Confirm hardware/source-driver identity, source completeness, preserve source `main.py` as a baseline, and inventory existing async features.
 5. Identify bus/protocol/peripheral usage and whether the source package is already async.
 6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
 7. Build an async feasibility table and behavior mapping per public method.
@@ -472,7 +486,7 @@ Documentation/report failures:
    - `cooperative_nonblocking`
    - `sync_adapter_only`
    - `not_async_safe`
-9. If `not_async_safe`, stop with a report unless the user explicitly wants a documented partial package.
+9. If `source_incomplete` or `not_async_safe`, stop with a report unless the user explicitly authorizes the documented incomplete/partial scope.
 10. Create the output package directory beside the source package unless the user gave an output path.
 11. Generate async runtime code.
 12. Generate async `code/main.py`.

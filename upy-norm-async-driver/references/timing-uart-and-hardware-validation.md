@@ -80,6 +80,10 @@ Copy the source package's runnable `main.py` byte-for-byte to `examples/main_syn
 
 When the source package is available, use its runnable `main.py` as the root of a recursive local-import check. Every reachable support module, package initializer, and imported or attribute-referenced symbol must remain resolvable in the output package. This is a dependency closure, not a demand to copy unrelated source modules. The async demo must also retain source driver construction and business calls; the static checker accepts the conventional `<method>_async` rename and `deinit()`/`close()` to `aclose()` lifecycle rename, but other API changes require manual review against the demo mapping table.
 
+## Incomplete Source Evidence
+
+No source `main.py` means there is no behavior baseline. No source `package.json` means package identity and deployment boundaries are unknown. Treat either as `source_incomplete`, not as permission to invent a formal demo or metadata. Continue only after the user provides a minimum hardware/business scenario, a library-only scope, or a partial-package scope. Record the missing artifact, replacement evidence, exclusions, and chosen metadata/deployment decisions in `README.md` under `## Source Incomplete Declaration`.
+
 Every generated README must use these headings and tables:
 
 ```markdown
