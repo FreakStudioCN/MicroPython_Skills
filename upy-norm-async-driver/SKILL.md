@@ -55,7 +55,7 @@ Use task-provided source/output roots and local examples when available. If a si
 
 ### Incomplete source packages
 
-Classify a source as `source_incomplete` before conversion when it lacks a runnable `main.py`, valid `package.json`, or a parser-compatible source file needed for the intended API. Do not produce a formal source-fidelity async package from it by inference. Stop with an evidence request unless the user explicitly supplies one of: a minimum hardware/business acceptance scenario, a library-only output scope, or a documented partial package scope.
+Classify a source as `source_incomplete` before conversion when it lacks a runnable, declared source example, valid `package.json`, or a parser-compatible source file needed for the intended API. A conventional `main.py` is one valid source example, not the only one. Do not produce a formal source-fidelity async package from inference. Stop with an evidence request unless the user explicitly supplies one of: a minimum hardware/business acceptance scenario, a library-only output scope, or a documented partial package scope.
 
 When continuation is explicitly authorized, declare the missing source artifact, the replacement evidence, metadata/deployment decisions, and the excluded behavior in `README.md` under `## Source Incomplete Declaration`. Never infer author, license, version, dependencies, or deployment URLs from a directory name. A source file that the checker cannot parse due to target-specific syntax requires the target MicroPython firmware/parser evidence before conversion.
 
@@ -73,6 +73,7 @@ The output must be a separate package directory:
 │   └── <support modules if needed>
 ├── examples/
 │   └── main_sync.py
+├── async_source_examples.json  # required when the source uses multiple named examples
 ├── README.md
 ├── package.json
 └── LICENSE
@@ -82,14 +83,14 @@ Rules:
 
 - `code/<module>_async.py` is the primary runtime module.
 - `code/main.py` is an async demo/test entrypoint using `uasyncio`.
-- Copy the original synchronous `main.py` byte-for-byte to `examples/main_sync.py`; it is a regression baseline and must not be included in `package.json.urls`.
-- `code/main.py` must instantiate the source demo's relevant hardware types/configuration and call at least one mapped driver business API. A source package with no runnable main must be documented as such.
+- For a single-example source, copy the original synchronous `main.py` byte-for-byte to `examples/main_sync.py`. For a multi-example source, declare every converted example in `async_source_examples.json` and copy each one byte-for-byte to its declared `examples/*_sync.py` baseline; baselines must not be included in `package.json.urls`.
+- `code/main.py` remains the default async entrypoint. It must be mapped from one declared source example, instantiate that example's relevant hardware types/configuration, and call at least one mapped driver business API.
 - If a cooperative adapter must reuse synchronous logic, copy the needed code into the async package as an internal module such as `code/<module>_sync.py`. Do not depend on importing from the original package path.
 - For multi-driver packages, generate one async runtime module per public driver module when practical. If only part of the package can be async-safe, still create the async package but document unsupported modules and omit unsafe runtime exports.
 - Preserve required support subpackages under `code/` when imports need them; rewrite imports so they resolve within the new output package.
 - Build and validate the internal import graph: every internal module and `from module import symbol` must exist, parse, and resolve to a real symbol. Do not ship path notes, empty files, or placeholder modules as runtime dependencies.
-- With the source package available, validate the local-import closure reachable from its runnable `main.py`: preserve required support modules, subpackage `__init__.py` files, and imported/attribute-referenced symbols in the output or make a real, resolvable async-module replacement. Do not require unrelated source modules that the demo cannot reach.
-- Preserve source-demo driver construction and business API calls in async `main.py`. A direct method may become `<method>_async`; lifecycle `deinit()`/`close()` may become `aclose()`. Any other API redesign needs an explicit source-demo mapping and manual review.
+- With the source package available, validate the union of local-import closures reachable from every declared source example: preserve required support modules, subpackage `__init__.py` files, and imported/attribute-referenced symbols in the output or make a real, resolvable async-module replacement. Do not require unrelated source modules that no declared example can reach.
+- Preserve each source example's driver construction and business API calls in its mapped async example. A direct method may become `<method>_async`; lifecycle `deinit()`/`close()` may become `aclose()`. Any other API redesign needs an explicit source-demo mapping and manual review.
 - `README.md` must describe that this is an async package and state its async level honestly.
 - `package.json.name` must equal the output directory name exactly.
 - `package.json.urls` must cover every runtime `.py` file under `code/`, excluding `main.py`, examples, and tests unless intentionally shipped.
@@ -347,6 +348,36 @@ The output package `code/main.py` must be an async demo:
 - Keep `main.py` as a demo/test file. Do not include it in `package.json.urls` by default.
 - Preserve the original demo's relevant initialization, action, output/error meaning, and cleanup; document deviations in the source-demo mapping table.
 
+## Multiple Source Examples
+
+When a synchronous package has named examples instead of one `main.py`, add `async_source_examples.json` to the async output package. Do not invent a source `main.py` merely to satisfy the gate. The manifest is the deterministic source of truth; do not infer example files from README prose.
+
+```json
+{
+  "source_package": "communication/cc2530_driver",
+  "default_example": "code/coord_to_node.py",
+  "examples": [
+    {
+      "source": "code/coord_to_node.py",
+      "sync_baseline": "examples/coord_to_node_sync.py",
+      "async_example": "code/main.py",
+      "role": "coordinator_to_node"
+    },
+    {
+      "source": "code/node_to_coord.py",
+      "sync_baseline": "examples/node_to_coord_sync.py",
+      "async_example": "examples/node_to_coord_async.py",
+      "role": "node_to_coordinator"
+    }
+  ]
+}
+```
+
+- All paths are package-relative, must not escape with `..`, and `sync_baseline` must be under `examples/`.
+- Every declared source must exist; its baseline must be byte-identical; every async example must parse, import an internal runtime driver, and call it.
+- `default_example` must map to `code/main.py`. In a multi-example package every entry needs a role so protocol endpoints are not silently omitted.
+- The async safety gate scans `code/**/*.py` and `examples/*_async.py`; it intentionally excludes `examples/*_sync.py` because these are immutable synchronous regression baselines.
+
 ## `package.json` Rules
 
 Generate a new `package.json` for the output package:
@@ -424,9 +455,9 @@ Strong failures inside `async def`:
 - PIO `StateMachine.put()`/`get()` loops presented as non-blocking without FIFO readiness or bounded polling
 - `main.py` that does not import/call internal driver code, run `asyncio.run(main())`, or preserve required source hardware constructors
 - Internal imports/symbols that do not resolve, invalid Python runtime files, empty imported support modules, or unmapped `package.json.urls`
-- Missing source `main.py` or `package.json` passed to a formal conversion without an explicit incomplete-source scope and README declaration
-- Source-demo reachable local modules/subpackages or referenced symbols missing from the output, and omitted source driver constructor/business calls in async `main.py`
-- Missing `examples/main_sync.py`, or a baseline that differs from source `main.py`
+- Missing runnable source example (a conventional `main.py` or a declared manifest example) or `package.json` passed to a formal conversion without an explicit incomplete-source scope and README declaration
+- A declared source example's reachable local modules/subpackages or referenced symbols missing from the output, or omitted source driver constructor/business calls in its mapped async example
+- Missing or changed synchronous baseline for any declared source example
 
 Lifecycle failures:
 
@@ -476,7 +507,7 @@ Documentation/report failures:
 1. Announce the source package and planned output package name.
 2. Scan the package tree.
 3. Read source code, docs, package metadata, and license.
-4. Confirm hardware/source-driver identity, source completeness, preserve source `main.py` as a baseline, and inventory existing async features.
+4. Confirm hardware/source-driver identity, source completeness, preserve every declared source example as a byte-identical baseline, and inventory existing async features.
 5. Identify bus/protocol/peripheral usage and whether the source package is already async.
 6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
 7. Build an async feasibility table and behavior mapping per public method.
