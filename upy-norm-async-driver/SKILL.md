@@ -215,7 +215,9 @@ Rules:
 - Shared state read/write must be protected when required.
 - If the sync source performs I2C/SPI/UART reads inside `irq_handler`, rewrite the async variant so the handler only signals and the coroutine performs the bus I/O.
 - Use `ThreadSafeFlag` only when the target MicroPython version and port support it. Otherwise use a preallocated boolean flag plus a short polling sleep. Document the fallback.
-- If the sync source uses `micropython.schedule`, still keep the scheduled function short. It may set flags and enqueue lightweight events, but device I/O, parsing, allocation-heavy callbacks, or user callbacks should run from an async task.
+- If the sync source uses `micropython.schedule`, still keep the scheduled function short. It may set flags and enqueue lightweight events, but device I/O, parsing, allocation-heavy callbacks, or user callbacks should run from an async task. IRQ producers must coalesce pending work or use an explicitly bounded queue, and must catch `RuntimeError` from a full scheduler queue without raising from the callback.
+- Do not register an IRQ/Timer/PIO callback with an inline `lambda`. Use a named, pre-bound handler so the callback path can be audited; scheduled follow-up callables must likewise be pre-created outside the IRQ.
+- When IRQ/PIO data is written into a fixed buffer, check capacity before every write. On overflow, mark/drop the partial frame and recover at the next frame boundary; do not let an indexing exception escape the callback.
 
 Fallback when `ThreadSafeFlag` availability is uncertain:
 
@@ -493,6 +495,9 @@ IRQ failures:
 - ISR calls `await`.
 - ISR invokes arbitrary user callbacks directly when the callback may allocate or block. Prefer signaling an async consumer or schedule a soft callback when appropriate.
 - Scheduled IRQ follow-up performs heavy parsing, bus I/O, allocation-heavy work, or user callback execution instead of handing off to an async task.
+- IRQ schedules every event without pending-work coalescing or a documented bounded queue, so the finite MicroPython scheduler queue can overflow.
+- IRQ/PIO callback writes beyond a preallocated buffer because its producer index is not checked before the write.
+- IRQ/Timer/PIO callback is registered with an inline lambda and cannot be traced by the semantic audit.
 
 Timing/optimizer failures:
 

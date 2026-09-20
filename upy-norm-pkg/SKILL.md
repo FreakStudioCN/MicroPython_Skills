@@ -144,7 +144,8 @@ description: Use this skill when the user wants to normalize/standardize an exis
 2. AST/文本分区检查：所有 `.py` 文件 6 个分区标注必须缩进 0、顺序严格、无缺失、无重复；`main.py` 的 `主程序` 标记不得在 `def main()` 内。
 3. 类型注解检查：`__init__` 所有参数和 `-> None`、公共方法参数/返回、property setter 参数、main.py helper 函数参数/返回均完整。
 4. package.json 检查：`name` 与目录名一致；`urls` 无前导 `/` 或绝对路径；source 文件 exact-case 存在；运行时 `.py` 文件和本地 import 均被 urls/deps 覆盖。
-5. README/package/license 检查：README 快速开始只引用已通过验收的 `main.py`；`author`/`license`/`LICENSE` 与来源一致；测试/demo 文件边界清晰。
+5. README/package/license 检查：README 快速开始只引用已通过验收的 `main.py`；`author`/`license`/`LICENSE` 与来源一致；测试/demo 文件边界清晰。若 README 内嵌许可证正文或版权行，其版权归属必须与同包 `LICENSE` 完全一致；优先链接 `LICENSE`，不要手工复制许可证全文。
+6. 运行 `scripts/check_package_metadata.py <driver_package>`。任何 README/LICENSE 归属不一致、缺失或编码无法读取均为验收失败。
 
 ### 第 6 步：deploy-test
 

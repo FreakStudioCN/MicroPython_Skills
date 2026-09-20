@@ -90,6 +90,31 @@ def callback_name(node):
     return ""
 
 
+def callback_value(call, keyword_name):
+    keyword = next((item for item in call.keywords if item.arg == keyword_name), None)
+    if keyword is not None:
+        return keyword.value
+    return call.args[0] if call.args else None
+
+
+def catches_runtime_error(node):
+    parent = getattr(node, "parent", None)
+    while parent is not None:
+        if isinstance(parent, ast.Try):
+            for handler in parent.handlers:
+                handler_type = handler.type
+                if handler_type is None:
+                    return True
+                if isinstance(handler_type, ast.Name) and handler_type.id == "RuntimeError":
+                    return True
+                if isinstance(handler_type, ast.Tuple) and any(
+                    isinstance(item, ast.Name) and item.id == "RuntimeError" for item in handler_type.elts
+                ):
+                    return True
+        parent = getattr(parent, "parent", None)
+    return False
+
+
 def is_irq_io(name):
     return name.rsplit(".", 1)[-1] in IRQ_IO_NAMES
 
@@ -107,21 +132,33 @@ def function_nodes(tree):
     return result
 
 
-def registered_callbacks(tree):
+def registered_callbacks(path, tree, findings):
     names = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
             continue
         if node.func.attr == "irq":
-            keyword = next((item for item in node.keywords if item.arg == "handler"), None)
-            if keyword:
-                name = callback_name(keyword.value)
+            value = callback_value(node, "handler")
+            if isinstance(value, ast.Lambda):
+                add(findings, "ERROR", path, value, "IRQ_ANONYMOUS_CALLBACK", "IRQ callback must be a named pre-bound handler, not an inline lambda")
+                if isinstance(value.body, ast.Call):
+                    name = callback_name(value.body.func)
+                    if name:
+                        names.add(name)
+            else:
+                name = callback_name(value)
                 if name:
                     names.add(name)
         elif node.func.attr == "init":
-            keyword = next((item for item in node.keywords if item.arg == "callback"), None)
-            if keyword:
-                name = callback_name(keyword.value)
+            value = callback_value(node, "callback")
+            if isinstance(value, ast.Lambda):
+                add(findings, "ERROR", path, value, "IRQ_ANONYMOUS_CALLBACK", "timer callback must be a named pre-bound handler, not an inline lambda")
+                if isinstance(value.body, ast.Call):
+                    name = callback_name(value.body.func)
+                    if name:
+                        names.add(name)
+            else:
+                name = callback_name(value)
                 if name:
                     names.add(name)
     return names
@@ -136,6 +173,8 @@ def callback_findings(path, node, findings, label):
         if name == "print" or is_irq_io(name) or is_user_callback(name):
             add(findings, "ERROR", path, child, "IRQ_CALLBACK_WORK", f"{label} performs print, I/O, or a user callback")
         if name in {"micropython.schedule", "schedule"} and child.args:
+            if not catches_runtime_error(child):
+                add(findings, "ERROR", path, child, "IRQ_SCHEDULE_UNGUARDED", "IRQ schedule() must catch RuntimeError from a full scheduler queue")
             target = callback_name(child.args[0])
             if target:
                 scheduled.add(target)
@@ -159,7 +198,7 @@ def audit_tree(path, tree, findings):
                 if name in {"asyncio.create_task", "create_task"} and isinstance(getattr(child, "parent", None), ast.Expr):
                     add(findings, "ERROR", path, child, "UNSTORED_TASK", "device task must be stored for cancellation and shutdown")
 
-    callback_roots = registered_callbacks(tree)
+    callback_roots = registered_callbacks(path, tree, findings)
     visited = set()
     pending = list(callback_roots)
     while pending:

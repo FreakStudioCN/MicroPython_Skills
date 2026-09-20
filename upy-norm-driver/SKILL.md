@@ -128,11 +128,15 @@ description: Use this skill when the user wants to normalize or standardize an e
 
 | # | 改写项 | 说明 |
 |---|---|---|
-| 34 | ISR 最小化 | ISR 只做最小工作：设置标志位或调用 `micropython.schedule` 转主循环处理 |
+| 34 | ISR 最小化与背压 | ISR 只做最小工作：设置标志位或调用 `micropython.schedule` 转主循环处理。对 PIO/高频 IRQ，调度前必须合并 pending 工作或使用有界队列；必须捕获 `RuntimeError`（调度队列满）并记录丢帧/错误，不能让异常从回调逃逸 |
 | 35 | ISR 禁止内存分配 | ISR 中绝对不分配内存（不创建新对象、不拼接字符串） |
 | 36 | ISR 禁止阻塞 I/O | ISR 中不做任何阻塞 I/O 操作 |
 | 37 | 并发保护 | 主循环访问 ISR 共享变量时用 `machine.disable_irq()`/`enable_irq()` 保护 |
 | 38 | 预留调试缓冲 | 文件顶部调用 `micropython.alloc_emergency_exception_buf(100)` |
+
+| 38a | IRQ 缓冲区边界 | ISR 写入预分配 `bytearray`/`array`/`memoryview` 前必须检查写入索引小于容量。溢出时设置错误/丢帧标志并等待帧边界复位；不得在 ISR 中因越界抛出异常 |
+
+| 38b | 可审计的 IRQ 注册 | 使用具名、预绑定的回调注册 `irq(handler=self._irq_handler)`。不得用内联 `lambda`/匿名函数包装 IRQ 回调；这会隐藏 ISR 调用链并使静态审计失效 |
 
 ---
 
