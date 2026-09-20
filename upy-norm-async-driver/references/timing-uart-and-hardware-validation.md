@@ -84,6 +84,12 @@ When the source package is available, use every declared source example as a roo
 
 No runnable source example (a conventional `main.py` or an explicitly declared example) means there is no behavior baseline. No source `package.json` means package identity and deployment boundaries are unknown. Treat either as `source_incomplete`, not as permission to invent a formal demo or metadata. Continue only after the user provides a minimum hardware/business scenario, a library-only scope, or a partial-package scope. Record the missing artifact, replacement evidence, exclusions, and chosen metadata/deployment decisions in `README.md` under `## Source Incomplete Declaration`.
 
+## Semantic Static Audit
+
+Package fidelity does not prove event-loop safety. Run `check_async_semantics.py` after the package and async-hazard gates. It audits mapped async entry cleanup, lifecycle sleeps, function-local imports, unowned device tasks, and registered IRQ/Timer callback work, including functions handed to `micropython.schedule`. Findings require a code or design correction; do not hide them by relabeling the package as hardware-unverified.
+
+Report package fidelity, semantic static cleanliness, and hardware verification as separate states. A synchronous baseline is intentionally outside the async-hazard and semantic scans because it is immutable source evidence, not generated async runtime code.
+
 Every generated README must use these headings and tables:
 
 ```markdown

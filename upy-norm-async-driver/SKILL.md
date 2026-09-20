@@ -110,6 +110,7 @@ First classify the source state:
 | `sync_source` | No coroutine-based public API exists. | Generate a new async package only where the level table below permits it. |
 | `already_async_source` | Source already imports `uasyncio`/`asyncio`, uses `async def`, stream APIs, or creates tasks. | Treat the output as a normalized async fork. Do not double-suffix public APIs or module names such as `_async_async`. Harden lifecycle, timeout, cancellation, packaging, and docs. |
 | `mixed_source` | Some modules or methods are already async and others are synchronous. | Classify per method; preserve already-async methods while converting only eligible sync methods. |
+| `multi_example_source` | Multiple named runnable source examples represent different roles or business flows. | Require `async_source_examples.json`; map or explicitly exclude every inventoried candidate example. |
 | `source_incomplete` | Source lacks a runnable demo, valid package metadata, or parser evidence needed for the requested conversion. | Stop for evidence by default; continue only under an explicit library-only, partial, or user-specified-demo scope and add `## Source Incomplete Declaration`. |
 
 | Level | Meaning | Typical cases |
@@ -356,6 +357,10 @@ When a synchronous package has named examples instead of one `main.py`, add `asy
 {
   "source_package": "communication/cc2530_driver",
   "default_example": "code/coord_to_node.py",
+  "source_example_inventory": [
+    {"source": "code/coord_to_node.py", "disposition": "mapped"},
+    {"source": "code/node_to_coord.py", "disposition": "mapped"}
+  ],
   "examples": [
     {
       "source": "code/coord_to_node.py",
@@ -373,9 +378,10 @@ When a synchronous package has named examples instead of one `main.py`, add `asy
 }
 ```
 
-- All paths are package-relative, must not escape with `..`, and `sync_baseline` must be under `examples/`.
-- Every declared source must exist; its baseline must be byte-identical; every async example must parse, import an internal runtime driver, and call it.
-- `default_example` must map to `code/main.py`. In a multi-example package every entry needs a role so protocol endpoints are not silently omitted.
+- `source_package` must identify the package passed through `--source`. All paths are package-relative, must not escape with `..`, and every source path must be a Python file.
+- `async_example` is either `code/main.py` or `examples/*_async.py`; `sync_baseline` is `examples/*_sync.py`. Every declared source must exist; its baseline must be byte-identical; every async example must parse, define `async def main()`, call `asyncio.run(main())`, clean up through `try/finally`, import an internal runtime driver, and call it.
+- `default_example` must map to `code/main.py`. In a multi-example package every entry needs a unique role so protocol endpoints are not silently omitted.
+- `source_example_inventory` declares every reviewed runnable candidate. Its `mapped` items must exactly equal `examples[].source`; an `excluded` item requires a reason. Do not omit a discovered role or business example silently.
 - The async safety gate scans `code/**/*.py` and `examples/*_async.py`; it intentionally excludes `examples/*_sync.py` because these are immutable synchronous regression baselines.
 
 ## `package.json` Rules
@@ -419,6 +425,7 @@ Run the bundled checker on the generated output package when available:
 ```bash
 python scripts/check_async_driver.py <output-package-dir>
 python scripts/check_async_package.py <output-package-dir> --source <source-package-dir>
+python scripts/check_async_semantics.py <output-package-dir>
 ```
 
 For an explicitly authorized incomplete source only:
@@ -458,6 +465,16 @@ Strong failures inside `async def`:
 - Missing runnable source example (a conventional `main.py` or a declared manifest example) or `package.json` passed to a formal conversion without an explicit incomplete-source scope and README declaration
 - A declared source example's reachable local modules/subpackages or referenced symbols missing from the output, or omitted source driver constructor/business calls in its mapped async example
 - Missing or changed synchronous baseline for any declared source example
+
+## Verification Status
+
+Report these independently. Do not describe a package as formally async-safe merely because package fidelity passes.
+
+| Status | Meaning |
+|---|---|
+| `package_fidelity_passed` | `check_async_package.py` passed: source mapping, baselines, dependency closure, output files, and metadata are consistent. |
+| `semantic_static_clean` | `check_async_driver.py` and `check_async_semantics.py` passed: no detected async blocking, lifecycle, callback, task, or import-structure violation. |
+| `hardware_verified` | Hardware link, basic operation, and complete business flow were tested and recorded. |
 
 Lifecycle failures:
 
@@ -522,7 +539,7 @@ Documentation/report failures:
 11. Generate async runtime code.
 12. Generate async `code/main.py`.
 13. Generate README, package.json, preserve LICENSE, and complete the demo/API/blocking-budget tables.
-14. Run both static gates and report hardware acceptance levels.
+14. Run package, async hazard, and semantic static gates; report the three verification statuses separately.
 15. Summarize files, async level, demo/behavior fidelity, residual blocking, and required hardware tests.
 
 ## Output Summary Format

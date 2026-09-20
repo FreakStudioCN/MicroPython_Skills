@@ -218,8 +218,11 @@ def source_example_manifest(package, source, findings):
     if not isinstance(data, dict) or not isinstance(data.get("examples"), list) or not data["examples"]:
         add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", "manifest needs a non-empty examples array")
         return []
-    if safe_relative_path(data.get("source_package")) is None:
+    source_package = safe_relative_path(data.get("source_package"))
+    if source_package is None:
         add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", "source_package must be a safe relative package path")
+    elif source is not None and source_package.name != source.name:
+        add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_SOURCE_MISMATCH", "source_package must name the package passed through --source")
 
     default_source = safe_relative_path(data.get("default_example"))
     if default_source is None:
@@ -227,6 +230,7 @@ def source_example_manifest(package, source, findings):
     examples = []
     sources = set()
     baselines = set()
+    roles = set()
     for index, entry in enumerate(data["examples"], 1):
         if not isinstance(entry, dict):
             add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}] must be an object")
@@ -237,11 +241,19 @@ def source_example_manifest(package, source, findings):
         if source_path is None or baseline_path is None or async_path is None:
             add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}] has an invalid relative path")
             continue
+        if source_path.suffix != ".py":
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].source must be a Python file")
+            continue
         if not baseline_path.parts or baseline_path.parts[0] != "examples" or not baseline_path.stem.endswith("_sync"):
             add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].sync_baseline must be an examples/*_sync.py file")
             continue
-        if async_path.suffix != ".py":
-            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].async_example must be a Python file")
+        if async_path != Path("code/main.py") and (
+            not async_path.parts
+            or async_path.parts[0] != "examples"
+            or not async_path.stem.endswith("_async")
+            or async_path.suffix != ".py"
+        ):
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].async_example must be code/main.py or examples/*_async.py")
             continue
         if source_path in sources or baseline_path in baselines:
             add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}] duplicates a source or synchronous baseline")
@@ -253,9 +265,45 @@ def source_example_manifest(package, source, findings):
         if len(data["examples"]) > 1 and not role:
             add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_ROLE_MISSING", f"examples[{index}] needs a role in a multi-example package")
             continue
+        if role and role in roles:
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_ROLE_DUPLICATE", f"examples[{index}] duplicates role '{role}'")
+            continue
         sources.add(source_path)
         baselines.add(baseline_path)
+        if role:
+            roles.add(role)
         examples.append(SourceExample(source_path, baseline_path, async_path, role or ""))
+
+    inventory = data.get("source_example_inventory")
+    if not isinstance(inventory, list) or not inventory:
+        add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_INVENTORY_MISSING", "manifest needs a non-empty source_example_inventory array")
+    else:
+        inventory_paths = set()
+        mapped_inventory = set()
+        for index, entry in enumerate(inventory, 1):
+            if not isinstance(entry, dict):
+                add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_INVENTORY_INVALID", f"source_example_inventory[{index}] must be an object")
+                continue
+            path = safe_relative_path(entry.get("source"))
+            disposition = entry.get("disposition")
+            reason = entry.get("reason", "")
+            if path is None or path.suffix != ".py" or disposition not in {"mapped", "excluded"}:
+                add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_INVENTORY_INVALID", f"source_example_inventory[{index}] needs a Python source and mapped/excluded disposition")
+                continue
+            if path in inventory_paths:
+                add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_INVENTORY_INVALID", f"source_example_inventory[{index}] duplicates source '{path}'")
+                continue
+            if disposition == "excluded" and not isinstance(reason, str):
+                add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_INVENTORY_INVALID", f"source_example_inventory[{index}].reason must be text")
+                continue
+            if disposition == "excluded" and not reason.strip():
+                add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_EXCLUSION_UNEXPLAINED", f"source_example_inventory[{index}] needs a reason for exclusion")
+                continue
+            inventory_paths.add(path)
+            if disposition == "mapped":
+                mapped_inventory.add(path)
+        if mapped_inventory != sources:
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_INVENTORY_MISMATCH", "inventory mapped examples must exactly match manifest examples")
 
     if default_source is not None:
         default = next((item for item in examples if item.source == default_source), None)
@@ -382,7 +430,7 @@ def constructed_driver_methods(main_tree, output_modules, output_trees, code_dir
     return methods
 
 
-def source_dependency_checks(source, code_dir, output_trees, findings, sync_example, async_example):
+def source_dependency_checks(source, code_dir, output_trees, findings, sync_example, async_example, async_tree):
     """Check one declared source example's local-import closure and API fidelity."""
     if not sync_example.is_file() or not async_example.is_file():
         return
@@ -462,7 +510,7 @@ def source_dependency_checks(source, code_dir, output_trees, findings, sync_exam
                 add(findings, "ERROR", path, node.lineno, "SOURCE_ATTRIBUTE_MISSING", f"source attribute '{target}.{node.attr}' is absent from output module '{mapped}'")
 
     source_direct, source_methods = local_driver_calls(source_trees[source_modules[example_module]], set(source_modules))
-    output_example = output_trees.get(async_example)
+    output_example = output_trees.get(async_example) or async_tree
     output_direct, output_methods = local_driver_calls(output_example, set(output_modules))
     output_declared_methods = constructed_driver_methods(output_example, output_modules, output_trees, code_dir)
     missing_direct = {name for name in source_direct if name not in output_direct and name + "Async" not in output_direct}
@@ -501,6 +549,43 @@ def machine_calls(tree):
     return calls
 
 
+def is_asyncio_run_main(node):
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "asyncio"
+        and node.func.attr == "run"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Call)
+        and isinstance(node.args[0].func, ast.Name)
+        and node.args[0].func.id == "main"
+    )
+
+
+def has_cleanup_finally(main_node):
+    cleanup_names = {"aclose", "close", "deinit", "stop"}
+    for node in ast.walk(main_node):
+        if not isinstance(node, ast.Try) or not node.finalbody:
+            continue
+        for child in ast.walk(ast.Module(body=node.finalbody, type_ignores=[])):
+            if isinstance(child, ast.Call) and call_name(child.func).rsplit(".", 1)[-1] in cleanup_names:
+                return True
+    return False
+
+
+def async_entry_checks(async_example, tree, findings):
+    """Validate a standalone mapped async demo, including cancellation cleanup."""
+    main_node = next((node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "main"), None)
+    if main_node is None:
+        add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_MAIN_MISSING", "async example must define async def main()")
+        return
+    if not any(is_asyncio_run_main(node) for node in ast.walk(tree)):
+        add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_ASYNC_RUN", "async example must execute asyncio.run(main())")
+    if not has_cleanup_finally(main_node):
+        add(findings, "ERROR", async_example, main_node.lineno, "ASYNC_EXAMPLE_NO_CLEANUP_FINALLY", "async main() must use try/finally with a real cleanup call")
+
+
 def async_example_checks(async_example, code_dir, trees, findings):
     """Require every declared async example to exercise an internal driver."""
     tree = trees.get(async_example) or read_tree(async_example, findings)
@@ -535,13 +620,15 @@ def example_fidelity(package, source, code_dir, trees, findings, example):
     async_tree = trees.get(async_example) or read_tree(async_example, findings)
     if async_tree is None:
         return
+    if async_example != code_dir / "main.py":
+        async_entry_checks(async_example, async_tree, findings)
     async_example_checks(async_example, code_dir, trees, findings)
     required_hardware = machine_calls(source_tree)
     async_hardware = machine_calls(async_tree)
     missing_hardware = required_hardware - async_hardware
     if missing_hardware:
         add(findings, "ERROR", async_example, 1, "EXAMPLE_HARDWARE_FIDELITY", "async example omits source hardware constructor(s): " + ", ".join(sorted(missing_hardware)))
-    source_dependency_checks(source, code_dir, trees, findings, sync_example, async_example)
+    source_dependency_checks(source, code_dir, trees, findings, sync_example, async_example, async_tree)
 
 
 def main_fidelity(package, source, code_dir, trees, findings, examples=None):
@@ -552,9 +639,7 @@ def main_fidelity(package, source, code_dir, trees, findings, examples=None):
     main_tree = trees.get(main_path)
     if main_tree is None:
         return
-    calls = [call_name(node.func) for node in ast.walk(main_tree) if isinstance(node, ast.Call)]
-    if not any(name == "asyncio.run" or name == "run" for name in calls):
-        add(findings, "ERROR", main_path, 1, "MAIN_NO_ASYNC_RUN", "main.py must execute asyncio.run(main())")
+    async_entry_checks(main_path, main_tree, findings)
 
     runtime_modules = {module_name(code_dir, p) for p in trees if p != main_path}
     imports_runtime = False
