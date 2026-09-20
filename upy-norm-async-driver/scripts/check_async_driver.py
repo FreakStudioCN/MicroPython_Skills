@@ -82,11 +82,22 @@ def matches_blocking_call(name: str, pattern: str) -> bool:
 
 
 def iter_py_files(root: Path):
+    """Yield Python files below one explicitly selected scan root."""
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for name in filenames:
+            path = Path(dirpath) / name
             if name.endswith(".py"):
-                yield Path(dirpath) / name
+                yield path
+
+
+def async_package_files(package: Path):
+    """Scan runtime code and explicit async examples, never sync baselines."""
+    files = list(iter_py_files(package / "code"))
+    examples = package / "examples"
+    if examples.is_dir():
+        files.extend(sorted(examples.rglob("*_async.py")))
+    return files
 
 
 def call_name(node: ast.AST) -> str:
@@ -262,7 +273,12 @@ def main(argv: list[str]) -> int:
         print(f"Path not found: {root}", file=sys.stderr)
         return 2
 
-    files = [root] if root.is_file() else list(iter_py_files(root))
+    if root.is_file():
+        files = [root]
+    elif (root / "code").is_dir():
+        files = async_package_files(root)
+    else:
+        files = list(iter_py_files(root))
     all_findings: list[Finding] = []
     for path in files:
         all_findings.extend(check_file(path))

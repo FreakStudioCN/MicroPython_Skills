@@ -31,6 +31,15 @@ class Finding:
     message: str
 
 
+@dataclass(frozen=True)
+class SourceExample:
+    """One explicit synchronous-to-async example mapping."""
+    source: Path
+    sync_baseline: Path
+    async_example: Path
+    role: str = ""
+
+
 def add(findings, severity, path, line, code, message):
     findings.append(Finding(severity, path, line, code, message))
 
@@ -145,11 +154,16 @@ def source_main(source):
     return None
 
 
-def source_preflight(source, findings, allow_source_main_missing, allow_source_metadata_missing):
+def source_preflight(source, findings, allow_source_main_missing, allow_source_metadata_missing, examples=None):
     """Return whether a deliberate source-incomplete conversion is in progress."""
     incomplete = False
+    has_examples = examples is not None
     sync_main = source_main(source)
-    if sync_main is None:
+    if has_examples:
+        source_examples_present = bool(examples)
+    else:
+        source_examples_present = sync_main is not None
+    if not source_examples_present:
         incomplete = True
         severity = "WARN" if allow_source_main_missing else "ERROR"
         add(
@@ -157,8 +171,8 @@ def source_preflight(source, findings, allow_source_main_missing, allow_source_m
             severity,
             source,
             1,
-            "SOURCE_MAIN_MISSING",
-            "source main.py is required for a formal fidelity conversion; use --allow-source-main-missing only for an explicitly declared library-only, partial, or user-specified demo",
+            "SOURCE_EXAMPLE_MISSING" if has_examples else "SOURCE_MAIN_MISSING",
+            "the source-example manifest declares no usable source example" if has_examples else "source main.py is required for a formal fidelity conversion; use --allow-source-main-missing only for an explicitly declared library-only, partial, or user-specified demo",
         )
 
     metadata = source / "package.json"
@@ -179,6 +193,89 @@ def source_preflight(source, findings, allow_source_main_missing, allow_source_m
         except (OSError, json.JSONDecodeError) as exc:
             add(findings, "ERROR", metadata, 1, "SOURCE_PACKAGE_JSON_INVALID", str(exc))
     return incomplete
+
+
+def safe_relative_path(value):
+    """Return a safe package-relative path, or None for an escaping path."""
+    if not isinstance(value, str) or not value:
+        return None
+    path = Path(value.replace("\\", "/"))
+    if path.is_absolute() or ".." in path.parts or path == Path("."):
+        return None
+    return path
+
+
+def source_example_manifest(package, source, findings):
+    """Read and validate optional explicit multi-example fidelity mappings."""
+    manifest_path = package / "async_source_examples.json"
+    if not manifest_path.is_file():
+        return None
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", str(exc))
+        return []
+    if not isinstance(data, dict) or not isinstance(data.get("examples"), list) or not data["examples"]:
+        add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", "manifest needs a non-empty examples array")
+        return []
+    if safe_relative_path(data.get("source_package")) is None:
+        add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", "source_package must be a safe relative package path")
+
+    default_source = safe_relative_path(data.get("default_example"))
+    if default_source is None:
+        add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", "default_example must be a safe relative source path")
+    examples = []
+    sources = set()
+    baselines = set()
+    for index, entry in enumerate(data["examples"], 1):
+        if not isinstance(entry, dict):
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}] must be an object")
+            continue
+        source_path = safe_relative_path(entry.get("source"))
+        baseline_path = safe_relative_path(entry.get("sync_baseline"))
+        async_path = safe_relative_path(entry.get("async_example"))
+        if source_path is None or baseline_path is None or async_path is None:
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}] has an invalid relative path")
+            continue
+        if not baseline_path.parts or baseline_path.parts[0] != "examples" or not baseline_path.stem.endswith("_sync"):
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].sync_baseline must be an examples/*_sync.py file")
+            continue
+        if async_path.suffix != ".py":
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].async_example must be a Python file")
+            continue
+        if source_path in sources or baseline_path in baselines:
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}] duplicates a source or synchronous baseline")
+            continue
+        role = entry.get("role", "")
+        if role is not None and not isinstance(role, str):
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", f"examples[{index}].role must be text")
+            continue
+        if len(data["examples"]) > 1 and not role:
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_ROLE_MISSING", f"examples[{index}] needs a role in a multi-example package")
+            continue
+        sources.add(source_path)
+        baselines.add(baseline_path)
+        examples.append(SourceExample(source_path, baseline_path, async_path, role or ""))
+
+    if default_source is not None:
+        default = next((item for item in examples if item.source == default_source), None)
+        if default is None or default.async_example != Path("code/main.py"):
+            add(findings, "ERROR", manifest_path, 1, "SOURCE_EXAMPLE_MANIFEST_INVALID", "default_example must map to code/main.py")
+    for item in examples:
+        source_file = source / item.source if source is not None else None
+        baseline = package / item.sync_baseline
+        async_file = package / item.async_example
+        if source_file is not None and not source_file.is_file():
+            add(findings, "ERROR", source_file, 1, "SOURCE_EXAMPLE_MISSING", f"declared source example is absent: {item.source}")
+        if not baseline.is_file():
+            add(findings, "ERROR", baseline, 1, "SYNC_EXAMPLE_BASELINE_MISSING", "declared synchronous baseline is absent")
+        elif source_file is not None and source_file.is_file() and source_file.read_bytes() != baseline.read_bytes():
+            add(findings, "ERROR", baseline, 1, "SYNC_EXAMPLE_BASELINE_CHANGED", "synchronous baseline must be byte-identical to its declared source example")
+        if not async_file.is_file():
+            add(findings, "ERROR", async_file, 1, "ASYNC_EXAMPLE_MISSING", "declared async example is absent")
+        else:
+            read_tree(async_file, findings)
+    return examples
 
 
 def source_code_dir(source):
@@ -285,10 +382,9 @@ def constructed_driver_methods(main_tree, output_modules, output_trees, code_dir
     return methods
 
 
-def source_dependency_checks(source, package, code_dir, output_trees, findings):
-    """Check the source demo's reachable local-import closure against output code/."""
-    sync_main = source_main(source)
-    if sync_main is None:
+def source_dependency_checks(source, code_dir, output_trees, findings, sync_example, async_example):
+    """Check one declared source example's local-import closure and API fidelity."""
+    if not sync_example.is_file() or not async_example.is_file():
         return
     source_dir = source_code_dir(source)
     source_files = runtime_files(source_dir)
@@ -299,11 +395,11 @@ def source_dependency_checks(source, package, code_dir, output_trees, findings):
         name: public_symbols(tree)
         for name, tree in ((module_name(code_dir, path), tree) for path, tree in output_trees.items())
     }
-    main_module = module_name(source_dir, sync_main)
-    if main_module not in source_modules:
+    example_module = module_name(source_dir, sync_example)
+    if example_module not in source_modules:
         return
 
-    pending = [main_module]
+    pending = [example_module]
     visited = set()
     while pending:
         current = pending.pop()
@@ -322,7 +418,7 @@ def source_dependency_checks(source, package, code_dir, output_trees, findings):
                     continue
                 mapped = output_module_for(target, output_modules)
                 if mapped is None:
-                    add(findings, "ERROR", path, node.lineno, "SOURCE_DEPENDENCY_MISSING", f"source local module '{target}' reachable from main.py is absent from output code/")
+                    add(findings, "ERROR", path, node.lineno, "SOURCE_DEPENDENCY_MISSING", f"source local module '{target}' reachable from {sync_example.name} is absent from output code/")
                     continue
                 pending.append(target)
                 # MicroPython package imports need their parent initializers as well.
@@ -365,13 +461,13 @@ def source_dependency_checks(source, package, code_dir, output_trees, findings):
             if mapped and node.attr not in output_symbols[mapped]:
                 add(findings, "ERROR", path, node.lineno, "SOURCE_ATTRIBUTE_MISSING", f"source attribute '{target}.{node.attr}' is absent from output module '{mapped}'")
 
-    source_direct, source_methods = local_driver_calls(source_trees[source_modules[main_module]], set(source_modules))
-    output_main = output_trees.get(code_dir / "main.py")
-    output_direct, output_methods = local_driver_calls(output_main, set(output_modules))
-    output_declared_methods = constructed_driver_methods(output_main, output_modules, output_trees, code_dir)
+    source_direct, source_methods = local_driver_calls(source_trees[source_modules[example_module]], set(source_modules))
+    output_example = output_trees.get(async_example)
+    output_direct, output_methods = local_driver_calls(output_example, set(output_modules))
+    output_declared_methods = constructed_driver_methods(output_example, output_modules, output_trees, code_dir)
     missing_direct = {name for name in source_direct if name not in output_direct and name + "Async" not in output_direct}
     if missing_direct:
-        add(findings, "ERROR", code_dir / "main.py", 1, "MAIN_DRIVER_CONSTRUCTOR_FIDELITY", "main.py omits source driver constructor(s): " + ", ".join(sorted(missing_direct)))
+        add(findings, "ERROR", async_example, 1, "EXAMPLE_DRIVER_CONSTRUCTOR_FIDELITY", "async example omits source driver constructor(s): " + ", ".join(sorted(missing_direct)))
     allowed_method_renames = {"deinit": "aclose", "close": "aclose"}
     missing_methods = {
         name for name in source_methods
@@ -383,7 +479,7 @@ def source_dependency_checks(source, package, code_dir, output_trees, findings):
         or (allowed_method_renames.get(name) in output_methods and allowed_method_renames.get(name) not in output_declared_methods)
     }
     if missing_methods:
-        add(findings, "ERROR", code_dir / "main.py", 1, "MAIN_DRIVER_API_FIDELITY", "main.py omits source driver API call(s): " + ", ".join(sorted(missing_methods)))
+        add(findings, "ERROR", async_example, 1, "EXAMPLE_DRIVER_API_FIDELITY", "async example omits source driver API call(s): " + ", ".join(sorted(missing_methods)))
 
 
 def machine_calls(tree):
@@ -405,7 +501,50 @@ def machine_calls(tree):
     return calls
 
 
-def main_fidelity(package, source, code_dir, trees, findings):
+def async_example_checks(async_example, code_dir, trees, findings):
+    """Require every declared async example to exercise an internal driver."""
+    tree = trees.get(async_example) or read_tree(async_example, findings)
+    if tree is None:
+        return
+    runtime_modules = {module_name(code_dir, path) for path in trees if path.relative_to(code_dir) != Path("main.py")}
+    imported_runtime_names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "") in runtime_modules:
+            imported_runtime_names.update(alias.asname or alias.name for alias in node.names)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in runtime_modules:
+                    imported_runtime_names.add(alias.asname or alias.name.split(".", 1)[0])
+    if not imported_runtime_names:
+        add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_IMPORT", "async example does not import an internal runtime driver module")
+        return
+    if not any(
+        call_name(node.func).split(".", 1)[0] in imported_runtime_names
+        for node in ast.walk(tree) if isinstance(node, ast.Call)
+    ):
+        add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_CALL", "async example imports an internal driver but does not call its API")
+
+
+def example_fidelity(package, source, code_dir, trees, findings, example):
+    """Validate the baseline, hardware construction, and behavior of one mapping."""
+    sync_example = source / example.source
+    async_example = package / example.async_example
+    if not sync_example.is_file() or not async_example.is_file():
+        return
+    source_tree = read_tree(sync_example, findings)
+    async_tree = trees.get(async_example) or read_tree(async_example, findings)
+    if async_tree is None:
+        return
+    async_example_checks(async_example, code_dir, trees, findings)
+    required_hardware = machine_calls(source_tree)
+    async_hardware = machine_calls(async_tree)
+    missing_hardware = required_hardware - async_hardware
+    if missing_hardware:
+        add(findings, "ERROR", async_example, 1, "EXAMPLE_HARDWARE_FIDELITY", "async example omits source hardware constructor(s): " + ", ".join(sorted(missing_hardware)))
+    source_dependency_checks(source, code_dir, trees, findings, sync_example, async_example)
+
+
+def main_fidelity(package, source, code_dir, trees, findings, examples=None):
     main_path = code_dir / "main.py"
     if not main_path.is_file():
         add(findings, "ERROR", main_path, 1, "MAIN_MISSING", "code/main.py is required")
@@ -437,22 +576,19 @@ def main_fidelity(package, source, code_dir, trees, findings):
 
     if source is None:
         return
-    sync_main = source_main(source)
-    if sync_main is None:
+    if examples is None:
+        sync_main = source_main(source)
+        if sync_main is None:
+            return
+        baseline = package / "examples" / "main_sync.py"
+        if not baseline.is_file():
+            add(findings, "ERROR", baseline, 1, "SYNC_BASELINE_MISSING", "examples/main_sync.py must preserve the source synchronous main.py")
+        elif hashlib.sha256(sync_main.read_bytes()).digest() != hashlib.sha256(baseline.read_bytes()).digest():
+            add(findings, "ERROR", baseline, 1, "SYNC_BASELINE_CHANGED", "examples/main_sync.py must be byte-identical to source main.py")
+        example_fidelity(package, source, code_dir, trees, findings, SourceExample(sync_main.relative_to(source), Path("examples/main_sync.py"), Path("code/main.py")))
         return
-    baseline = package / "examples" / "main_sync.py"
-    if not baseline.is_file():
-        add(findings, "ERROR", baseline, 1, "SYNC_BASELINE_MISSING", "examples/main_sync.py must preserve the source synchronous main.py")
-    elif hashlib.sha256(sync_main.read_bytes()).digest() != hashlib.sha256(baseline.read_bytes()).digest():
-        add(findings, "ERROR", baseline, 1, "SYNC_BASELINE_CHANGED", "examples/main_sync.py must be byte-identical to source main.py")
-
-    source_tree = read_tree(sync_main, findings)
-    required_hardware = machine_calls(source_tree)
-    async_hardware = machine_calls(main_tree)
-    missing_hardware = required_hardware - async_hardware
-    if missing_hardware:
-        add(findings, "ERROR", main_path, 1, "MAIN_HARDWARE_FIDELITY", "main.py omits source hardware constructor(s): " + ", ".join(sorted(missing_hardware)))
-    source_dependency_checks(source, package, code_dir, trees, findings)
+    for example in examples:
+        example_fidelity(package, source, code_dir, trees, findings, example)
 
 
 def package_json_checks(package, code_dir, files, findings):
@@ -535,6 +671,7 @@ def main(argv):
         return 2
 
     findings = []
+    examples = source_example_manifest(package, source, findings)
     source_incomplete = False
     if source is not None:
         source_incomplete = source_preflight(
@@ -542,6 +679,7 @@ def main(argv):
             findings,
             args.allow_source_main_missing,
             args.allow_source_metadata_missing,
+            examples,
         )
     code_dir = package / "code"
     files = runtime_files(code_dir)
@@ -550,7 +688,7 @@ def main(argv):
     trees = {path: read_tree(path, findings) for path in files}
     internal_import_checks(code_dir, trees, findings)
     package_json_checks(package, code_dir, files, findings)
-    main_fidelity(package, source, code_dir, trees, findings)
+    main_fidelity(package, source, code_dir, trees, findings, examples)
     readme_checks(
         package,
         findings,
