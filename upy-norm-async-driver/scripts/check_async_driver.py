@@ -251,8 +251,11 @@ def check_file(path: Path) -> list[Finding]:
     findings.extend(regex_fallback(path, source))
     try:
         tree = ast.parse(source)
+        # ast.parse() accepts some context-sensitive constructs (for example
+        # await in a regular def) that generated runtime code cannot execute.
+        compile(tree, str(path), "exec")
     except SyntaxError as exc:
-        findings.append(Finding("WARN", path, exc.lineno or 1, "SYNTAX_SKIP", f"could not parse with CPython AST: {exc.msg}"))
+        findings.append(Finding("ERROR", path, exc.lineno or 1, "OUTPUT_SYNTAX", f"generated runtime Python must parse: {exc.msg}"))
         return findings
 
     checker = Checker(path, source)

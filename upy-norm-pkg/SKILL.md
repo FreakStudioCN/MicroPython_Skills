@@ -9,6 +9,12 @@ description: Use this skill when the user wants to normalize/standardize an exis
 
 你是 GraftSense MicroPython 驱动包规范化助手。给定一个包含已验证驱动文件的目录，按固定流程对所有文件进行规范化，并生成缺失的配套文件，最终输出标准驱动包目录结构。
 
+## 异步包边界
+
+在本 Skill 的第 0 步扫描中，若任一运行时文件包含 `async def`，或导入 `uasyncio`/`asyncio` 作为设备运行时依赖，则该目录是异步输出包，不适用本同步包流程。停止本 Skill 的后续规范化和最终验收，改用 `/upy-norm-async-driver` 的包合同与四项异步门禁。
+
+不得对异步输出包运行同步来源仓库的 `code_checker.py`。该工具可用于未修改的同步来源包；它不能通过要求 `time.sleep(3)`、同步主循环或第三方同步参数校验来定义异步包是否合格。
+
 ## 类型判断（第0步扫描完成后立即执行，后续所有步骤按类型走对应分支）
 
 | 判断条件 | 类型 |
@@ -55,6 +61,7 @@ description: Use this skill when the user wants to normalize/standardize an exis
     后续步骤将使用中间件库规则分支
     ```
     并在后续每步调用对应 skill 时传入类型标记（中间件库）。
+3b. 判断异步边界：扫描所有运行时 `.py` 文件。若检测到 `async def` 或 `uasyncio`/`asyncio` 设备运行时导入，输出“异步输出包：转交 upy-norm-async-driver”，并停止本 Skill；不得继续进入同步 `norm-main`、`code_checker.py` 或同步最终验收。
    若无子包目录：
    ```
    目录：G:/bmp280/
@@ -140,7 +147,7 @@ description: Use this skill when the user wants to normalize/standardize an exis
 ### 第 5a 步：最终验收门禁（必须通过）
 
 打包完成后立即执行最终验收；任一失败都必须回到对应步骤修复，不得输出“完成”或进入部署：
-1. 运行仓库 `code_checker.py -r <driver_package>/code`，必须 0 fail。
+1. 仅同步来源包运行仓库 `code_checker.py -r <driver_package>/code`，必须 0 fail。异步输出包不得执行该项，必须按 `upy-norm-async-driver` 的四项异步门禁验收。
 2. AST/文本分区检查：所有 `.py` 文件 6 个分区标注必须缩进 0、顺序严格、无缺失、无重复；`main.py` 的 `主程序` 标记不得在 `def main()` 内。
 3. 类型注解检查：`__init__` 所有参数和 `-> None`、公共方法参数/返回、property setter 参数、main.py helper 函数参数/返回均完整。
 4. package.json 检查：`name` 与目录名一致；`urls` 无前导 `/` 或绝对路径；source 文件 exact-case 存在；运行时 `.py` 文件和本地 import 均被 urls/deps 覆盖。

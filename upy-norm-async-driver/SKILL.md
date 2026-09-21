@@ -428,7 +428,10 @@ Run the bundled checker on the generated output package when available:
 python scripts/check_async_driver.py <output-package-dir>
 python scripts/check_async_package.py <output-package-dir> --source <source-package-dir>
 python scripts/check_async_semantics.py <output-package-dir>
+python ../upy-norm-pkg/scripts/check_package_metadata.py <output-package-dir>
 ```
+
+Do not run a synchronous source-repository `code_checker.py` against the async output. It may require blocking startup delays or synchronous main-loop structure that conflicts with this skill. Use it only to assess the untouched synchronous source package when that source workflow requires it.
 
 For an explicitly authorized incomplete source only:
 
@@ -474,8 +477,10 @@ Report these independently. Do not describe a package as formally async-safe mer
 
 | Status | Meaning |
 |---|---|
-| `package_fidelity_passed` | `check_async_package.py` passed: source mapping, baselines, dependency closure, output files, and metadata are consistent. |
-| `semantic_static_clean` | `check_async_driver.py` and `check_async_semantics.py` passed: no detected async blocking, lifecycle, callback, task, or import-structure violation. |
+| `runtime_syntax_passed` | `check_async_driver.py` passed: every generated runtime `.py` file parsed and no conversion hazard was detected. |
+| `package_fidelity_passed` | `check_async_package.py` passed: source mapping, baselines, dependency closure, output files, and package metadata are consistent. |
+| `semantic_static_clean` | `check_async_semantics.py` passed: no detected lifecycle, callback, task, or import-structure violation. |
+| `metadata_license_passed` | `check_package_metadata.py` passed: README and LICENSE attribution are present and consistent. |
 | `hardware_verified` | Hardware link, basic operation, and complete business flow were tested and recorded. |
 
 Lifecycle failures:
