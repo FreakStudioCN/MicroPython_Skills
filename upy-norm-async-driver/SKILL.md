@@ -119,7 +119,7 @@ First classify the source state:
 | `event_bridge` | Hardware emits IRQ/callback events; async task consumes flags/events. | Pin IRQ, buttons, encoders, CAN IRQ, Timer callback, I2CTarget IRQ, USBDevice callback, IR RX |
 | `cooperative_nonblocking` | Protocol can be split into bounded short steps with `await` between waits. | ready-bit sensors, GPS parser task, PWM fade, buzzer melody, HTU21D-style conversion, VL53L0X non-blocking mode |
 | `sync_adapter_only` | Only short synchronous operations are available. Async API is an adapter with residual blocking. | most I2C/SPI register sensors, ADC single read, DAC write, PWM duty set, RTC read/write |
-| `not_async_safe` | The operation may block the event loop and cannot be bounded or split safely. | large display flush, SD/block-device read/write, file I/O over storage, blocking HTTP, long scan loops, audio record/play without stream support |
+| `not_async_safe` | A demonstrated blocking operation cannot be bounded or split safely without breaking the protocol or public API. | large display flush, SD/block-device read/write, file I/O over storage, blocking HTTP, long scan loops, audio record/play without stream support |
 
 Show an API async-level matrix in every README. A single-row matrix is sufficient for a uniform package; methods with different blocking models must be separate rows.
 
@@ -137,7 +137,16 @@ Important classification examples from local GraftSense drivers:
 - FrameBuffer displays, RGB matrices, NeoPixel, APA102, and TFT flush APIs are `not_async_safe` for full refresh unless exposed as explicit chunked async helpers with residual blocking.
 - HTTP/WebSocket clients are `already_async_source` only after auditing DNS, connect, TLS handshake, write-all behavior, close semantics, and file/JSON body handling.
 - I2S audio drivers can be `native_async` with `asyncio.StreamReader`/`StreamWriter`, but file writes and whole-recording buffers remain residual blocking/memory risks.
-- RP2 DMA/PIO packages are hardware-offload candidates; Python IRQ callbacks, DMA buffer lifetime, and `StateMachine.put/get` FIFO blocking decide whether an async API is honest.
+- RP2 DMA/PIO packages are hardware-offload candidates, not automatic async-conversion targets. Keep PIO programs and strict host-side timing paths synchronous unless a real event boundary exists. Python IRQ callbacks, DMA buffer lifetime, and `StateMachine.put/get` FIFO blocking decide whether an async coordinator is honest.
+
+### Blocking classification evidence
+
+Do not infer `not_async_safe` solely because a device transaction has no hardware-measured maximum duration. A single I2C/SPI register operation with a finite protocol shape is normally `sync_adapter_only`, even when its on-target blocking budget remains unverified.
+
+- For `sync_adapter_only`, document the synchronous region, blocking source, protocol/source/datasheet evidence, known or unknown timing bound, cancellation boundary, and event-loop impact. State `hardware timing unverified` where applicable; do not invent a timeout or a maximum duration.
+- Use `not_async_safe` only with evidence of a non-eliminable long or unbounded operation, such as a whole-frame flush, storage erase, card-busy wait, indefinite FIFO wait, or protocol sequence that cannot yield or be bounded safely.
+- A synchronous hardware primitive can remain in an async package as an explicitly documented residual boundary. It does not require a fabricated async implementation.
+- PIO, OneWire, NeoPixel, HX711, DHT pulse capture, `@micropython.native`, and `@micropython.viper` paths with strict timing are allowed to remain synchronous. Add async only around a separate readiness wait, queue, DMA/IRQ completion event, retry backoff, or outer repeated-operation loop. If no such boundary exists, keep the driver synchronous or report a partial/non-async-safe API rather than inserting `await` into the critical path.
 
 ## Source Search Policy
 
@@ -245,7 +254,7 @@ Rules:
 - Prefer ready/status bits over fixed sleeps.
 - If fixed sleeps are required by datasheet, use `await asyncio.sleep_ms(conversion_time + margin)`.
 - Final short I2C/SPI register reads may remain synchronous, but the README and summary must label residual blocking.
-- `sync_adapter_only` is allowed only when each affected API has a documented synchronous region, blocking source, proven maximum duration, timeout, and event-loop impact. Without an evidence-backed bound, classify it as `not_async_safe` or redesign it.
+- `sync_adapter_only` requires a documented synchronous region, blocking source, timing evidence or an explicit `hardware timing unverified` state, cancellation boundary, and event-loop impact. A missing measured maximum alone does not require `not_async_safe`; do not invent a timeout or duration. Use `not_async_safe` only for a demonstrated non-eliminable long or unbounded operation.
 - For bit-banged protocols, keep low-level clock/data byte primitives synchronous when `sleep_us` or exact edge timing is required. Add async only around long high-level sequences such as scroll, fade, melody, repeated sampling, or retry waits.
 - Do not insert `await` between individual bits or bytes unless the hardware protocol explicitly tolerates that timing.
 - For retry loops copied from synchronous code, replace `time.sleep_ms`, imported `sleep_ms`, or busy waits with `await asyncio.sleep_ms` only in async methods. Keep synchronous internal primitives synchronous and bounded.
@@ -254,7 +263,7 @@ Rules:
 - For display or LED refresh helpers, use explicit names such as `show_async()`, `fill_async()`, or `play_async()` and accept `chunk_pixels`, `chunk_rows`, or `yield_every` options. Do not hide async flushing behind property setters or `auto_write=True`.
 - Do not convert `@micropython.native`, `@micropython.viper`, or timing-critical optimized functions directly to `async def`. Wrap them from an async coordinator when needed.
 - Timer-driven schedulers, button FSMs, watchdogs, and waveform generators are callback systems, not uasyncio by default. Convert them by signaling async tasks, not by running user callbacks or I2C/SPI writes from hard/soft timer context.
-- For RP2 DMA/PIO, hard IRQ handlers only signal completion, transfer buffers must stay alive until completion, and `StateMachine.put/get` loops need FIFO readiness, timeout, or documented residual blocking.
+- For RP2 DMA/PIO, hard IRQ handlers only signal completion, transfer buffers must stay alive until completion, and `StateMachine.put/get` loops need FIFO readiness, a real bounded wait, or documented residual blocking. Do not rewrite a strict PIO exchange as `async def` merely to create an async API.
 - CPU-heavy helpers such as ML inference/training, image JSON parsing, or framebuffer transforms need explicit cooperative checkpoints in outer loops; never present them as I/O-native async.
 
 Example:
@@ -272,14 +281,15 @@ async def read_value_async(self, timeout_ms: int = 1000) -> tuple:
 
 ### Sync adapter only
 
-Use this path when only short bounded operations exist.
+Use this path when an API has only finite synchronous operations and no safe protocol-level yield point.
 
 Rules:
 
 - Keep async methods explicit about residual blocking.
 - Do not wrap long operations.
 - Prefer names like `read_once_async()` over names that imply continuous non-blocking streams.
-- If operation duration cannot be bounded, classify it as `not_async_safe`.
+- Record whether the blocking budget is measured, bounded by protocol evidence, or hardware-unverified. A hardware-unverified short transaction remains `sync_adapter_only`; do not fabricate a timeout or maximum duration.
+- Classify as `not_async_safe` only when evidence shows an operation is long or unbounded and cannot be split, constrained, or moved behind a real hardware event boundary.
 
 ### Not async safe
 
@@ -312,6 +322,8 @@ The output README must include:
 11. Sync-to-async behavior mapping: frames/commands, timeout, framing or silence-gap behavior, response/ACK rules, and errors.
 12. Hardware acceptance level: link, basic function, and complete business flow, including uncovered prerequisites.
 13. API async-level matrix and, where applicable, `sync_adapter_only` blocking budget and UART concurrency contract.
+
+For packages with a `sync_adapter_only` row, distinguish `measured`, `protocol-bounded`, and `hardware timing unverified` residual blocking. The last state is a hardware-test requirement, not permission to call the operation non-blocking or to relabel it `not_async_safe` without an actual blocker.
 
 For strict timing, UART, protocol fidelity, and dual-endpoint tests, read [timing-uart-and-hardware-validation.md](references/timing-uart-and-hardware-validation.md).
 
@@ -543,21 +555,23 @@ Documentation/report failures:
 4. Confirm hardware/source-driver identity, source completeness, preserve every declared source example as a byte-identical baseline, and inventory existing async features.
 5. Identify bus/protocol/peripheral usage and whether the source package is already async.
 6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
-7. Build an async feasibility table and behavior mapping per public method.
-8. Choose the generation strategy:
+7. Before writing a facade, inspect every reachable source base class/mixin, constructor, close path, property/descriptor, and callback. Identify synchronous sleeps, property access semantics, bus/Pin ownership, cleanup owner, timeout boundary, and strict-timing sections. Do not call a property as a method, create hardware at module scope, or inherit a blocking lifecycle path without an explicit conversion plan.
+8. Build an async feasibility table and behavior mapping per public method.
+9. Choose the generation strategy:
    - `native_async`
    - `event_bridge`
    - `cooperative_nonblocking`
    - `sync_adapter_only`
    - `not_async_safe`
-9. If `source_incomplete` or `not_async_safe`, stop with a report unless the user explicitly authorizes the documented incomplete/partial scope.
-10. Create the output package directory beside the source package unless the user gave an output path.
-11. Generate async runtime code.
-12. Generate async `code/main.py`.
-13. Generate README, package.json, preserve LICENSE, and complete the demo/API/blocking-budget tables.
-14. Run the four executable async hard gates. Inventory conversion WARN findings, then independently review inherited structural P0 rules without running synchronous `code_checker.py` against the async output.
-15. Report all verification statuses separately, including WARN disposition and structural P0 review.
-16. Summarize files, async level, demo/behavior fidelity, residual blocking, and required hardware tests.
+10. If `source_incomplete` or `not_async_safe`, stop with a report unless the user explicitly authorizes the documented incomplete/partial scope.
+11. Create the output package directory beside the source package unless the user gave an output path.
+12. Generate async runtime code.
+13. Generate async `code/main.py`.
+14. Generate README, package.json, preserve LICENSE, and complete the demo/API/blocking-budget tables.
+15. Run the four executable async hard gates. Inventory conversion WARN findings, then independently review inherited structural P0 rules without running synchronous `code_checker.py` against the async output.
+16. If requested scope forbids a required README, metadata, baseline, or license correction, mark the result `partial_scope`. Do not report `package_fidelity_passed`, `conversion_warnings_reviewed`, or `structural_p0_reviewed` as final for that package.
+17. Report all verification statuses separately, including WARN disposition and structural P0 review.
+18. Summarize files, async level, demo/behavior fidelity, residual blocking, and required hardware tests.
 
 ## Output Summary Format
 
@@ -566,6 +580,7 @@ At the end, report:
 ```text
 Source package:
 Output package:
+Delivery scope: full | partial_scope
 Source state:
 Async level:
 Behavior mapping:

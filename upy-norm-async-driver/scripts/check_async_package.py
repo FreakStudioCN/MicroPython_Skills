@@ -707,7 +707,35 @@ def package_json_checks(package, code_dir, files, findings):
             add(findings, "ERROR", metadata, 1, "PACKAGE_URL_UNMAPPED", f"runtime Python file missing from urls: {relative}")
 
 
-def readme_checks(package, findings, source_incomplete):
+def runtime_uses_uart(trees):
+    """Return whether generated runtime code declares or accesses machine.UART."""
+    machine_names = {"machine"}
+    for tree in trees.values():
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "machine":
+                        machine_names.add(alias.asname or "machine")
+            if isinstance(node, ast.ImportFrom) and node.module == "machine":
+                if any(alias.name == "UART" for alias in node.names):
+                    return True
+    for tree in trees.values():
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Attribute)
+                and node.attr == "UART"
+                and isinstance(node.value, ast.Name)
+                and node.value.id in machine_names
+            ):
+                return True
+    return False
+
+
+def readme_checks(package, trees, findings, source_incomplete):
     readme = package / "README.md"
     if not readme.is_file():
         add(findings, "ERROR", readme, 1, "README_MISSING", "README.md is required")
@@ -733,7 +761,7 @@ def readme_checks(package, findings, source_incomplete):
         )
     if "sync_adapter_only" in text and "## Sync Adapter Blocking Budget" not in text:
         add(findings, "ERROR", readme, 1, "SYNC_ADAPTER_BUDGET", "sync_adapter_only requires a blocking-budget table")
-    if re.search(r"\bUART\b", text) and "## UART Concurrency Contract" not in text:
+    if runtime_uses_uart(trees) and "## UART Concurrency Contract" not in text:
         add(findings, "WARN", readme, 1, "UART_CONCURRENCY_DOC", "UART package should declare its single-reader or lock strategy")
 
 
@@ -776,6 +804,7 @@ def main(argv):
     main_fidelity(package, source, code_dir, trees, findings, examples)
     readme_checks(
         package,
+        trees,
         findings,
         source_incomplete and (args.allow_source_main_missing or args.allow_source_metadata_missing),
     )

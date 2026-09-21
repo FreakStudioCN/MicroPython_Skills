@@ -103,11 +103,11 @@ Every generated README must use these headings and tables:
 | Level | Evidence | Not covered |
 ```
 
-For every `sync_adapter_only` row, include this additional section. A maximum duration needs source code, protocol, or datasheet evidence; an unbounded value is not acceptable.
+For every `sync_adapter_only` row, include this additional section. Record a measured duration, a protocol/source/datasheet bound, or `hardware timing unverified`. Missing a measurement alone does not make a finite register transaction `not_async_safe`; it remains a documented residual blocking boundary until tested. Do not invent a timeout or maximum duration. Reserve `not_async_safe` for a demonstrated long or unbounded operation that cannot be safely split or constrained.
 
 ```markdown
 ## Sync Adapter Blocking Budget
-| API | Synchronous region | Blocking source | Maximum duration and evidence | Timeout | Allowed on main event loop |
+| API | Synchronous region | Blocking source | Blocking budget and evidence | Cancellation boundary | Event-loop impact |
 ```
 
 ## UART Concurrency Contract
