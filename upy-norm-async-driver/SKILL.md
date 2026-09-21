@@ -433,6 +433,8 @@ python ../upy-norm-pkg/scripts/check_package_metadata.py <output-package-dir>
 
 Do not run a synchronous source-repository `code_checker.py` against the async output. It may require blocking startup delays or synchronous main-loop structure that conflicts with this skill. Use it only to assess the untouched synchronous source package when that source workflow requires it.
 
+`check_async_driver.py` may emit WARN findings for patterns that need hardware or architecture context, such as multiple UART readers or PIO FIFO loops. A zero exit code means no ERROR, not that WARN findings are harmless. Inventory every WARN in the final report with its disposition: fixed, verified safe with evidence, or residual risk. For a no-warning batch audit, run `python scripts/check_async_driver.py --warn-as-error <output-package-dir>`; do not suppress warnings to claim production readiness.
+
 For an explicitly authorized incomplete source only:
 
 ```bash
@@ -477,11 +479,15 @@ Report these independently. Do not describe a package as formally async-safe mer
 
 | Status | Meaning |
 |---|---|
-| `runtime_syntax_passed` | `check_async_driver.py` passed: every generated runtime `.py` file parsed and no conversion hazard was detected. |
+| `runtime_syntax_passed` | `check_async_driver.py` passed: every generated runtime `.py` file compiled and no conversion ERROR was detected. WARN findings are reported separately. |
 | `package_fidelity_passed` | `check_async_package.py` passed: source mapping, baselines, dependency closure, output files, and package metadata are consistent. |
 | `semantic_static_clean` | `check_async_semantics.py` passed: no detected lifecycle, callback, task, or import-structure violation. |
 | `metadata_license_passed` | `check_package_metadata.py` passed: README and LICENSE attribution are present and consistent. |
+| `conversion_warnings_reviewed` | Every `check_async_driver.py` WARN is fixed, verified safe with evidence, or recorded as residual risk. A WARN-free package is the strongest result. |
+| `structural_p0_reviewed` | The generated package was independently reviewed against inherited `upy-norm-driver` P0 rules for file structure, injection, annotations, validation, error context, IRQ boundaries, and public API/timing preservation. This is not satisfied by synchronous `code_checker.py`. |
 | `hardware_verified` | Hardware link, basic operation, and complete business flow were tested and recorded. |
+
+`runtime_syntax_passed`, `package_fidelity_passed`, `semantic_static_clean`, and `metadata_license_passed` are the four executable async hard gates. They do not prove all inherited P0 structure rules. After those gates pass, review the generated runtime files against the sibling `upy-norm-driver` P0 checklist. Do not change public APIs, protocol order, register values, or timing merely to satisfy structural conventions; record any justified exception.
 
 Lifecycle failures:
 
@@ -549,8 +555,9 @@ Documentation/report failures:
 11. Generate async runtime code.
 12. Generate async `code/main.py`.
 13. Generate README, package.json, preserve LICENSE, and complete the demo/API/blocking-budget tables.
-14. Run package, async hazard, and semantic static gates; report the three verification statuses separately.
-15. Summarize files, async level, demo/behavior fidelity, residual blocking, and required hardware tests.
+14. Run the four executable async hard gates. Inventory conversion WARN findings, then independently review inherited structural P0 rules without running synchronous `code_checker.py` against the async output.
+15. Report all verification statuses separately, including WARN disposition and structural P0 review.
+16. Summarize files, async level, demo/behavior fidelity, residual blocking, and required hardware tests.
 
 ## Output Summary Format
 
@@ -565,6 +572,8 @@ Behavior mapping:
 Generated files:
 Updated docs:
 Static gates:
+Conversion WARN review:
+Structural P0 review:
 Residual blocking:
 Hardware acceptance:
 Next recommended test:
