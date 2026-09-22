@@ -97,7 +97,7 @@ Rules:
 - `LICENSE` must be preserved from the source package unless the source license requires different handling.
 - Generated MicroPython `.py` files must be UTF-8 without BOM.
 
-Generated Python files must still follow the GraftSense driver file rules inherited from `upy-norm-driver`: seven-line header, module globals, six top-level sections, MicroPython-safe annotations, dependency injection, English raise/print strings, Chinese standalone comments, bounded polling, wrapped `OSError`, and `deinit()`/`aclose()` cleanup.
+Preserve the operational GraftSense driver requirements inherited from `upy-norm-driver`: MicroPython-safe runtime syntax, dependency injection, bounded polling, error context, IRQ boundaries, public API/timing preservation, and `deinit()`/`aclose()` cleanup. Seven-line headers, six top-level sections, comment language, and equivalent presentation conventions are style recommendations unless the user explicitly asks for full source-style normalization; they must not block an otherwise safe async conversion.
 
 ## Async Level Classification
 
@@ -123,6 +123,18 @@ First classify the source state:
 
 Show an API async-level matrix in every README. A single-row matrix is sufficient for a uniform package; methods with different blocking models must be separate rows.
 
+### Conversion decision
+
+Choose one package-level result before modifying code. The result may differ from the level of individual APIs.
+
+| Decision | When to use it | Output |
+|---|---|---|
+| `converted` | At least one public path has a safe async boundary and the package can expose it honestly. | An async package with a per-API matrix. It may still contain explicitly documented synchronous primitives. |
+| `coordinator_only` | Hardware work remains strict/synchronous, but a real completion, ready, IRQ, DMA, or queue event can be awaited safely. | A package that preserves the synchronous primitive and exposes only the async coordinator/wait API. |
+| `no_async_variant` | No safe yield/event boundary exists, or conversion would alter strict protocol timing. | Do not generate a misleading `_async_driver`; return a blocker report with evidence, unchanged source API, and the hardware/design condition required for reconsideration. |
+
+`no_async_variant` is a valid successful assessment, not a failed conversion. In particular, PIO, OneWire, NeoPixel, HX711, DHT pulse capture, and optimized timing code do not require an async wrapper merely because the source package was submitted to this skill.
+
 Before classifying, inventory source `async def`, tasks, events/IRQs, locks, stream wrappers, and lifecycle methods. Reuse and harden a compatible async implementation; do not wrap it a second time.
 
 Important classification examples from local GraftSense drivers:
@@ -147,6 +159,24 @@ Do not infer `not_async_safe` solely because a device transaction has no hardwar
 - Use `not_async_safe` only with evidence of a non-eliminable long or unbounded operation, such as a whole-frame flush, storage erase, card-busy wait, indefinite FIFO wait, or protocol sequence that cannot yield or be bounded safely.
 - A synchronous hardware primitive can remain in an async package as an explicitly documented residual boundary. It does not require a fabricated async implementation.
 - PIO, OneWire, NeoPixel, HX711, DHT pulse capture, `@micropython.native`, and `@micropython.viper` paths with strict timing are allowed to remain synchronous. Add async only around a separate readiness wait, queue, DMA/IRQ completion event, retry backoff, or outer repeated-operation loop. If no such boundary exists, keep the driver synchronous or report a partial/non-async-safe API rather than inserting `await` into the critical path.
+
+### Runtime roles for preserved source code
+
+An async output may preserve synchronous source modules when preserving them is necessary for compatibility. Declare only exceptional retained modules in optional `async_runtime_roles.json`; undeclared `code/**/*.py` files remain `async_runtime`.
+
+```json
+{
+  "roles": {
+    "compat_sync.py": "sync_compatibility"
+  }
+}
+```
+
+- `async_runtime`: must pass all async semantic checks.
+- `sync_compatibility`: may retain synchronous lifecycle/timing behavior, but may not define `async def` and must not be reachable from an async runtime module. It is not an async public API.
+- `examples/*_sync.py` remain immutable baselines and are not runtime roles.
+
+Use this declaration only for a genuine compatibility boundary, not to suppress a blocking path used by `main.py`, an async facade, or an async public method. The semantic checker rejects direct and transitive internal imports from `async_runtime` to `sync_compatibility`.
 
 ## Source Search Policy
 
@@ -263,7 +293,7 @@ Rules:
 - For display or LED refresh helpers, use explicit names such as `show_async()`, `fill_async()`, or `play_async()` and accept `chunk_pixels`, `chunk_rows`, or `yield_every` options. Do not hide async flushing behind property setters or `auto_write=True`.
 - Do not convert `@micropython.native`, `@micropython.viper`, or timing-critical optimized functions directly to `async def`. Wrap them from an async coordinator when needed.
 - Timer-driven schedulers, button FSMs, watchdogs, and waveform generators are callback systems, not uasyncio by default. Convert them by signaling async tasks, not by running user callbacks or I2C/SPI writes from hard/soft timer context.
-- For RP2 DMA/PIO, hard IRQ handlers only signal completion, transfer buffers must stay alive until completion, and `StateMachine.put/get` loops need FIFO readiness, a real bounded wait, or documented residual blocking. Do not rewrite a strict PIO exchange as `async def` merely to create an async API.
+- For RP2 DMA/PIO, hard IRQ handlers only signal completion, transfer buffers must stay alive until completion, and `StateMachine.put/get` loops need FIFO readiness, a real bounded wait, or documented residual blocking. Do not rewrite a strict PIO exchange as `async def` merely to create an async API; choose `coordinator_only` or `no_async_variant` where no honest boundary exists.
 - CPU-heavy helpers such as ML inference/training, image JSON parsing, or framebuffer transforms need explicit cooperative checkpoints in outer loops; never present them as I/O-native async.
 
 Example:
@@ -445,7 +475,7 @@ python ../upy-norm-pkg/scripts/check_package_metadata.py <output-package-dir>
 
 Do not run a synchronous source-repository `code_checker.py` against the async output. It may require blocking startup delays or synchronous main-loop structure that conflicts with this skill. Use it only to assess the untouched synchronous source package when that source workflow requires it.
 
-`check_async_driver.py` may emit WARN findings for patterns that need hardware or architecture context, such as multiple UART readers or PIO FIFO loops. A zero exit code means no ERROR, not that WARN findings are harmless. Inventory every WARN in the final report with its disposition: fixed, verified safe with evidence, or residual risk. For a no-warning batch audit, run `python scripts/check_async_driver.py --warn-as-error <output-package-dir>`; do not suppress warnings to claim production readiness.
+`check_async_driver.py` may emit WARN findings for patterns that need hardware or architecture context, such as multiple UART readers or PIO FIFO loops. IRQ/Timer I/O warnings are produced only for callbacks discovered at actual `.irq(...)` or `Timer.init(callback=...)` registration sites; a public method whose name merely contains `interrupt` is not an IRQ finding. A zero exit code means no ERROR, not that WARN findings are harmless. Inventory every WARN in the final report with its disposition: fixed, verified safe with evidence, or residual risk. For a no-warning batch audit, run `python scripts/check_async_driver.py --warn-as-error <output-package-dir>`; do not suppress warnings to claim production readiness.
 
 For an explicitly authorized incomplete source only:
 
@@ -496,10 +526,11 @@ Report these independently. Do not describe a package as formally async-safe mer
 | `semantic_static_clean` | `check_async_semantics.py` passed: no detected lifecycle, callback, task, or import-structure violation. |
 | `metadata_license_passed` | `check_package_metadata.py` passed: README and LICENSE attribution are present and consistent. |
 | `conversion_warnings_reviewed` | Every `check_async_driver.py` WARN is fixed, verified safe with evidence, or recorded as residual risk. A WARN-free package is the strongest result. |
-| `structural_p0_reviewed` | The generated package was independently reviewed against inherited `upy-norm-driver` P0 rules for file structure, injection, annotations, validation, error context, IRQ boundaries, and public API/timing preservation. This is not satisfied by synchronous `code_checker.py`. |
+| `structural_p0_reviewed` | The generated package was independently reviewed for applicable operational P0 rules: injection, validation, error context, IRQ boundaries, resource ownership, and public API/timing preservation. This is not satisfied by synchronous `code_checker.py`; header and section formatting are advisory unless explicitly requested. |
+| `style_advisory_reviewed` | Optional report of file headers, section markers, comment style, and other presentation conventions. It never substitutes for, or blocks, the async safety statuses. |
 | `hardware_verified` | Hardware link, basic operation, and complete business flow were tested and recorded. |
 
-`runtime_syntax_passed`, `package_fidelity_passed`, `semantic_static_clean`, and `metadata_license_passed` are the four executable async hard gates. They do not prove all inherited P0 structure rules. After those gates pass, review the generated runtime files against the sibling `upy-norm-driver` P0 checklist. Do not change public APIs, protocol order, register values, or timing merely to satisfy structural conventions; record any justified exception.
+`runtime_syntax_passed`, `package_fidelity_passed`, `semantic_static_clean`, and `metadata_license_passed` are the four executable async hard gates. They do not prove source/API preservation or hardware behavior. After those gates pass, review applicable operational P0 rules; do not change public APIs, protocol order, register values, or timing merely to satisfy structural conventions. File headers and section layout are advisory unless explicitly in scope.
 
 Lifecycle failures:
 
@@ -556,14 +587,14 @@ Documentation/report failures:
 5. Identify bus/protocol/peripheral usage and whether the source package is already async.
 6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
 7. Before writing a facade, inspect every reachable source base class/mixin, constructor, close path, property/descriptor, and callback. Identify synchronous sleeps, property access semantics, bus/Pin ownership, cleanup owner, timeout boundary, and strict-timing sections. Do not call a property as a method, create hardware at module scope, or inherit a blocking lifecycle path without an explicit conversion plan.
-8. Build an async feasibility table and behavior mapping per public method.
-9. Choose the generation strategy:
+8. Build an async feasibility table and behavior mapping per public method, then record `converted`, `coordinator_only`, or `no_async_variant` as the package decision.
+9. Choose the generation strategy for each eligible API:
    - `native_async`
    - `event_bridge`
    - `cooperative_nonblocking`
    - `sync_adapter_only`
    - `not_async_safe`
-10. If `source_incomplete` or `not_async_safe`, stop with a report unless the user explicitly authorizes the documented incomplete/partial scope.
+10. If the decision is `no_async_variant`, stop with the blocker report. If `source_incomplete` or an API is `not_async_safe`, stop that API/package unless the user explicitly authorizes a documented incomplete/partial scope.
 11. Create the output package directory beside the source package unless the user gave an output path.
 12. Generate async runtime code.
 13. Generate async `code/main.py`.
@@ -589,6 +620,7 @@ Updated docs:
 Static gates:
 Conversion WARN review:
 Structural P0 review:
+Style advisory review:
 Residual blocking:
 Hardware acceptance:
 Next recommended test:

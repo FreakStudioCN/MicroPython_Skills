@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import os
 import sys
 from dataclasses import dataclass
@@ -56,6 +57,96 @@ def audit_files(package):
     if examples.is_dir():
         files.extend(sorted(examples.rglob("*_async.py")))
     return files
+
+
+def code_module_name(code_dir, path):
+    relative = path.relative_to(code_dir).with_suffix("")
+    parts = list(relative.parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+def load_runtime_roles(package, code_files, findings):
+    """Load optional roles for retained synchronous compatibility modules."""
+    roles = {path: "async_runtime" for path in code_files}
+    manifest = package / "async_runtime_roles.json"
+    if not manifest.is_file():
+        return roles
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        add(findings, "ERROR", manifest, manifest, "RUNTIME_ROLES_INVALID", str(exc))
+        return roles
+    declared = data.get("roles") if isinstance(data, dict) else None
+    if not isinstance(declared, dict):
+        add(findings, "ERROR", manifest, manifest, "RUNTIME_ROLES_INVALID", "roles must be an object of code-relative paths")
+        return roles
+    code_dir = package / "code"
+    known = {path.relative_to(code_dir).as_posix(): path for path in code_files}
+    for relative, role in declared.items():
+        if role not in {"async_runtime", "sync_compatibility"}:
+            add(findings, "ERROR", manifest, manifest, "RUNTIME_ROLE_UNKNOWN", f"unsupported runtime role for {relative}: {role}")
+            continue
+        path = known.get(relative)
+        if path is None:
+            add(findings, "ERROR", manifest, manifest, "RUNTIME_ROLE_PATH", f"role path is not a code/*.py runtime file: {relative}")
+            continue
+        if path.name == "main.py" and role == "sync_compatibility":
+            add(findings, "ERROR", manifest, manifest, "RUNTIME_ROLE_ENTRY", "code/main.py must remain async_runtime")
+            continue
+        roles[path] = role
+    return roles
+
+
+def imported_internal_modules(code_dir, path, tree, modules):
+    current = code_module_name(code_dir, path).split(".")
+    targets = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        if isinstance(node, ast.Import):
+            candidates = [alias.name for alias in node.names]
+        else:
+            if node.level:
+                base = current[:-1]
+                if node.level > 1:
+                    base = base[: 1 - node.level]
+                prefix = ".".join(base + ([node.module] if node.module else []))
+            else:
+                prefix = node.module or ""
+            candidates = [prefix]
+            if prefix:
+                candidates.extend(f"{prefix}.{alias.name}" for alias in node.names)
+        for candidate in candidates:
+            if candidate in modules:
+                targets.add(candidate)
+    return targets
+
+
+def compatibility_reachability(package, trees, roles, findings):
+    code_dir = package / "code"
+    code_trees = {path: tree for path, tree in trees.items() if path.is_relative_to(code_dir) and tree is not None}
+    modules = {code_module_name(code_dir, path): path for path in code_trees}
+    graph = {
+        module: imported_internal_modules(code_dir, path, tree, modules)
+        for module, (path, tree) in ((code_module_name(code_dir, path), (path, tree)) for path, tree in code_trees.items())
+    }
+    compatibility = {code_module_name(code_dir, path) for path, role in roles.items() if role == "sync_compatibility"}
+    for module, path in modules.items():
+        if roles.get(path) != "async_runtime":
+            continue
+        pending = list(graph[module])
+        visited = set()
+        while pending:
+            target = pending.pop()
+            if target in visited:
+                continue
+            visited.add(target)
+            if target in compatibility:
+                add(findings, "ERROR", path, trees[path], "SYNC_COMPAT_REACHABLE", f"async runtime module '{module}' imports sync_compatibility module '{target}'")
+                continue
+            pending.extend(graph.get(target, ()))
 
 
 def is_asyncio_run_main(node):
@@ -181,7 +272,11 @@ def callback_findings(path, node, findings, label):
     return scheduled
 
 
-def audit_tree(path, tree, findings):
+def audit_tree(path, tree, findings, role):
+    if role == "sync_compatibility":
+        if any(isinstance(node, ast.AsyncFunctionDef) for node in ast.walk(tree)):
+            add(findings, "ERROR", path, tree, "SYNC_COMPAT_ASYNC_DEF", "sync_compatibility modules must not define async functions")
+        return
     functions = function_nodes(tree)
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -221,16 +316,16 @@ def audit_tree(path, tree, findings):
                 add(findings, "ERROR", path, main_node, "ASYNC_ENTRY_NO_FINALLY", "async entry must clean up in try/finally")
 
 
-def parse_and_audit(path, findings):
+def parse_tree(path, findings):
     try:
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
     except (OSError, SyntaxError, UnicodeDecodeError) as exc:
         add(findings, "ERROR", path, exc, "SEMANTIC_PARSE", str(exc))
-        return
+        return None
     for node in ast.walk(tree):
         for child in ast.iter_child_nodes(node):
             child.parent = node
-    audit_tree(path, tree, findings)
+    return tree
 
 
 def main(argv):
@@ -245,8 +340,13 @@ def main(argv):
     findings = []
     if not files:
         add(findings, "ERROR", package, package, "SEMANTIC_RUNTIME_EMPTY", "package has no code/**/*.py files")
-    for path in files:
-        parse_and_audit(path, findings)
+    code_files = [path for path in files if path.is_relative_to(package / "code")]
+    roles = load_runtime_roles(package, code_files, findings)
+    trees = {path: parse_tree(path, findings) for path in files}
+    compatibility_reachability(package, trees, roles, findings)
+    for path, tree in trees.items():
+        if tree is not None:
+            audit_tree(path, tree, findings, roles.get(path, "async_runtime"))
     findings.sort(key=lambda item: (str(item.path), item.line, item.code))
     for item in findings:
         try:
@@ -255,7 +355,8 @@ def main(argv):
             path = item.path
         print(f"{item.severity} {path}:{item.line} {item.code}: {item.message}")
     errors = [item for item in findings if item.severity == "ERROR"]
-    print(f"Audited {len(files)} async Python file(s); findings={len(findings)}, errors={len(errors)}")
+    async_count = sum(1 for path in files if roles.get(path, "async_runtime") == "async_runtime")
+    print(f"Audited {async_count} async runtime Python file(s), parsed {len(files)} total; findings={len(findings)}, errors={len(errors)}")
     return 1 if errors else 0
 
 

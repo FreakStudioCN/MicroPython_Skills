@@ -126,6 +126,21 @@ def source_segment(source: str, node: ast.AST) -> str:
         return ""
 
 
+def callback_name(node: ast.AST | None) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return ""
+
+
+def callback_value(call: ast.Call, keyword_name: str) -> ast.AST | None:
+    for keyword in call.keywords:
+        if keyword.arg == keyword_name:
+            return keyword.value
+    return call.args[0] if call.args else None
+
+
 class Checker(ast.NodeVisitor):
     def __init__(self, path: Path, source: str):
         self.path = path
@@ -133,6 +148,7 @@ class Checker(ast.NodeVisitor):
         self.findings: list[Finding] = []
         self.stack: list[ast.AST] = []
         self.uart_readers: dict[str, list[tuple[str, ast.Call]]] = {}
+        self.callback_names: set[str] = set()
 
     def add(self, severity: str, node: ast.AST, code: str, message: str) -> None:
         self.findings.append(
@@ -187,17 +203,33 @@ class Checker(ast.NodeVisitor):
                     f"{receiver} is directly read by multiple async methods ({', '.join(sorted(methods))}); verify one-reader or lock contract",
                 )
 
+    def register_callbacks(self, tree: ast.AST) -> None:
+        """Collect callbacks from actual IRQ/Timer registration sites.
+
+        A method named ``interrupt`` is not necessarily a callback. Restrict
+        IRQ work heuristics to functions that are actually registered.
+        """
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr == "irq":
+                name = callback_name(callback_value(node, "handler"))
+            elif node.func.attr == "init":
+                name = callback_name(callback_value(node, "callback"))
+            else:
+                continue
+            if name:
+                self.callback_names.add(name)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        lname = node.name.lower()
-        looks_like_irq = any(k in lname for k in ("irq", "interrupt", "timer", "callback", "handler"))
-        if looks_like_irq:
+        if node.name in self.callback_names:
             for child in ast.walk(node):
                 if isinstance(child, ast.Call):
                     name = call_name(child.func)
                     if name == "print":
-                        self.add("WARN", child, "IRQ_PRINT", "callback/IRQ-like function prints")
+                        self.add("WARN", child, "IRQ_PRINT", "registered IRQ/Timer callback prints")
                     if any(part in name for part in IRQ_IO_PATTERNS):
-                        self.add("WARN", child, "IRQ_IO", "callback/IRQ-like function performs I/O or allocation-heavy work")
+                        self.add("WARN", child, "IRQ_IO", "registered IRQ/Timer callback performs I/O or allocation-heavy work")
 
         decos = {decorator_name(d) for d in node.decorator_list}
         if "micropython.native" in decos or "micropython.viper" in decos:
@@ -259,6 +291,7 @@ def check_file(path: Path) -> list[Finding]:
         return findings
 
     checker = Checker(path, source)
+    checker.register_callbacks(tree)
     checker.visit(tree)
     checker.check_uart_readers()
     findings.extend(checker.findings)
