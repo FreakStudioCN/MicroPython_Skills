@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 import sys
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,6 +21,8 @@ EXTERNAL_MODULES = {
     "uos", "uselect", "usocket", "ussl", "utime",
 }
 SKIP_RUNTIME = {"main.py", "__pycache__"}
+SOURCE_BLOCKING_CALLS = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms", "sleep_ms", "sleep_us"}
+SYNC_DELEGATE_ATTRIBUTES = {"_sync", "_source", "_driver", "_base", "_device"}
 
 
 @dataclass
@@ -65,6 +68,46 @@ def read_tree(path, findings):
         add(findings, "ERROR", path, exc.lineno or 1, "PYTHON_SYNTAX", exc.msg)
     except OSError as exc:
         add(findings, "ERROR", path, 1, "PYTHON_READ", str(exc))
+    return None
+
+
+def read_source_tree(path, findings, allow_legacy_syntax, source_context):
+    """Parse a source file, optionally translating legacy syntax in memory only."""
+    cache = source_context.setdefault("source_tree_cache", {})
+    if path in cache:
+        return cache[path]
+    try:
+        raw = path.read_bytes()
+        text = raw.decode("utf-8-sig", errors="replace")
+        tree = ast.parse(text)
+        cache[path] = tree
+        return tree
+    except SyntaxError as exc:
+        source_context["legacy_syntax"] = True
+        if not allow_legacy_syntax:
+            add(findings, "ERROR", path, exc.lineno or 1, "SOURCE_LEGACY_SYNTAX", "source syntax requires --allow-source-legacy-syntax with a README declaration")
+            cache[path] = None
+            return None
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", PendingDeprecationWarning)
+                from lib2to3.refactor import RefactoringTool, get_fixers_from_package
+
+                tool = RefactoringTool(get_fixers_from_package("lib2to3.fixes"), explicit=True)
+                translated = str(tool.refactor_string(text, str(path)))
+            tree = ast.parse(translated)
+        except (ImportError, SyntaxError, ValueError, TypeError) as legacy_exc:
+            source_context["legacy_unparseable"] = True
+            add(findings, "WARN", path, exc.lineno or 1, "SOURCE_LEGACY_UNPARSEABLE", f"legacy source could not be parsed in memory: {legacy_exc}")
+            cache[path] = None
+            return None
+        source_context["legacy_translated"] = True
+        add(findings, "WARN", path, exc.lineno or 1, "SOURCE_LEGACY_SYNTAX", "source parsed through an in-memory legacy syntax translation; source fidelity is partial")
+        cache[path] = tree
+        return tree
+    except OSError as exc:
+        add(findings, "ERROR", path, 1, "PYTHON_READ", str(exc))
+        cache[path] = None
     return None
 
 
@@ -430,13 +473,16 @@ def constructed_driver_methods(main_tree, output_modules, output_trees, code_dir
     return methods
 
 
-def source_dependency_checks(source, code_dir, output_trees, findings, sync_example, async_example, async_tree):
+def source_dependency_checks(source, code_dir, output_trees, findings, sync_example, async_example, async_tree, allow_legacy_syntax, source_context):
     """Check one declared source example's local-import closure and API fidelity."""
     if not sync_example.is_file() or not async_example.is_file():
         return
     source_dir = source_code_dir(source)
     source_files = runtime_files(source_dir)
-    source_trees = {path: read_tree(path, findings) for path in source_files}
+    source_trees = {
+        path: read_source_tree(path, findings, allow_legacy_syntax, source_context)
+        for path in source_files
+    }
     source_modules = {module_name(source_dir, path): path for path in source_trees}
     output_modules = {module_name(code_dir, path): path for path in output_trees}
     output_symbols = {
@@ -530,6 +576,83 @@ def source_dependency_checks(source, code_dir, output_trees, findings, sync_exam
         add(findings, "ERROR", async_example, 1, "EXAMPLE_DRIVER_API_FIDELITY", "async example omits source driver API call(s): " + ", ".join(sorted(missing_methods)))
 
 
+def source_methods_with_blocking_waits(source_trees):
+    """Return source method names that directly or transitively call blocking waits."""
+    functions = {}
+    for tree in source_trees.values():
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions.setdefault(node.name, []).append(node)
+    blocked = {
+        name
+        for name, nodes in functions.items()
+        if any(
+            call_name(call.func) in SOURCE_BLOCKING_CALLS
+            for node in nodes
+            for call in ast.walk(node)
+            if isinstance(call, ast.Call)
+        )
+    }
+    changed = True
+    while changed:
+        changed = False
+        for name, nodes in functions.items():
+            if name in blocked:
+                continue
+            if any(
+                call_name(call.func).rsplit(".", 1)[-1] in blocked
+                for node in nodes
+                for call in ast.walk(node)
+                if isinstance(call, ast.Call)
+            ):
+                blocked.add(name)
+                changed = True
+    return blocked
+
+
+def is_sync_delegate(call):
+    if not isinstance(call.func, ast.Attribute):
+        return False
+    receiver = call.func.value
+    if isinstance(receiver, ast.Call) and isinstance(receiver.func, ast.Name) and receiver.func.id == "super":
+        return True
+    if isinstance(receiver, ast.Attribute) and isinstance(receiver.value, ast.Name) and receiver.value.id == "self":
+        return receiver.attr in SYNC_DELEGATE_ATTRIBUTES
+    return False
+
+
+def async_delegation_checks(source, code_dir, output_trees, findings, allow_legacy_syntax, source_context):
+    """Reject async facades that delegate to source methods with blocking waits."""
+    source_trees = {
+        path: read_source_tree(path, findings, allow_legacy_syntax, source_context)
+        for path in runtime_files(source_code_dir(source))
+    }
+    blocked = source_methods_with_blocking_waits(source_trees)
+    if not blocked:
+        return
+    for path, tree in output_trees.items():
+        if path == code_dir / "main.py" or tree is None:
+            continue
+        for method in ast.walk(tree):
+            if not isinstance(method, ast.AsyncFunctionDef):
+                continue
+            for call in ast.walk(method):
+                if not isinstance(call, ast.Call) or not is_sync_delegate(call):
+                    continue
+                target = call.func.attr
+                if target in blocked:
+                    add(
+                        findings,
+                        "ERROR",
+                        path,
+                        call.lineno,
+                        "ASYNC_DELEGATES_BLOCKING_SOURCE",
+                        f"async method '{method.name}' delegates to source '{target}()', which contains a blocking wait; split the wait into cooperative steps",
+                    )
+
+
 def machine_calls(tree):
     if tree is None:
         return set()
@@ -610,13 +733,13 @@ def async_example_checks(async_example, code_dir, trees, findings):
         add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_CALL", "async example imports an internal driver but does not call its API")
 
 
-def example_fidelity(package, source, code_dir, trees, findings, example):
+def example_fidelity(package, source, code_dir, trees, findings, example, allow_legacy_syntax, source_context):
     """Validate the baseline, hardware construction, and behavior of one mapping."""
     sync_example = source / example.source
     async_example = package / example.async_example
     if not sync_example.is_file() or not async_example.is_file():
         return
-    source_tree = read_tree(sync_example, findings)
+    source_tree = read_source_tree(sync_example, findings, allow_legacy_syntax, source_context)
     async_tree = trees.get(async_example) or read_tree(async_example, findings)
     if async_tree is None:
         return
@@ -628,10 +751,21 @@ def example_fidelity(package, source, code_dir, trees, findings, example):
     missing_hardware = required_hardware - async_hardware
     if missing_hardware:
         add(findings, "ERROR", async_example, 1, "EXAMPLE_HARDWARE_FIDELITY", "async example omits source hardware constructor(s): " + ", ".join(sorted(missing_hardware)))
-    source_dependency_checks(source, code_dir, trees, findings, sync_example, async_example, async_tree)
+    source_dependency_checks(
+        source,
+        code_dir,
+        trees,
+        findings,
+        sync_example,
+        async_example,
+        async_tree,
+        allow_legacy_syntax,
+        source_context,
+    )
 
 
-def main_fidelity(package, source, code_dir, trees, findings, examples=None):
+def main_fidelity(package, source, code_dir, trees, findings, examples=None, allow_legacy_syntax=False, source_context=None):
+    source_context = source_context if source_context is not None else {}
     main_path = code_dir / "main.py"
     if not main_path.is_file():
         add(findings, "ERROR", main_path, 1, "MAIN_MISSING", "code/main.py is required")
@@ -670,10 +804,19 @@ def main_fidelity(package, source, code_dir, trees, findings, examples=None):
             add(findings, "ERROR", baseline, 1, "SYNC_BASELINE_MISSING", "examples/main_sync.py must preserve the source synchronous main.py")
         elif hashlib.sha256(sync_main.read_bytes()).digest() != hashlib.sha256(baseline.read_bytes()).digest():
             add(findings, "ERROR", baseline, 1, "SYNC_BASELINE_CHANGED", "examples/main_sync.py must be byte-identical to source main.py")
-        example_fidelity(package, source, code_dir, trees, findings, SourceExample(sync_main.relative_to(source), Path("examples/main_sync.py"), Path("code/main.py")))
+        example_fidelity(
+            package,
+            source,
+            code_dir,
+            trees,
+            findings,
+            SourceExample(sync_main.relative_to(source), Path("examples/main_sync.py"), Path("code/main.py")),
+            allow_legacy_syntax,
+            source_context,
+        )
         return
     for example in examples:
-        example_fidelity(package, source, code_dir, trees, findings, example)
+        example_fidelity(package, source, code_dir, trees, findings, example, allow_legacy_syntax, source_context)
 
 
 def package_json_checks(package, code_dir, files, findings):
@@ -735,7 +878,7 @@ def runtime_uses_uart(trees):
     return False
 
 
-def readme_checks(package, trees, findings, source_incomplete):
+def readme_checks(package, trees, findings, source_incomplete, source_legacy_syntax):
     readme = package / "README.md"
     if not readme.is_file():
         add(findings, "ERROR", readme, 1, "README_MISSING", "README.md is required")
@@ -759,6 +902,15 @@ def readme_checks(package, trees, findings, source_incomplete):
             "SOURCE_INCOMPLETE_UNDECLARED",
             "an allowed incomplete source requires a Source Incomplete Declaration with the replacement demo/metadata evidence",
         )
+    if source_legacy_syntax and "## Source Legacy Syntax Declaration" not in text:
+        add(
+            findings,
+            "ERROR",
+            readme,
+            1,
+            "SOURCE_LEGACY_UNDECLARED",
+            "an allowed legacy source syntax path requires a Source Legacy Syntax Declaration and partial-fidelity scope",
+        )
     if "sync_adapter_only" in text and "## Sync Adapter Blocking Budget" not in text:
         add(findings, "ERROR", readme, 1, "SYNC_ADAPTER_BUDGET", "sync_adapter_only requires a blocking-budget table")
     if runtime_uses_uart(trees) and "## UART Concurrency Contract" not in text:
@@ -771,6 +923,7 @@ def main(argv):
     parser.add_argument("--source", help="Original synchronous package directory for fidelity and source-completeness checks")
     parser.add_argument("--allow-source-main-missing", action="store_true", help="Allow a source without main.py only for an explicitly declared library-only, partial, or user-specified demo")
     parser.add_argument("--allow-source-metadata-missing", action="store_true", help="Allow a source without package.json only with an explicit README declaration")
+    parser.add_argument("--allow-source-legacy-syntax", action="store_true", help="Allow read-only legacy source syntax only with a README declaration; reports partial source fidelity")
     parser.add_argument("--warn-as-error", action="store_true")
     args = parser.parse_args(argv)
 
@@ -784,6 +937,7 @@ def main(argv):
         return 2
 
     findings = []
+    source_context = {}
     examples = source_example_manifest(package, source, findings)
     source_incomplete = False
     if source is not None:
@@ -801,12 +955,31 @@ def main(argv):
     trees = {path: read_tree(path, findings) for path in files}
     internal_import_checks(code_dir, trees, findings)
     package_json_checks(package, code_dir, files, findings)
-    main_fidelity(package, source, code_dir, trees, findings, examples)
+    main_fidelity(
+        package,
+        source,
+        code_dir,
+        trees,
+        findings,
+        examples,
+        args.allow_source_legacy_syntax,
+        source_context,
+    )
+    if source is not None:
+        async_delegation_checks(
+            source,
+            code_dir,
+            trees,
+            findings,
+            args.allow_source_legacy_syntax,
+            source_context,
+        )
     readme_checks(
         package,
         trees,
         findings,
         source_incomplete and (args.allow_source_main_missing or args.allow_source_metadata_missing),
+        source_context.get("legacy_syntax", False),
     )
 
     findings.sort(key=lambda item: (str(item.path), item.line, item.code))

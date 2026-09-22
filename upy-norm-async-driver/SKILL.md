@@ -112,6 +112,7 @@ First classify the source state:
 | `mixed_source` | Some modules or methods are already async and others are synchronous. | Classify per method; preserve already-async methods while converting only eligible sync methods. |
 | `multi_example_source` | Multiple named runnable source examples represent different roles or business flows. | Require `async_source_examples.json`; map or explicitly exclude every inventoried candidate example. |
 | `source_incomplete` | Source lacks a runnable demo, valid package metadata, or parser evidence needed for the requested conversion. | Stop for evidence by default; continue only under an explicit library-only, partial, or user-specified-demo scope and add `## Source Incomplete Declaration`. |
+| `legacy_source_syntax` | Read-only source uses legacy Python syntax that the normal AST parser cannot read. | Do not edit the source. Stop by default; continue only with explicit `--allow-source-legacy-syntax`, a `## Source Legacy Syntax Declaration`, and `package_fidelity_partial`. |
 
 | Level | Meaning | Typical cases |
 |---|---|---|
@@ -483,6 +484,14 @@ For an explicitly authorized incomplete source only:
 python scripts/check_async_package.py <output-package-dir> --source <source-package-dir> --allow-source-main-missing --allow-source-metadata-missing
 ```
 
+For a read-only legacy source syntax exception only:
+
+```bash
+python scripts/check_async_package.py <output-package-dir> --source <source-package-dir> --allow-source-legacy-syntax
+```
+
+This flag never yields `package_fidelity_passed`. The checker may translate legacy syntax in memory only to inspect imports and symbols; it never writes to the source. The README must contain `## Source Legacy Syntax Declaration` with the affected files, syntax limitation, reason the source remains unchanged, replacement evidence, excluded behavior, and the explicit `package_fidelity_partial` status. Do not combine this exception with a claim that all four executable hard gates passed.
+
 Strong failures inside `async def`:
 
 - `time.sleep(`
@@ -500,6 +509,7 @@ Strong failures inside `async def`:
 - file `open()`, `read()`, `write()`, or JSON image parsing inside async display paths without chunking and residual-blocking documentation
 - `record()`, `play()`, `read_samples()`, `write_samples()` without stream or state-machine design
 - fake wrappers that yield once before blocking
+- an async facade that delegates through `super()` or an explicit `_sync`/`_source`/`_driver`/`_base`/`_device` object to a source method containing synchronous sleep or retry waits
 - strict `isinstance()` checks against `machine` classes where duck typing is enough
 - multiple async methods reading the same UART without one shared reader or lock-protected transaction model
 - multiple `StreamReader`/reader wrappers consuming the same UART/I2S/socket direction
@@ -523,6 +533,7 @@ Report these independently. Do not describe a package as formally async-safe mer
 |---|---|
 | `runtime_syntax_passed` | `check_async_driver.py` passed: every generated runtime `.py` file compiled and no conversion ERROR was detected. WARN findings are reported separately. |
 | `package_fidelity_passed` | `check_async_package.py` passed: source mapping, baselines, dependency closure, output files, and package metadata are consistent. |
+| `package_fidelity_partial` | An explicitly authorized `legacy_source_syntax` or `source_incomplete` exception left part of source parsing or behavior mapping unverifiable. It is not interchangeable with `package_fidelity_passed`. |
 | `semantic_static_clean` | `check_async_semantics.py` passed: no detected lifecycle, callback, task, or import-structure violation. |
 | `metadata_license_passed` | `check_package_metadata.py` passed: README and LICENSE attribution are present and consistent. |
 | `conversion_warnings_reviewed` | Every `check_async_driver.py` WARN is fixed, verified safe with evidence, or recorded as residual risk. A WARN-free package is the strongest result. |
@@ -530,7 +541,7 @@ Report these independently. Do not describe a package as formally async-safe mer
 | `style_advisory_reviewed` | Optional report of file headers, section markers, comment style, and other presentation conventions. It never substitutes for, or blocks, the async safety statuses. |
 | `hardware_verified` | Hardware link, basic operation, and complete business flow were tested and recorded. |
 
-`runtime_syntax_passed`, `package_fidelity_passed`, `semantic_static_clean`, and `metadata_license_passed` are the four executable async hard gates. They do not prove source/API preservation or hardware behavior. After those gates pass, review applicable operational P0 rules; do not change public APIs, protocol order, register values, or timing merely to satisfy structural conventions. File headers and section layout are advisory unless explicitly in scope.
+`runtime_syntax_passed`, `package_fidelity_passed`, `semantic_static_clean`, and `metadata_license_passed` are the four executable async hard gates. A package with `package_fidelity_partial` has only three fully passing executable gates and must not be presented as fully normalized. These gates do not prove source/API preservation or hardware behavior. After they pass, review applicable operational P0 rules; do not change public APIs, protocol order, register values, or timing merely to satisfy structural conventions. File headers and section layout are advisory unless explicitly in scope.
 
 Lifecycle failures:
 
@@ -587,6 +598,7 @@ Documentation/report failures:
 5. Identify bus/protocol/peripheral usage and whether the source package is already async.
 6. Search official docs, `micropython-lib`, `awesome-micropython`, and local examples for matching async patterns.
 7. Before writing a facade, inspect every reachable source base class/mixin, constructor, close path, property/descriptor, and callback. Identify synchronous sleeps, property access semantics, bus/Pin ownership, cleanup owner, timeout boundary, and strict-timing sections. Do not call a property as a method, create hardware at module scope, or inherit a blocking lifecycle path without an explicit conversion plan.
+   - For each public async facade method that delegates to a source method, trace the source call path. A source fixed delay, retry wait, polling loop, sample loop, or blocking reader must be converted into a source-order-preserving cooperative state machine; a single short bus transaction may remain a documented residual boundary.
 8. Build an async feasibility table and behavior mapping per public method, then record `converted`, `coordinator_only`, or `no_async_variant` as the package decision.
 9. Choose the generation strategy for each eligible API:
    - `native_async`
@@ -618,6 +630,7 @@ Behavior mapping:
 Generated files:
 Updated docs:
 Static gates:
+Source-fidelity status:
 Conversion WARN review:
 Structural P0 review:
 Style advisory review:
