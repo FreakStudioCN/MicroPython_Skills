@@ -17,6 +17,7 @@ LIFECYCLE_NAMES = {"__init__", "start", "stop", "close", "aclose", "deinit"}
 BLOCKING_NAMES = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms", "sleep_ms", "sleep_us"}
 IRQ_IO_NAMES = {"read", "readinto", "readline", "readfrom", "readfrom_into", "write", "writeto", "write_readinto", "open", "connect"}
 CLEANUP_NAMES = {"stop", "close", "aclose", "deinit"}
+RUNTIME_MODULES = {"asyncio", "machine", "micropython", "time", "utime"}
 
 
 @dataclass
@@ -223,6 +224,85 @@ def function_nodes(tree):
     return result
 
 
+def is_public(node):
+    return not node.name.startswith("_")
+
+
+def is_property_definition(node):
+    return any(
+        isinstance(decorator, ast.Name) and decorator.id == "property"
+        or isinstance(decorator, ast.Attribute) and decorator.attr in {"setter", "deleter"}
+        for decorator in node.decorator_list
+    )
+
+
+def definition_findings(path, tree, findings):
+    scopes = [tree] + [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+    for scope in scopes:
+        groups = {}
+        for node in scope.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and is_public(node):
+                groups.setdefault(node.name, []).append(node)
+            if isinstance(node, ast.AsyncFunctionDef) and is_public(node) and (node.args.vararg or node.args.kwarg):
+                add(findings, "ERROR", path, node, "PUBLIC_ASYNC_DYNAMIC_SIGNATURE", "public async APIs must declare explicit parameters; *args/**kwargs hides source API fidelity")
+        for name, nodes in groups.items():
+            if len(nodes) > 1 and not all(is_property_definition(node) for node in nodes):
+                for node in nodes[1:]:
+                    add(findings, "ERROR", path, node, "DUPLICATE_PUBLIC_DEFINITION", f"public definition '{name}' is overwritten later in the same scope")
+
+
+def has_timeout_evidence(node):
+    return any(
+        isinstance(child, ast.Call)
+        and call_name(child.func).rsplit(".", 1)[-1] in {"ticks_add", "ticks_diff", "wait_for", "wait_for_ms"}
+        for child in ast.walk(node)
+    )
+
+
+def is_long_lived_loop(function, loop):
+    name = function.name.lower()
+    if any(token in name for token in {"worker", "serve", "listen", "background"}):
+        return True
+    return any(
+        isinstance(child, ast.Attribute) and child.attr.lower() in {"running", "active", "stopped", "closed", "cancelled"}
+        for child in ast.walk(loop.test)
+    )
+
+
+def poll_timeout_findings(path, tree, findings):
+    for function in ast.walk(tree):
+        if not isinstance(function, ast.AsyncFunctionDef):
+            continue
+        for loop in ast.walk(function):
+            if not isinstance(loop, ast.While) or is_long_lived_loop(function, loop):
+                continue
+            waits = any(isinstance(child, ast.Await) for child in ast.walk(loop))
+            polling = isinstance(loop.test, (ast.UnaryOp, ast.Compare))
+            if waits and polling and not has_timeout_evidence(function):
+                add(findings, "ERROR", path, loop, "ASYNC_POLL_NO_TIMEOUT", "async polling loop awaits but has no deadline, bounded retry, or wait_for timeout")
+
+
+def runtime_module_findings(path, tree, findings):
+    bound = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root = alias.name.split(".", 1)[0]
+                if root in RUNTIME_MODULES:
+                    bound.add(alias.asname or root)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            bound.update(argument.arg for argument in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs))
+            if node.args.vararg:
+                bound.add(node.args.vararg.arg)
+            if node.args.kwarg:
+                bound.add(node.args.kwarg.arg)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            bound.add(node.id)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in RUNTIME_MODULES and node.value.id not in bound:
+            add(findings, "ERROR", path, node, "RUNTIME_MODULE_UNBOUND", f"'{node.value.id}.{node.attr}' is used without binding the runtime module at module scope")
+
+
 def registered_callbacks(path, tree, findings):
     names = set()
     for node in ast.walk(tree):
@@ -277,6 +357,9 @@ def audit_tree(path, tree, findings, role):
         if any(isinstance(node, ast.AsyncFunctionDef) for node in ast.walk(tree)):
             add(findings, "ERROR", path, tree, "SYNC_COMPAT_ASYNC_DEF", "sync_compatibility modules must not define async functions")
         return
+    definition_findings(path, tree, findings)
+    poll_timeout_findings(path, tree, findings)
+    runtime_module_findings(path, tree, findings)
     functions = function_nodes(tree)
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

@@ -612,6 +612,66 @@ def source_methods_with_blocking_waits(source_trees):
     return blocked
 
 
+def source_class_details(source_trees):
+    """Index source classes needed to validate a thin async facade safely."""
+    details = {}
+    for tree in source_trees.values():
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            properties = set()
+            methods = {}
+            for item in node.body:
+                if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                methods[item.name] = item
+                if any(
+                    isinstance(decorator, ast.Name) and decorator.id == "property"
+                    or isinstance(decorator, ast.Attribute) and decorator.attr in {"setter", "deleter"}
+                    for decorator in item.decorator_list
+                ):
+                    properties.add(item.name)
+            class_blocked = {
+                name for name, method in methods.items()
+                if any(
+                    call_name(call.func) in SOURCE_BLOCKING_CALLS
+                    for call in ast.walk(method) if isinstance(call, ast.Call)
+                )
+            }
+            changed_methods = True
+            while changed_methods:
+                changed_methods = False
+                for name, method in methods.items():
+                    if name in class_blocked:
+                        continue
+                    if any(
+                        call_name(call.func).rsplit(".", 1)[-1] in class_blocked
+                        for call in ast.walk(method) if isinstance(call, ast.Call)
+                    ):
+                        class_blocked.add(name)
+                        changed_methods = True
+            details[node.name] = {
+                "bases": {call_name(base).rsplit(".", 1)[-1] for base in node.bases},
+                "properties": properties,
+                "blocked_methods": class_blocked,
+            }
+    changed = True
+    while changed:
+        changed = False
+        for name, detail in details.items():
+            inherited = set().union(*(details.get(base, {}).get("blocked_methods", set()) for base in detail["bases"]))
+            if not inherited.issubset(detail["blocked_methods"]):
+                detail["blocked_methods"].update(inherited)
+                changed = True
+    return details
+
+
+def source_bases_for_output_class(node, details):
+    return {call_name(base).rsplit(".", 1)[-1] for base in node.bases} & set(details)
+
+
 def is_sync_delegate(call):
     if not isinstance(call.func, ast.Attribute):
         return False
@@ -630,27 +690,32 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
         for path in runtime_files(source_code_dir(source))
     }
     blocked = source_methods_with_blocking_waits(source_trees)
-    if not blocked:
-        return
+    details = source_class_details(source_trees)
     for path, tree in output_trees.items():
         if path == code_dir / "main.py" or tree is None:
             continue
-        for method in ast.walk(tree):
-            if not isinstance(method, ast.AsyncFunctionDef):
-                continue
-            for call in ast.walk(method):
-                if not isinstance(call, ast.Call) or not is_sync_delegate(call):
+        for cls in (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)):
+            source_bases = source_bases_for_output_class(cls, details)
+            for method in cls.body:
+                if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
-                target = call.func.attr
-                if target in blocked:
-                    add(
-                        findings,
-                        "ERROR",
-                        path,
-                        call.lineno,
-                        "ASYNC_DELEGATES_BLOCKING_SOURCE",
-                        f"async method '{method.name}' delegates to source '{target}()', which contains a blocking wait; split the wait into cooperative steps",
-                    )
+                for call in ast.walk(method):
+                    if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Attribute):
+                        continue
+                    target = call.func.attr
+                    receiver = call.func.value
+                    is_super = isinstance(receiver, ast.Call) and isinstance(receiver.func, ast.Name) and receiver.func.id == "super"
+                    if method.name == "__init__" and is_super and target == "__init__" and any(
+                        "__init__" in details[base]["blocked_methods"] for base in source_bases
+                    ):
+                        add(findings, "ERROR", path, call.lineno, "ASYNC_INHERITS_BLOCKING_INIT", "facade __init__() calls a source super().__init__() with a blocking wait; move lifecycle work to async initialize()")
+                    delegates_blocking = target in blocked
+                    if is_super and source_bases:
+                        delegates_blocking = any(target in details[base]["blocked_methods"] for base in source_bases)
+                    if isinstance(method, ast.AsyncFunctionDef) and is_sync_delegate(call) and delegates_blocking:
+                        add(findings, "ERROR", path, call.lineno, "ASYNC_DELEGATES_BLOCKING_SOURCE", f"async method '{method.name}' delegates to source '{target}()', which contains a blocking wait; split the wait into cooperative steps")
+                    if is_super and any(target in details[base]["properties"] for base in source_bases):
+                        add(findings, "ERROR", path, call.lineno, "ASYNC_CALLS_SOURCE_PROPERTY", f"facade calls source property '{target}' as a method; preserve descriptor access and setter semantics")
 
 
 def machine_calls(tree):

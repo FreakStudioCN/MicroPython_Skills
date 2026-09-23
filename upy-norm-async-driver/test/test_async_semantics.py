@@ -103,5 +103,47 @@ class RuntimeRolesTest(unittest.TestCase):
         self.assertIn("SYNC_COMPAT_REACHABLE", [item.code for item in findings])
 
 
+class AsyncApiSemanticsTest(unittest.TestCase):
+    def findings_for(self, source):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "driver.py"
+            path.write_text(source, encoding="utf-8")
+            findings = []
+            tree = SEMANTICS.parse_tree(path, findings)
+            SEMANTICS.audit_tree(path, tree, findings, "async_runtime")
+            return findings
+
+    def test_dynamic_public_async_signature_and_duplicate_are_rejected(self):
+        findings = self.findings_for(
+            "class Driver:\n"
+            "    async def read_async(self, *args, **kwargs):\n        pass\n"
+            "    async def read_async(self, value):\n        return value\n"
+        )
+        codes = [item.code for item in findings]
+        self.assertIn("PUBLIC_ASYNC_DYNAMIC_SIGNATURE", codes)
+        self.assertIn("DUPLICATE_PUBLIC_DEFINITION", codes)
+
+    def test_property_getter_and_setter_are_not_duplicate_definitions(self):
+        findings = self.findings_for(
+            "class Driver:\n"
+            "    @property\n    def mode(self):\n        return 1\n"
+            "    @mode.setter\n    def mode(self, value):\n        pass\n"
+        )
+        self.assertNotIn("DUPLICATE_PUBLIC_DEFINITION", [item.code for item in findings])
+
+    def test_unbounded_async_poll_is_rejected_but_worker_is_allowed(self):
+        findings = self.findings_for(
+            "import asyncio\nclass Driver:\n"
+            "    async def read_async(self):\n        while not self.ready:\n            await asyncio.sleep_ms(5)\n"
+            "    async def worker(self):\n        while self.running:\n            await asyncio.sleep_ms(5)\n"
+        )
+        codes = [item.code for item in findings]
+        self.assertIn("ASYNC_POLL_NO_TIMEOUT", codes)
+        self.assertEqual(1, codes.count("ASYNC_POLL_NO_TIMEOUT"))
+
+    def test_runtime_module_must_be_bound(self):
+        findings = self.findings_for("async def read_async():\n    return time.ticks_ms()\n")
+        self.assertIn("RUNTIME_MODULE_UNBOUND", [item.code for item in findings])
+
 if __name__ == "__main__":
     unittest.main()
