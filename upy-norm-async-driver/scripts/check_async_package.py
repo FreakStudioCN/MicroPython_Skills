@@ -23,6 +23,10 @@ EXTERNAL_MODULES = {
 SKIP_RUNTIME = {"main.py", "__pycache__"}
 SOURCE_BLOCKING_CALLS = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms", "sleep_ms", "sleep_us"}
 SYNC_DELEGATE_ATTRIBUTES = {"_sync", "_source", "_driver", "_base", "_device"}
+NON_BUSINESS_DRIVER_CALLS = {
+    "aclose", "close", "create", "deinit", "initialize", "initialize_async",
+    "open", "reset", "reset_async", "start", "start_async", "stop",
+}
 
 
 @dataclass
@@ -623,38 +627,42 @@ def source_class_details(source_trees):
                 continue
             properties = set()
             methods = {}
+            property_getters = set()
             for item in node.body:
                 if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
-                methods[item.name] = item
+                methods.setdefault(item.name, []).append(item)
                 if any(
                     isinstance(decorator, ast.Name) and decorator.id == "property"
                     or isinstance(decorator, ast.Attribute) and decorator.attr in {"setter", "deleter"}
                     for decorator in item.decorator_list
                 ):
                     properties.add(item.name)
+                if any(isinstance(decorator, ast.Name) and decorator.id == "property" for decorator in item.decorator_list):
+                    property_getters.add(item.name)
             class_blocked = {
-                name for name, method in methods.items()
+                name for name, nodes in methods.items()
                 if any(
                     call_name(call.func) in SOURCE_BLOCKING_CALLS
-                    for call in ast.walk(method) if isinstance(call, ast.Call)
+                    for method in nodes for call in ast.walk(method) if isinstance(call, ast.Call)
                 )
             }
             changed_methods = True
             while changed_methods:
                 changed_methods = False
-                for name, method in methods.items():
+                for name, nodes in methods.items():
                     if name in class_blocked:
                         continue
                     if any(
                         call_name(call.func).rsplit(".", 1)[-1] in class_blocked
-                        for call in ast.walk(method) if isinstance(call, ast.Call)
+                        for method in nodes for call in ast.walk(method) if isinstance(call, ast.Call)
                     ):
                         class_blocked.add(name)
                         changed_methods = True
             details[node.name] = {
                 "bases": {call_name(base).rsplit(".", 1)[-1] for base in node.bases},
                 "properties": properties,
+                "blocking_properties": property_getters & class_blocked,
                 "blocked_methods": class_blocked,
             }
     changed = True
@@ -665,11 +673,60 @@ def source_class_details(source_trees):
             if not inherited.issubset(detail["blocked_methods"]):
                 detail["blocked_methods"].update(inherited)
                 changed = True
+            inherited_properties = set().union(*(details.get(base, {}).get("blocking_properties", set()) for base in detail["bases"]))
+            if not inherited_properties.issubset(detail["blocking_properties"]):
+                detail["blocking_properties"].update(inherited_properties)
+                changed = True
     return details
 
 
 def source_bases_for_output_class(node, details):
     return {call_name(base).rsplit(".", 1)[-1] for base in node.bases} & set(details)
+
+
+def facade_source_bases(output_trees, details):
+    """Map generated facade class names to their direct source base classes."""
+    result = {}
+    for tree in output_trees.values():
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                bases = source_bases_for_output_class(node, details)
+                if bases:
+                    result[node.name] = bases
+    return result
+
+
+def blocking_property_access_checks(output_trees, facade_bases, details, findings):
+    """Reject direct blocking source-property reads from known facade instances."""
+    for path, tree in output_trees.items():
+        if tree is None:
+            continue
+        for function in ast.walk(tree):
+            if not isinstance(function, ast.AsyncFunctionDef):
+                continue
+            instances = {}
+            for node in ast.walk(function):
+                if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+                    continue
+                class_name = call_name(node.value.func).rsplit(".", 1)[-1]
+                source_bases = facade_bases.get(class_name)
+                if not source_bases:
+                    continue
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        instances[target.id] = source_bases
+            for node in ast.walk(function):
+                if not (
+                    isinstance(node, ast.Attribute)
+                    and isinstance(node.ctx, ast.Load)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id in instances
+                ):
+                    continue
+                if any(node.attr in details[base]["blocking_properties"] for base in instances[node.value.id]):
+                    add(findings, "ERROR", path, node.lineno, "ASYNC_ACCESSES_BLOCKING_SOURCE_PROPERTY", f"async function '{function.name}' directly reads blocking source property '{node.value.id}.{node.attr}'; use an explicit async mapping")
 
 
 def is_sync_delegate(call):
@@ -691,8 +748,10 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
     }
     blocked = source_methods_with_blocking_waits(source_trees)
     details = source_class_details(source_trees)
+    facades = facade_source_bases(output_trees, details)
+    blocking_property_access_checks(output_trees, facades, details, findings)
     for path, tree in output_trees.items():
-        if path == code_dir / "main.py" or tree is None:
+        if tree is None:
             continue
         for cls in (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)):
             source_bases = source_bases_for_output_class(cls, details)
@@ -774,6 +833,59 @@ def async_entry_checks(async_example, tree, findings):
         add(findings, "ERROR", async_example, main_node.lineno, "ASYNC_EXAMPLE_NO_CLEANUP_FINALLY", "async main() must use try/finally with a real cleanup call")
 
 
+def unwrapped_call(node):
+    while isinstance(node, ast.Await):
+        node = node.value
+    return node if isinstance(node, ast.Call) else None
+
+
+def driver_instances(tree, imported_runtime_names):
+    """Find local names assigned from direct internal driver construction/factories."""
+    instances = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+            value = node.value
+        else:
+            continue
+        call = unwrapped_call(value)
+        if call is None:
+            continue
+        root = call_name(call.func).split(".", 1)[0]
+        if root not in imported_runtime_names:
+            continue
+        for target in targets:
+            if isinstance(target, ast.Name):
+                instances.add(target.id)
+    return instances
+
+
+def has_driver_business_call(tree, imported_runtime_names):
+    """Return whether an example invokes a business API, not only setup or cleanup."""
+    instances = driver_instances(tree, imported_runtime_names)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Attribute):
+            receiver = node.func.value
+            if isinstance(receiver, ast.Name) and receiver.id in instances:
+                if node.func.attr not in NON_BUSINESS_DRIVER_CALLS:
+                    return True
+            root = call_name(receiver).split(".", 1)[0]
+            if root in imported_runtime_names and node.func.attr not in NON_BUSINESS_DRIVER_CALLS:
+                return True
+        elif (
+            isinstance(node.func, ast.Name)
+            and node.func.id in imported_runtime_names
+            and node.func.id[:1].islower()
+        ):
+                return True
+    return False
+
+
 def async_example_checks(async_example, code_dir, trees, findings):
     """Require every declared async example to exercise an internal driver."""
     tree = trees.get(async_example) or read_tree(async_example, findings)
@@ -796,6 +908,8 @@ def async_example_checks(async_example, code_dir, trees, findings):
         for node in ast.walk(tree) if isinstance(node, ast.Call)
     ):
         add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_CALL", "async example imports an internal driver but does not call its API")
+    elif not has_driver_business_call(tree, imported_runtime_names):
+        add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_BUSINESS_CALL", "async example constructs or cleans up an internal driver but does not call a mapped business API")
 
 
 def example_fidelity(package, source, code_dir, trees, findings, example, allow_legacy_syntax, source_context):
@@ -857,6 +971,8 @@ def main_fidelity(package, source, code_dir, trees, findings, examples=None, all
         for node in ast.walk(main_tree) if isinstance(node, ast.Call)
     ):
         add(findings, "ERROR", main_path, 1, "MAIN_NO_DRIVER_CALL", "main.py imports an internal driver but does not call its API")
+    elif not has_driver_business_call(main_tree, imported_runtime_names):
+        add(findings, "ERROR", main_path, 1, "MAIN_NO_DRIVER_BUSINESS_CALL", "main.py constructs or cleans up an internal driver but does not call a mapped business API")
 
     if source is None:
         return

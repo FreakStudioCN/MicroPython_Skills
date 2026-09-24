@@ -59,6 +59,41 @@ class ReadmeCapabilityChecksTest(unittest.TestCase):
 
 
 class SourceCompatibilityChecksTest(unittest.TestCase):
+    def main_fidelity_findings(self, main_source, driver_source):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            package = Path(temp_dir)
+            code_dir = package / "code"
+            code_dir.mkdir()
+            main = code_dir / "main.py"
+            driver = code_dir / "driver_async.py"
+            main.write_text(main_source, encoding="utf-8")
+            driver.write_text(driver_source, encoding="utf-8")
+            findings = []
+            CHECKER.main_fidelity(
+                package,
+                None,
+                code_dir,
+                {main: ast.parse(main_source), driver: ast.parse(driver_source)},
+                findings,
+            )
+            return findings
+
+    def test_main_constructor_and_cleanup_are_not_a_business_call(self):
+        findings = self.main_fidelity_findings(
+            "import asyncio\nfrom driver_async import DriverAsync\n"
+            "async def main():\n    device = DriverAsync()\n    try:\n        pass\n    finally:\n        await device.aclose()\nasyncio.run(main())\n",
+            "class DriverAsync:\n    async def aclose(self):\n        pass\n",
+        )
+        self.assertIn("MAIN_NO_DRIVER_BUSINESS_CALL", [item.code for item in findings])
+
+    def test_main_mapped_driver_business_call_is_accepted(self):
+        findings = self.main_fidelity_findings(
+            "import asyncio\nfrom driver_async import DriverAsync\n"
+            "async def main():\n    device = DriverAsync()\n    try:\n        await device.read_async()\n    finally:\n        await device.aclose()\nasyncio.run(main())\n",
+            "class DriverAsync:\n    async def read_async(self):\n        return 1\n    async def aclose(self):\n        pass\n",
+        )
+        self.assertNotIn("MAIN_NO_DRIVER_BUSINESS_CALL", [item.code for item in findings])
+
     def test_legacy_source_requires_explicit_authorization(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "legacy.py"
@@ -159,6 +194,60 @@ class SourceCompatibilityChecksTest(unittest.TestCase):
             CHECKER.async_delegation_checks(source, code_dir, {facade: ast.parse(facade.read_text(encoding="utf-8"))}, findings, False, {})
             self.assertNotIn("ASYNC_DELEGATES_BLOCKING_SOURCE", [item.code for item in findings])
 
+    def test_async_example_directly_reading_blocking_source_property_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source"
+            source_code = source / "code"
+            source_code.mkdir(parents=True)
+            (source_code / "driver.py").write_text(
+                "import time\nclass Driver:\n    @property\n    def serial(self):\n        time.sleep_ms(25)\n        return 1\n",
+                encoding="utf-8",
+            )
+            package = Path(temp_dir) / "package"
+            code_dir = package / "code"
+            code_dir.mkdir(parents=True)
+            facade = code_dir / "driver_async.py"
+            facade.write_text("class DriverAsync(Driver):\n    async def serial_async(self):\n        return 1\n", encoding="utf-8")
+            main = code_dir / "main.py"
+            main.write_text("async def main():\n    sensor = DriverAsync()\n    return sensor.serial\n", encoding="utf-8")
+            findings = []
+            CHECKER.async_delegation_checks(
+                source,
+                code_dir,
+                {facade: ast.parse(facade.read_text(encoding="utf-8")), main: ast.parse(main.read_text(encoding="utf-8"))},
+                findings,
+                False,
+                {},
+            )
+            self.assertIn("ASYNC_ACCESSES_BLOCKING_SOURCE_PROPERTY", [item.code for item in findings])
+
+    def test_explicit_async_property_mapping_is_allowed(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source"
+            source_code = source / "code"
+            source_code.mkdir(parents=True)
+            (source_code / "driver.py").write_text(
+                "import time\nclass Driver:\n    @property\n    def serial(self):\n        time.sleep_ms(25)\n        return 1\n",
+                encoding="utf-8",
+            )
+            package = Path(temp_dir) / "package"
+            code_dir = package / "code"
+            code_dir.mkdir(parents=True)
+            facade = code_dir / "driver_async.py"
+            facade.write_text("class DriverAsync(Driver):\n    async def serial_async(self):\n        return 1\n", encoding="utf-8")
+            main = code_dir / "main.py"
+            main.write_text("async def main():\n    sensor = DriverAsync()\n    return await sensor.serial_async()\n", encoding="utf-8")
+            findings = []
+            CHECKER.async_delegation_checks(
+                source,
+                code_dir,
+                {facade: ast.parse(facade.read_text(encoding="utf-8")), main: ast.parse(main.read_text(encoding="utf-8"))},
+                findings,
+                False,
+                {},
+            )
+            self.assertNotIn("ASYNC_ACCESSES_BLOCKING_SOURCE_PROPERTY", [item.code for item in findings])
+
     def test_authorized_legacy_source_can_complete_with_partial_fidelity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -191,12 +280,12 @@ class SourceCompatibilityChecksTest(unittest.TestCase):
             (examples / "main_sync.py").write_bytes((source_code / "main.py").read_bytes())
             (code / "legacy.py").write_text("VALUE = 1\n", encoding="utf-8")
             (code / "driver_async.py").write_text(
-                "class DriverAsync:\n    async def aclose(self):\n        pass\n",
+                "class DriverAsync:\n    async def read_async(self):\n        return 1\n    async def aclose(self):\n        pass\n",
                 encoding="utf-8",
             )
             (code / "main.py").write_text(
                 "import asyncio\nfrom driver_async import DriverAsync\n"
-                "async def main():\n    device = DriverAsync()\n    try:\n        pass\n    finally:\n        await device.aclose()\n"
+                "async def main():\n    device = DriverAsync()\n    try:\n        await device.read_async()\n    finally:\n        await device.aclose()\n"
                 "asyncio.run(main())\n",
                 encoding="utf-8",
             )

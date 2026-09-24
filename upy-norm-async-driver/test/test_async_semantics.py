@@ -145,5 +145,20 @@ class AsyncApiSemanticsTest(unittest.TestCase):
         findings = self.findings_for("async def read_async():\n    return time.ticks_ms()\n")
         self.assertIn("RUNTIME_MODULE_UNBOUND", [item.code for item in findings])
 
+    def test_async_factory_cannot_call_an_unbound_symbol(self):
+        findings = self.findings_for(
+            "class DriverAsync:\n"
+            "    @classmethod\n    async def create(cls, i2c):\n        return TMP117(i2c)\n"
+        )
+        self.assertIn("UNBOUND_RUNTIME_SYMBOL", [item.code for item in findings])
+
+    def test_async_factory_can_call_a_module_level_import(self):
+        findings = self.findings_for(
+            "from micropython_tmp117.tmp117 import TMP117\n"
+            "class DriverAsync:\n"
+            "    @classmethod\n    async def create(cls, i2c):\n        return TMP117(i2c)\n"
+        )
+        self.assertNotIn("UNBOUND_RUNTIME_SYMBOL", [item.code for item in findings])
+
 if __name__ == "__main__":
     unittest.main()

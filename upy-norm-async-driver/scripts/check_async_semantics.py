@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import json
 import os
 import sys
@@ -18,6 +19,7 @@ BLOCKING_NAMES = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms"
 IRQ_IO_NAMES = {"read", "readinto", "readline", "readfrom", "readfrom_into", "write", "writeto", "write_readinto", "open", "connect"}
 CLEANUP_NAMES = {"stop", "close", "aclose", "deinit"}
 RUNTIME_MODULES = {"asyncio", "machine", "micropython", "time", "utime"}
+BUILTIN_NAMES = frozenset(dir(builtins)) | {"const"}
 
 
 @dataclass
@@ -303,6 +305,69 @@ def runtime_module_findings(path, tree, findings):
             add(findings, "ERROR", path, node, "RUNTIME_MODULE_UNBOUND", f"'{node.value.id}.{node.attr}' is used without binding the runtime module at module scope")
 
 
+def target_names(node):
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, (ast.Tuple, ast.List)):
+        return set().union(*(target_names(item) for item in node.elts))
+    return set()
+
+
+def module_bindings(tree):
+    names = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Import):
+            names.update(alias.asname or alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            names.update(alias.asname or alias.name for alias in node.names)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                names.update(target_names(target))
+    return names
+
+
+def function_body_nodes(function):
+    """Yield nodes owned by one function without descending into nested scopes."""
+    pending = list(function.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        yield node
+        pending.extend(ast.iter_child_nodes(node))
+
+
+def function_bindings(function):
+    names = set()
+    names.update(argument.arg for argument in (*function.args.posonlyargs, *function.args.args, *function.args.kwonlyargs))
+    if function.args.vararg:
+        names.add(function.args.vararg.arg)
+    if function.args.kwarg:
+        names.add(function.args.kwarg.arg)
+    for node in function_body_nodes(function):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            names.add(node.id)
+        elif isinstance(node, ast.Import):
+            names.update(alias.asname or alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            names.update(alias.asname or alias.name for alias in node.names)
+    return names
+
+
+def unbound_runtime_symbol_findings(path, tree, findings):
+    globals_ = module_bindings(tree)
+    for function in ast.walk(tree):
+        if not isinstance(function, ast.AsyncFunctionDef):
+            continue
+        bound = globals_ | function_bindings(function) | BUILTIN_NAMES
+        for node in function_body_nodes(function):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id not in bound:
+                add(findings, "ERROR", path, node, "UNBOUND_RUNTIME_SYMBOL", f"async function '{function.name}' calls unbound symbol '{node.func.id}'; add a module-level import or definition")
+
+
 def registered_callbacks(path, tree, findings):
     names = set()
     for node in ast.walk(tree):
@@ -360,6 +425,7 @@ def audit_tree(path, tree, findings, role):
     definition_findings(path, tree, findings)
     poll_timeout_findings(path, tree, findings)
     runtime_module_findings(path, tree, findings)
+    unbound_runtime_symbol_findings(path, tree, findings)
     functions = function_nodes(tree)
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
