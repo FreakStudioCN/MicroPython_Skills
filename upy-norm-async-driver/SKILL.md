@@ -474,6 +474,14 @@ python scripts/check_async_semantics.py <output-package-dir>
 python ../upy-norm-pkg/scripts/check_package_metadata.py <output-package-dir>
 ```
 
+For a package assessed as `no_async_variant`, do not run the output-package gates. Remove the generated runtime package and validate the retained empty withdrawal directory plus its external blocker report instead:
+
+```bash
+python scripts/check_async_blocker.py <withdrawn-async-package-dir> --report <external-blocker-report.md>
+```
+
+The blocker report must name the source, show the concrete timing or API call chain that prevents a safe yield, and state the hardware/API condition that would justify reassessment. It must not be presented as a converted package or as a `package_fidelity_passed` result.
+
 Do not run a synchronous source-repository `code_checker.py` against the async output. It may require blocking startup delays or synchronous main-loop structure that conflicts with this skill. Use it only to assess the untouched synchronous source package when that source workflow requires it.
 
 `check_async_driver.py` may emit WARN findings for patterns that need hardware or architecture context, such as multiple UART readers or PIO FIFO loops. IRQ/Timer I/O warnings are produced only for callbacks discovered at actual `.irq(...)` or `Timer.init(callback=...)` registration sites; a public method whose name merely contains `interrupt` is not an IRQ finding. A zero exit code means no ERROR, not that WARN findings are harmless. Inventory every WARN in the final report with its disposition: fixed, verified safe with evidence, or residual risk. For a no-warning batch audit, run `python scripts/check_async_driver.py --warn-as-error <output-package-dir>`; do not suppress warnings to claim production readiness.
@@ -600,6 +608,8 @@ Documentation/report failures:
 7. Before writing a facade, inspect every reachable source base class/mixin, constructor, close path, property/descriptor, and callback. Identify synchronous sleeps, property access semantics, bus/Pin ownership, cleanup owner, timeout boundary, and strict-timing sections. Do not call a property as a method, create hardware at module scope, or inherit a blocking lifecycle path without an explicit conversion plan.
    - For each public async facade method that delegates to a source method, trace the source call path. A source fixed delay, retry wait, polling loop, sample loop, or blocking reader must be converted into a source-order-preserving cooperative state machine; a single short bus transaction may remain a documented residual boundary.
    - Do not let a thin facade hide source lifecycle work in a normal `__init__`: `super().__init__()` is unsafe when the inherited constructor resets hardware, sleeps, probes, or allocates runtime resources. Keep construction inert and expose an idempotent `async initialize()` with a documented cleanup owner.
+   - Treat an omitted facade `__init__` as an inherited constructor, not as an inert constructor. Likewise, an async `self.method()` can resolve to a blocking source method even when no `super()` call is visible. Override inherited lifecycle and blocking methods with an async-safe implementation or choose `coordinator_only`/`no_async_variant`.
+   - Trace source `.irq(...)` and `Timer.init(callback=...)` registrations through helper methods and `micropython.schedule()`. An inherited handler that reads I2C/SPI/UART, parses data, or invokes application callbacks must be replaced: the callback only records/coalesces an event, while an owned task performs I/O, parsing, and user callbacks.
    - Preserve descriptor semantics exactly: source `@property` getters are read without `()`, and source setters remain assignment-based. Public async methods need explicit parameters rather than `*args`/`**kwargs`; duplicate public definitions silently overwrite earlier APIs and are invalid except a property getter/setter/deleter set.
    - A source property whose getter performs I/O, sleeps, polls, or reads device identity is a synchronous operation even when its syntax is `sensor.serial`. Do not access it from an async example or coroutine; provide and use an explicit `serial_async()`/`identifier_async()`-style mapping that preserves command, wait, read, CRC, and parse order.
    - Public async factories such as `create()`, `open()`, `connect()`, and `from_*()` must use only module-level imports or locally defined symbols, and need a focused no-hardware test-double path when the normal demo constructs the driver another way. Do not treat parsing `main.py` as proof that an unused public factory can execute.
@@ -611,7 +621,7 @@ Documentation/report failures:
    - `cooperative_nonblocking`
    - `sync_adapter_only`
    - `not_async_safe`
-10. If the decision is `no_async_variant`, stop with the blocker report. If `source_incomplete` or an API is `not_async_safe`, stop that API/package unless the user explicitly authorizes a documented incomplete/partial scope.
+10. If the decision is `no_async_variant`, remove any generated runtime/package artifacts, retain an external blocker report, and run `check_async_blocker.py`; do not run `check_async_package.py` against a withdrawn directory. If `source_incomplete` or an API is `not_async_safe`, stop that API/package unless the user explicitly authorizes a documented incomplete/partial scope.
 11. Create the output package directory beside the source package unless the user gave an output path.
 12. Generate async runtime code.
 13. Generate async `code/main.py`.

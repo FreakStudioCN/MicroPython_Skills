@@ -161,6 +161,60 @@ class SourceCompatibilityChecksTest(unittest.TestCase):
             CHECKER.async_delegation_checks(source, code_dir, {facade: ast.parse(facade.read_text(encoding="utf-8"))}, findings, False, {})
             self.assertIn("ASYNC_INHERITS_BLOCKING_INIT", [item.code for item in findings])
 
+    def test_async_facade_implicitly_inheriting_blocking_init_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source"
+            source_code = source / "code"
+            source_code.mkdir(parents=True)
+            (source_code / "driver.py").write_text(
+                "import time\nclass Driver:\n    def __init__(self):\n        time.sleep_ms(20)\n",
+                encoding="utf-8",
+            )
+            package = Path(temp_dir) / "package"
+            code_dir = package / "code"
+            code_dir.mkdir(parents=True)
+            facade = code_dir / "driver_async.py"
+            facade.write_text("class DriverAsync(Driver):\n    async def read_async(self):\n        return 1\n", encoding="utf-8")
+            findings = []
+            CHECKER.async_delegation_checks(source, code_dir, {facade: ast.parse(facade.read_text(encoding="utf-8"))}, findings, False, {})
+            self.assertIn("ASYNC_IMPLICITLY_INHERITS_BLOCKING_INIT", [item.code for item in findings])
+
+    def test_async_facade_calling_inherited_blocking_method_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source"
+            source_code = source / "code"
+            source_code.mkdir(parents=True)
+            (source_code / "driver.py").write_text(
+                "import time\nclass Driver:\n    def read(self):\n        time.sleep_ms(20)\n",
+                encoding="utf-8",
+            )
+            package = Path(temp_dir) / "package"
+            code_dir = package / "code"
+            code_dir.mkdir(parents=True)
+            facade = code_dir / "driver_async.py"
+            facade.write_text("class DriverAsync(Driver):\n    async def read_async(self):\n        return self.read()\n", encoding="utf-8")
+            findings = []
+            CHECKER.async_delegation_checks(source, code_dir, {facade: ast.parse(facade.read_text(encoding="utf-8"))}, findings, False, {})
+            self.assertIn("ASYNC_CALLS_INHERITED_BLOCKING_METHOD", [item.code for item in findings])
+
+    def test_async_facade_inheriting_unsafe_source_irq_callback_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source"
+            source_code = source / "code"
+            source_code.mkdir(parents=True)
+            (source_code / "driver.py").write_text(
+                "class Driver:\n    def __init__(self, pin, i2c):\n        self.i2c = i2c\n        pin.irq(handler=self._irq)\n    def _irq(self, pin):\n        self._process()\n    def _process(self):\n        return self.i2c.readfrom(1, 1)\n",
+                encoding="utf-8",
+            )
+            package = Path(temp_dir) / "package"
+            code_dir = package / "code"
+            code_dir.mkdir(parents=True)
+            facade = code_dir / "driver_async.py"
+            facade.write_text("class DriverAsync(Driver):\n    async def read_async(self):\n        return 1\n", encoding="utf-8")
+            findings = []
+            CHECKER.async_delegation_checks(source, code_dir, {facade: ast.parse(facade.read_text(encoding="utf-8"))}, findings, False, {})
+            self.assertIn("ASYNC_INHERITS_UNSAFE_CALLBACK", [item.code for item in findings])
+
     def test_facade_calling_source_property_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "source"

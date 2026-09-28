@@ -23,6 +23,7 @@ EXTERNAL_MODULES = {
 SKIP_RUNTIME = {"main.py", "__pycache__"}
 SOURCE_BLOCKING_CALLS = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms", "sleep_ms", "sleep_us"}
 SYNC_DELEGATE_ATTRIBUTES = {"_sync", "_source", "_driver", "_base", "_device"}
+CALLBACK_IO_NAMES = {"read", "readinto", "readline", "readfrom", "readfrom_into", "write", "writeto", "write_readinto", "open", "connect"}
 NON_BUSINESS_DRIVER_CALLS = {
     "aclose", "close", "create", "deinit", "initialize", "initialize_async",
     "open", "reset", "reset_async", "start", "start_async", "stop",
@@ -659,11 +660,13 @@ def source_class_details(source_trees):
                     ):
                         class_blocked.add(name)
                         changed_methods = True
+            unsafe_callbacks = source_unsafe_callbacks(node, methods)
             details[node.name] = {
                 "bases": {call_name(base).rsplit(".", 1)[-1] for base in node.bases},
                 "properties": properties,
                 "blocking_properties": property_getters & class_blocked,
                 "blocked_methods": class_blocked,
+                "unsafe_callbacks": unsafe_callbacks,
             }
     changed = True
     while changed:
@@ -677,11 +680,73 @@ def source_class_details(source_trees):
             if not inherited_properties.issubset(detail["blocking_properties"]):
                 detail["blocking_properties"].update(inherited_properties)
                 changed = True
+            inherited_callbacks = set().union(*(details.get(base, {}).get("unsafe_callbacks", set()) for base in detail["bases"]))
+            if not inherited_callbacks.issubset(detail["unsafe_callbacks"]):
+                detail["unsafe_callbacks"].update(inherited_callbacks)
+                changed = True
     return details
+
+
+def callback_target_name(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return ""
+
+
+def callback_argument(call, keyword_name):
+    keyword = next((item for item in call.keywords if item.arg == keyword_name), None)
+    return keyword.value if keyword is not None else (call.args[0] if call.args else None)
+
+
+def source_unsafe_callbacks(cls, methods):
+    """Find registered source callbacks that perform work outside task context."""
+    pending = set()
+    for call in (item for item in ast.walk(cls) if isinstance(item, ast.Call) and isinstance(item.func, ast.Attribute)):
+        if call.func.attr == "irq":
+            target = callback_target_name(callback_argument(call, "handler"))
+        elif call.func.attr == "init":
+            target = callback_target_name(callback_argument(call, "callback"))
+        else:
+            continue
+        if target in methods:
+            pending.add(target)
+    unsafe = set()
+    visited = set()
+    while pending:
+        name = pending.pop()
+        if name in visited:
+            continue
+        visited.add(name)
+        for method in methods.get(name, []):
+            for call in (item for item in ast.walk(method) if isinstance(item, ast.Call)):
+                called = call_name(call.func)
+                if called.rsplit(".", 1)[-1] in CALLBACK_IO_NAMES or called == "print":
+                    unsafe.add(name)
+                if called in {"micropython.schedule", "schedule"} and call.args:
+                    target = callback_target_name(call.args[0])
+                    if target in methods:
+                        pending.add(target)
+                if isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name) and call.func.value.id == "self":
+                    if call.func.attr in methods:
+                        pending.add(call.func.attr)
+                    if "callback" in call.func.attr.lower() or call.func.attr.lower().startswith("on_"):
+                        unsafe.add(name)
+            if any(
+                isinstance(item, ast.Attribute) and "callback" in item.attr.lower()
+                for item in ast.walk(method)
+            ):
+                unsafe.add(name)
+    return unsafe
 
 
 def source_bases_for_output_class(node, details):
     return {call_name(base).rsplit(".", 1)[-1] for base in node.bases} & set(details)
+
+
+def is_async_facade_class(cls):
+    return cls.name.endswith("Async") or any(isinstance(item, ast.AsyncFunctionDef) for item in cls.body)
 
 
 def facade_source_bases(output_trees, details):
@@ -755,6 +820,14 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
             continue
         for cls in (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)):
             source_bases = source_bases_for_output_class(cls, details)
+            if not is_async_facade_class(cls):
+                continue
+            declared_methods = {item.name for item in cls.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))}
+            if source_bases and "__init__" not in declared_methods and any("__init__" in details[base]["blocked_methods"] for base in source_bases):
+                add(findings, "ERROR", path, cls.lineno, "ASYNC_IMPLICITLY_INHERITS_BLOCKING_INIT", "async facade implicitly inherits a source __init__() with blocking waits; define an inert constructor and move source lifecycle work to async initialize()")
+            inherited_unsafe_callbacks = set().union(*(details[base]["unsafe_callbacks"] for base in source_bases)) - declared_methods if source_bases else set()
+            if source_bases and "__init__" not in declared_methods and inherited_unsafe_callbacks:
+                add(findings, "ERROR", path, cls.lineno, "ASYNC_INHERITS_UNSAFE_CALLBACK", "async facade inherits source IRQ/Timer callbacks that perform I/O, parsing, or user callbacks; replace registration with an event bridge")
             for method in cls.body:
                 if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
@@ -773,6 +846,14 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
                         delegates_blocking = any(target in details[base]["blocked_methods"] for base in source_bases)
                     if isinstance(method, ast.AsyncFunctionDef) and is_sync_delegate(call) and delegates_blocking:
                         add(findings, "ERROR", path, call.lineno, "ASYNC_DELEGATES_BLOCKING_SOURCE", f"async method '{method.name}' delegates to source '{target}()', which contains a blocking wait; split the wait into cooperative steps")
+                    if (
+                        isinstance(method, ast.AsyncFunctionDef)
+                        and isinstance(receiver, ast.Name)
+                        and receiver.id == "self"
+                        and target not in declared_methods
+                        and any(target in details[base]["blocked_methods"] for base in source_bases)
+                    ):
+                        add(findings, "ERROR", path, call.lineno, "ASYNC_CALLS_INHERITED_BLOCKING_METHOD", f"async method '{method.name}' calls inherited source '{target}()', which contains a blocking wait; implement a cooperative override")
                     if is_super and any(target in details[base]["properties"] for base in source_bases):
                         add(findings, "ERROR", path, call.lineno, "ASYNC_CALLS_SOURCE_PROPERTY", f"facade calls source property '{target}' as a method; preserve descriptor access and setter semantics")
 
