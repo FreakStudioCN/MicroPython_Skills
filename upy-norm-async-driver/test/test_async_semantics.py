@@ -30,6 +30,15 @@ class CallbackAuditTest(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
             return DRIVER.check_file(path)
 
+    def semantic_findings_for(self, source):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "driver.py"
+            path.write_text(source, encoding="utf-8")
+            findings = []
+            tree = SEMANTICS.parse_tree(path, findings)
+            SEMANTICS.audit_tree(path, tree, findings, "async_runtime")
+            return findings
+
     def test_interrupt_named_regular_method_is_not_treated_as_irq(self):
         findings = self.findings_for(
             "class Device:\n"
@@ -47,6 +56,29 @@ class CallbackAuditTest(unittest.TestCase):
             "        self.i2c.readfrom_mem(1, 2, 1)\n"
         )
         self.assertIn("IRQ_IO", [item.code for item in findings])
+
+    def test_irq_state_must_be_preallocated_before_registration(self):
+        findings = self.semantic_findings_for(
+            "class Device:\n"
+            "    def start(self):\n"
+            "        self.pin.irq(handler=self._irq_handler)\n"
+            "    def _irq_handler(self, pin):\n"
+            "        self._pending = True\n"
+        )
+        self.assertIn("IRQ_STATE_NOT_PREALLOCATED", [item.code for item in findings])
+
+    def test_preallocated_irq_state_is_allowed(self):
+        findings = self.semantic_findings_for(
+            "class Device:\n"
+            "    def __init__(self, pin):\n"
+            "        self.pin = pin\n"
+            "        self._pending = False\n"
+            "    def start(self):\n"
+            "        self.pin.irq(handler=self._irq_handler)\n"
+            "    def _irq_handler(self, pin):\n"
+            "        self._pending = True\n"
+        )
+        self.assertNotIn("IRQ_STATE_NOT_PREALLOCATED", [item.code for item in findings])
 
 
 class RuntimeRolesTest(unittest.TestCase):

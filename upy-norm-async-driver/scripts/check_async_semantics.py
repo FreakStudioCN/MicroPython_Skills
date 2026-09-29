@@ -417,6 +417,69 @@ def callback_findings(path, node, findings, label):
     return scheduled
 
 
+def assigned_self_attributes(node):
+    """Yield instance fields assigned by one method, with their source nodes."""
+    for child in ast.walk(node):
+        if isinstance(child, ast.Assign):
+            targets = child.targets
+        elif isinstance(child, (ast.AnnAssign, ast.AugAssign)):
+            targets = [child.target]
+        else:
+            continue
+        for target in targets:
+            if (
+                isinstance(target, ast.Attribute)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "self"
+            ):
+                yield target.attr, child
+
+
+def callback_state_preallocation_findings(path, tree, findings):
+    """Require IRQ/Timer callbacks to write instance state allocated before registration."""
+    for cls in (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)):
+        methods = {
+            node.name: node
+            for node in cls.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        registrations = []
+        for method in methods.values():
+            for call in (node for node in ast.walk(method) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+                if call.func.attr == "irq":
+                    target = callback_name(callback_value(call, "handler"))
+                elif call.func.attr == "init":
+                    target = callback_name(callback_value(call, "callback"))
+                else:
+                    continue
+                if target in methods:
+                    registrations.append((target, method.name, call.lineno))
+        for callback, registration_method, registration_line in registrations:
+            for field, assignment in assigned_self_attributes(methods[callback]):
+                preallocated = any(
+                    candidate.name != callback
+                    and (
+                        candidate.name == "__init__"
+                        or candidate.name == registration_method
+                    )
+                    and any(
+                        name == field
+                        and (candidate.name != registration_method or node.lineno < registration_line)
+                        for name, node in assigned_self_attributes(candidate)
+                    )
+                    for candidate in methods.values()
+                )
+                if not preallocated:
+                    add(
+                        findings,
+                        "ERROR",
+                        path,
+                        assignment,
+                        "IRQ_STATE_NOT_PREALLOCATED",
+                        f"IRQ/Timer callback '{callback}' assigns self.{field} without a pre-registration allocation; initialize it before registering the callback",
+                    )
+
+
 def audit_tree(path, tree, findings, role):
     if role == "sync_compatibility":
         if any(isinstance(node, ast.AsyncFunctionDef) for node in ast.walk(tree)):
@@ -443,6 +506,7 @@ def audit_tree(path, tree, findings, role):
                     add(findings, "ERROR", path, child, "UNSTORED_TASK", "device task must be stored for cancellation and shutdown")
 
     callback_roots = registered_callbacks(path, tree, findings)
+    callback_state_preallocation_findings(path, tree, findings)
     visited = set()
     pending = list(callback_roots)
     while pending:

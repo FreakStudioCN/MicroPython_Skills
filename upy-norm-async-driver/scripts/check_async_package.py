@@ -846,6 +846,13 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
                         delegates_blocking = any(target in details[base]["blocked_methods"] for base in source_bases)
                     if isinstance(method, ast.AsyncFunctionDef) and is_sync_delegate(call) and delegates_blocking:
                         add(findings, "ERROR", path, call.lineno, "ASYNC_DELEGATES_BLOCKING_SOURCE", f"async method '{method.name}' delegates to source '{target}()', which contains a blocking wait; split the wait into cooperative steps")
+                    source_class = receiver.id if isinstance(receiver, ast.Name) and receiver.id in details else ""
+                    if (
+                        isinstance(method, ast.AsyncFunctionDef)
+                        and source_class
+                        and target in details[source_class]["blocked_methods"]
+                    ):
+                        add(findings, "ERROR", path, call.lineno, "ASYNC_CALLS_SOURCE_CLASS_BLOCKING_METHOD", f"async method '{method.name}' directly calls source '{source_class}.{target}()', which contains a blocking wait; implement a cooperative source-order-preserving path")
                     if (
                         isinstance(method, ast.AsyncFunctionDef)
                         and isinstance(receiver, ast.Name)
