@@ -59,6 +59,38 @@ class ReadmeCapabilityChecksTest(unittest.TestCase):
 
 
 class SourceCompatibilityChecksTest(unittest.TestCase):
+    def async_example_findings(self, main_source, runtime_sources):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            code_dir = Path(temp_dir) / "code"
+            code_dir.mkdir()
+            main = code_dir / "main.py"
+            main.write_text(main_source, encoding="utf-8")
+            trees = {main: ast.parse(main_source)}
+            for name, source in runtime_sources.items():
+                path = code_dir / name
+                path.write_text(source, encoding="utf-8")
+                trees[path] = ast.parse(source)
+            findings = []
+            CHECKER.async_example_checks(main, code_dir, trees, findings)
+            return findings
+
+    def test_async_example_constructing_sync_driver_is_rejected(self):
+        findings = self.async_example_findings(
+            "from sync_driver import Driver\nasync def main():\n    device = Driver()\n    return device.read()\n",
+            {
+                "sync_driver.py": "class Driver:\n    def read(self):\n        return 1\n",
+                "driver_async.py": "class DriverAsync:\n    async def read_async(self):\n        return 1\n",
+            },
+        )
+        self.assertIn("ASYNC_EXAMPLE_SYNC_DRIVER", [item.code for item in findings])
+
+    def test_async_example_constructing_async_driver_is_allowed(self):
+        findings = self.async_example_findings(
+            "from driver_async import DriverAsync\nasync def main():\n    device = DriverAsync()\n    return await device.read_async()\n",
+            {"driver_async.py": "class DriverAsync:\n    async def read_async(self):\n        return 1\n"},
+        )
+        self.assertNotIn("ASYNC_EXAMPLE_SYNC_DRIVER", [item.code for item in findings])
+
     def main_fidelity_findings(self, main_source, driver_source):
         with tempfile.TemporaryDirectory() as temp_dir:
             package = Path(temp_dir)

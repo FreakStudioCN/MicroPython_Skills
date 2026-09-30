@@ -974,6 +974,48 @@ def has_driver_business_call(tree, imported_runtime_names):
     return False
 
 
+def async_driver_constructor_checks(async_example, tree, code_dir, trees, findings):
+    """Reject async examples that construct a preserved synchronous driver class."""
+    runtime_modules = {module_name(code_dir, path): path for path in trees if path.relative_to(code_dir) != Path("main.py")}
+    imported = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "") in runtime_modules:
+            for alias in node.names:
+                imported[alias.asname or alias.name] = (node.module, alias.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in runtime_modules:
+                    imported[alias.asname or alias.name.split(".", 1)[0]] = (alias.name, "")
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Name):
+            binding = imported.get(node.func.id)
+            constructor = node.func.id
+        elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            binding = imported.get(node.func.value.id)
+            constructor = node.func.attr
+        else:
+            continue
+        if binding is None or not constructor[:1].isupper():
+            continue
+        module, imported_symbol = binding
+        module_tree = trees.get(runtime_modules[module])
+        class_has_async_api = any(
+            isinstance(item, ast.ClassDef)
+            and item.name == (imported_symbol or constructor)
+            and any(isinstance(member, ast.AsyncFunctionDef) for member in item.body)
+            for item in module_tree.body
+        ) if module_tree is not None else False
+        is_async_target = (
+            module.rsplit(".", 1)[-1].endswith("_async")
+            or constructor.lower().endswith("async")
+            or class_has_async_api
+        )
+        if not is_async_target:
+            add(findings, "ERROR", async_example, node.lineno, "ASYNC_EXAMPLE_SYNC_DRIVER", f"async example constructs internal synchronous driver '{constructor}' from '{module}'; construct the async facade and await its explicit async APIs")
+
+
 def async_example_checks(async_example, code_dir, trees, findings):
     """Require every declared async example to exercise an internal driver."""
     tree = trees.get(async_example) or read_tree(async_example, findings)
@@ -998,6 +1040,7 @@ def async_example_checks(async_example, code_dir, trees, findings):
         add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_CALL", "async example imports an internal driver but does not call its API")
     elif not has_driver_business_call(tree, imported_runtime_names):
         add(findings, "ERROR", async_example, 1, "ASYNC_EXAMPLE_NO_DRIVER_BUSINESS_CALL", "async example constructs or cleans up an internal driver but does not call a mapped business API")
+    async_driver_constructor_checks(async_example, tree, code_dir, trees, findings)
 
 
 def example_fidelity(package, source, code_dir, trees, findings, example, allow_legacy_syntax, source_context):
