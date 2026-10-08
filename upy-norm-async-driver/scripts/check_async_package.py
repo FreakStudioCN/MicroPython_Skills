@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import ast
 import hashlib
+import inspect
 import json
 import re
 import sys
@@ -21,7 +22,7 @@ EXTERNAL_MODULES = {
     "uos", "uselect", "usocket", "ussl", "utime",
 }
 SKIP_RUNTIME = {"main.py", "__pycache__"}
-SOURCE_BLOCKING_CALLS = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms", "sleep_ms", "sleep_us"}
+SOURCE_BLOCKING_CALLS = {"time.sleep", "time.sleep_ms", "time.sleep_us", "utime.sleep", "utime.sleep_ms", "utime.sleep_us", "sleep", "sleep_ms", "sleep_us"}
 SYNC_DELEGATE_ATTRIBUTES = {"_sync", "_source", "_driver", "_base", "_device"}
 CALLBACK_IO_NAMES = {"read", "readinto", "readline", "readfrom", "readfrom_into", "write", "writeto", "write_readinto", "open", "connect"}
 NON_BUSINESS_DRIVER_CALLS = {
@@ -567,7 +568,7 @@ def source_dependency_checks(source, code_dir, output_trees, findings, sync_exam
     missing_direct = {name for name in source_direct if name not in output_direct and name + "Async" not in output_direct}
     if missing_direct:
         add(findings, "ERROR", async_example, 1, "EXAMPLE_DRIVER_CONSTRUCTOR_FIDELITY", "async example omits source driver constructor(s): " + ", ".join(sorted(missing_direct)))
-    allowed_method_renames = {"deinit": "aclose", "close": "aclose"}
+    allowed_method_renames = {"deinit": "aclose", "close": "aclose", "clean_up": "aclose"}
     missing_methods = {
         name for name in source_methods
         if name not in output_methods
@@ -581,25 +582,38 @@ def source_dependency_checks(source, code_dir, output_trees, findings, sync_exam
         add(findings, "ERROR", async_example, 1, "EXAMPLE_DRIVER_API_FIDELITY", "async example omits source driver API call(s): " + ", ".join(sorted(missing_methods)))
 
 
+def blocking_call_names(tree):
+    """Resolve time imports without classifying unrelated objects' sleep methods."""
+    names = set(SOURCE_BLOCKING_CALLS)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in {"time", "utime"}:
+                    names.update((alias.asname or alias.name) + "." + name for name in ("sleep", "sleep_ms", "sleep_us"))
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                local = alias.asname or alias.name
+                if node.module in {"time", "utime"} and alias.name in {"sleep", "sleep_ms", "sleep_us"}:
+                    names.add(local)
+                elif local in {"sleep", "sleep_ms", "sleep_us"}:
+                    names.discard(local)
+    return names
+
+
 def source_methods_with_blocking_waits(source_trees):
     """Return source method names that directly or transitively call blocking waits."""
     functions = {}
+    direct_blocked = set()
     for tree in source_trees.values():
         if tree is None:
             continue
+        blocking_names = blocking_call_names(tree)
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 functions.setdefault(node.name, []).append(node)
-    blocked = {
-        name
-        for name, nodes in functions.items()
-        if any(
-            call_name(call.func) in SOURCE_BLOCKING_CALLS
-            for node in nodes
-            for call in ast.walk(node)
-            if isinstance(call, ast.Call)
-        )
-    }
+                if any(isinstance(call, ast.Call) and call_name(call.func) in blocking_names for call in ast.walk(node)):
+                    direct_blocked.add(node.name)
+    blocked = direct_blocked
     changed = True
     while changed:
         changed = False
@@ -623,6 +637,7 @@ def source_class_details(source_trees):
     for tree in source_trees.values():
         if tree is None:
             continue
+        blocking_names = blocking_call_names(tree)
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
@@ -644,7 +659,7 @@ def source_class_details(source_trees):
             class_blocked = {
                 name for name, nodes in methods.items()
                 if any(
-                    call_name(call.func) in SOURCE_BLOCKING_CALLS
+                    call_name(call.func) in blocking_names
                     for method in nodes for call in ast.walk(method) if isinstance(call, ast.Call)
                 )
             }
@@ -667,6 +682,7 @@ def source_class_details(source_trees):
                 "blocking_properties": property_getters & class_blocked,
                 "blocked_methods": class_blocked,
                 "unsafe_callbacks": unsafe_callbacks,
+                "methods": methods,
             }
     changed = True
     while changed:
@@ -805,6 +821,35 @@ def is_sync_delegate(call):
     return False
 
 
+def method_signature(node):
+    """Build a binding-only signature; never evaluate source defaults or annotations."""
+    args = node.args
+    positional = args.posonlyargs + args.args
+    defaults_start = len(positional) - len(args.defaults)
+    parameters = []
+    for index, arg in enumerate(positional):
+        kind = inspect.Parameter.POSITIONAL_ONLY if index < len(args.posonlyargs) else inspect.Parameter.POSITIONAL_OR_KEYWORD
+        default = inspect.Parameter.empty if index < defaults_start else ast.dump(args.defaults[index - defaults_start])
+        parameters.append(inspect.Parameter(arg.arg, kind, default=default))
+    if args.vararg:
+        parameters.append(inspect.Parameter(args.vararg.arg, inspect.Parameter.VAR_POSITIONAL))
+    for arg, default in zip(args.kwonlyargs, args.kw_defaults):
+        parameters.append(inspect.Parameter(arg.arg, inspect.Parameter.KEYWORD_ONLY, default=inspect.Parameter.empty if default is None else ast.dump(default)))
+    if args.kwarg:
+        parameters.append(inspect.Parameter(args.kwarg.arg, inspect.Parameter.VAR_KEYWORD))
+    return inspect.Signature(parameters)
+
+
+def source_forwarding_check(path, call, source_method, bound, findings):
+    if any(isinstance(arg, ast.Starred) for arg in call.args) or any(kw.arg is None for kw in call.keywords):
+        return
+    args = [None] * (len(call.args) + int(bound))
+    try:
+        method_signature(source_method).bind(*args, **{kw.arg: None for kw in call.keywords})
+    except TypeError as exc:
+        add(findings, "ERROR", path, call.lineno, "ASYNC_SOURCE_ARGUMENT_BINDING", f"source call cannot bind: {exc}; preserve keyword-only names and forward them by keyword")
+
+
 def async_delegation_checks(source, code_dir, output_trees, findings, allow_legacy_syntax, source_context):
     """Reject async facades that delegate to source methods with blocking waits."""
     source_trees = {
@@ -823,6 +868,10 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
             if not is_async_facade_class(cls):
                 continue
             declared_methods = {item.name for item in cls.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))}
+            exposed = set().union(*(details[base]["blocked_methods"] for base in source_bases)) - declared_methods if source_bases else set()
+            exposed = {name for name in exposed if not name.startswith("_")}
+            if exposed:
+                add(findings, "WARN", path, cls.lineno, "ASYNC_EXPOSES_BLOCKING_SOURCE_API", "inherited blocking API remains callable: " + ", ".join(sorted(exposed)) + "; prefer composition or explicit cooperative overrides; document any intentional bounded synchronous boundary")
             if source_bases and "__init__" not in declared_methods and any("__init__" in details[base]["blocked_methods"] for base in source_bases):
                 add(findings, "ERROR", path, cls.lineno, "ASYNC_IMPLICITLY_INHERITS_BLOCKING_INIT", "async facade implicitly inherits a source __init__() with blocking waits; define an inert constructor and move source lifecycle work to async initialize()")
             inherited_unsafe_callbacks = set().union(*(details[base]["unsafe_callbacks"] for base in source_bases)) - declared_methods if source_bases else set()
@@ -831,12 +880,22 @@ def async_delegation_checks(source, code_dir, output_trees, findings, allow_lega
             for method in cls.body:
                 if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
+                source_name = method.name.removesuffix("_async")
+                for base in source_bases:
+                    original = details[base]["methods"].get(source_name, [])
+                    if isinstance(method, ast.AsyncFunctionDef) and original and method_signature(original[0]) != method_signature(method):
+                        add(findings, "WARN", path, method.lineno, "ASYNC_SOURCE_SIGNATURE_CHANGED", f"'{method.name}' changes source parameter names, kinds, or defaults; preserve the signature or document the intentional mapping and test source-example calls")
                 for call in ast.walk(method):
                     if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Attribute):
                         continue
                     target = call.func.attr
                     receiver = call.func.value
                     is_super = isinstance(receiver, ast.Call) and isinstance(receiver.func, ast.Name) and receiver.func.id == "super"
+                    binding_bases = source_bases if is_super else ({receiver.id} if isinstance(receiver, ast.Name) and receiver.id in details else set())
+                    if len(binding_bases) == 1:
+                        original = details[next(iter(binding_bases))]["methods"].get(target, [])
+                        if original and not original[0].decorator_list:
+                            source_forwarding_check(path, call, original[0], is_super, findings)
                     if method.name == "__init__" and is_super and target == "__init__" and any(
                         "__init__" in details[base]["blocked_methods"] for base in source_bases
                     ):
@@ -997,23 +1056,26 @@ def async_driver_constructor_checks(async_example, tree, code_dir, trees, findin
             constructor = node.func.attr
         else:
             continue
-        if binding is None or not constructor[:1].isupper():
+        if binding is None:
             continue
         module, imported_symbol = binding
         module_tree = trees.get(runtime_modules[module])
-        class_has_async_api = any(
-            isinstance(item, ast.ClassDef)
-            and item.name == (imported_symbol or constructor)
-            and any(isinstance(member, ast.AsyncFunctionDef) for member in item.body)
-            for item in module_tree.body
-        ) if module_tree is not None else False
-        is_async_target = (
-            module.rsplit(".", 1)[-1].endswith("_async")
-            or constructor.lower().endswith("async")
-            or class_has_async_api
-        )
+        cls = next((item for item in module_tree.body if isinstance(item, ast.ClassDef) and item.name == (imported_symbol or constructor)), None) if module_tree is not None else None
+        if cls is None:
+            continue  # Re-exports/factories need call-path review, not a name-based verdict.
+        members = [item for item in cls.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        is_async_target = any(isinstance(member, ast.AsyncFunctionDef) for member in members)
+        # Only accept clearly data-only classes here; unknown calls need review.
+        value_object = not cls.bases and not any(isinstance(item, (ast.Call, ast.Await, ast.Subscript, ast.While, ast.For)) for item in ast.walk(cls))
+        if value_object:
+            continue
+        if cls.bases and not is_async_target:
+            add(findings, "WARN", async_example, node.lineno, "ASYNC_EXAMPLE_INHERITED_DRIVER_REVIEW", f"resolve inherited APIs of '{constructor}' and verify the example awaits the operational path; class/module names do not prove async safety")
+            continue
         if not is_async_target:
-            add(findings, "ERROR", async_example, node.lineno, "ASYNC_EXAMPLE_SYNC_DRIVER", f"async example constructs internal synchronous driver '{constructor}' from '{module}'; construct the async facade and await its explicit async APIs")
+            blocking_names = blocking_call_names(module_tree)
+            blocking = any(isinstance(item, ast.Call) and call_name(item.func) in blocking_names for item in ast.walk(cls))
+            add(findings, "ERROR" if blocking else "WARN", async_example, node.lineno, "ASYNC_EXAMPLE_SYNC_DRIVER", f"async example constructs synchronous class '{constructor}' from '{module}'; use the cooperative facade for blocking operations, or verify and document this value/helper/bounded synchronous boundary")
 
 
 def async_example_checks(async_example, code_dir, trees, findings):

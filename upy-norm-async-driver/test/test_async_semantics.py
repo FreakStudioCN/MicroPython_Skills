@@ -24,6 +24,32 @@ SEMANTICS = load_module("async_semantics_checker", ROOT / "scripts" / "check_asy
 
 
 class CallbackAuditTest(unittest.TestCase):
+    def test_lifecycle_sleep_aliases(self):
+        for statement, call in (("from time import sleep", "sleep"), ("from utime import sleep as pause", "pause"), ("import time as clock", "clock.sleep")):
+            with self.subTest(statement=statement):
+                findings = self.semantic_findings_for(statement + "\nclass Driver:\n    def __init__(self):\n        " + call + "(1)\n")
+                self.assertIn("LIFECYCLE_BLOCKING_CALL", [item.code for item in findings])
+
+    def test_asyncio_sleep_alias_is_not_blocking(self):
+        findings = self.semantic_findings_for("from asyncio import sleep\nasync def aclose():\n    await sleep(1)\n")
+        self.assertNotIn("LIFECYCLE_BLOCKING_CALL", [item.code for item in findings])
+
+    def test_nested_sync_timing_primitive_is_not_a_direct_async_sleep(self):
+        findings = self.semantic_findings_for("from time import sleep_us\nasync def send():\n    def pulse():\n        sleep_us(2)\n    pulse()\n")
+        self.assertNotIn("ASYNC_BLOCKING_WAIT", [item.code for item in findings])
+
+    def test_aliased_wait_in_async_business_method_is_detected(self):
+        findings = self.semantic_findings_for("from time import sleep as pause\nasync def read_async():\n    pause(1)\n")
+        self.assertIn("ASYNC_BLOCKING_WAIT", [item.code for item in findings])
+
+    def test_cleanup_after_stop_needs_exception_review(self):
+        findings = self.semantic_findings_for("async def run(device):\n    try:\n        await device.read()\n    finally:\n        await device.stop()\n        await device.aclose()\n")
+        self.assertIn("CLEANUP_AFTER_FALLIBLE_STEP", [item.code for item in findings])
+
+    def test_nested_finally_protects_close(self):
+        findings = self.semantic_findings_for("async def run(device):\n    try:\n        await device.read()\n    finally:\n        try:\n            await device.stop()\n        finally:\n            await device.aclose()\n")
+        self.assertNotIn("CLEANUP_AFTER_FALLIBLE_STEP", [item.code for item in findings])
+
     def findings_for(self, source):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "driver.py"

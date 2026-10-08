@@ -59,6 +59,82 @@ class ReadmeCapabilityChecksTest(unittest.TestCase):
 
 
 class SourceCompatibilityChecksTest(unittest.TestCase):
+    def test_inherited_surface_and_signature_changes_have_actionable_findings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "source"
+            source.mkdir()
+            (source / "driver.py").write_text(
+                "from time import sleep as pause\nclass Driver:\n"
+                "    def read(self):\n        pause(1)\n"
+                "    def attach(self, channel, *, neutral_us=1500):\n        pass\n",
+                encoding="utf-8",
+            )
+            output = root / "code" / "driver_async.py"
+            tree = ast.parse("class DriverAsync(Driver):\n    async def attach_async(self, channel, neutral_us=1500):\n        return super().attach(channel, neutral_us)\n")
+            findings = []
+            CHECKER.async_delegation_checks(source, output.parent, {output: tree}, findings, False, {})
+            codes = {item.code for item in findings}
+            self.assertTrue({"ASYNC_EXPOSES_BLOCKING_SOURCE_API", "ASYNC_SOURCE_SIGNATURE_CHANGED", "ASYNC_SOURCE_ARGUMENT_BINDING"}.issubset(codes))
+
+    def test_clean_up_can_map_to_declared_aclose(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "source"
+            source.mkdir()
+            baseline = source / "main.py"
+            baseline.write_text("from driver import Driver\ndevice = Driver()\ndevice.clean_up()\n", encoding="utf-8")
+            (source / "driver.py").write_text("class Driver:\n    def clean_up(self): pass\n", encoding="utf-8")
+            code = root / "code"
+            code.mkdir()
+            example = code / "main.py"
+            example.touch()
+            main_tree = ast.parse("from driver_async import DriverAsync\nasync def main():\n    device = DriverAsync()\n    await device.aclose()\n")
+            for method, expected_missing in (("aclose", False), ("unrelated", True)):
+                findings = []
+                trees = {example: main_tree, code / "driver_async.py": ast.parse("class DriverAsync:\n    async def " + method + "(self): pass\n")}
+                CHECKER.source_dependency_checks(source, code, trees, findings, baseline, example, main_tree, False, {})
+                self.assertEqual(expected_missing, "EXAMPLE_DRIVER_API_FIDELITY" in {item.code for item in findings})
+
+    def test_bounded_sync_helper_gets_review_not_forced_conversion(self):
+        findings = self.async_example_findings(
+            "from helper import Helper\nasync def main():\n    helper = Helper()\n    helper.sample()\n",
+            {"helper.py": "class Helper:\n    def sample(self):\n        return self.bus.readfrom(1, 2)\n"},
+        )
+        matching = [item for item in findings if item.code == "ASYNC_EXAMPLE_SYNC_DRIVER"]
+        self.assertEqual(["WARN"], [item.severity for item in matching])
+
+    def test_sleep_import_aliases_and_unrelated_method(self):
+        for statement, call in (("from time import sleep", "sleep"), ("from utime import sleep as pause", "pause"), ("import time as clock", "clock.sleep")):
+            with self.subTest(statement=statement):
+                tree = ast.parse(statement + "\nclass Driver:\n    def reset(self):\n        " + call + "(1)\n")
+                self.assertIn("reset", CHECKER.source_methods_with_blocking_waits({Path("driver.py"): tree}))
+                self.assertIn("reset", CHECKER.source_class_details({Path("driver.py"): tree})["Driver"]["blocked_methods"])
+        tree = ast.parse("from asyncio import sleep\nasync def wait():\n    await sleep(1)\n")
+        self.assertNotIn("wait", CHECKER.source_methods_with_blocking_waits({Path("driver.py"): tree}))
+
+    def test_keyword_only_forwarding(self):
+        method = ast.parse("def attach(self, channel, *, neutral_us=1500, reversed=False): pass").body[0]
+        for call, expected in (("super().attach(1, 1500, False)", True), ("super().attach(1, neutral_us=1500, reversed=False)", False), ("super().attach(1, reverse=False)", True)):
+            with self.subTest(call=call):
+                findings = []
+                CHECKER.source_forwarding_check(Path("driver.py"), ast.parse(call).body[0].value, method, True, findings)
+                self.assertEqual(expected, bool(findings))
+
+    def test_value_object_is_not_a_sync_driver(self):
+        findings = self.async_example_findings(
+            "from values import Effect\nasync def main():\n    effect = Effect(7)\n",
+            {"values.py": "class Effect:\n    def __init__(self, value):\n        self.value = value\n"},
+        )
+        self.assertNotIn("ASYNC_EXAMPLE_SYNC_DRIVER", [item.code for item in findings])
+
+    def test_async_suffix_and_lowercase_alias_do_not_hide_sync_driver(self):
+        findings = self.async_example_findings(
+            "from driver_async import DriverAsync as device\nasync def main():\n    driver = device()\n    driver.read()\n",
+            {"driver_async.py": "from time import sleep\nclass DriverAsync:\n    def read(self):\n        sleep(1)\n"},
+        )
+        self.assertIn("ASYNC_EXAMPLE_SYNC_DRIVER", [item.code for item in findings])
+
     def async_example_findings(self, main_source, runtime_sources):
         with tempfile.TemporaryDirectory() as temp_dir:
             code_dir = Path(temp_dir) / "code"
@@ -78,7 +154,7 @@ class SourceCompatibilityChecksTest(unittest.TestCase):
         findings = self.async_example_findings(
             "from sync_driver import Driver\nasync def main():\n    device = Driver()\n    return device.read()\n",
             {
-                "sync_driver.py": "class Driver:\n    def read(self):\n        return 1\n",
+                "sync_driver.py": "from time import sleep\nclass Driver:\n    def read(self):\n        sleep(1)\n",
                 "driver_async.py": "class DriverAsync:\n    async def read_async(self):\n        return 1\n",
             },
         )

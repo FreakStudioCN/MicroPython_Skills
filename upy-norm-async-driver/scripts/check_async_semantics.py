@@ -15,7 +15,7 @@ from pathlib import Path
 
 SKIP_DIRS = {".git", "__pycache__", ".mypy_cache", ".pytest_cache", "build", "dist"}
 LIFECYCLE_NAMES = {"__init__", "start", "stop", "close", "aclose", "deinit"}
-BLOCKING_NAMES = {"time.sleep", "time.sleep_ms", "utime.sleep", "utime.sleep_ms", "sleep_ms", "sleep_us"}
+BLOCKING_NAMES = {"time.sleep", "time.sleep_ms", "time.sleep_us", "utime.sleep", "utime.sleep_ms", "utime.sleep_us", "sleep", "sleep_ms", "sleep_us"}
 IRQ_IO_NAMES = {"read", "readinto", "readline", "readfrom", "readfrom_into", "write", "writeto", "write_readinto", "open", "connect"}
 CLEANUP_NAMES = {"stop", "close", "aclose", "deinit"}
 RUNTIME_MODULES = {"asyncio", "machine", "micropython", "time", "utime"}
@@ -174,6 +174,40 @@ def has_cleanup_finally(main_node):
             if isinstance(child, ast.Call) and call_name(child.func).rsplit(".", 1)[-1] in CLEANUP_NAMES:
                 return True
     return False
+
+
+def cleanup_order_findings(path, tree, findings):
+    """Flag demonstrably unprotected fall-through cleanup for ownership review."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        previous_calls = False
+        for statement in node.finalbody:
+            # Nested finally is the normal remedy; do not flatten its control flow.
+            if isinstance(statement, ast.Try):
+                previous_calls = True
+                continue
+            calls = [item for item in ast.walk(statement) if isinstance(item, ast.Call)]
+            if previous_calls and any(call_name(call.func).rsplit(".", 1)[-1] in CLEANUP_NAMES for call in calls):
+                add(findings, "WARN", path, statement, "CLEANUP_AFTER_FALLIBLE_STEP", "earlier finally work can fail/cancel before this cleanup; use nested try/finally for independently owned resources and fault-test release exactly once")
+            previous_calls = previous_calls or bool(calls)
+
+
+def lifecycle_blocking_names(tree):
+    names = set(BLOCKING_NAMES)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in {"time", "utime"}:
+                    names.update((alias.asname or alias.name) + "." + name for name in ("sleep", "sleep_ms", "sleep_us"))
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                local = alias.asname or alias.name
+                if node.module in {"time", "utime"} and alias.name in {"sleep", "sleep_ms", "sleep_us"}:
+                    names.add(local)
+                elif local in {"sleep", "sleep_ms", "sleep_us"}:
+                    names.discard(local)
+    return names
 
 
 def callback_name(node):
@@ -480,12 +514,25 @@ def callback_state_preallocation_findings(path, tree, findings):
                     )
 
 
+def function_body_nodes(function):
+    """Do not attribute a nested synchronous timing primitive to its coroutine."""
+    pending = list(function.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        yield node
+        pending.extend(ast.iter_child_nodes(node))
+
+
 def audit_tree(path, tree, findings, role):
     if role == "sync_compatibility":
         if any(isinstance(node, ast.AsyncFunctionDef) for node in ast.walk(tree)):
             add(findings, "ERROR", path, tree, "SYNC_COMPAT_ASYNC_DEF", "sync_compatibility modules must not define async functions")
         return
     definition_findings(path, tree, findings)
+    cleanup_order_findings(path, tree, findings)
+    blocking_names = lifecycle_blocking_names(tree)
     poll_timeout_findings(path, tree, findings)
     runtime_module_findings(path, tree, findings)
     unbound_runtime_symbol_findings(path, tree, findings)
@@ -493,15 +540,15 @@ def audit_tree(path, tree, findings, role):
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        for child in ast.walk(node):
-            if child is node:
-                continue
+        for child in function_body_nodes(node):
             if isinstance(child, (ast.Import, ast.ImportFrom)):
                 add(findings, "ERROR", path, child, "FUNCTION_LOCAL_IMPORT", "runtime imports must be module-level unless an explicit memory exception is documented")
             if isinstance(child, ast.Call):
                 name = call_name(child.func)
-                if node.name in LIFECYCLE_NAMES and name in BLOCKING_NAMES:
+                if node.name in LIFECYCLE_NAMES and name in blocking_names:
                     add(findings, "ERROR", path, child, "LIFECYCLE_BLOCKING_CALL", f"{node.name}() contains blocking {name}()")
+                elif isinstance(node, ast.AsyncFunctionDef) and name in blocking_names:
+                    add(findings, "ERROR", path, child, "ASYNC_BLOCKING_WAIT", f"{name}() blocks the coroutine; split protocol waits cooperatively, keeping justified strict-timing primitives in bounded synchronous helpers")
                 if name in {"asyncio.create_task", "create_task"} and isinstance(getattr(child, "parent", None), ast.Expr):
                     add(findings, "ERROR", path, child, "UNSTORED_TASK", "device task must be stored for cancellation and shutdown")
 

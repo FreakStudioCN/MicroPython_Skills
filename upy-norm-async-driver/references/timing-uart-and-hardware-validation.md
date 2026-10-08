@@ -78,7 +78,7 @@ Generated MicroPython `.py` files must be UTF-8 without BOM. If hardware evidenc
 
 For a conventional single-demo source, copy runnable `main.py` byte-for-byte to `examples/main_sync.py`. If the source instead uses multiple named runnable examples, declare each mapping in the async output's `async_source_examples.json`, preserve each declared source byte-for-byte under `examples/*_sync.py`, and map each to an async example. `code/main.py` remains the default entrypoint but is only one mapped async example; never fabricate a source `main.py`.
 
-When the source package is available, use every declared source example as a root of a recursive local-import check and preserve the union of their reachable support modules, package initializers, and imported or attribute-referenced symbols. This is a dependency closure, not a demand to copy unrelated source modules. Each mapped async example must retain its source driver's construction and business calls; the static checker accepts the conventional `<method>_async` rename and `deinit()`/`close()` to `aclose()` lifecycle rename, but other API changes require manual review against the demo mapping table.
+When the source package is available, use every declared source example as a root of a recursive local-import check and preserve the union of their reachable support modules, package initializers, and imported or attribute-referenced symbols. This is a dependency closure, not a demand to copy unrelated source modules. Each mapped async example must retain its source driver's construction and business calls; the static checker accepts the conventional `<method>_async` rename and `deinit()`/`close()`/`clean_up()` to `aclose()` lifecycle rename, but other API changes require manual review against the demo mapping table. Acceptance of a rename proves only method presence: verify equivalent shutdown effects and resource ownership; do not call two equivalent cleanup APIs merely to satisfy name matching.
 
 ## Incomplete Source Evidence
 
@@ -128,3 +128,33 @@ Frame and unsolicited-data policy: <description>
 ```
 
 The static checker can flag direct reads of one UART member from multiple async methods. A warning is not proof of a bug when a lock is intentionally used, but it requires the documented contract and manual review.
+
+## Conversion Regression Evidence
+
+Apply these checks to affected paths, not as a demand to rewrite every synchronous helper. Host mocks validate observable software contracts; they do not prove bus latency, IRQ allocation safety, PIO timing, or physical device acceptance. Keep source behavior as the oracle unless correcting a separately documented source defect.
+
+| Risk / finding | Conversion remedy | Focused evidence |
+|---|---|---|
+| Imported/aliased sleep in source initialization or delegated methods | Keep construction inert; implement send, cooperative wait, and bounded read/retry in source order. Keep a justified strict-timing pulse/PIO primitive synchronous and document its boundary. | Exercise initialization and each delegated API; record command order and requested waits, and run a competing task to expose an unsplit wait. |
+| `ASYNC_EXPOSES_BLOCKING_SOURCE_API` / legacy facade | Prefer composition or explicit cooperative overrides; inventory all public APIs, not only methods reached by the demo. Remove obsolete generated facades from runtime deployment, while preserving immutable source evidence. | Check every public mapping, including inherited methods and returned descriptor/container objects. Explicitly record retained bounded sync APIs or approved exclusions. |
+| `ASYNC_SOURCE_ARGUMENT_BINDING` / `ASYNC_SOURCE_SIGNATURE_CHANGED` | Preserve keyword-only names/defaults and pass them by keyword. Additional timeout parameters or deliberate renames are allowed with an explicit mapping. | Call with source positional/keyword/default combinations; verify rejection of invalid inputs. Exercise example helpers to catch nested name shadowing and argument-count errors. |
+| `CLEANUP_AFTER_FALLIBLE_STEP` / incomplete close | Nest cleanup in `finally`; distinguish driver-owned resources from caller/shared buses. Make release idempotent and avoid rearming timers during shutdown. | Inject stop/reset/read failures and cancellation at await boundaries; verify owned resources release once, borrowed resources remain open, and tasks/IRQ producers stop. Repeated cancellation can interrupt awaited cleanup: document the shutdown policy and test the target runtime. |
+| Protocol changes hidden by passing static gates | Preserve command identifiers, order, response scaling/ranges, `None`/bool/tuple meanings, and source exceptions. Lock the entire send/wait/read transaction or use one reader with frame dispatch. | Fake transport records writes and serves scripted fragmented, unsolicited, timeout, and invalid responses. Assert immediate versus delayed commands separately; run two concurrent commands and verify responses cannot be exchanged. |
+
+A basic independent-resource cleanup shape is:
+
+```python
+try:
+    await device.run_async()
+finally:
+    try:
+        await device.disable_events_async()
+    finally:
+        await device.aclose()
+```
+
+This shape ensures the close attempt occurs even when disabling events raises; it does not make `aclose()` itself cancellation-proof. Put release of owned handles inside its own `finally`, and test partial initialization, repeated close, and failure during close. When the caller owns the I2C/UART bus, the caller releases it after driver shutdown, with its own protected cleanup; the driver must not silently close a shared bus.
+
+Implement package-specific tests under the generated package's test directory using `unittest` and injected fake transports/clocks where practical. Capture expected bytes and results from the source or protocol evidence, not from the new implementation. Keep CPython-only tests out of deployment metadata. For unavailable MicroPython features, record the precise untested boundary instead of accepting a permissive mock as proof. Report static gates, host behavior tests, and hardware tests separately.
+
+The static checks are conservative hints, not complete scope/type/control-flow analysis: dynamic re-exports, factories, multiple inheritance, helper-mediated cleanup, and returned proxy objects still need targeted review/tests. Review WARNs against evidence; do not suppress them by renaming classes or adding no-op cleanup calls. Unknown or justified bounded synchronous paths need an explicit disposition, not automatic async conversion. Pure value objects such as `Effect(id)` remain ordinary objects.
