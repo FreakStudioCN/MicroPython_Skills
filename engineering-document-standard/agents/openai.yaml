@@ -1,0 +1,4 @@
+interface:
+  display_name: "工程与客户文档标准"
+  short_description: "依据工程规范、项目方案与 SOP 范本，统一标题、内容组块、图文、表格和版本记录"
+  default_prompt: "使用 $engineering-document-standard，按指定范本整理这份文档，完成图文与表格排版并核验实际效果。"

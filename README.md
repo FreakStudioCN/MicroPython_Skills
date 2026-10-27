@@ -1,12 +1,14 @@
 # MicroPython Skills for GraftSense
 
-GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规范化和 MicroPythonOS App 发布三类 Skill 资产：
+GraftSense MicroPython 与工程文档 Skill 集合，包含硬件生成、驱动规范化、MicroPythonOS App 发布及工程文档整理能力：
 
 **A. 一句话造硬件 — AI 嵌入式代码生成流水线（10 个 skill）**：从自然语言需求出发，自动完成硬件选型、代码生成、PC 仿真、烧录部署、错误修复的完整闭环。
 
 **B. 驱动开发规范化（15 个 skill）**：基于 [GraftSense-Drivers-MicroPython](https://github.com/FreakStudioCN/GraftSense-Drivers-MicroPython) 仓库的完整编写规范（22章、2200+ 行），覆盖驱动规范化、测试文件生成、README 生成、性能优化、内存优化、打包、设备部署。
 
 **C. MicroPythonOS App / MPK / upystore 流水线（9 个 classic mpos skill + 9 个浏览器 `-web` skill）**：面向 [MicroPythonOS](https://docs.micropythonos.com/) App 开发。classic skill 用于 Claude Code `/skill-name 描述` 本地工作流；`mpos-*-web` 是新增浏览器/后端 runner 协议版，不覆盖原 skill。该体系不包含 `mpos-debug-app`。
+
+**D. 工程与客户文档（1 个 skill）**：`engineering-document-standard` 统一处理 PRD、技术规范、SOP、研究方案和知识库索引，Chrome 连接与云端读写作为同一技能的内部能力。
 
 > **当前 source of truth（2026-07）**：本仓库已经完成 VS Code 插件版 8 流程 Skill/plugin。若下游仓库的 submodule 只看到 6 个 plugin，说明下游 pinned commit 落后，应 bump/sync 到本仓库最新 commit，而不是认为 wiring/diagram 缺失。
 
@@ -141,6 +143,7 @@ GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规
 ## 目录
 
 - [当前 Skill / Plugin 全量导览](#当前-skill--plugin-全量导览)
+- [工程与客户文档（单一技能）](#工程与客户文档单一技能)
 - [安装方法](#安装方法)
 - [维护者：英文仓库自动同步](#维护者英文仓库自动同步)
 - [MicroPythonOS App / MPK / upystore 工作流](#micropythonos-app--mpk--upystore-工作流)
@@ -166,6 +169,46 @@ GraftSense MicroPython Skill 集合，包含 GraftSense 硬件生成、驱动规
 - [规范文档](#规范文档)
 - [版本记录](#版本记录)
 - [许可协议](#许可协议)
+
+---
+
+## 工程与客户文档（单一技能）
+
+[engineering-document-standard](engineering-document-standard/SKILL.md) 用于编写、整理和审核 PRD、技术规范、SOP、研究方案及知识库索引。按用户指定范本处理标题、正文组块、图文、原生表格、资料入口和版本记录，并在实际页面或文档中核验结果。
+
+本能力只有一个技能入口。浏览器连接说明、飞书编辑要点和连接脚本均为其内部资源，不另行安装浏览器技能：
+
+```text
+engineering-document-standard/
+├── SKILL.md
+├── .skillfish.json
+├── agents/openai.yaml
+├── references/
+│   ├── format-rules.md
+│   ├── source-profiles.md
+│   ├── delivery-workflow.md
+│   ├── chrome-connection.md
+│   └── chrome-editing.md
+└── scripts/
+    ├── chrome-session.cjs
+    └── tests/chrome-session.test.cjs
+```
+
+安装时复制整个目录至所用 AI 宿主的技能目录，保留相对路径。按本仓库现有 Claude Code 安装约定，也可单独复制：
+
+```bash
+cp -r MicroPython_Skills/engineering-document-standard ~/.claude/skills/
+```
+
+```powershell
+Copy-Item -Recurse MicroPython_Skills\engineering-document-standard $env:USERPROFILE\.claude\skills\
+```
+
+使用示例：
+
+> 使用 engineering-document-standard，按指定范本整理这份工程文档；需要操作云端页面时连接我当前已登录的 Chrome，完成后读回并检查实际版面。
+
+处理本地文件不要求连接浏览器。云端任务按现场能力选择已有浏览器插件、已安装的客户端或 CDP（Chrome 开发者工具协议）；随包脚本是可选方式，需支持持续交互的运行环境。远程 AI 的本地地址不能代指用户电脑。同一项连续工作复用有效会话、等待必要授权，不因中间回复反复重连；不保证跨宿主永久免确认。
 
 ---
 
@@ -210,7 +253,7 @@ for skill in upy-analyze upy-select-hw upy-scaffold upy-generate upy-simulate \
              mpos-test-app mpos-package-app mpos-deploy-app mpos-publish-app \
              mpos-dev-web mpos-plan-app-web mpos-analyze-app-web mpos-prepare-deps-web \
              mpos-gen-app-web mpos-test-app-web mpos-package-app-web \
-             mpos-deploy-app-web mpos-publish-app-web; do
+             mpos-deploy-app-web mpos-publish-app-web engineering-document-standard; do
   cp -r $skill ~/.claude/skills/
 done
 ```
@@ -232,7 +275,7 @@ $skills = @("upy-analyze","upy-select-hw","upy-scaffold","upy-generate","upy-sim
             "mpos-test-app","mpos-package-app","mpos-deploy-app","mpos-publish-app",
             "mpos-dev-web","mpos-plan-app-web","mpos-analyze-app-web","mpos-prepare-deps-web",
             "mpos-gen-app-web","mpos-test-app-web","mpos-package-app-web",
-            "mpos-deploy-app-web","mpos-publish-app-web")
+            "mpos-deploy-app-web","mpos-publish-app-web","engineering-document-standard")
 foreach ($skill in $skills) {
   Copy-Item -Recurse $skill $env:USERPROFILE\.claude\skills\
 }
